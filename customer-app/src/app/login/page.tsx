@@ -1,0 +1,76 @@
+import { LoginForm } from '@/features/auth/login/ui/LoginForm';
+import { ShoppingBag, Sparkles, Star, Zap } from 'lucide-react';
+import Link from 'next/link';
+import { Suspense } from 'react';
+
+export const metadata = {
+  title: 'Sign In | Aura Marketplace',
+  description: 'Sign in to your Aura account to explore local artisans and custom 3D prints.',
+};
+
+export default function LoginPage() {
+  return (
+    <main className="min-h-screen relative overflow-hidden bg-[#080810] flex items-center justify-center">
+
+      {/* ── Animated Orb Background ─────────────────────────────── */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="orb-1 absolute -top-40 -left-32 w-[500px] h-[500px] rounded-full bg-purple-600/20 blur-[100px]" />
+        <div className="orb-2 absolute top-1/3 -right-40 w-[400px] h-[400px] rounded-full bg-indigo-500/15 blur-[90px]" />
+        <div className="orb-3 absolute -bottom-32 left-1/4 w-[350px] h-[350px] rounded-full bg-violet-600/15 blur-[80px]" />
+
+        {/* Grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px),
+                             linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)`,
+            backgroundSize: '60px 60px',
+          }}
+        />
+      </div>
+
+      {/* ── Floating Badge Pills ─────────────────────────────────── */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[12%] left-[8%] flex items-center gap-1.5 px-3 py-1.5 glass-sm rounded-full animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <Star className="h-3 w-3 text-yellow-400" />
+          <span className="text-[11px] font-medium text-white/60">50k+ Creators</span>
+        </div>
+        <div className="absolute top-[22%] right-[10%] flex items-center gap-1.5 px-3 py-1.5 glass-sm rounded-full animate-fade-in" style={{ animationDelay: '0.4s' }}>
+          <Zap className="h-3 w-3 text-purple-400" />
+          <span className="text-[11px] font-medium text-white/60">Fast Delivery</span>
+        </div>
+        <div className="absolute bottom-[20%] left-[6%] flex items-center gap-1.5 px-3 py-1.5 glass-sm rounded-full animate-fade-in" style={{ animationDelay: '0.6s' }}>
+          <Sparkles className="h-3 w-3 text-indigo-400" />
+          <span className="text-[11px] font-medium text-white/60">Custom 3D Prints</span>
+        </div>
+        <div className="absolute bottom-[30%] right-[8%] flex items-center gap-1.5 px-3 py-1.5 glass-sm rounded-full animate-fade-in" style={{ animationDelay: '0.8s' }}>
+          <ShoppingBag className="h-3 w-3 text-pink-400" />
+          <span className="text-[11px] font-medium text-white/60">Local Artisans</span>
+        </div>
+      </div>
+
+      {/* ── Brand header (top center) ────────────────────────────── */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 animate-fade-in">
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="relative flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden">
+            <div className="absolute inset-0 gradient-btn rounded-xl" />
+            <ShoppingBag className="relative h-4.5 w-4.5 text-white z-10" />
+          </div>
+          <span className="text-lg font-bold gradient-text">Aura</span>
+        </Link>
+      </div>
+
+      {/* ── Glass Form Card ─────────────────────────────────────── */}
+      <div className="relative z-10 w-full max-w-md px-4 animate-fade-up">
+        <Suspense fallback={
+          <div className="glass-card p-8 space-y-6 text-center text-white/50 text-sm">
+            <span className="h-6 w-6 rounded-full border-2 border-white/20 border-t-white animate-spin inline-block mr-2 align-middle" />
+            Loading authentication form...
+          </div>
+        }>
+          <LoginForm />
+        </Suspense>
+      </div>
+    </main>
+  );
+}

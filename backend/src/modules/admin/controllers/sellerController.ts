@@ -1,0 +1,595 @@
+import type { Request, Response } from "express";
+import { prisma } from "../../../config/prisma.js";
+import { logAdminAction } from "../utils/actionLogger.js";
+import { AdminActionType } from "@prisma/client";
+
+export const getSellers = async (req: Request, res: Response) => {
+    try {
+        const { search, status, page = 1, limit = 10 } = req.query;
+
+        const whereClause: any = {
+            isDeactivated: false
+        };
+
+        if (status) {
+            whereClause.status = String(status);
+        }
+
+        if (search) {
+            whereClause.OR = [
+                { email: { contains: String(search), mode: "insensitive" } },
+                { firstName: { contains: String(search), mode: "insensitive" } },
+                { lastName: { contains: String(search), mode: "insensitive" } },
+                { username: { contains: String(search), mode: "insensitive" } }
+            ];
+        }
+
+        const skip = (Number(page) - 1) * Number(limit);
+        const take = Number(limit);
+
+        const [sellers, total] = await prisma.$transaction([
+            prisma.seller.findMany({
+                where: whereClause,
+                include: { shop: true },
+                orderBy: { createdAt: "desc" },
+                skip,
+                take
+            }),
+            prisma.seller.count({ where: whereClause })
+        ]);
+
+        return res.status(200).json({
+            sellers,
+            pagination: {
+                total,
+                page: Number(page),
+                limit: Number(limit),
+                pages: Math.ceil(total / Number(limit))
+            }
+        });
+    } catch (error: any) {
+        console.error("GET SELLERS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const getSeller = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+
+        const seller = await prisma.seller.findUnique({
+            where: { id: sellerId },
+            include: {
+                shop: true,
+                addresses: true,
+                bankAccounts: true,
+                strikes: true,
+                verifications: {
+                    orderBy: { createdAt: "desc" }
+                }
+            }
+        });
+
+        if (!seller) {
+            return res.status(404).json({ message: "Seller not found" });
+        }
+
+        return res.status(200).json({ seller });
+    } catch (error: any) {
+        console.error("GET SELLER DETAIL ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const approveSeller = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+        const adminId = req.adminId!;
+
+        const seller = await prisma.seller.findUnique({
+            where: { id: sellerId }
+        });
+
+        if (!seller) {
+            return res.status(404).json({ message: "Seller not found" });
+        }
+
+        if (seller.status === "PENDING_VERIFICATION") {
+            return res.status(400).json({ message: "Shop is in DRAFT status and must be submitted for approval by the seller first." });
+        }
+
+        const updatedSeller = await prisma.seller.update({
+            where: { id: sellerId },
+            data: {
+                status: "APPROVED",
+                approvedAt: new Date(),
+                approvedByAdminId: adminId
+            }
+        });
+
+        // Activate the shop automatically if exists
+        await prisma.shop.updateMany({
+            where: { sellerId },
+            data: { isActive: true }
+        });
+
+        // Update pending verifications to APPROVED
+        await prisma.sellerVerification.updateMany({
+            where: { sellerId, status: "PENDING" },
+            data: {
+                status: "APPROVED",
+                reviewedByAdminId: adminId,
+                reviewedAt: new Date()
+            }
+        });
+
+        await logAdminAction({
+            adminId,
+            actionType: AdminActionType.SELLER_APPROVED,
+            targetType: "Seller",
+            targetId: sellerId,
+            description: `Seller ${seller.username} approved by admin`,
+            previousValue: { status: seller.status },
+            newValue: { status: "APPROVED" }
+        });
+
+        return res.status(200).json({
+            message: "Seller approved successfully",
+            seller: updatedSeller
+        });
+    } catch (error: any) {
+        console.error("APPROVE SELLER ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const rejectSeller = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+        const adminId = req.adminId!;
+        const { reason } = req.body;
+
+        const seller = await prisma.seller.findUnique({
+            where: { id: sellerId }
+        });
+
+        if (!seller) {
+            return res.status(404).json({ message: "Seller not found" });
+        }
+
+        if (seller.status === "PENDING_VERIFICATION") {
+            return res.status(400).json({ message: "Shop is in DRAFT status and must be submitted for approval by the seller first." });
+        }
+
+        const updatedSeller = await prisma.seller.update({
+            where: { id: sellerId },
+            data: {
+                status: "REJECTED",
+                rejectedAt: new Date(),
+                rejectionReason: reason || "Does not meet criteria"
+            }
+        });
+
+        // Deactivate shop
+        await prisma.shop.updateMany({
+            where: { sellerId },
+            data: { isActive: false }
+        });
+
+        // Update pending verifications to REJECTED
+        await prisma.sellerVerification.updateMany({
+            where: { sellerId, status: "PENDING" },
+            data: {
+                status: "REJECTED",
+                reviewedByAdminId: adminId,
+                reviewedAt: new Date(),
+                rejectionReason: reason || "Does not meet criteria"
+            }
+        });
+
+        await logAdminAction({
+            adminId,
+            actionType: AdminActionType.SELLER_REJECTED,
+            targetType: "Seller",
+            targetId: sellerId,
+            description: `Seller ${seller.username} verification rejected. Reason: ${reason}`,
+            previousValue: { status: seller.status },
+            newValue: { status: "REJECTED", rejectionReason: reason }
+        });
+
+        return res.status(200).json({
+            message: "Seller verification rejected",
+            seller: updatedSeller
+        });
+    } catch (error: any) {
+        console.error("REJECT SELLER ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const banSeller = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+        const adminId = req.adminId!;
+        const { reason } = req.body;
+
+        const seller = await prisma.seller.findUnique({
+            where: { id: sellerId }
+        });
+
+        if (!seller) {
+            return res.status(404).json({ message: "Seller not found" });
+        }
+
+        const updatedSeller = await prisma.seller.update({
+            where: { id: sellerId },
+            data: {
+                isBanned: true,
+                status: "BANNED",
+                bannedAt: new Date(),
+                banReason: reason || "Violations of platform policy"
+            }
+        });
+
+        // Deactivate and Ban shop belonging to this seller
+        await prisma.shop.updateMany({
+            where: { sellerId },
+            data: { 
+                isActive: false,
+                isBanned: true,
+                banReason: `Banned due to seller ban: ${reason || 'Violations of platform policy'}`
+            }
+        });
+
+        await logAdminAction({
+            adminId,
+            actionType: AdminActionType.SELLER_BANNED,
+            targetType: "Seller",
+            targetId: sellerId,
+            description: `Seller ${seller.username} banned by admin. Reason: ${reason}`,
+            previousValue: { isBanned: seller.isBanned, status: seller.status },
+            newValue: { isBanned: true, status: "BANNED", banReason: reason }
+        });
+
+        return res.status(200).json({
+            message: "Seller banned successfully",
+            seller: updatedSeller
+        });
+    } catch (error: any) {
+        console.error("BAN SELLER ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const unbanSeller = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+        const adminId = req.adminId!;
+
+        const seller = await prisma.seller.findUnique({
+            where: { id: sellerId }
+        });
+
+        if (!seller) {
+            return res.status(404).json({ message: "Seller not found" });
+        }
+
+        const updatedSeller = await prisma.seller.update({
+            where: { id: sellerId },
+            data: {
+                isBanned: false,
+                status: "APPROVED",
+                bannedAt: null,
+                banReason: null
+            }
+        });
+
+        // Reactivate and Unban shop
+        await prisma.shop.updateMany({
+            where: { sellerId },
+            data: { 
+                isActive: true,
+                isBanned: false,
+                banReason: null
+            }
+        });
+
+        await logAdminAction({
+            adminId,
+            actionType: AdminActionType.SELLER_UNBANNED,
+            targetType: "Seller",
+            targetId: sellerId,
+            description: `Seller ${seller.username} unbanned by admin`,
+            previousValue: { isBanned: seller.isBanned, status: seller.status },
+            newValue: { isBanned: false, status: "APPROVED" }
+        });
+
+        return res.status(200).json({
+            message: "Seller unbanned successfully",
+            seller: updatedSeller
+        });
+    } catch (error: any) {
+        console.error("UNBAN SELLER ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const deleteSeller = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+        const adminId = req.adminId!;
+
+        const seller = await prisma.seller.findUnique({
+            where: { id: sellerId }
+        });
+
+        if (!seller) {
+            return res.status(404).json({ message: "Seller not found" });
+        }
+
+        await prisma.seller.update({
+            where: { id: sellerId },
+            data: {
+                isDeactivated: true,
+                deactivatedAt: new Date()
+            }
+        });
+
+        // Deactivate shop
+        await prisma.shop.updateMany({
+            where: { sellerId },
+            data: { isActive: false }
+        });
+
+        await logAdminAction({
+            adminId,
+            actionType: AdminActionType.SELLER_BANNED,
+            targetType: "Seller",
+            targetId: sellerId,
+            description: `Seller ${seller.username} soft-deleted/deactivated by admin`,
+            previousValue: { isDeactivated: seller.isDeactivated },
+            newValue: { isDeactivated: true }
+        });
+
+        return res.status(200).json({ message: "Seller deleted successfully" });
+    } catch (error: any) {
+        console.error("DELETE SELLER ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const getSellerShop = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+        const shop = await prisma.shop.findUnique({
+            where: { sellerId }
+        });
+
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found for this seller" });
+        }
+
+        return res.status(200).json({ shop });
+    } catch (error: any) {
+        console.error("GET SELLER SHOP ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const getSellerOrders = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+        const orders = await prisma.sellerOrder.findMany({
+            where: { sellerId },
+            include: {
+                order: {
+                    include: { customer: true }
+                },
+                items: true
+            },
+            orderBy: { createdAt: "desc" }
+        });
+        return res.status(200).json({ orders });
+    } catch (error: any) {
+        console.error("GET SELLER ORDERS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const getSellerProducts = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+        const products = await prisma.product.findMany({
+            where: { sellerId, isDeleted: false },
+            include: { variants: true },
+            orderBy: { createdAt: "desc" }
+        });
+        return res.status(200).json({ products });
+    } catch (error: any) {
+        console.error("GET SELLER PRODUCTS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const getSellerAnalytics = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+        const metrics = await prisma.sellerDailyMetric.findMany({
+            where: { sellerId },
+            orderBy: { date: "desc" },
+            take: 30
+        });
+
+        const totalEarnings = await prisma.sellerOrder.aggregate({
+            where: { sellerId, status: "DELIVERED" },
+            _sum: { sellerEarnings: true }
+        });
+
+        return res.status(200).json({
+            metrics,
+            totalEarnings: Number(totalEarnings._sum?.sellerEarnings ?? 0)
+        });
+    } catch (error: any) {
+        console.error("GET SELLER ANALYTICS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const suspendSeller = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+        const adminId = req.adminId!;
+        const { reason } = req.body;
+
+        const seller = await prisma.seller.findUnique({ where: { id: sellerId } });
+        if (!seller) return res.status(404).json({ message: "Seller not found" });
+
+        const updatedSeller = await prisma.seller.update({
+            where: { id: sellerId },
+            data: { status: "SUSPENDED" }
+        });
+
+        await prisma.shop.updateMany({
+            where: { sellerId },
+            data: { isActive: false }
+        });
+
+        await logAdminAction({
+            adminId,
+            actionType: AdminActionType.SELLER_BANNED,
+            targetType: "Seller",
+            targetId: sellerId,
+            description: `Seller ${seller.username} suspended by admin. Reason: ${reason || 'None provided'}`,
+            previousValue: { status: seller.status },
+            newValue: { status: "SUSPENDED" }
+        });
+
+        return res.status(200).json({ message: "Seller suspended successfully", seller: updatedSeller });
+    } catch (error: any) {
+        console.error("SUSPEND SELLER ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const restoreSeller = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+        const adminId = req.adminId!;
+
+        const seller = await prisma.seller.findUnique({ where: { id: sellerId } });
+        if (!seller) return res.status(404).json({ message: "Seller not found" });
+
+        const updatedSeller = await prisma.seller.update({
+            where: { id: sellerId },
+            data: {
+                status: "APPROVED",
+                isBanned: false,
+                isDeactivated: false,
+                bannedAt: null,
+                banReason: null,
+                deactivatedAt: null
+            }
+        });
+
+        await prisma.shop.updateMany({
+            where: { sellerId },
+            data: {
+                isActive: true,
+                isBanned: false,
+                banReason: null
+            }
+        });
+
+        await logAdminAction({
+            adminId,
+            actionType: AdminActionType.SELLER_UNBANNED,
+            targetType: "Seller",
+            targetId: sellerId,
+            description: `Seller ${seller.username} restored by admin`,
+            previousValue: { status: seller.status, isBanned: seller.isBanned, isDeactivated: seller.isDeactivated },
+            newValue: { status: "APPROVED", isBanned: false, isDeactivated: false }
+        });
+
+        return res.status(200).json({ message: "Seller restored successfully", seller: updatedSeller });
+    } catch (error: any) {
+        console.error("RESTORE SELLER ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const activateSeller = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+        const adminId = req.adminId!;
+
+        const seller = await prisma.seller.findUnique({ where: { id: sellerId } });
+        if (!seller) return res.status(404).json({ message: "Seller not found" });
+
+        const updatedSeller = await prisma.seller.update({
+            where: { id: sellerId },
+            data: {
+                status: "APPROVED",
+                isDeactivated: false,
+                deactivatedAt: null
+            }
+        });
+
+        await prisma.shop.updateMany({
+            where: { sellerId },
+            data: { isActive: true }
+        });
+
+        await logAdminAction({
+            adminId,
+            actionType: AdminActionType.SELLER_APPROVED,
+            targetType: "Seller",
+            targetId: sellerId,
+            description: `Seller ${seller.username} activated by admin`,
+            previousValue: { status: seller.status, isDeactivated: seller.isDeactivated },
+            newValue: { status: "APPROVED", isDeactivated: false }
+        });
+
+        return res.status(200).json({ message: "Seller activated successfully", seller: updatedSeller });
+    } catch (error: any) {
+        console.error("ACTIVATE SELLER ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const deactivateSeller = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.id);
+        const adminId = req.adminId!;
+
+        const seller = await prisma.seller.findUnique({ where: { id: sellerId } });
+        if (!seller) return res.status(404).json({ message: "Seller not found" });
+
+        const updatedSeller = await prisma.seller.update({
+            where: { id: sellerId },
+            data: {
+                isDeactivated: true,
+                deactivatedAt: new Date()
+            }
+        });
+
+        await prisma.shop.updateMany({
+            where: { sellerId },
+            data: { isActive: false }
+        });
+
+        await logAdminAction({
+            adminId,
+            actionType: AdminActionType.SELLER_BANNED,
+            targetType: "Seller",
+            targetId: sellerId,
+            description: `Seller ${seller.username} deactivated by admin`,
+            previousValue: { isDeactivated: seller.isDeactivated },
+            newValue: { isDeactivated: true }
+        });
+
+        return res.status(200).json({ message: "Seller deactivated successfully", seller: updatedSeller });
+    } catch (error: any) {
+        console.error("DEACTIVATE SELLER ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};

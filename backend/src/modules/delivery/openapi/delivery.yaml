@@ -1,0 +1,51 @@
+openapi: 3.0.3
+info:
+  title: Delivery Module API
+  version: 1.0.0
+  description: API specification for Delivery module endpoints
+paths:
+  /api/delivery/create:
+    post:
+      summary: Create delivery booking for a seller order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sellerOrderId:
+                  type: string
+      responses:
+        '201':
+          description: Delivery created
+  /api/delivery/{id}:
+    get:
+      summary: Get delivery by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Delivery details
+  /webhook/delivery:
+    post:
+      summary: Provider webhook receiver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Processed
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

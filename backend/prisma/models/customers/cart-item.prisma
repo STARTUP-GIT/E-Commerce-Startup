@@ -1,0 +1,23 @@
+// =============================================================================
+// CartItem — line items within a customer cart (optional variant)
+// =============================================================================
+
+model CartItem {
+  id               String   @id @default(cuid())
+  cartId           String
+  productId        String
+  productVariantId String?
+  quantity         Int      @default(1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  cart           Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId, productVariantId])
+  @@index([cartId])
+  @@index([productId])
+  @@index([productVariantId])
+  @@map("cart_items")
+}
