@@ -1,0 +1,285 @@
+// =============================================================================
+// Multi-Vendor Marketplace — Root Prisma Schema
+// =============================================================================
+// Prisma multi-file schema: models live in ./models/, enums in ./enums/
+// Requires Prisma 5.15+ with prismaSchemaFolder preview (Prisma 6+ GA)
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// -----------------------------------------------------------------------------
+// Shared enums referenced across multiple entity domains
+// -----------------------------------------------------------------------------
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  EMAIL_AND_GOOGLE
+}
+
+enum OtpEntityType {
+  CUSTOMER
+  SELLER
+  DELIVERY_PARTNER
+  ADMIN
+}
+
+enum OtpPurpose {
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+  PHONE_VERIFICATION
+  TWO_FACTOR
+}
+
+enum AddressType {
+  HOME
+  WORK
+  BILLING
+  SHIPPING
+  OTHER
+}
+
+enum SellerAddressType {
+  WAREHOUSE
+  PICKUP
+  RETURN
+  BUSINESS
+  REGISTERED_OFFICE
+  OTHER
+}
+
+enum DeliveryPartnerAddressType {
+  HOME_BASE
+  HUB
+  OTHER
+}
+
+enum InventoryChangeType {
+  RESTOCK
+  SALE
+  RETURN
+  ADJUSTMENT
+  RESERVATION
+  RELEASE
+  DAMAGED
+  TRANSFER
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_ON_CUSTOMER
+  WAITING_ON_SELLER
+  RESOLVED
+  CLOSED
+}
+
+enum SupportTicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum CouponDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_SHIPPING
+}
+
+enum TimelineEntityType {
+  ORDER
+  SELLER_ORDER
+  DELIVERY
+  CUSTOM_ORDER
+  RETURN_REQUEST
+  PAYMENT
+}
+
+enum DeliveryProofType {
+  PICKUP
+  DELIVERY
+  SIGNATURE
+  OTHER
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  UPI
+  NET_BANKING
+  WALLET
+  COD
+  STRIPE
+  RAZORPAY
+}
+
+enum NotificationType {
+  ORDER_PLACED
+  ORDER_CONFIRMED
+  ORDER_SHIPPED
+  ORDER_DELIVERED
+  ORDER_CANCELLED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  RETURN_REQUESTED
+  RETURN_APPROVED
+  RETURN_REJECTED
+  SELLER_APPROVED
+  SELLER_REJECTED
+  PRODUCT_APPROVED
+  PRODUCT_REJECTED
+  CUSTOM_ORDER_QUOTE
+  CUSTOM_ORDER_UPDATE
+  DELIVERY_ASSIGNED
+  DELIVERY_UPDATE
+  PROMOTIONAL
+  SYSTEM
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  PUSH
+}
+
+enum AdminActionType {
+  SELLER_APPROVED
+  SELLER_REJECTED
+  SELLER_BANNED
+  SELLER_UNBANNED
+  SELLER_STRIKE_ISSUED
+  CUSTOMER_BANNED
+  CUSTOMER_UNBANNED
+  PRODUCT_APPROVED
+  PRODUCT_REJECTED
+  PRODUCT_REMOVED
+  PRODUCT_REPORT_REVIEWED
+  RETURN_APPROVED
+  RETURN_REJECTED
+  DELIVERY_PARTNER_CREATED
+  DELIVERY_PARTNER_UPDATED
+  DELIVERY_PARTNER_DEACTIVATED
+  MARKETPLACE_SETTINGS_UPDATED
+  CATEGORY_CREATED
+  CATEGORY_UPDATED
+  CATEGORY_DELETED
+  SELLER_PAYOUT_PROCESSED
+  COUPON_CREATED
+  COUPON_DEACTIVATED
+  SUPPORT_TICKET_RESOLVED
+}
+
+enum SellerStatus {
+  PENDING_VERIFICATION
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  SUSPENDED
+  BANNED
+}
+
+enum SellerVerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum VerificationDocumentType {
+  GOVERNMENT_ID
+  BUSINESS_LICENSE
+  TAX_REGISTRATION
+  BANK_STATEMENT
+  ADDRESS_PROOF
+  OTHER
+}
+
+enum SellerOrderStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  PROCESSING
+  READY_TO_SHIP
+  READY_FOR_PICKUP
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum ProductReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum StrikeSeverity {
+  WARNING
+  MINOR
+  MAJOR
+  CRITICAL
+}
+
+enum CustomFileType {
+  STL
+  STEP
+  OBJ
+  PDF
+  IMAGE
+  OTHER
+}
+
+enum DeliveryPartnerStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  OFF_DUTY
+}
+
+// (Delivery models live under prisma/models/delivery-partners/ to avoid duplication)
+
+// Generic delivery driver model (in-house fleet support)
+model DeliveryBoy {
+  id            String   @id @default(cuid())
+  name          String
+  phone         String
+  email         String?
+  vehicleNumber String?
+  vehicleType   String?
+  city          String
+  status        String   @default("ACTIVE")
+  rating        Float?   @default(0)
+  availability  Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Platform settings for delivery shares and provider selection
+model PlatformDeliverySetting {
+  id                       Int      @id @default(1)
+  customerDeliveryShare    Int      @default(75)
+  sellerDeliveryShare      Int      @default(25)
+  defaultProvider          String   @default("PORTER")
+  maxDeliveryRadiusMeters  Int      @default(5000)
+  deliveryEnabled          Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}

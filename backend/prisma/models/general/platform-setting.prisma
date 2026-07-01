@@ -1,0 +1,9 @@
+// Global platform settings stored as a single JSON blob
+model PlatformSetting {
+  id        Int      @id @default(1)
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_settings")
+}

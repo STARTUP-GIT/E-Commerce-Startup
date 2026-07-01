@@ -1,0 +1,38 @@
+// =============================================================================
+// OrderTimelineEvent — unified order tracking for customers, sellers, and admin
+// =============================================================================
+
+model OrderTimelineEvent {
+  id              String             @id @default(cuid())
+  entityType      TimelineEntityType
+  orderId         String?
+  sellerOrderId   String?
+  deliveryId      String?
+  customOrderId   String?
+  returnRequestId String?
+  paymentId       String?
+  status          String             @db.VarChar(50)
+  title           String             @db.VarChar(300)
+  description     String?            @db.Text
+  metadata        Json?
+  occurredAt      DateTime           @default(now())
+  createdAt       DateTime           @default(now())
+
+  order         Order?         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sellerOrder   SellerOrder?   @relation(fields: [sellerOrderId], references: [id], onDelete: Cascade)
+  delivery      Delivery?      @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  customOrder   CustomOrder?   @relation(fields: [customOrderId], references: [id], onDelete: Cascade)
+  returnRequest ReturnRequest? @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  payment       Payment?       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([entityType])
+  @@index([orderId])
+  @@index([sellerOrderId])
+  @@index([deliveryId])
+  @@index([customOrderId])
+  @@index([returnRequestId])
+  @@index([paymentId])
+  @@index([occurredAt])
+  @@index([entityType, occurredAt])
+  @@map("order_timeline_events")
+}

@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: marketplace-db
+    restart: always
+    environment:
+      POSTGRES_DB: marketplace
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: securepassword123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d marketplace"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  customer-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.customer
+    container_name: customer-api
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://postgres:securepassword123@db:5432/marketplace?schema=public
+      JWT_SECRET_KEY: supersecretjwtkeyforproduction123
+      GOOGLE_CLIENT_ID: dummy_google_client_id
+      PAYMENT_GATEWAY: RAZORPAY
+      RAZORPAY_KEY_ID: rzp_live_dummykey
+      RAZORPAY_KEY_SECRET: dummysecret
+      RAZORPAY_WEBHOOK_SECRET: webhooksecret
+      NODE_ENV: production
+      PORT: 3001
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  seller-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.seller
+    container_name: seller-api
+    restart: always
+    ports:
+      - "3002:3002"
+    environment:
+      DATABASE_URL: postgresql://postgres:securepassword123@db:5432/marketplace?schema=public
+      JWT_SECRET_KEY: supersecretjwtkeyforproduction123
+      GOOGLE_CLIENT_ID: dummy_google_client_id
+      PAYMENT_GATEWAY: RAZORPAY
+      NODE_ENV: production
+      PORT: 3002
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  admin-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+    container_name: admin-api
+    restart: always
+    ports:
+      - "3003:3003"
+    environment:
+      DATABASE_URL: postgresql://postgres:securepassword123@db:5432/marketplace?schema=public
+      JWT_SECRET_KEY: supersecretjwtkeyforproduction123
+      GOOGLE_CLIENT_ID: dummy_google_client_id
+      PAYMENT_GATEWAY: RAZORPAY
+      RAZORPAY_KEY_ID: rzp_live_dummykey
+      RAZORPAY_KEY_SECRET: dummysecret
+      RAZORPAY_WEBHOOK_SECRET: webhooksecret
+      NODE_ENV: production
+      PORT: 3003
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  delivery-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.delivery
+    container_name: delivery-api
+    restart: always
+    ports:
+      - "3004:3004"
+    environment:
+      DATABASE_URL: postgresql://postgres:securepassword123@db:5432/marketplace?schema=public
+      JWT_SECRET_KEY: supersecretjwtkeyforproduction123
+      GOOGLE_CLIENT_ID: dummy_google_client_id
+      PAYMENT_GATEWAY: RAZORPAY
+      DELIVERY_PROVIDER: PORTER
+      PORTER_API_KEY: porter_api_dummykey
+      PORTER_API_URL: https://api.porter.in
+      PORTER_WEBHOOK_SECRET: porterwebhooksecret
+      NODE_ENV: production
+      PORT: 3004
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  payment-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.payment
+    container_name: payment-api
+    restart: always
+    ports:
+      - "3005:3005"
+    environment:
+      DATABASE_URL: postgresql://postgres:securepassword123@db:5432/marketplace?schema=public
+      JWT_SECRET_KEY: supersecretjwtkeyforproduction123
+      GOOGLE_CLIENT_ID: dummy_google_client_id
+      PAYMENT_GATEWAY: RAZORPAY
+      RAZORPAY_KEY_ID: rzp_live_dummykey
+      RAZORPAY_KEY_SECRET: dummysecret
+      RAZORPAY_WEBHOOK_SECRET: webhooksecret
+      NODE_ENV: production
+      PORT: 3005
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+volumes:
+  pgdata:
+
+networks:
+  app-network:
+    driver: bridge
