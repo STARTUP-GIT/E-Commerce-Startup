@@ -71,11 +71,11 @@ export function LoginPage() {
                 <Input
                   type="text"
                   placeholder="Email or Username"
-                  error={!!errors.email}
-                  {...formRegister('email')}
+                  error={!!errors.identifier}
+                  {...formRegister('identifier')}
                 />
-                {errors.email && (
-                  <p className="text-[11px] text-red-400 ml-1 mt-0.5">{errors.email.message}</p>
+                {errors.identifier && (
+                  <p className="text-[11px] text-red-400 ml-1 mt-0.5">{errors.identifier.message}</p>
                 )}
               </div>
 

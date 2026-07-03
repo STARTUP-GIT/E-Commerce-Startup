@@ -1,12 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { shopApi } from '../api/shopApi';
-import { useState } from 'react';
-import axios from 'axios';
 
 export function useShop() {
   const queryClient = useQueryClient();
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [isUploading, setIsUploading] = useState<boolean>(false);
 
   // Shop Info Query
   const shopQuery = useQuery({
@@ -108,43 +104,6 @@ export function useShop() {
     },
   });
 
-  // File Upload Helper (Direct S3 / Storage API)
-  const uploadImage = async (file: File): Promise<string> => {
-    setIsUploading(true);
-    setUploadProgress(10);
-    try {
-      // 1. Get presigned PUT URL
-      // The API endpoint resides on the backend. Since our axiosInstance maps to /api/storage/upload-url via proxy:
-      const response = await axiosInstanceUploadUrl(file.name, file.type || 'image/jpeg');
-      setUploadProgress(40);
-
-      // 2. Put file to presigned URL
-      await axios.put(response.url, file, {
-        headers: {
-          'Content-Type': file.type || 'image/jpeg',
-        },
-      });
-      setUploadProgress(100);
-
-      // Extract raw URL (remove query parameters)
-      return response.url.split('?')[0];
-    } catch (error) {
-      console.error('Image upload failed:', error);
-      throw new Error('Failed to upload image asset');
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
-    }
-  };
-
-  // Internal helper to retrieve presigned url (matching customOrder style)
-  const axiosInstanceUploadUrl = async (filename: string, contentType: string) => {
-    // Call storage route: app.use('/api/storage', storageRoute)
-    // The route maps to POST /api/storage/upload-url
-    const response = await axios.post('/api/storage/upload-url', { filename, contentType }, { withCredentials: true });
-    return response.data;
-  };
-
   return {
     shop: shopQuery.data ?? null,
     hasShop: !!shopQuery.data,
@@ -182,8 +141,5 @@ export function useShop() {
     deleteShop: deleteShopMutation.mutateAsync,
     isDeletingShop: deleteShopMutation.isPending,
 
-    uploadImage,
-    isUploading,
-    uploadProgress,
   };
 }

@@ -1,6 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
 import { signIn } from 'next-auth/react';
-import { loginApi } from '../api/loginApi';
 import { loginService, LoginInput } from '../services/loginService';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -17,12 +16,8 @@ export function useLogin() {
         throw new Error(validation.error.issues[0].message);
       }
 
-      // 1. Direct login to get backend customer_session cookie
-      const response = await loginApi.login(data);
-
-      // 2. Sync session with NextAuth
       const nextAuthResult = await signIn('credentials', {
-        email: data.email,
+        identifier: data.email,
         password: data.password,
         redirect: false,
       });
@@ -31,7 +26,7 @@ export function useLogin() {
         throw new Error(nextAuthResult.error);
       }
 
-      return response;
+      return nextAuthResult;
     },
     onSuccess: () => {
       router.push('/');

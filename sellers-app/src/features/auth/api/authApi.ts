@@ -27,8 +27,11 @@ export interface RegisterResponse {
 }
 
 export const authApi = {
-  login: async (credentials: { email: string; password?: string }): Promise<LoginResponse> => {
-    const response = await axiosInstance.post('/seller/api/auth/login', credentials);
+  login: async (credentials: { identifier: string; password?: string }): Promise<LoginResponse> => {
+    const response = await axiosInstance.post('/seller/api/auth/login', {
+      identifier: credentials.identifier,
+      password: credentials.password,
+    });
     return response.data;
   },
 
@@ -73,12 +76,12 @@ export const authApi = {
     return response.data;
   },
 
-  forgotPassword: async (payload: { email: string }): Promise<{ message: string; email: string }> => {
+  forgotPassword: async (payload: { identifier: string }): Promise<{ message: string; email: string }> => {
     const response = await axiosInstance.post('/seller/api/auth/forgot-password', payload);
     return response.data;
   },
 
-  verifyOtp: async (payload: { email: string; otp: string }): Promise<{ message: string; resetToken: string }> => {
+  verifyOtp: async (payload: { identifier: string; otp: string }): Promise<{ message: string; resetToken: string }> => {
     const response = await axiosInstance.post('/seller/api/auth/verify-otp', payload);
     return response.data;
   },

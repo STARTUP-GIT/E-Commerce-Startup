@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useProducts } from '../hooks/useProducts';
-import { useShop } from '@/features/shop/hooks/useShop';
+import { useFileUpload } from '../../storage/hooks/useFileUpload';
 import { createProductSchema, editProductSchema, productService } from '../services/productService';
 import type { CreateProductInput, EditProductInput } from '../services/productService';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -29,7 +29,7 @@ import { useConfirmStore } from '@/lib/store/confirmStore';
 
 export function ProductListPage() {
   const { products, isLoading, isError, refetch, createProduct, updateProduct, deleteProduct } = useProducts();
-  const { uploadImage, isUploading, uploadProgress } = useShop();
+  const { upload: uploadProductImage, isUploading, progress: uploadProgress, storageKey, publicUrl } = useFileUpload({ folder: 'products' });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [stockFilter, setStockFilter] = useState<'ALL' | 'LOW' | 'OUT'>('ALL');
@@ -64,8 +64,8 @@ export function ProductListPage() {
     resolver: zodResolver(editProductSchema),
   });
 
-  const watchCreateImg = watchCreate('imageUrl');
-  const watchEditImg = watchEdit('imageUrl');
+  const watchCreateImg = watchCreate('imageKey');
+  const watchEditImg = watchEdit('imageKey');
 
   // File Upload Handlers
   const showToast = useUIStore((state) => state.showToast);
@@ -73,30 +73,27 @@ export function ProductListPage() {
   const handleCreateImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    try {
-      const url = await uploadImage(file);
-      setValueCreate('imageUrl', url, { shouldValidate: true });
-    } catch (err: any) {
-      showToast(err.message || 'Image upload failed');
-    }
+    const result = await uploadProductImage(file);
+    if (result) setValueCreate('imageKey', result.url, { shouldValidate: true });
   };
 
   const handleEditImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    try {
-      const url = await uploadImage(file);
-      setValueEdit('imageUrl', url, { shouldValidate: true });
-    } catch (err: any) {
-      showToast(err.message || 'Image upload failed');
-    }
+    const result = await uploadProductImage(file);
+    if (result) setValueEdit('imageKey', result.url, { shouldValidate: true });
   };
 
   // Submit Handlers
   const onCreateSubmit = async (data: CreateProductInput) => {
     setFormError(null);
     try {
-      await createProduct(data);
+      await createProduct({
+        productname: data.productname,
+        productquantity: data.productquantity,
+        productprice: data.productprice,
+        imageUrl: data.imageKey,
+      });
       setIsCreateOpen(false);
       resetCreate();
     } catch (err: any) {
@@ -109,7 +106,11 @@ export function ProductListPage() {
     try {
       await updateProduct({
         id: selectedProduct.id,
-        payload: data,
+        payload: {
+          productquantity: data.productquantity,
+          productprice: data.productprice,
+          imageUrl: data.imageKey,
+        },
       });
       setIsEditOpen(false);
       setSelectedProduct(null);
@@ -276,7 +277,7 @@ export function ProductListPage() {
                               setSelectedProduct(prod);
                               setValueEdit('productprice', prod.price);
                               setValueEdit('productquantity', prod.stockQuantity);
-                              setValueEdit('imageUrl', prod.imageUrl);
+                              setValueEdit('imageKey', prod.imageUrl);
                               setIsEditOpen(true);
                             }}
                           >
@@ -360,8 +361,8 @@ export function ProductListPage() {
               <span className="text-[10px] font-bold text-white/60 ml-1 block">Product Image</span>
               <div className="flex gap-4 items-center">
                 <div className="h-16 w-16 border border-white/10 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center shrink-0">
-                  {watchCreateImg ? (
-                    <img src={watchCreateImg} alt="Preview" className="h-full w-full object-cover" />
+                  {publicUrl || watchCreateImg ? (
+                    <img src={publicUrl || watchCreateImg} alt="Preview" className="h-full w-full object-cover" />
                   ) : (
                     <Package className="h-6 w-6 text-white/20" />
                   )}
@@ -386,9 +387,9 @@ export function ProductListPage() {
                   <p className="text-[9px] text-white/30">Support PNG, JPEG, or WEBP. Max size 5MB.</p>
                 </div>
               </div>
-              <Input type="hidden" {...registerCreate('imageUrl')} />
-              {errorsCreate.imageUrl && (
-                <p className="text-[9px] text-red-400 ml-1">{errorsCreate.imageUrl.message}</p>
+              <Input type="hidden" {...registerCreate('imageKey')} />
+              {errorsCreate.imageKey && (
+                <p className="text-[9px] text-red-400 ml-1">{errorsCreate.imageKey.message}</p>
               )}
             </div>
 
@@ -447,8 +448,8 @@ export function ProductListPage() {
               <span className="text-[10px] font-bold text-white/60 ml-1 block">Product Image</span>
               <div className="flex gap-4 items-center">
                 <div className="h-16 w-16 border border-white/10 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center shrink-0">
-                  {watchEditImg ? (
-                    <img src={watchEditImg} alt="Preview" className="h-full w-full object-cover" />
+                  {publicUrl || watchEditImg ? (
+                    <img src={publicUrl || watchEditImg} alt="Preview" className="h-full w-full object-cover" />
                   ) : (
                     <Package className="h-6 w-6 text-white/20" />
                   )}
@@ -473,9 +474,9 @@ export function ProductListPage() {
                   <p className="text-[9px] text-white/30">Support PNG, JPEG, or WEBP. Max size 5MB.</p>
                 </div>
               </div>
-              <Input type="hidden" {...registerEdit('imageUrl')} />
-              {errorsEdit.imageUrl && (
-                <p className="text-[9px] text-red-400 ml-1">{errorsEdit.imageUrl.message}</p>
+              <Input type="hidden" {...registerEdit('imageKey')} />
+              {errorsEdit.imageKey && (
+                <p className="text-[9px] text-red-400 ml-1">{errorsEdit.imageKey.message}</p>
               )}
             </div>
 

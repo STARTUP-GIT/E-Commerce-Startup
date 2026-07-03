@@ -24,6 +24,10 @@ export interface ShopInfo {
   supportPhone?: string;
   isActive: boolean;
   defaultPickupAddress?: ShopAddress;
+  commissionPercentage?: number;
+  customerDeliveryShare?: number;
+  sellerDeliveryShare?: number;
+  packingFeeApproved?: boolean;
 }
 
 export interface BankAccountDetails {

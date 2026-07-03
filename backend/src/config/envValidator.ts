@@ -5,7 +5,10 @@ export const validateEnv = () => {
         'DATABASE_URL',
         'JWT_SECRET_KEY',
         'GOOGLE_CLIENT_ID',
-        'PAYMENT_GATEWAY'
+        'PAYMENT_GATEWAY',
+        'CUSTOMER_FRONTEND_URL',
+        'SELLER_FRONTEND_URL',
+        'ADMIN_FRONTEND_URL'
     ];
 
     const missing = requiredEnv.filter(name => !process.env[name]);
@@ -33,6 +36,9 @@ export const validateEnv = () => {
         if (!process.env.AWS_REGION) missing.push('AWS_REGION');
         if (!process.env.S3_BUCKET_NAME) missing.push('S3_BUCKET_NAME');
     }
+
+    if (!process.env.RESEND_API_KEY) missing.push('RESEND_API_KEY');
+    if (!process.env.EMAIL_FROM) missing.push('EMAIL_FROM');
 
     if (missing.length > 0) {
         console.error(`FATAL: Missing required environment variables on startup: ${missing.join(', ')}`);

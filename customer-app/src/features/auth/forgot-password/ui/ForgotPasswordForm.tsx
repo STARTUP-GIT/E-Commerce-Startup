@@ -7,16 +7,28 @@ import { z } from 'zod';
 import { Input } from '@/shared/components/Input';
 import { Button } from '@/shared/components/Button';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 const forgotPasswordSchema = z.object({
-  email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
+  identifier: z.string().min(1, 'Email or Username is required'),
 });
 
 type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
+const resetPasswordSchema = z.object({
+  newPassword: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
 export function ForgotPasswordForm() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const resetToken = searchParams?.get('token') || '';
+  const identifier = searchParams?.get('identifier') || '';
+  const isResetMode = Boolean(resetToken && identifier);
 
   const {
     register,
@@ -26,12 +38,60 @@ export function ForgotPasswordForm() {
     resolver: zodResolver(forgotPasswordSchema),
   });
 
+  const {
+    register: registerReset,
+    handleSubmit: handleResetSubmit,
+    formState: { errors: resetErrors },
+  } = useForm<ResetPasswordInput>({
+    resolver: zodResolver(resetPasswordSchema),
+  });
+
+  const submitJson = async (url: string, body: unknown) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || 'Password reset failed. Please try again.');
+    }
+    return data;
+  };
+
   const onSubmit = async (data: ForgotPasswordInput) => {
     setLoading(true);
-    // Simulate API request (No backend endpoint exists)
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setLoading(false);
-    setSuccess(true);
+    setError(null);
+    try {
+      await submitJson('/customer/api/auth/forgot-password', {
+        identifier: data.identifier,
+      });
+      setSuccess(true);
+    } catch (err: any) {
+      setError(err.message || 'Password reset failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onResetSubmit = async (data: ResetPasswordInput) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await submitJson('/customer/api/auth/reset-password', {
+        identifier,
+        resetToken,
+        newPassword: data.newPassword,
+      });
+      setSuccess(true);
+    } catch (err: any) {
+      setError(err.message || 'Password reset failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -42,15 +102,23 @@ export function ForgotPasswordForm() {
         </h1>
         <p className="text-sm text-muted-foreground">
           {success
-            ? "Check your inbox for a recovery link."
-            : "Enter your email address and we'll send you a password recovery link."}
+            ? isResetMode ? 'Your password has been updated.' : "Check your inbox for a recovery link."
+            : isResetMode ? 'Enter a new password for your account.' : "Enter your email or username and we'll send you a password recovery link."}
         </p>
       </div>
+
+      {error && (
+        <div className="p-4 text-xs font-semibold text-red-500 bg-red-500/10 rounded-lg border border-red-500/20">
+          {error}
+        </div>
+      )}
 
       {success ? (
         <div className="space-y-4">
           <div className="p-4 text-xs font-semibold text-emerald-500 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-            A password reset email has been sent to your address. Please follow the instructions to reset your password.
+            {isResetMode
+              ? 'Your password has been updated. You can now sign in.'
+              : 'A password reset email has been sent. Please follow the instructions to reset your password.'}
           </div>
           <Link href="/login" className="block">
             <Button variant="secondary" className="w-full py-5 cursor-pointer">
@@ -58,22 +126,49 @@ export function ForgotPasswordForm() {
             </Button>
           </Link>
         </div>
+      ) : isResetMode ? (
+        <form onSubmit={handleResetSubmit(onResetSubmit)} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="newPassword">
+              New Password
+            </label>
+            <Input
+              id="newPassword"
+              type="password"
+              placeholder="New password"
+              error={!!resetErrors.newPassword}
+              disabled={loading}
+              {...registerReset('newPassword')}
+            />
+            {resetErrors.newPassword && (
+              <p className="text-xs text-destructive">{resetErrors.newPassword.message}</p>
+            )}
+          </div>
+
+          <Button type="submit" className="w-full mt-2 cursor-pointer py-5" isLoading={loading}>
+            Update Password
+          </Button>
+
+          <Link href="/login" className="block text-center text-sm text-primary hover:underline mt-4">
+            Back to Sign In
+          </Link>
+        </form>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="email">
-              Email Address
+            <label className="text-sm font-medium text-foreground" htmlFor="identifier">
+              Email or Username
             </label>
             <Input
-              id="email"
-              type="email"
-              placeholder="name@example.com"
-              error={!!errors.email}
+              id="identifier"
+              type="text"
+              placeholder="Email or Username"
+              error={!!errors.identifier}
               disabled={loading}
-              {...register('email')}
+              {...register('identifier')}
             />
-            {errors.email && (
-              <p className="text-xs text-destructive">{errors.email.message}</p>
+            {errors.identifier && (
+              <p className="text-xs text-destructive">{errors.identifier.message}</p>
             )}
           </div>
 

@@ -5,22 +5,38 @@ import { analyticsService } from '../services/analyticsService';
 export function useAnalytics() {
   const metricsQuery = useQuery({
     queryKey: ['analytics-metrics'],
-    queryFn: analyticsApi.getDashboardMetrics,
+    queryFn: async () => {
+      try { return await analyticsApi.getDashboardMetrics(); }
+      catch { return null; }
+    },
+    retry: false,
   });
 
   const salesSummaryQuery = useQuery({
     queryKey: ['analytics-sales-summary'],
-    queryFn: analyticsApi.getSalesSummary,
+    queryFn: async () => {
+      try { return await analyticsApi.getSalesSummary(); }
+      catch { return null; }
+    },
+    retry: false,
   });
 
   const monthlyRevenueQuery = useQuery({
     queryKey: ['analytics-monthly-revenue'],
-    queryFn: analyticsApi.getMonthlyRevenue,
+    queryFn: async () => {
+      try { return await analyticsApi.getMonthlyRevenue(); }
+      catch { return null; }
+    },
+    retry: false,
   });
 
   const topSellingQuery = useQuery({
     queryKey: ['analytics-top-selling'],
-    queryFn: () => analyticsApi.getTopSellingProducts(),
+    queryFn: async () => {
+      try { return await analyticsApi.getTopSellingProducts(); }
+      catch { return null; }
+    },
+    retry: false,
   });
 
   const chartData = monthlyRevenueQuery.data?.revenue

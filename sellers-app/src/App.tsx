@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useShop } from '@/features/shop/hooks/useShop';
@@ -9,7 +9,6 @@ import { useConfirmStore } from '@/lib/store/confirmStore';
 import { GuestRoute, ProtectedRoute } from '@/router/guards';
 import { LoginPage } from '@/features/auth/ui/LoginPage';
 import { RegisterPage } from '@/features/auth/ui/RegisterPage';
-import { GoogleMockPage } from '@/features/auth/ui/GoogleMockPage';
 import { ForgotPasswordPage } from '@/features/auth/ui/ForgotPasswordPage';
 import { ShopSetupPage } from '@/features/shop/ui/ShopSetupPage';
 import { ShopSettingsPage } from '@/features/shop/ui/ShopSettingsPage';
@@ -28,7 +27,6 @@ import { ToastContainer } from '@/shared/components/ToastContainer';
 import { ComingSoonDialog } from '@/components/ui/ComingSoonDialog';
 import { PremiumDialogContainer } from '@/components/ui/PremiumDialogContainer';
 
-// Route guard requiring shop to be setup
 function ShopRequiredRoute() {
   const { hasShop, isLoadingShop } = useShop();
 
@@ -45,10 +43,10 @@ function ShopRequiredRoute() {
     return <Navigate to="/shop-setup" replace />;
   }
 
-  return <React.Fragment />;
+  return <Outlet />;
 }
 
-// Route guard allowing setup only if no shop exists
+
 function NoShopRequiredRoute() {
   const { hasShop, isLoadingShop } = useShop();
 
@@ -75,24 +73,36 @@ function App() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Supabase auth event:', event, 'session present:', Boolean(session));
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
         try {
           const profile = queryClient.getQueryData(['profile']);
           if (!profile) {
+            const userMetadata = (session.user.user_metadata || {}) as Record<string, any>;
+            const fullName =
+              userMetadata.full_name ||
+              userMetadata.name ||
+              [userMetadata.given_name || '', userMetadata.family_name || ''].filter(Boolean).join(' ').trim();
+            const firstName = userMetadata.given_name || userMetadata.first_name || fullName.split(' ')[0] || '';
+            const lastName = userMetadata.family_name || userMetadata.last_name || fullName.split(' ').slice(1).join(' ') || '';
+
             const syncRes = await axiosInstance.post('/seller/api/auth/google', {
-              idToken: session.id_token,
+              accessToken: session.access_token,
+              provider: 'google',
+              providerId: session.user.id,
               email: session.user.email,
-              firstName: session.user.user_metadata.given_name || session.user.user_metadata.name?.split(' ')[0] || '',
-              lastName: session.user.user_metadata.family_name || session.user.user_metadata.name?.split(' ').slice(1).join(' ') || '',
-              avatarUrl: session.user.user_metadata.avatar_url,
-              googleId: session.user.id
+              name: fullName,
+              firstName,
+              lastName,
+              avatarUrl: userMetadata.avatar_url || userMetadata.picture || '',
             });
+
             queryClient.setQueryData(['profile'], syncRes.data.user);
             queryClient.invalidateQueries({ queryKey: ['profile'] });
             queryClient.invalidateQueries({ queryKey: ['shop'] });
 
             const path = window.location.pathname;
-            if (path === '/login' || path === '/register' || path === '/login/google-mock') {
+            if (path === '/login' || path === '/register') {
               window.location.href = '/dashboard';
             }
           }
@@ -130,49 +140,37 @@ function App() {
       <ComingSoonDialog />
       <PremiumDialogContainer />
       <Routes>
-        {/* Guest Routes */}
         <Route element={<GuestRoute />}>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/login/google-mock" element={<GoogleMockPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         </Route>
 
-        {/* Protected Routes */}
+
         <Route element={<ProtectedRoute />}>
-          {/* Force shop setup if none exists */}
           <Route path="/shop-setup" element={<NoShopRequiredRoute />} />
 
-          {/* Routes requiring shop settings */}
-          <Route
-            path="*"
-            element={
-              <>
-                <ShopRequiredRoute />
-                <Routes>
-                  <Route path="dashboard" element={<DashboardPage />} />
-                  <Route path="products" element={<ProductListPage />} />
-                  <Route path="orders" element={<OrdersPage />} />
-                  <Route path="orders/:orderId" element={<OrderDetailPage />} />
-                  <Route path="custom-orders" element={<CustomOrdersPage />} />
-                  <Route path="custom-orders/:id" element={<CustomOrderDetailPage />} />
-                  <Route path="analytics" element={<AnalyticsPage />} />
-                  <Route path="payouts" element={<PayoutsPage />} />
-                  <Route path="reviews" element={<ReviewsPage />} />
-                  <Route path="notifications" element={<NotificationsPage />} />
-                  <Route path="shop-settings" element={<ShopSettingsPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route
-                    path="*"
-                    element={<Navigate to={hasShop ? '/dashboard' : '/shop-setup'} replace />}
-                  />
-                </Routes>
-              </>
-            }
-          />
+          <Route element={<ShopRequiredRoute />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/products" element={<ProductListPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/orders/:orderId" element={<OrderDetailPage />} />
+            <Route path="/custom-orders" element={<CustomOrdersPage />} />
+            <Route path="/custom-orders/:id" element={<CustomOrderDetailPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/payouts" element={<PayoutsPage />} />
+            <Route path="/reviews" element={<ReviewsPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/shop-settings" element={<ShopSettingsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route
+              path="*"
+              element={<Navigate to={hasShop ? '/dashboard' : '/shop-setup'} replace />}
+            />
+          </Route>
         </Route>
 
-        {/* Fallback */}
+
         <Route
           path="*"
           element={<Navigate to={isAuthenticated ? (hasShop ? '/dashboard' : '/shop-setup') : '/login'} replace />}

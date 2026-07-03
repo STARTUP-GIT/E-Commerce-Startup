@@ -22,7 +22,7 @@ import customOrderRoutes from './src/modules/seller/routes/customOrderRoute.js';
 import notificationRoutes from './src/modules/seller/routes/notificationRoute.js';
 import payoutRoutes from './src/modules/seller/routes/payoutRoute.js';
 import reviewRoutes from './src/modules/seller/routes/reviewRoute.js';
-import storageRoute from './src/modules/storage/routes/storageRoute.js';
+import storageRoute from './src/modules/storage/routes/storage.routes.js';
 
 const app = express();
 configureMiddlewares(app);

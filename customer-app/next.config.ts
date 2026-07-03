@@ -13,9 +13,42 @@ import type { NextConfig } from 'next';
  */
 const nextConfig: NextConfig = {
   async rewrites() {
-    const backendUrl = process.env.BACKEND_API_URL || 'http://localhost:3001';
+    const backendUrl = process.env.BACKEND_API_URL;
+
+    if (!backendUrl) {
+      throw new Error('BACKEND_API_URL is required for Customer API rewrites.');
+    }
 
     return [
+      {
+        source: '/customer/api/:path*',
+        destination: `${backendUrl.replace(/\/$/, '')}/customer/api/:path*`,
+      },
+      {
+        source: '/api/storage/:path*',
+        destination: `${backendUrl.replace(/\/$/, '')}/api/storage/:path*`,
+      },
+      // Backend customer auth routes (must come before NextAuth catch-all)
+      {
+        source: '/api/auth/profile/:path*',
+        destination: `${backendUrl.replace(/\/$/, '')}/users/api/auth/profile/:path*`,
+      },
+      {
+        source: '/api/auth/profile',
+        destination: `${backendUrl.replace(/\/$/, '')}/users/api/auth/profile`,
+      },
+      {
+        source: '/api/auth/register',
+        destination: `${backendUrl.replace(/\/$/, '')}/users/api/auth/register`,
+      },
+      {
+        source: '/api/auth/forgot-password',
+        destination: `${backendUrl.replace(/\/$/, '')}/users/api/auth/forgot-password`,
+      },
+      {
+        source: '/api/auth/reset-password',
+        destination: `${backendUrl.replace(/\/$/, '')}/users/api/auth/reset-password`,
+      },
       {
         // /api/auth/** is handled by NextAuth — don't proxy those
         source: '/api/auth/:path*',
@@ -24,7 +57,7 @@ const nextConfig: NextConfig = {
       {
         // Everything else under /api/** → backend
         source: '/api/:path*',
-        destination: `${backendUrl}/api/:path*`,
+        destination: `${backendUrl.replace(/\/$/, '')}/users/api/:path*`,
       },
     ];
   },
