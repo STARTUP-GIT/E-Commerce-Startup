@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { shopApi } from '../api/shopApi';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/shared/components/Card';
@@ -31,6 +31,58 @@ export function ShopDetailPage() {
   });
 
   const shop = data?.shop;
+
+  const [configComm, setConfigComm] = useState('10.0');
+  const [configCustShare, setConfigCustShare] = useState('75');
+  const [configSellerShare, setConfigSellerShare] = useState('25');
+  const [configPackingApproved, setConfigPackingApproved] = useState(false);
+
+  // Set initial states once shop is loaded
+  useEffect(() => {
+    if (shop) {
+      setConfigComm(String(shop.commissionPercentage ?? '10.0'));
+      setConfigCustShare(String(shop.customerDeliveryShare ?? '75'));
+      setConfigSellerShare(String(shop.sellerDeliveryShare ?? '25'));
+      setConfigPackingApproved(Boolean(shop.packingFeeApproved));
+    }
+  }, [shop]);
+
+  const updateConfigMutation = useMutation({
+    mutationFn: (payload: { commissionPercentage: number; customerDeliveryShare: number; sellerDeliveryShare: number; packingFeeApproved: boolean }) =>
+      shopApi.updateShopConfig(shopId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shop-detail', shopId] });
+      showToast('Shop configurations updated.', 'success');
+    },
+    onError: (e: any) => showToast(e.message, 'error'),
+  });
+
+  const handleConfigSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const comm = parseFloat(configComm);
+    const cust = parseInt(configCustShare);
+    const sell = parseInt(configSellerShare);
+
+    if (isNaN(comm) || comm < 0 || comm > 100) {
+      showToast('Commission must be a percentage between 0 and 100.', 'error');
+      return;
+    }
+    if (isNaN(cust) || cust < 0 || cust > 100 || isNaN(sell) || sell < 0 || sell > 100) {
+      showToast('Delivery shares must be between 0 and 100.', 'error');
+      return;
+    }
+    if (cust + sell !== 100) {
+      showToast('Customer split and Seller split must equal 100%.', 'error');
+      return;
+    }
+
+    updateConfigMutation.mutate({
+      commissionPercentage: comm,
+      customerDeliveryShare: cust,
+      sellerDeliveryShare: sell,
+      packingFeeApproved: configPackingApproved,
+    });
+  };
 
   // Mutations
   const activateMutation = useMutation({

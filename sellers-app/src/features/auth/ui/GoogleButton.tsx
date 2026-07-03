@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useConfirmStore } from '@/lib/store/confirmStore';
 
 interface GoogleButtonProps {
   label?: string;
@@ -9,39 +8,29 @@ interface GoogleButtonProps {
 
 export function GoogleButton({ label = 'Continue with Google', onError }: GoogleButtonProps) {
   const [loading, setLoading] = useState(false);
-  const showConfirm = useConfirmStore((state) => state.showConfirm);
 
   const handleLogin = async () => {
-    showConfirm({
-      title: 'Google OAuth Gateway',
-      message: 'Real Google Auth requires registering "http://localhost:5173/login" under the "Authorized redirect URIs" in your Google Developer Console.\n\nChoose "Proceed with Google" if configured, or select "Use Google Simulator" for instant offline testing.',
-      confirmText: 'Proceed with Google',
-      cancelText: 'Use Google Simulator',
-      onConfirm: async () => {
-        setLoading(true);
-        try {
-          const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-              redirectTo: window.location.origin + '/login',
-            },
-          });
-          if (error) {
-            throw error;
-          }
-        } catch (err: any) {
-          console.error('Google Sign In Error:', err);
-          if (onError) {
-            onError(err?.message || 'Failed to initiate Google Sign In.');
-          }
-          setLoading(false);
-        }
-      },
-      onCancel: () => {
-        // Redirect to local simulator
-        window.location.href = `/login/google-mock?redirectTo=${encodeURIComponent(window.location.origin + '/login')}`;
+    setLoading(true);
+    console.log('Google OAuth: starting signInWithOAuth redirect');
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/login`,
+          scopes: 'openid profile email',
+        },
+      });
+
+      if (error) {
+        throw error;
       }
-    });
+    } catch (err: any) {
+      console.error('Google Sign In Error:', err);
+      if (onError) {
+        onError(err?.message || 'Failed to initiate Google Sign In.');
+      }
+      setLoading(false);
+    }
   };
 
   return (

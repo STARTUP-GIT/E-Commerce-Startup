@@ -1,10 +1,12 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../../../config/prisma.js'
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { signAccessToken } from '../../../config/token.js'
 import { customersessionCookie } from '../../../config/sessionCookies.js'
 import { AuthProvider } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
+import EmailService from '../../../services/email/email.service.js';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -78,6 +80,10 @@ export const register = async (req: Request, res: Response) => {
         }
     });
 
+    const customerFrontendUrl = process.env.CUSTOMER_FRONTEND_URL!.replace(/\/$/, '');
+    void EmailService.sendVerificationEmail(newuser.email, { firstName, verificationUrl: `${customerFrontendUrl}/verify-email?email=${encodeURIComponent(newuser.email)}` });
+    void EmailService.sendWelcomeEmail(newuser.email, { firstName, loginUrl: `${customerFrontendUrl}/login` });
+
     const token = signAccessToken(newuser.id);
     const sessionCookie = customersessionCookie();
 
@@ -101,26 +107,16 @@ export const register = async (req: Request, res: Response) => {
 }
 
 export const login = async (req: Request, res: Response) => {
-    const loginIdentifier = req.body.email || req.body.loginIdentifier || req.body.username;
-    const { password } = req.body;
+    try {
+        const loginIdentifier = req.body.identifier;
+        const { password } = req.body;
 
-    if (!loginIdentifier || !password) {
-        return res.status(400).json({ message: 'All fields are required' });
-    }
-
-    // Check if user exists by email or username
-    const customer = await prisma.customer.findFirst({
-        where: {
-            OR: [
-                { email: loginIdentifier },
-                { username: loginIdentifier }
-            ]
+        if (!loginIdentifier || !password) {
+            return res.status(400).json({ message: 'Identifier and password are required' });
         }
-    });
 
-    if (!customer) {
-        // Check if seller exists with this email or username
-        const existingSeller = await prisma.seller.findFirst({
+        // Check if user exists by email or username
+        const customer = await prisma.customer.findFirst({
             where: {
                 OR: [
                     { email: loginIdentifier },
@@ -128,59 +124,250 @@ export const login = async (req: Request, res: Response) => {
                 ]
             }
         });
-        if (existingSeller) {
-            return res.status(400).json({
-                message: "This account is registered under the Seller Portal. Please log in through the Seller Portal."
+
+        if (!customer) {
+            // Check if seller exists with this email or username
+            const existingSeller = await prisma.seller.findFirst({
+                where: {
+                    OR: [
+                        { email: loginIdentifier },
+                        { username: loginIdentifier }
+                    ]
+                }
+            });
+            if (existingSeller) {
+                return res.status(400).json({
+                    message: "This account is registered under the Seller Portal. Please log in through the Seller Portal."
+                });
+            }
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (customer.isBanned) {
+            return res.status(403).json({
+                message: "Account is banned"
             });
         }
-        return res.status(404).json({ message: ' User not found' });
-    }
 
-    if (customer.isBanned) {
-        return res.status(403).json({
-            message: "Account is banned"
-        });
-    }
-
-    // Check if the password is correct
-    const isMatch = await bcrypt.compare(password, String(customer.passwordHash));
-    if (!isMatch) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    const token = signAccessToken(customer.id);
-
-    const sessionCookie = customersessionCookie();
-
-    res.cookie(
-        sessionCookie.name,
-        token,
-        sessionCookie.options
-    );
-
-    return res.status(200).json({
-        message: "Login successful",
-        user: {
-            id: customer.id,
-            email: customer.email,
-            username: customer.username,
-            firstName: customer.firstName,
-            lastName: customer.lastName
+        if (!customer.passwordHash) {
+            return res.status(401).json({
+                message: 'This account uses Google sign-in. Please sign in with Google.'
+            });
         }
-    });
+
+        // Check if the password is correct
+        const isMatch = await bcrypt.compare(password, customer.passwordHash);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        const token = signAccessToken(customer.id);
+
+        const sessionCookie = customersessionCookie();
+
+        res.cookie(
+            sessionCookie.name,
+            token,
+            sessionCookie.options
+        );
+
+        return res.status(200).json({
+            message: "Login successful",
+            user: {
+                id: customer.id,
+                email: customer.email,
+                username: customer.username,
+                firstName: customer.firstName,
+                lastName: customer.lastName
+            }
+        });
+    } catch (error) {
+        console.error('CUSTOMER LOGIN ERROR:', {
+            route: req.originalUrl,
+            method: req.method,
+            payload: { ...req.body, password: req.body?.password ? '[redacted]' : undefined },
+            error
+        });
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
 }
+
+export const forgotPassword = async (req: Request, res: Response) => {
+    try {
+        const { identifier } = req.body;
+
+        if (!identifier) {
+            return res.status(400).json({ message: 'Identifier is required' });
+        }
+
+        const customer = await prisma.customer.findFirst({
+            where: {
+                OR: [
+                    { email: identifier },
+                    { username: identifier }
+                ]
+            }
+        });
+
+        if (!customer) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (!customer.passwordHash) {
+            return res.status(400).json({
+                message: 'This account uses Google sign-in. Please sign in with Google.'
+            });
+        }
+
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = await bcrypt.hash(resetToken, 10);
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+        await prisma.otp.create({
+            data: {
+                entityType: 'CUSTOMER',
+                entityId: customer.id,
+                email: customer.email,
+                codeHash: tokenHash,
+                purpose: 'PASSWORD_RESET',
+                expiresAt,
+            }
+        });
+
+        const customerFrontendUrl = process.env.CUSTOMER_FRONTEND_URL!.replace(/\/$/, '');
+        const resetUrl = `${customerFrontendUrl}/forgot-password?token=${encodeURIComponent(resetToken)}&identifier=${encodeURIComponent(customer.email)}`;
+        const emailResult = await EmailService.sendForgotPassword(customer.email, resetToken, {
+            firstName: customer.firstName as string,
+            resetUrl,
+        });
+
+        if (!emailResult.success) {
+            console.warn('[CUSTOMER FORGOT PASSWORD] Reset token generated but email delivery failed', {
+                customerId: customer.id,
+                email: customer.email,
+                error: emailResult.error
+            });
+        }
+
+        return res.status(200).json({
+            message: emailResult.success
+                ? 'Password reset instructions have been sent.'
+                : 'Password reset token was generated but email delivery failed. Please contact support.',
+            email: customer.email,
+            emailDelivery: emailResult.success ? 'sent' : 'failed',
+        });
+    } catch (error) {
+        console.error('CUSTOMER FORGOT PASSWORD ERROR:', {
+            route: req.originalUrl,
+            method: req.method,
+            payload: req.body,
+            error
+        });
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+    try {
+        const { identifier, resetToken, newPassword } = req.body;
+
+        if (!identifier || !resetToken || !newPassword) {
+            return res.status(400).json({ message: 'Identifier, reset token, and new password are required' });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: 'Password must be at least 6 characters' });
+        }
+
+        const customer = await prisma.customer.findFirst({
+            where: {
+                OR: [
+                    { email: identifier },
+                    { username: identifier }
+                ]
+            }
+        });
+
+        if (!customer) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const resetRecord = await prisma.otp.findFirst({
+            where: {
+                entityType: 'CUSTOMER',
+                entityId: customer.id,
+                email: customer.email,
+                purpose: 'PASSWORD_RESET',
+                expiresAt: { gt: new Date() },
+                usedAt: null
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        if (!resetRecord) {
+            return res.status(400).json({ message: 'Reset token is invalid or expired' });
+        }
+
+        const isTokenValid = await bcrypt.compare(resetToken, resetRecord.codeHash);
+        if (!isTokenValid) {
+            await prisma.otp.update({
+                where: { id: resetRecord.id },
+                data: { attempts: { increment: 1 } }
+            });
+            return res.status(400).json({ message: 'Reset token is invalid or expired' });
+        }
+
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+
+        await prisma.$transaction([
+            prisma.customer.update({
+                where: { id: customer.id },
+                data: {
+                    passwordHash,
+                    authProvider: customer.authProvider === AuthProvider.GOOGLE ? AuthProvider.EMAIL_AND_GOOGLE : customer.authProvider
+                }
+            }),
+            prisma.otp.update({
+                where: { id: resetRecord.id },
+                data: { usedAt: new Date() }
+            })
+        ]);
+
+        return res.status(200).json({
+            message: 'Password updated successfully. Please log in with your new password.'
+        });
+    } catch (error) {
+        console.error('CUSTOMER RESET PASSWORD ERROR:', {
+            route: req.originalUrl,
+            method: req.method,
+            payload: { ...req.body, newPassword: req.body?.newPassword ? '[redacted]' : undefined },
+            error
+        });
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
 
 
 
 export const googleOAuth = async (req: Request, res: Response) => {
     try {
-        let email: string;
-        let googleId: string;
-        let firstName: string = "";
-        let lastName: string = "";
-        let avatarUrl: string = "";
+        let email: string | undefined;
+        let googleId: string | undefined;
+        let firstName = "";
+        let lastName = "";
+        let avatarUrl = "";
 
-        const { idToken, email: bodyEmail, firstName: bodyFirstName, lastName: bodyLastName, avatarUrl: bodyAvatarUrl, googleId: bodyGoogleId } = req.body;
+        const {
+            idToken,
+            email: bodyEmail,
+            name: bodyName,
+            firstName: bodyFirstName,
+            lastName: bodyLastName,
+            avatarUrl: bodyAvatarUrl,
+            provider,
+            providerId,
+            googleId: bodyGoogleId,
+        } = req.body;
 
         if (idToken) {
             const audience = process.env.GOOGLE_CLIENT_ID;
@@ -210,13 +397,24 @@ export const googleOAuth = async (req: Request, res: Response) => {
             avatarUrl = payload.picture ?? "";
         } else if (bodyEmail) {
             email = bodyEmail;
-            googleId = bodyGoogleId || `google_${email}`;
+            googleId = providerId || bodyGoogleId || `google_${bodyEmail}`;
             firstName = bodyFirstName || "";
             lastName = bodyLastName || "";
             avatarUrl = bodyAvatarUrl || "";
+            if (bodyName) {
+                const nameParts = bodyName.trim().split(/\s+/);
+                firstName = firstName || nameParts[0] || "";
+                lastName = lastName || nameParts.slice(1).join(" ") || "";
+            }
         } else {
             return res.status(400).json({
                 message: "Google token or user info is required"
+            });
+        }
+
+        if (!email) {
+            return res.status(400).json({
+                message: "Email is required"
             });
         }
 
@@ -244,8 +442,9 @@ export const googleOAuth = async (req: Request, res: Response) => {
                     id: customer.id
                 },
                 data: {
-                    googleId,
+                    googleId: googleId || customer.googleId,
                     emailVerified: true,
+                    authProvider: provider === 'google' ? AuthProvider.GOOGLE : customer.authProvider,
                     firstName: firstName || customer.firstName,
                     lastName: lastName || customer.lastName,
                     avatarUrl: avatarUrl || customer.avatarUrl
@@ -317,9 +516,9 @@ export const googleOAuth = async (req: Request, res: Response) => {
             data: {
                 email,
                 username,
-                googleId,
+                googleId: googleId || `google_${email}`,
                 authProvider: AuthProvider.GOOGLE,
-                firstName,
+                firstName: firstName || username,
                 lastName,
                 avatarUrl,
                 emailVerified: true

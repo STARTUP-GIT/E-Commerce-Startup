@@ -74,6 +74,14 @@ export function AddressSelectorDialog() {
     }
 
     setLocation(addr.id, addr.state, addr.city);
+    
+    // Invalidate queries immediately
+    queryClient.invalidateQueries({ queryKey: ['shops'] });
+    queryClient.invalidateQueries({ queryKey: ['products'] });
+    queryClient.invalidateQueries({ queryKey: ['nearby-shops'] });
+    queryClient.invalidateQueries({ queryKey: ['recommendations'] });
+    queryClient.invalidateQueries({ queryKey: ['delivery-availability'] });
+
     handleClose();
   };
 
@@ -114,6 +122,14 @@ export function AddressSelectorDialog() {
 
     // Set custom location
     setLocation(null, customState, districtName);
+
+    // Invalidate queries immediately
+    queryClient.invalidateQueries({ queryKey: ['shops'] });
+    queryClient.invalidateQueries({ queryKey: ['products'] });
+    queryClient.invalidateQueries({ queryKey: ['nearby-shops'] });
+    queryClient.invalidateQueries({ queryKey: ['recommendations'] });
+    queryClient.invalidateQueries({ queryKey: ['delivery-availability'] });
+
     handleClose();
   };
 
@@ -136,7 +152,7 @@ export function AddressSelectorDialog() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
+                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md"
               />
             </Dialog.Overlay>
 
@@ -147,7 +163,7 @@ export function AddressSelectorDialog() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
                   transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-                  className="relative overflow-hidden w-full max-w-[500px] rounded-3xl border border-white/10 bg-zinc-950 p-6 text-foreground shadow-2xl backdrop-blur-2xl focus:outline-none flex flex-col max-h-[85vh]"
+                  className="relative overflow-hidden w-full max-w-[500px] rounded-3xl border border-white/10 bg-zinc-950/75 p-6 text-foreground shadow-2xl backdrop-blur-xl focus:outline-none flex flex-col max-h-[85vh]"
                 >
                   {/* Subtle Glow */}
                   <div className="absolute -top-[30%] -right-[30%] h-48 w-48 rounded-full bg-white/5 blur-[50px] pointer-events-none" />
@@ -185,15 +201,15 @@ export function AddressSelectorDialog() {
                               <button
                                 key={addr.id}
                                 onClick={() => handleSelectAddress(addr)}
-                                className={`relative w-full text-left p-4 rounded-2xl border transition-all cursor-pointer flex flex-col ${
+                                className={`relative w-full text-left p-4 rounded-2xl border transition-all cursor-pointer flex flex-col backdrop-blur-md ${
                                   isSelected
-                                    ? 'bg-purple-500/10 border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.1)] text-white'
-                                    : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 text-white/70'
+                                    ? 'bg-purple-500/12 border-purple-400/40 shadow-[0_0_24px_rgba(168,85,247,0.15)] text-white'
+                                    : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/15 text-white/70'
                                 }`}
                               >
                                 {/* Name and Type */}
                                 <div className="flex items-center gap-2 mb-1.5 pr-20">
-                                  <span className="text-xs font-black capitalize">
+                                  <span className="text-xs font-black capitalize text-white">
                                     {addr.fullName}
                                   </span>
                                   <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/50 uppercase tracking-wider font-semibold">

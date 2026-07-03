@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useShop } from '../hooks/useShop';
+import { useFileUpload } from '../../storage/hooks/useFileUpload';
 import { bankDetailsSchema } from '../services/shopService';
 import type { BankDetailsInput } from '../services/shopService';
 import { Button } from '@/shared/components/Button';
@@ -38,8 +39,6 @@ export function ShopSettingsPage() {
     isUpdatingShop,
     updateBanner,
     updateLogo,
-    uploadImage,
-    isUploading,
     deleteShop,
     isDeletingShop,
   } = useShop();
@@ -105,13 +104,16 @@ export function ShopSettingsPage() {
     resolver: zodResolver(bankDetailsSchema),
   });
 
+  const { upload: uploadLogo, isUploading: isUploadingLogo } = useFileUpload({ folder: 'shop-logo' });
+  const { upload: uploadBanner, isUploading: isUploadingBanner } = useFileUpload({ folder: 'shop-banner' });
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setErrorMsg(null);
     try {
-      const url = await uploadImage(file);
-      await updateLogo(url);
+      const result = await uploadLogo(file);
+      if (result) await updateLogo(result.url);
     } catch (err: any) {
       setErrorMsg(err.message || 'Logo upload failed');
     }
@@ -122,8 +124,8 @@ export function ShopSettingsPage() {
     if (!file) return;
     setErrorMsg(null);
     try {
-      const url = await uploadImage(file);
-      await updateBanner(url);
+      const result = await uploadBanner(file);
+      if (result) await updateBanner(result.url);
     } catch (err: any) {
       setErrorMsg(err.message || 'Banner upload failed');
     }
@@ -240,6 +242,27 @@ export function ShopSettingsPage() {
           </div>
         )}
 
+        <Card className="border border-white/10 bg-gradient-to-br from-purple-500/10 via-transparent to-emerald-500/10">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-bold text-white/90">Platform Configuration</CardTitle>
+            <CardDescription>Read-only marketplace settings that affect your shop.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-3 text-sm">
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Commission</p>
+              <p className="mt-1 font-semibold text-white">{shop?.commissionPercentage ?? 10}%</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Customer / Seller Delivery</p>
+              <p className="mt-1 font-semibold text-white">{shop?.customerDeliveryShare ?? 75}% / {shop?.sellerDeliveryShare ?? 25}%</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Packing Fee Approval</p>
+              <p className="mt-1 font-semibold text-white">{shop?.packingFeeApproved ? 'Approved' : 'Pending'}</p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Banner and Logo custom cards */}
         <div className="grid md:grid-cols-3 gap-6">
           {/* Logo card */}
@@ -255,7 +278,7 @@ export function ShopSettingsPage() {
                 ) : (
                   <Store className="h-10 w-10 text-white/20" />
                 )}
-                {isUploading && (
+                {isUploadingLogo && (
                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                     <span className="text-[10px] text-purple-300 font-bold">Uploading...</span>
                   </div>
@@ -269,7 +292,7 @@ export function ShopSettingsPage() {
                   type="file"
                   accept="image/*"
                   onChange={handleLogoUpload}
-                  disabled={isUploading}
+                  disabled={isUploadingLogo}
                   className="hidden"
                 />
               </label>
@@ -292,7 +315,7 @@ export function ShopSettingsPage() {
                     <span className="text-[11px] text-white/20 block font-medium">No banner uploaded</span>
                   </div>
                 )}
-                {isUploading && (
+                {isUploadingBanner && (
                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                     <span className="text-[10px] text-purple-300 font-bold">Uploading...</span>
                   </div>
@@ -307,7 +330,7 @@ export function ShopSettingsPage() {
                     type="file"
                     accept="image/*"
                     onChange={handleBannerUpload}
-                    disabled={isUploading}
+                    disabled={isUploadingBanner}
                     className="hidden"
                   />
                 </label>
@@ -315,6 +338,32 @@ export function ShopSettingsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Marketplace settings (Read-Only) */}
+        <Card className="border border-white/5 bg-zinc-950/20">
+          <CardHeader className="pb-3 border-b border-white/5">
+            <CardTitle className="text-xs font-bold text-white/90">Platform Configuration (Read-Only)</CardTitle>
+            <CardDescription className="text-xs text-white/50">Marketplace parameters set by administration for your store</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
+              <p className="text-[9px] font-bold text-white/35 uppercase tracking-wider mb-1">Platform Commission</p>
+              <p className="text-sm font-bold text-white/90">{(shop as any)?.commissionPercentage ?? 10}%</p>
+            </div>
+            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
+              <p className="text-[9px] font-bold text-white/35 uppercase tracking-wider mb-1">Delivery Split (Customer / Seller)</p>
+              <p className="text-sm font-bold text-white/90">
+                {(shop as any)?.customerDeliveryShare ?? 75}% / {(shop as any)?.sellerDeliveryShare ?? 25}%
+              </p>
+            </div>
+            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
+              <p className="text-[9px] font-bold text-white/35 uppercase tracking-wider mb-1">Packing Fee Authorization</p>
+              <p className="text-sm font-bold text-white/90">
+                {(shop as any)?.packingFeeApproved ? 'Approved' : 'Not Approved'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* GST Registration Verification */}
         <Card className="border border-white/5">

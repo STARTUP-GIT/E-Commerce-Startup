@@ -23,12 +23,13 @@ import customerNotificationRoutes from './src/modules/customer/routes/notificati
 import customerCustomOrderRoutes from './src/modules/customer/routes/customOrderRoute.js';
 import customerCityRoute from './src/modules/customer/routes/cityRoute.js';
 import corePaymentRoutes from './src/modules/payments/routes/paymentRoute.js';
-import storageRoute from './src/modules/storage/routes/storageRoute.js';
+import storageRoute from './src/modules/storage/routes/storage.routes.js';
 
 const app = express();
 configureMiddlewares(app);
 
 app.use('/users', userAuth);
+app.use('/customer', userAuth);
 app.use('/users', customerShopRoutes);
 app.use('/users', customerProductRoutes);
 app.use('/users', customerCartRoutes);

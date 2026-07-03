@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -41,6 +41,35 @@ export function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [resetToken, setResetToken] = useState('');
 
+  // Auto-fill and verify OTP if present in hash fragment
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const otpCode = params.get('otp');
+      const username = params.get('username') || params.get('email');
+
+      if (otpCode && username) {
+        setLoginIdentifier(username);
+        setLoading(true);
+        setErrorMsg(null);
+        setStep(2);
+        authApi.verifyOtp({ identifier: username, otp: otpCode })
+          .then((res) => {
+            setResetToken(res.resetToken);
+            setStep(3);
+          })
+          .catch((err) => {
+            setErrorMsg(err.response?.data?.message || authService.formatError(err));
+            setStep(2);
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      }
+    }
+  }, []);
+
   // Step 1 Form
   const {
     register: registerReq,
@@ -72,7 +101,7 @@ export function ForgotPasswordPage() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await authApi.forgotPassword({ email: data.loginIdentifier });
+      const res = await authApi.forgotPassword({ identifier: data.loginIdentifier });
       setLoginIdentifier(data.loginIdentifier);
       setEmail(res.email);
       setStep(2);
@@ -87,7 +116,7 @@ export function ForgotPasswordPage() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await authApi.verifyOtp({ email: loginIdentifier, otp: data.otp });
+      const res = await authApi.verifyOtp({ identifier: loginIdentifier, otp: data.otp });
       setResetToken(res.resetToken);
       setStep(3);
     } catch (err: any) {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useOrders } from '../hooks/useOrders';
-import { useShop } from '@/features/shop/hooks/useShop';
+import { useFileUpload } from '../../storage/hooks/useFileUpload';
 import { ordersService } from '../services/ordersService';
 import { productService } from '@/features/products/services/productService';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -50,7 +50,7 @@ export function OrderDetailPage() {
     isMarkingDelivered,
   } = useOrders(orderId);
 
-  const { uploadImage, isUploading, uploadProgress } = useShop();
+  const { upload: uploadProofImage, isUploading, progress: uploadProgress } = useFileUpload({ folder: 'packing-proof' });
 
   // Modals / States
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -127,8 +127,8 @@ export function OrderDetailPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const url = await uploadImage(file);
-      setProofImages((prev) => [...prev, url]);
+      const result = await uploadProofImage(file);
+      if (result) setProofImages((prev) => [...prev, result.url]);
     } catch (err: any) {
       showToast(err.message || 'Packing proof upload failed');
     }

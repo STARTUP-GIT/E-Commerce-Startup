@@ -6,6 +6,7 @@ import { signAccessToken } from '../../../config/token.js'
 import { sellersessionCookie } from '../../../config/sessionCookies.js'
 import { AuthProvider } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
+import EmailService from '../../../services/email/email.service.js';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -81,6 +82,9 @@ export const register = async (req: Request, res: Response) => {
         }
     });
 
+    const sellerFrontendUrl = process.env.SELLER_FRONTEND_URL!.replace(/\/$/, '');
+    void EmailService.sendVerificationEmail(newSeller.email, { firstName, verificationUrl: `${sellerFrontendUrl}/verify-email?email=${encodeURIComponent(newSeller.email)}` });
+
     const token = signAccessToken(newSeller.id);
     const sessionCookie = sellersessionCookie();
 
@@ -103,26 +107,16 @@ export const register = async (req: Request, res: Response) => {
 }
 
 export const login = async (req: Request, res: Response) => {
-    const loginIdentifier = req.body.email || req.body.loginIdentifier || req.body.username;
-    const { password } = req.body;
+    try {
+        const loginIdentifier = req.body.identifier;
+        const { password } = req.body;
 
-    if (!loginIdentifier || !password) {
-        return res.status(400).json({ message: 'All fields are required' });
-    }
-
-    // Check if seller exists by email or username
-    const seller = await prisma.seller.findFirst({
-        where: {
-            OR: [
-                { email: loginIdentifier },
-                { username: loginIdentifier }
-            ]
+        if (!loginIdentifier || !password) {
+            return res.status(400).json({ message: 'Identifier and password are required' });
         }
-    });
 
-    if (!seller) {
-        // Check if customer exists with this email or username
-        const existingCustomer = await prisma.customer.findFirst({
+        // Check if seller exists by email or username
+        const seller = await prisma.seller.findFirst({
             where: {
                 OR: [
                     { email: loginIdentifier },
@@ -130,57 +124,100 @@ export const login = async (req: Request, res: Response) => {
                 ]
             }
         });
-        if (existingCustomer) {
-            return res.status(400).json({
-                message: "This account is registered under the Customer Portal. Please log in through the Customer Portal."
+
+        if (!seller) {
+            // Check if customer exists with this email or username
+            const existingCustomer = await prisma.customer.findFirst({
+                where: {
+                    OR: [
+                        { email: loginIdentifier },
+                        { username: loginIdentifier }
+                    ]
+                }
+            });
+            if (existingCustomer) {
+                return res.status(400).json({
+                    message: "This account is registered under the Customer Portal. Please log in through the Customer Portal."
+                });
+            }
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (seller.isBanned) {
+            return res.status(403).json({
+                message: "Account is banned"
             });
         }
-        return res.status(404).json({ message: ' User not found' });
-    }
 
-    if (seller.isBanned) {
-        return res.status(403).json({
-            message: "Account is banned"
-        });
-    }
-
-    // Check if the password is correct
-    const isMatch = await bcrypt.compare(password, String(seller.passwordHash));
-    if (!isMatch) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    const token = signAccessToken(seller.id);
-
-    const sessionCookie = sellersessionCookie();
-
-    res.cookie(
-        sessionCookie.name,
-        token,
-        sessionCookie.options
-    );
-
-    return res.status(200).json({
-        message: "Login successful",
-        user: {
-            id: seller.id,
-            email: seller.email,
-            username: seller.username,
-            firstName: seller.firstName,
-            lastName: seller.lastName
+        if (!seller.passwordHash) {
+            return res.status(401).json({
+                message: 'This account uses Google sign-in. Please sign in with Google.'
+            });
         }
-    });
+
+        // Check if the password is correct
+        const isMatch = await bcrypt.compare(password, seller.passwordHash);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        if (seller.isDeactivated) {
+            return res.status(403).json({
+                message: 'This account has been deactivated. Please contact support to reactivate your account.'
+            });
+        }
+
+        const token = signAccessToken(seller.id);
+
+        const sessionCookie = sellersessionCookie();
+
+        res.cookie(
+            sessionCookie.name,
+            token,
+            sessionCookie.options
+        );
+
+        return res.status(200).json({
+            message: "Login successful",
+            user: {
+                id: seller.id,
+                email: seller.email,
+                username: seller.username,
+                firstName: seller.firstName,
+                lastName: seller.lastName
+            }
+        });
+    } catch (error) {
+        console.error('SELLER LOGIN ERROR:', {
+            route: req.originalUrl,
+            method: req.method,
+            payload: { ...req.body, password: req.body?.password ? '[redacted]' : undefined },
+            error
+        });
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
 }
 
 export const googleOAuth = async (req: Request, res: Response) => {
     try {
-        let email: string;
-        let googleId: string;
-        let firstName: string = "";
-        let lastName: string = "";
-        let avatarUrl: string = "";
+        let email: string | undefined;
+        let googleId: string | undefined;
+        let firstName = "";
+        let lastName = "";
+        let avatarUrl = "";
 
-        const { idToken, email: bodyEmail, firstName: bodyFirstName, lastName: bodyLastName, avatarUrl: bodyAvatarUrl, googleId: bodyGoogleId } = req.body;
+        const {
+            idToken,
+            accessToken,
+            email: bodyEmail,
+            name: bodyName,
+            firstName: bodyFirstName,
+            lastName: bodyLastName,
+            avatarUrl: bodyAvatarUrl,
+            provider,
+            providerId,
+            googleId: bodyGoogleId,
+        } = req.body;
 
         if (idToken) {
             const audience = process.env.GOOGLE_CLIENT_ID;
@@ -210,13 +247,24 @@ export const googleOAuth = async (req: Request, res: Response) => {
             avatarUrl = payload.picture ?? "";
         } else if (bodyEmail) {
             email = bodyEmail;
-            googleId = bodyGoogleId || `google_${email}`;
+            googleId = providerId || bodyGoogleId || `google_${bodyEmail}`;
             firstName = bodyFirstName || "";
             lastName = bodyLastName || "";
             avatarUrl = bodyAvatarUrl || "";
+            if (bodyName) {
+                const nameParts = bodyName.trim().split(/\s+/);
+                firstName = firstName || nameParts[0] || "";
+                lastName = lastName || nameParts.slice(1).join(" ") || "";
+            }
         } else {
             return res.status(400).json({
                 message: "Google token or user info is required"
+            });
+        }
+
+        if (!email) {
+            return res.status(400).json({
+                message: "Email is required"
             });
         }
 
@@ -225,7 +273,7 @@ export const googleOAuth = async (req: Request, res: Response) => {
                 email
             }
         });
-        
+
         if (existingCustomer) {
             return res.status(400).json({
                 message: "This account is registered under the Customer Portal. Please log in through the Customer Portal."
@@ -244,8 +292,9 @@ export const googleOAuth = async (req: Request, res: Response) => {
                     id: seller.id
                 },
                 data: {
-                    googleId,
+                    googleId: googleId || seller.googleId,
                     emailVerified: true,
+                    authProvider: provider === 'google' ? AuthProvider.GOOGLE : seller.authProvider,
                     firstName: firstName || seller.firstName,
                     lastName: lastName || seller.lastName,
                     avatarUrl: avatarUrl || seller.avatarUrl
@@ -317,7 +366,7 @@ export const googleOAuth = async (req: Request, res: Response) => {
             data: {
                 email,
                 username,
-                googleId,
+                googleId: googleId || `google_${email}`,
                 authProvider: AuthProvider.GOOGLE,
                 firstName: firstName || username,
                 lastName,
@@ -655,7 +704,7 @@ export const deleteProfile = async (req: Request, res: Response) => {
 
 export const forgotPassword = async (req: Request, res: Response) => {
     try {
-        const loginIdentifier = req.body.email || req.body.username || req.body.loginIdentifier;
+        const loginIdentifier = req.body.identifier || req.body.email || req.body.username || req.body.loginIdentifier;
 
         if (!loginIdentifier) {
             return res.status(400).json({ message: 'Email or Username is required' });
@@ -691,12 +740,24 @@ export const forgotPassword = async (req: Request, res: Response) => {
             }
         });
 
-        // Log OTP to console for local testing/verification
-        console.log(`[FORGOT PASSWORD OTP] OTP for ${seller.email} is: ${code}`);
+        const sellerFrontendUrl = process.env.SELLER_FRONTEND_URL!.replace(/\/$/, '');
+        const resetLink = `${sellerFrontendUrl}/forgot-password#otp=${code}&username=${encodeURIComponent(seller.username)}`;
+        const emailResult = await EmailService.sendForgotPassword(seller.email, code, {
+            firstName: seller.firstName,
+            resetUrl: resetLink,
+        });
+
+        if (!emailResult.success) {
+            console.warn(`[FORGOT PASSWORD] OTP generated but email delivery failed for ${seller.email}: ${emailResult.error}`);
+        }
 
         return res.status(200).json({
-            message: 'Password reset OTP has been sent successfully.',
-            email: seller.email
+            message: emailResult.success
+                ? 'Password reset OTP has been sent successfully.'
+                : 'Password reset OTP was generated but email delivery failed. Please contact support.',
+            email: seller.email,
+            emailDelivery: emailResult.success ? 'sent' : 'failed',
+            error: emailResult.error,
         });
 
     } catch (error) {
@@ -707,7 +768,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
 export const verifyOtp = async (req: Request, res: Response) => {
     try {
-        const loginIdentifier = req.body.email || req.body.username || req.body.loginIdentifier;
+        const loginIdentifier = req.body.identifier || req.body.email || req.body.username || req.body.loginIdentifier;
         const { otp } = req.body;
 
         if (!loginIdentifier || !otp) {

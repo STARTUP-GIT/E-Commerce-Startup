@@ -9,7 +9,8 @@ import {
     activateShop,
     deactivateShop,
     banShop,
-    unbanShop
+    unbanShop,
+    updateShopConfig
 } from "../controllers/shopController.js";
 import { adminAuth } from "../../../middleware/adminAuth.js";
 
@@ -25,5 +26,6 @@ router.patch("/shops/:id/activate", adminAuth, activateShop);
 router.patch("/shops/:id/deactivate", adminAuth, deactivateShop);
 router.patch("/shops/:id/ban", adminAuth, banShop);
 router.patch("/shops/:id/unban", adminAuth, unbanShop);
+router.put("/shops/:id/config", adminAuth, updateShopConfig);
 
 export default router;

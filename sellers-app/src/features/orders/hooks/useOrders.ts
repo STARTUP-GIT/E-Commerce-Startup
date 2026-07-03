@@ -7,9 +7,15 @@ export function useOrders(orderId?: string) {
   const ordersQuery = useQuery({
     queryKey: ['orders'],
     queryFn: async () => {
-      const res = await ordersApi.getOrders();
-      return res.orders;
+      try {
+        const res = await ordersApi.getOrders();
+        return res.orders;
+      } catch {
+        // Return empty array on 403 (inactive shop) or any other error
+        return [];
+      }
     },
+    retry: false,
   });
 
   const orderDetailsQuery = useQuery({

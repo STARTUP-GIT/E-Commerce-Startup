@@ -352,3 +352,52 @@ export const unbanShop = async (req: Request, res: Response) => {
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };
+
+export const updateShopConfig = async (req: Request, res: Response) => {
+    try {
+        const shopId = String(req.params.id);
+        const adminId = req.adminId!;
+        const { commissionPercentage, customerDeliveryShare, sellerDeliveryShare, enablePackingFee, packingFeeApproved } = req.body;
+
+        const shop = await prisma.shop.findUnique({ where: { id: shopId } });
+        if (!shop) return res.status(404).json({ message: "Shop not found" });
+
+        const updatedShop = await prisma.shop.update({
+            where: { id: shopId },
+            data: {
+                commissionPercentage: commissionPercentage !== undefined ? Number(commissionPercentage) : undefined,
+                customerDeliveryShare: customerDeliveryShare !== undefined ? Number(customerDeliveryShare) : undefined,
+                sellerDeliveryShare: sellerDeliveryShare !== undefined ? Number(sellerDeliveryShare) : undefined,
+                enablePackingFee: enablePackingFee !== undefined ? Boolean(enablePackingFee) : undefined,
+                packingFeeApproved: packingFeeApproved !== undefined ? Boolean(packingFeeApproved) : undefined,
+            }
+        });
+
+        await logAdminAction({
+            adminId,
+            actionType: AdminActionType.MARKETPLACE_SETTINGS_UPDATED,
+            targetType: "Shop",
+            targetId: shopId,
+            description: `Configured shop settings for ${shop.name}`,
+            previousValue: {
+                commissionPercentage: shop.commissionPercentage,
+                customerDeliveryShare: shop.customerDeliveryShare,
+                sellerDeliveryShare: shop.sellerDeliveryShare,
+                enablePackingFee: shop.enablePackingFee,
+                packingFeeApproved: shop.packingFeeApproved
+            },
+            newValue: {
+                commissionPercentage: updatedShop.commissionPercentage,
+                customerDeliveryShare: updatedShop.customerDeliveryShare,
+                sellerDeliveryShare: updatedShop.sellerDeliveryShare,
+                enablePackingFee: updatedShop.enablePackingFee,
+                packingFeeApproved: updatedShop.packingFeeApproved
+            }
+        });
+
+        return res.status(200).json({ message: "Shop configurations updated successfully", shop: updatedShop });
+    } catch (error: any) {
+        console.error("UPDATE SHOP CONFIG ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};

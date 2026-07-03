@@ -34,6 +34,7 @@ export interface EditProfilePayload {
   lastName?: string;
   username?: string;
   phone?: string;
+  avatarUrl?: string;
 }
 
 export interface UpdateProfilePayload {

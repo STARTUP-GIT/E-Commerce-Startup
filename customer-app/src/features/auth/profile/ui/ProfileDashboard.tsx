@@ -5,12 +5,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useProfile } from '../hooks/useProfile';
 import { editProfileSchema, getAddAddressSchema, EditProfileInput, AddAddressInput } from '../services/profileService';
+import { useFileUpload } from '@/features/storage/hooks/useFileUpload';
 import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/shared/components/Card';
 import { Badge } from '@/shared/components/Badge';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { User, MapPin, ShieldAlert, LogOut, Loader2, Plus, Home } from 'lucide-react';
+import { User, MapPin, ShieldAlert, LogOut, Loader2, Plus, Home, Upload } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
 import { profileApi } from '../api/profileApi';
@@ -95,6 +96,8 @@ export function ProfileDashboard() {
 
   const activeStates = locationsConfig?.states ?? [];
   const districtRequired = locationsConfig?.districtRequired !== false;
+
+  const { upload: uploadAvatar, isUploading: isUploadingAvatar, publicUrl: avatarPreview } = useFileUpload({ folder: 'customer-profile' });
 
   const { setActiveStatesData, setComingSoon, setLocation } = useLocationStore();
   const { showConfirm, showAlert } = useConfirmStore();
@@ -191,6 +194,15 @@ export function ProfileDashboard() {
 
   const onUpdateInfo = (data: EditProfileInput) => {
     editProfile(data);
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const result = await uploadAvatar(file);
+    if (result) {
+      editProfile({ avatarUrl: result.url });
+    }
   };
 
   const onAddAddress = (data: AddAddressInput) => {
@@ -308,6 +320,35 @@ export function ProfileDashboard() {
                 <CardDescription>Update your username, name, and contact details.</CardDescription>
               </CardHeader>
               <CardContent>
+                {/* Avatar Upload */}
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border">
+                  <div className="relative h-16 w-16 rounded-full border-2 border-border overflow-hidden bg-zinc-900 flex items-center justify-center shrink-0">
+                    {avatarPreview || profile.avatarUrl ? (
+                      <img src={avatarPreview || profile.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <User className="h-7 w-7 text-zinc-600" />
+                    )}
+                    {isUploadingAvatar && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border border-border bg-zinc-900 text-foreground hover:bg-zinc-800 transition-colors cursor-pointer">
+                      <Upload className="h-3.5 w-3.5" />
+                      <span>Upload Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        disabled={isUploadingAvatar}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="text-[10px] text-muted-foreground mt-1">JPEG, PNG, or WEBP. Max 5MB.</p>
+                  </div>
+                </div>
                 <form onSubmit={handleSubmitInfo(onUpdateInfo)} className="space-y-4">
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">

@@ -1,11 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customOrderApi, CreateCustomOrderPayload } from '../api/customOrderApi';
+import { useFileUpload } from '../../storage/hooks/useFileUpload';
 import { useState } from 'react';
 
 export function useCustomOrders(orderId?: string) {
   const queryClient = useQueryClient();
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [isUploading, setIsUploading] = useState<boolean>(false);
 
   const customOrdersQuery = useQuery({
     queryKey: ['custom-orders'],
@@ -57,54 +56,43 @@ export function useCustomOrders(orderId?: string) {
     },
   });
 
-  // Direct S3 upload utility helper
-  const uploadFile = async (file: File): Promise<{
-    fileName: string;
-    fileUrl: string;
-    fileType: 'STL' | 'STEP' | 'OBJ' | 'PDF' | 'IMAGE' | 'OTHER';
-    fileSizeBytes: number;
-  }> => {
-    setIsUploading(true);
-    setUploadProgress(10);
-    try {
-      // Get presigned URL
-      const { url, key } = await customOrderApi.getUploadUrl(file.name, file.type || 'application/octet-stream');
-      setUploadProgress(40);
-      
-      // Upload directly to S3
-      await customOrderApi.uploadFileDirectly(url, file, file.type || 'application/octet-stream');
-      setUploadProgress(100);
+  const { upload: uploadToStorage, isUploading, progress: uploadProgress } = useFileUpload({
+    folder: 'products',
+    maxSizeMB: 25,
+    allowedTypes: [
+      'application/pdf', 
+      'application/octet-stream', 
+      'image/jpeg', 
+      'image/png', 
+      'image/webp',
+      'model/stl',
+      'model/step',
+      'model/obj'
+    ]
+  });
 
-      // Determine file type category
-      const ext = file.name.split('.').pop()?.toUpperCase() || '';
-      let fileType: 'STL' | 'STEP' | 'OBJ' | 'PDF' | 'IMAGE' | 'OTHER' = 'OTHER';
-      
-      if (ext === 'STL') fileType = 'STL';
-      else if (ext === 'STEP' || ext === 'STP') fileType = 'STEP';
-      else if (ext === 'OBJ') fileType = 'OBJ';
-      else if (ext === 'PDF') fileType = 'PDF';
-      else if (file.type.startsWith('image/') || ['PNG', 'JPG', 'JPEG', 'WEBP', 'GIF'].includes(ext)) {
-        fileType = 'IMAGE';
-      }
+  const uploadFile = async (file: File) => {
+    const result = await uploadToStorage(file);
+    if (!result) throw new Error('File upload failed');
 
-      // Generate public/access URL - since S3 presigned URL key has upload prefix,
-      // the base URL is the same host or clean endpoint.
-      // S3 URL returned in getUploadUrl contains the path, but standard is URL without the query params
-      const fileUrl = url.split('?')[0];
-
-      return {
-        fileName: file.name,
-        fileUrl: fileUrl,
-        fileType,
-        fileSizeBytes: file.size,
-      };
-    } catch (error) {
-      console.error('File upload failed:', error);
-      throw new Error('Failed to upload file attachment');
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
+    // Determine file type category
+    const ext = file.name.split('.').pop()?.toUpperCase() || '';
+    let fileType: 'STL' | 'STEP' | 'OBJ' | 'PDF' | 'IMAGE' | 'OTHER' = 'OTHER';
+    
+    if (ext === 'STL') fileType = 'STL';
+    else if (ext === 'STEP' || ext === 'STP') fileType = 'STEP';
+    else if (ext === 'OBJ') fileType = 'OBJ';
+    else if (ext === 'PDF') fileType = 'PDF';
+    else if (file.type.startsWith('image/') || ['PNG', 'JPG', 'JPEG', 'WEBP', 'GIF'].includes(ext)) {
+      fileType = 'IMAGE';
     }
+
+    return {
+      fileName: file.name,
+      fileUrl: result.url,
+      fileType,
+      fileSizeBytes: file.size,
+    };
   };
 
   return {

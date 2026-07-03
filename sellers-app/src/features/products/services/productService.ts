@@ -4,13 +4,13 @@ export const createProductSchema = z.object({
   productname: z.string().min(3, 'Product name must be at least 3 characters'),
   productquantity: z.number().int().min(1, 'Quantity must be at least 1'),
   productprice: z.number().positive('Price must be greater than 0'),
-  imageUrl: z.string().url('Please upload a product image or enter a valid URL'),
+  imageKey: z.string().min(1, 'Please upload a product image'),
 });
 
 export const editProductSchema = z.object({
   productquantity: z.number().int().min(1, 'Quantity must be at least 1'),
   productprice: z.number().positive('Price must be greater than 0'),
-  imageUrl: z.string().url('Please enter a valid image URL'),
+  imageKey: z.string().min(1, 'Please upload a product image'),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;

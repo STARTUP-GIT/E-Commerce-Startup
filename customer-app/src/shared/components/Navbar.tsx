@@ -142,16 +142,15 @@ export function Navbar() {
                   onClick={() => setAddressSelectorOpen(true)}
                   className="flex items-center gap-2 px-3 py-1 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/15 text-[10px] sm:text-xs font-bold text-white/80 transition-all cursor-pointer shadow-sm select-none text-left"
                 >
-                  <MapPin className="h-4 w-4 text-purple-400 shrink-0" />
                   <div className="flex flex-col min-w-0 leading-tight">
-                    <span className="text-[10px] text-white/40 font-medium truncate max-w-[150px]">
-                      Deliver to {activeAddress ? activeAddress.fullName : (session?.user?.name || 'Guest')}
+                    <span className="text-[10px] text-white/45 font-medium truncate max-w-[150px] flex items-center gap-1">
+                      <span>📍 Deliver to</span>
+                      <span className="font-bold text-white/70">{activeAddress ? activeAddress.fullName : (session?.user?.name || 'Guest')}</span>
                     </span>
-                    <span className="text-[11px] text-white/90 truncate max-w-[150px] font-bold">
-                      {activeAddress 
-                        ? `${activeAddress.city}, ${activeAddress.state}${activeAddress.postalCode ? ` - ${activeAddress.postalCode}` : ''}`
-                        : `${selectedDistrict}, ${selectedState}`
-                      }
+                    <span className="text-[11px] text-white/90 truncate max-w-[185px] font-extrabold mt-0.5">
+                      {activeAddress
+                        ? `${activeAddress.city}, ${activeAddress.state} - ${activeAddress.postalCode}`
+                        : `${selectedDistrict}, ${selectedState}`}
                     </span>
                   </div>
                   <span className="text-[8px] text-white/30 ml-0.5 align-middle shrink-0">▼</span>

@@ -59,7 +59,7 @@ import deliveryRoute from './modules/delivery/routes/deliveryRoute.js';
 import sellerDeliveryRoute from './modules/delivery/routes/sellerDeliveryRoute.js';
 import adminDeliveryRoute from './modules/delivery/routes/adminDeliveryRoute.js';
 import deliveryWebhook from './modules/delivery/webhooks/deliveryWebhook.js';
-import storageRoute from './modules/storage/routes/storageRoute.js';
+import storageRoute from './modules/storage/routes/storage.routes.js';
 
 export const configureMiddlewares = (app: express.Express) => {
     if (process.env.NODE_ENV === 'production') {
@@ -106,6 +106,7 @@ configureMiddlewares(app);
 /** routes */
 // user routes
 app.use('/users', userAuth);
+app.use('/customer', userAuth);
 app.use('/users', customerShopRoutes);
 app.use('/users', customerProductRoutes);
 app.use('/users', customerCartRoutes);

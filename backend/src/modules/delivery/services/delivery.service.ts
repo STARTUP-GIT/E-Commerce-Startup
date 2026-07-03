@@ -1,5 +1,6 @@
 import { prisma } from "../../../config/prisma.js";
 import PorterService from "./porter.service.js";
+import { DeliveryDecisionEngine } from "./deliveryProviders.js";
 
 const DEFAULT_PROVIDER = "PORTER";
 
@@ -14,11 +15,11 @@ export class DeliveryService {
     throw new Error(`Unsupported delivery provider: ${provider}`);
   }
 
-  static async calculateShares(deliveryCost: number) {
-    const setting = await prisma.platformDeliverySetting.findUnique({ where: { id: 1 } });
-    const customerShare = setting ? setting.customerDeliveryShare : 75;
-    const sellerShare = setting ? setting.sellerDeliveryShare : 25;
+  static async getBestProvider(pickupAddress: any, dropoffAddress: any) {
+    return DeliveryDecisionEngine.selectProvider({ pickupAddress, dropoffAddress });
+  }
 
+  static async calculateShares(deliveryCost: number, customerShare = 75, sellerShare = 25) {
     const customerAmount = Math.round((deliveryCost * customerShare) / 100);
     const sellerAmount = deliveryCost - customerAmount;
 
@@ -55,8 +56,15 @@ export class DeliveryService {
 
     const estimate: any = await Provider.estimatePrice(pickupAddress, deliveryAddress);
     const amount = Number(estimate?.amount ?? estimate?.price ?? 0);
+    const bestProvider = await this.getBestProvider(pickupAddressSnapshot, deliveryAddressSnapshot);
+    console.info(`[DELIVERY] Selected provider ${bestProvider.name} for seller order ${sellerOrderId}`);
 
-    const shares = await this.calculateShares(amount);
+    // Fetch shop settings for individual delivery split
+    const shop = await prisma.shop.findUnique({ where: { sellerId: sellerOrder.sellerId } });
+    const customerShare = shop?.customerDeliveryShare !== null && shop?.customerDeliveryShare !== undefined ? shop.customerDeliveryShare : 75;
+    const sellerShare = shop?.sellerDeliveryShare !== null && shop?.sellerDeliveryShare !== undefined ? shop.sellerDeliveryShare : 25;
+
+    const shares = await this.calculateShares(amount, customerShare, sellerShare);
 
     const bookingPayload = { sellerOrderId, pickup: pickupAddressSnapshot, dropoff: deliveryAddressSnapshot, amount };
     const booking: any = await Provider.createBooking(bookingPayload);

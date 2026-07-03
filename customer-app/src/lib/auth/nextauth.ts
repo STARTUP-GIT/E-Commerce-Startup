@@ -38,9 +38,10 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        email: { label: 'Email', type: 'text' },
+        identifier: { label: 'Email or Username', type: 'text' },
         password: { label: 'Password', type: 'password' },
         isGoogleMock: { label: 'isGoogleMock', type: 'text' },
+        email: { label: 'Email', type: 'text' },
         firstName: { label: 'firstName', type: 'text' },
         lastName: { label: 'lastName', type: 'text' },
         avatarUrl: { label: 'avatarUrl', type: 'text' },
@@ -76,10 +77,11 @@ export const authOptions: NextAuthOptions = {
           }
         }
 
-        if (!credentials?.email || !credentials?.password) return null;
+        const identifier = credentials?.identifier;
+        if (!identifier || !credentials?.password) return null;
         try {
           const response = await axiosInstance.post('/api/auth/login', {
-            email: credentials.email,
+            identifier,
             password: credentials.password,
           });
 
@@ -103,8 +105,8 @@ export const authOptions: NextAuthOptions = {
       },
     }),
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || 'dummy_id',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'dummy_secret',
+      clientId: process.env.GOOGLE_CLIENT_ID as string, 
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     }),
   ],
   callbacks: {

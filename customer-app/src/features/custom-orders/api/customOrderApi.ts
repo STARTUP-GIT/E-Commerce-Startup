@@ -1,5 +1,4 @@
 import axiosInstance from '@/lib/axios/axiosInstance';
-import axios from 'axios';
 
 export interface CustomOrderFile {
   id?: string;
@@ -77,20 +76,6 @@ export const customOrderApi = {
   },
   rejectQuote: async (orderId: string, quoteId: string, reason?: string): Promise<any> => {
     const response = await axiosInstance.patch(`/api/custom-orders/${orderId}/reject-quotation`, { quoteId, reason });
-    return response.data;
-  },
-  getUploadUrl: async (filename: string, contentType: string): Promise<{ url: string; key: string }> => {
-    const port = process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).port : '3001';
-    const baseUrl = `http://localhost:${port}/api/storage/upload-url`;
-    const response = await axios.post(baseUrl, { filename, contentType }, { withCredentials: true });
-    return response.data;
-  },
-  uploadFileDirectly: async (url: string, file: File, contentType: string): Promise<any> => {
-    const response = await axios.put(url, file, {
-      headers: {
-        'Content-Type': contentType,
-      },
-    });
     return response.data;
   },
 };

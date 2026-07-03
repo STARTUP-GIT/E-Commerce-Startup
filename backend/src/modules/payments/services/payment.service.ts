@@ -388,6 +388,13 @@ export const verifyPayment = async (paymentData: {
                 throw new Error(`Seller does not have a registered pickup address.`);
             }
 
+            const shop = seller.shop;
+            const commissionPercent = shop && shop.commissionPercentage !== null && shop.commissionPercentage !== undefined 
+                ? Number(shop.commissionPercentage) 
+                : 10.0;
+            const platformCommission = sellerSubtotal * (commissionPercent / 100);
+            const sellerEarnings = sellerSubtotal - platformCommission + sellerPackingFee;
+
             const sellerOrder = await tx.sellerOrder.create({
                 data: {
                     orderId: order.id,
@@ -399,8 +406,8 @@ export const verifyPayment = async (paymentData: {
                     taxAmount: sellerTax,
                     packingFee: sellerPackingFee,
                     platformFee: null,
-                    platformCommission: 0,
-                    sellerEarnings: sellerSubtotal + sellerPackingFee
+                    platformCommission,
+                    sellerEarnings
                 }
             });
 
