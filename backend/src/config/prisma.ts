@@ -3,7 +3,14 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 import bcrypt from "bcrypt";
 
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+    console.error("FATAL: DATABASE_URL environment variable is missing.");
+    process.exit(1);
+}
+const dbHost = new URL(databaseUrl).hostname;
+console.log(`DATABASE_URL HOST = ${dbHost}`);
+const pool = new pg.Pool({ connectionString: databaseUrl });
 const adapter = new PrismaPg(pool);
 
 export const prisma = new PrismaClient({ adapter });
