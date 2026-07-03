@@ -2,8 +2,8 @@ import 'dotenv/config';
 import axios from 'axios';
 import { prisma } from '../dist/src/config/prisma.js';
 import bcrypt from 'bcryptjs';
-const CUSTOMER_API = 'http://localhost:3001';
-const SELLER_API = 'http://localhost:3002';
+const CUSTOMER_API = 'https://e-commerce-startup-customer.onrender.com';
+const SELLER_API = 'https://e-commerce-startup-seller.onrender.com';
 
 async function runTests() {
   console.log('=== STARTING AUTOMATED AUTH, USERNAME LOGIN & PASSWORD RESET VERIFICATION ===\n');

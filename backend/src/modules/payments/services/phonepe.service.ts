@@ -18,7 +18,7 @@ export const createPayment = async (paymentData: {
         merchantTransactionId: transactionId,
         merchantUserId: merchantUserId,
         amount: Math.round(amount * 100), // in paise
-        redirectUrl: redirectUrl || process.env.PAYMENT_CALLBACK_URL || "http://localhost:3000/payment-callback",
+        redirectUrl: redirectUrl || process.env.PAYMENT_CALLBACK_URL || "https://e-commerce-startup-customer.onrender.com/payment-callback",
         redirectMode: "POST",
         paymentInstrument: {
             type: "PAY_PAGE"
@@ -75,7 +75,7 @@ export const refundPayment = async (paymentData: {
         merchantTransactionId: refundTransactionId,
         originalTransactionId: originalTransactionId,
         amount: Math.round(amount * 100),
-        callbackUrl: process.env.PAYMENT_REFUND_CALLBACK_URL || "http://localhost:3000/refund-callback"
+        callbackUrl: process.env.PAYMENT_REFUND_CALLBACK_URL || "https://e-commerce-startup-customer.onrender.com/refund-callback"
     };
 
     const base64Payload = Buffer.from(JSON.stringify(payload)).toString("base64");
