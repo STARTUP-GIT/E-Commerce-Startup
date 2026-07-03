@@ -4,7 +4,7 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "prisma generate && prisma migrate deploy && tsc",
     "dev:customer": "node dist/customer.server.js",
     "dev:seller": "node dist/seller.server.js",
     "dev:admin": "node dist/admin.server.js",
