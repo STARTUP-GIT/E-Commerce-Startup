@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { ForgotPasswordForm } from '@/features/auth/forgot-password/ui/ForgotPasswordForm';
 import { ShoppingBag } from 'lucide-react';
 
@@ -40,7 +41,9 @@ export default function ForgotPasswordPage() {
 
       {/* Form Column */}
       <div className="flex items-center justify-center p-6 bg-zinc-900/50">
-        <ForgotPasswordForm />
+        <Suspense fallback={<div className="w-full max-w-md p-8 text-center text-muted-foreground">Loading...</div>}>
+          <ForgotPasswordForm />
+        </Suspense>
       </div>
     </main>
   );

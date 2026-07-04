@@ -21,4 +21,4 @@ RUN npx prisma generate
 ENV NODE_ENV=production
 USER node
 EXPOSE 3002
-CMD ["node", "dist/seller.server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/seller.server.js"]
