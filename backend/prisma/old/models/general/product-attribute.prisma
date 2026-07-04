@@ -1,0 +1,20 @@
+// =============================================================================
+// ProductAttribute — structured specs (material, color, dimensions, etc.)
+// =============================================================================
+
+model ProductAttribute {
+  id        String   @id @default(cuid())
+  productId String
+  name      String   @db.VarChar(100)
+  value     String   @db.VarChar(500)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, name])
+  @@index([productId])
+  @@index([productId, sortOrder])
+  @@map("product_attributes")
+}

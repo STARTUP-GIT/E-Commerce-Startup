@@ -1,0 +1,52 @@
+// =============================================================================
+// ReturnRequest — return workflow with admin approval + separate addresses
+// =============================================================================
+
+model ReturnRequest {
+  id                      String       @id @default(cuid())
+  returnNumber            String       @unique @db.VarChar(30)
+  orderId                 String
+  orderItemId             String       @unique
+  customerId              String
+  sellerId                String
+  productId               String
+  pickupCustomerAddressId String?
+  dropoffSellerAddressId  String?
+  status                  ReturnStatus @default(REQUESTED)
+  reason                  String       @db.Text
+  description             String?      @db.Text
+  refundAmount            Decimal      @db.Decimal(12, 2)
+  images                  String[]     @default([])
+  reviewedByAdminId       String?      @db.VarChar(30)
+  reviewedAt              DateTime?
+  adminNotes              String?      @db.Text
+  rejectionReason         String?      @db.Text
+  pickupScheduledAt       DateTime?
+  pickedUpAt              DateTime?
+  receivedAt              DateTime?
+  refundedAt              DateTime?
+  completedAt             DateTime?
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+
+  order                 Order                @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderItem             OrderItem            @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  customer              Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  seller                Seller               @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  product               Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  pickupCustomerAddress CustomerAddress?     @relation("ReturnPickupAddress", fields: [pickupCustomerAddressId], references: [id], onDelete: SetNull)
+  dropoffSellerAddress  SellerAddress?       @relation("ReturnDropoffAddress", fields: [dropoffSellerAddressId], references: [id], onDelete: SetNull)
+  reviewedByAdmin       Admin?               @relation("ReturnReviewedBy", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+  timelineEvents        OrderTimelineEvent[]
+
+  @@index([orderId])
+  @@index([customerId])
+  @@index([sellerId])
+  @@index([productId])
+  @@index([pickupCustomerAddressId])
+  @@index([dropoffSellerAddressId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([customerId, status])
+  @@map("return_requests")
+}

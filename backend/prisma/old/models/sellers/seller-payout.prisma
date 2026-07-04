@@ -1,0 +1,30 @@
+// =============================================================================
+// SellerPayout — seller earnings settlement per seller order
+// =============================================================================
+
+model SellerPayout {
+  id              String       @id @default(cuid())
+  sellerId        String
+  sellerOrderId   String       @unique
+  bankAccountId   String?
+  amount          Decimal      @db.Decimal(12, 2)
+  platformFee     Decimal      @db.Decimal(12, 2)
+  currency        String       @default("USD") @db.VarChar(3)
+  status          PayoutStatus @default(PENDING)
+  gatewayPayoutId String?      @unique @db.VarChar(255)
+  processedAt     DateTime?
+  failedAt        DateTime?
+  failureReason   String?      @db.Text
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  seller      Seller             @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  sellerOrder SellerOrder        @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
+  bankAccount SellerBankAccount? @relation(fields: [bankAccountId], references: [id], onDelete: SetNull)
+
+  @@index([sellerId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([sellerId, status])
+  @@map("seller_payouts")
+}

@@ -1,0 +1,34 @@
+// =============================================================================
+// SellerVerification — document upload workflow before seller approval
+// =============================================================================
+
+model SellerVerification {
+  id       String @id @default(cuid())
+  sellerId String
+
+  gstNumber String? @db.VarChar(15)
+  gstRegistered Boolean @default(true)
+
+  documentType VerificationDocumentType?
+  documentUrl  String?                   @db.VarChar(2048)
+  fileName     String?                   @db.VarChar(300)
+
+  status SellerVerificationStatus @default(PENDING)
+
+  reviewedByAdminId String?   @db.VarChar(30)
+  reviewedAt        DateTime?
+  rejectionReason   String?
+
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  seller          Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  reviewedByAdmin Admin? @relation("SellerVerificationReviewedBy", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([sellerId])
+  @@index([status])
+  @@index([documentType])
+  @@index([sellerId, status])
+  @@map("seller_verifications")
+}
