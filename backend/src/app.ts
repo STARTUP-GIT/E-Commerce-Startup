@@ -62,7 +62,7 @@ import deliveryWebhook from './modules/delivery/webhooks/deliveryWebhook.js';
 import storageRoute from './modules/storage/routes/storage.routes.js';
 
 export const configureMiddlewares = (app: express.Express) => {
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV?.toLowerCase() === 'production') {
         app.set('trust proxy', 1);
     }
 
@@ -77,12 +77,15 @@ export const configureMiddlewares = (app: express.Express) => {
     }));
     app.use(express.urlencoded({ limit: '10mb', extended: true }));
     app.use(cookieParser());
+
+    const normalizeOrigin = (o: string) => o.replace(/\/+$/, '').toLowerCase();
+
     const rawOrigins = [
         process.env.CORS_ORIGINS,
         process.env.CUSTOMER_FRONTEND_URL,
         process.env.SELLER_FRONTEND_URL,
         process.env.ADMIN_FRONTEND_URL,
-    ].filter(Boolean).join(',').split(',').map(s => s.trim()).filter(Boolean);
+    ].filter(Boolean).join(',').split(',').map(s => normalizeOrigin(s.trim())).filter(Boolean);
 
     const localDevOrigins = [
         'http://localhost:3000',
@@ -91,13 +94,13 @@ export const configureMiddlewares = (app: express.Express) => {
         'http://127.0.0.1:3000',
         'http://127.0.0.1:5173',
         'http://127.0.0.1:8001',
-    ];
+    ].map(normalizeOrigin);
 
-    const allowedOrigins = [...new Set([...rawOrigins, ...localDevOrigins])];
+    const allowedOrigins = new Set([...rawOrigins, ...localDevOrigins]);
 
     app.use(cors({
         origin: (origin, callback) => {
-            if (!origin || allowedOrigins.some(o => origin.startsWith(o))) {
+            if (!origin || allowedOrigins.has(normalizeOrigin(origin))) {
                 callback(null, true);
             } else {
                 callback(new Error(`Origin ${origin} not allowed by CORS`));

@@ -17,7 +17,7 @@ export const logger = {
     console.error(JSON.stringify(output));
   },
   debug: (message: string, meta: Record<string, any> = {}) => {
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV?.toLowerCase() !== "production") {
       const store = requestStore.getStore();
       const output = { timestamp: new Date().toISOString(), level: "debug", message, requestId: store?.requestId, ...meta };
       console.debug(JSON.stringify(output));

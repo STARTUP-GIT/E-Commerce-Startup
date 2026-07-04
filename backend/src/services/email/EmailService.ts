@@ -11,7 +11,7 @@ const APP_NAME = process.env.APP_NAME || 'E-Commerce Startup';
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV?.toLowerCase() === 'development';
 const isUsingResendDev = !!(EMAIL_FROM && EMAIL_FROM.includes('resend.dev'));
 
 export interface EmailSendResult {
