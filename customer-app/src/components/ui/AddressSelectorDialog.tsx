@@ -65,7 +65,7 @@ export function AddressSelectorDialog() {
   const handleSelectAddress = (addr: any) => {
     // Check if the address belongs to an operational location
     const isStateActive = activeStates.some(
-      (s) => s.toLowerCase() === addr.state.toLowerCase()
+      (s) => s.name.toLowerCase() === addr.state.toLowerCase()
     );
 
     if (!isStateActive) {
