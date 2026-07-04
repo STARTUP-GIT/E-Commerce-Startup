@@ -104,7 +104,7 @@ function App() {
 
             const path = window.location.pathname;
             if (path === '/login' || path === '/register') {
-              window.location.href = '/dashboard';
+              window.location.href = '/profile';
             }
           }
         } catch (err: any) {

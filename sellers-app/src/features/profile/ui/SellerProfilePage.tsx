@@ -7,7 +7,9 @@ import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Badge } from '@/shared/components/Badge';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { useAuth } from '@/features/auth/hooks/useAuth';
+import { SearchableDropdown } from '@/components/ui/SearchableDropdown';
+import { useQuery } from '@tanstack/react-query';
+import { shopApi } from '@/features/shop/api/shopApi';
 import {
   User,
   Mail,
@@ -19,21 +21,51 @@ import {
   Eye,
   CheckCircle,
   AlertTriangle,
+  Building2,
+  CreditCard,
 } from 'lucide-react';
 
 export function SellerProfilePage() {
   const { profile, isLoading, isError, updateProfile, isUpdating } = useSellerProfile();
-  useAuth();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const { data: locationsConfig } = useQuery({
+    queryKey: ['seller-locations-config'],
+    queryFn: shopApi.getLocationsStates,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const allStates = locationsConfig?.allStates ?? [];
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     phone: '',
+    avatarUrl: '',
+    businessName: '',
+    gstNumber: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: 'India',
+    bio: '',
   });
+
+  const selectedState = formData.state;
+
+  const { data: districtsData } = useQuery({
+    queryKey: ['seller-locations-districts', selectedState],
+    queryFn: () => shopApi.getLocationsDistricts(selectedState),
+    enabled: !!selectedState,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const districts = districtsData?.allDistricts ?? [];
 
   const startEditing = () => {
     if (!profile) return;
@@ -41,6 +73,16 @@ export function SellerProfilePage() {
       firstName: profile.seller.firstName || '',
       lastName: profile.seller.lastName || '',
       phone: profile.seller.phone || '',
+      avatarUrl: profile.seller.avatarUrl || '',
+      businessName: profile.shop?.businessName || '',
+      gstNumber: profile.shop?.gstNumber || '',
+      addressLine1: '',
+      addressLine2: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      country: 'India',
+      bio: '',
     });
     setIsEditing(true);
     setSuccessMsg(null);
@@ -57,7 +99,22 @@ export function SellerProfilePage() {
     try {
       setSuccessMsg(null);
       setErrorMsg(null);
-      await updateProfile(formData);
+      const payload: Record<string, any> = {};
+      if (formData.firstName !== profile?.seller.firstName) payload.firstName = formData.firstName;
+      if (formData.lastName !== profile?.seller.lastName) payload.lastName = formData.lastName;
+      if (formData.phone !== profile?.seller.phone) payload.phone = formData.phone;
+      if (formData.avatarUrl !== profile?.seller.avatarUrl) payload.avatarUrl = formData.avatarUrl;
+      if (formData.businessName !== profile?.shop?.businessName) payload.businessName = formData.businessName;
+      if (formData.gstNumber !== profile?.shop?.gstNumber) payload.gstNumber = formData.gstNumber;
+      if (formData.addressLine1) payload.addressLine1 = formData.addressLine1;
+      if (formData.addressLine2) payload.addressLine2 = formData.addressLine2;
+      if (formData.city) payload.city = formData.city;
+      if (formData.state) payload.state = formData.state;
+      if (formData.postalCode) payload.postalCode = formData.postalCode;
+      if (formData.country) payload.country = formData.country;
+      if (formData.bio) payload.bio = formData.bio;
+
+      await updateProfile(payload);
       setSuccessMsg('Profile updated successfully');
       setIsEditing(false);
     } catch (err: any) {
@@ -156,6 +213,27 @@ export function SellerProfilePage() {
               <CardContent className="pt-6">
                 {isEditing ? (
                   <div className="space-y-4">
+                    <div className="flex items-center gap-4 mb-4">
+                      {formData.avatarUrl ? (
+                        <img
+                          src={formData.avatarUrl}
+                          alt="Avatar"
+                          className="h-16 w-16 rounded-full object-cover border border-white/10"
+                        />
+                      ) : (
+                        <div className="h-16 w-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+                          <User className="h-8 w-8 text-white/30" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <label className="text-[10px] font-bold text-white/60 ml-1">Avatar URL</label>
+                        <Input
+                          value={formData.avatarUrl}
+                          onChange={(e) => setFormData(prev => ({ ...prev, avatarUrl: e.target.value }))}
+                          placeholder="https://example.com/avatar.jpg"
+                        />
+                      </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-white/60 ml-1">First Name</label>
@@ -182,6 +260,90 @@ export function SellerProfilePage() {
                         placeholder="Phone Number"
                       />
                     </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-white/60 ml-1">Business Name</label>
+                      <Input
+                        value={formData.businessName}
+                        onChange={(e) => setFormData(prev => ({ ...prev, businessName: e.target.value }))}
+                        placeholder="Business Name"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-white/60 ml-1">GST Number</label>
+                      <Input
+                        value={formData.gstNumber}
+                        onChange={(e) => setFormData(prev => ({ ...prev, gstNumber: e.target.value }))}
+                        placeholder="GST Number"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-white/60 ml-1">Address Line 1</label>
+                      <Input
+                        value={formData.addressLine1}
+                        onChange={(e) => setFormData(prev => ({ ...prev, addressLine1: e.target.value }))}
+                        placeholder="Address Line 1"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-white/60 ml-1">Address Line 2</label>
+                      <Input
+                        value={formData.addressLine2}
+                        onChange={(e) => setFormData(prev => ({ ...prev, addressLine2: e.target.value }))}
+                        placeholder="Address Line 2"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-white/60 ml-1">State</label>
+                        <SearchableDropdown
+                          options={allStates.map((s: any) => ({ name: s.name, isEnabled: s.isEnabled !== false }))}
+                          value={formData.state}
+                          onChange={(name: string) => {
+                            setFormData(prev => ({ ...prev, state: name, city: '' }));
+                          }}
+                          placeholder="Select state"
+                          label="State"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-white/60 ml-1">District / City</label>
+                        <SearchableDropdown
+                          options={districts.map((d: any) => ({ name: d.name, isEnabled: d.isEnabled !== false }))}
+                          value={formData.city}
+                          onChange={(name: string) => setFormData(prev => ({ ...prev, city: name }))}
+                          placeholder={selectedState ? 'Select district' : 'Select a state first'}
+                          label="District"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-white/60 ml-1">Postal Code</label>
+                        <Input
+                          value={formData.postalCode}
+                          onChange={(e) => setFormData(prev => ({ ...prev, postalCode: e.target.value }))}
+                          placeholder="Postal Code"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-white/60 ml-1">Country</label>
+                        <Input
+                          value={formData.country}
+                          onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                          placeholder="Country"
+                          disabled
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-white/60 ml-1">Bio</label>
+                      <textarea
+                        value={formData.bio}
+                        onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                        placeholder="Tell us about your business"
+                        className="w-full h-24 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-white/90 placeholder:text-white/20 outline-none focus:border-white/20 transition-colors resize-none"
+                      />
+                    </div>
                     <div className="flex gap-3 pt-2">
                       <Button onClick={handleSave} isLoading={isUpdating}>
                         Save Changes
@@ -193,6 +355,23 @@ export function SellerProfilePage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    <div className="flex items-center gap-4 mb-4">
+                      {seller.avatarUrl ? (
+                        <img
+                          src={seller.avatarUrl}
+                          alt="Profile"
+                          className="h-16 w-16 rounded-full object-cover border border-white/10"
+                        />
+                      ) : (
+                        <div className="h-16 w-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+                          <User className="h-8 w-8 text-white/30" />
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="text-sm font-bold text-white/95">{seller.firstName} {seller.lastName}</h3>
+                        <p className="text-[10px] text-white/45">@{seller.username}</p>
+                      </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <span className="text-[10px] text-white/45 uppercase font-bold block">First Name</span>
@@ -224,6 +403,24 @@ export function SellerProfilePage() {
                       <span className="text-[10px] text-white/45 uppercase font-bold block">Username</span>
                       <span className="text-xs font-semibold text-white/95 mt-0.5 block">@{seller.username}</span>
                     </div>
+                    {shop?.businessName && (
+                      <div>
+                        <span className="text-[10px] text-white/45 uppercase font-bold block">Business Name</span>
+                        <span className="text-xs font-semibold text-white/95 mt-0.5 block flex items-center gap-2">
+                          <Building2 className="h-3.5 w-3.5 text-white/30" />
+                          {shop.businessName}
+                        </span>
+                      </div>
+                    )}
+                    {shop?.gstNumber && (
+                      <div>
+                        <span className="text-[10px] text-white/45 uppercase font-bold block">GST Number</span>
+                        <span className="text-xs font-semibold text-white/95 mt-0.5 block flex items-center gap-2">
+                          <CreditCard className="h-3.5 w-3.5 text-white/30" />
+                          {shop.gstNumber}
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <span className="text-[10px] text-white/45 uppercase font-bold block">Member Since</span>
                       <span className="text-xs font-semibold text-white/95 mt-0.5 block flex items-center gap-2">
