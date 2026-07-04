@@ -3,7 +3,7 @@ import { prisma } from '../../../config/prisma.js'
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { signAccessToken } from '../../../config/token.js'
-import { sellersessionCookie } from '../../../config/sessionCookies.js'
+import { setAuthCookie, clearAuthCookie, sellersessionCookie } from '../../../config/sessionCookies.js'
 import { AuthProvider } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import EmailService from '../../../services/email/email.service.js';
@@ -86,13 +86,8 @@ export const register = async (req: Request, res: Response) => {
     void EmailService.sendVerificationEmail(newSeller.email, { firstName, verificationUrl: `${sellerFrontendUrl}/verify-email?email=${encodeURIComponent(newSeller.email)}` });
 
     const token = signAccessToken(newSeller.id);
-    const sessionCookie = sellersessionCookie();
 
-    res.cookie(
-        sessionCookie.name,
-        token,
-        sessionCookie.options
-    );
+    setAuthCookie(res, 'seller_session', token);
 
     return res.status(201).json({
         user: {
@@ -169,13 +164,7 @@ export const login = async (req: Request, res: Response) => {
 
         const token = signAccessToken(seller.id);
 
-        const sessionCookie = sellersessionCookie();
-
-        res.cookie(
-            sessionCookie.name,
-            token,
-            sessionCookie.options
-        );
+        setAuthCookie(res, 'seller_session', token);
 
         return res.status(200).json({
             message: "Login successful",
@@ -308,13 +297,8 @@ export const googleOAuth = async (req: Request, res: Response) => {
             }
 
             const token = signAccessToken(seller.id);
-            const sessionCookie = sellersessionCookie();
 
-            res.cookie(
-                sessionCookie.name,
-                token,
-                sessionCookie.options
-            );
+            setAuthCookie(res, 'seller_session', token);
 
             return res.status(200).json({
                 message: "Google login successful",
@@ -383,13 +367,8 @@ export const googleOAuth = async (req: Request, res: Response) => {
         }
 
         const token = signAccessToken(seller.id);
-        const sessionCookie = sellersessionCookie();
 
-        res.cookie(
-            sessionCookie.name,
-            token,
-            sessionCookie.options
-        );
+        setAuthCookie(res, 'seller_session', token);
 
         return res.status(201).json({
             message: "Google account created successfully",
@@ -415,11 +394,7 @@ export const googleOAuth = async (req: Request, res: Response) => {
 
 export const logout = async (req: Request, res: Response) => {
 
-    res.clearCookie("seller_session", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict"
-    });
+    clearAuthCookie(res, 'seller_session');
 
     return res.status(200).json({
         message: "Logged out successfully"
@@ -637,11 +612,7 @@ export const deactivateAccount = async (req: Request, res: Response) => {
         }
     });
     
-    res.clearCookie("seller_session", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict"
-    });
+    clearAuthCookie(res, 'seller_session');
     
     return res.status(200).json({
         message: "Account deactivated successfully",
@@ -685,11 +656,7 @@ export const deleteProfile = async (req: Request, res: Response) => {
         await prisma.seller.delete({
             where: { id: sellerId }
         });
-        res.clearCookie("seller_session", {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict"
-        });
+        clearAuthCookie(res, 'seller_session');
         return res.status(200).json({ message: 'Account deleted successfully', user: {
             id: seller.id,
             email: seller.email,
