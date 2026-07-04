@@ -1,6 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/prisma.js";
-import { logger } from "../config/logger.js";
 import jwt from "jsonwebtoken";
 
 interface JwtPayload {
@@ -113,6 +112,20 @@ export const sellerAuth = async (req: Request, res: Response, next: NextFunction
             return res.status(401).json({ message: "Seller inactive" });
         }
 
+        // Routes that bypass all shop validation
+        const isAlwaysAllowed =
+            url.includes('/api/auth/profile') ||
+            url.includes('/api/auth/logout') ||
+            url.includes('/api/shop/approval-status') ||
+            url.includes('/api/shop/ban-appeal') ||
+            url.includes('/api/locations/');
+
+        if (isAlwaysAllowed) {
+            console.log(`[sellerAuth:${requestId}] Route ${url} is always allowed, bypassing shop validation`);
+            req.sellerId = decoded.id;
+            return next();
+        }
+
         // ===== DIAGNOSTIC: Shop Validation =====
         const shop = seller.shop;
         console.log(`[sellerAuth:${requestId}] Shop exists: ${!!shop}`);
@@ -131,52 +144,40 @@ export const sellerAuth = async (req: Request, res: Response, next: NextFunction
             if (seller.status !== "APPROVED") {
                 failureReason = `Seller status is "${seller.status}" (requires "APPROVED")`;
                 console.log(`[sellerAuth:${requestId}] FAIL: ${failureReason}`);
-                // Profile/logout are allowed even when not approved
-                const allowed = url.includes('/api/auth/profile') || url.includes('/api/auth/logout') ||
-                    url.includes('/api/shop/approval-status') || isBanAppeal;
-                if (allowed) {
-                    console.log(`[sellerAuth:${requestId}] Route ${url} allowed despite status`);
-                } else {
-                    return res.status(401).json({ message: "Seller not approved" });
-                }
-            } else if (!shop) {
+                return res.status(401).json({ message: "Seller not approved" });
+            }
+
+            if (!shop) {
                 failureReason = "No shop exists for this seller";
                 console.log(`[sellerAuth:${requestId}] FAIL: ${failureReason}`);
                 return res.status(401).json({ message: "Shop not found" });
-            } else if (!shop.isActive) {
+            }
+
+            if (!shop.isActive) {
                 failureReason = "Shop is not active";
                 console.log(`[sellerAuth:${requestId}] FAIL: ${failureReason}`);
-                return res.status(401).json({ message: "Shop inactive" });
-            } else if (shop.isBanned) {
+                return res.status(403).json({ message: "Shop inactive" });
+            }
+
+            if (shop.isBanned) {
                 failureReason = "Shop is banned";
                 console.log(`[sellerAuth:${requestId}] FAIL: ${failureReason}`);
-                return res.status(401).json({ message: "Shop inactive" });
-            } else if (seller.isBanned) {
+                return res.status(403).json({ message: "Shop inactive" });
+            }
+
+            if (seller.isBanned) {
                 failureReason = "Seller is banned";
                 console.log(`[sellerAuth:${requestId}] FAIL: ${failureReason}`);
-                return res.status(401).json({ message: "Seller inactive" });
+                return res.status(403).json({ message: "Seller inactive" });
             }
 
             // Check if the current route is in the allowed-while-inactive list
+            // (seller.status is "APPROVED" here — PENDING_VERIFICATION/REJECTED branches skipped)
             const isInitialCreate = url.includes('/api/shop') && method === 'POST' && !shop;
-            const isAllowedUpdate = url.includes('/api/shop') && method === 'PUT' &&
-                (seller.status === "PENDING_VERIFICATION" || seller.status === "REJECTED");
-            const isApplyApproval = url.includes('/api/shop/apply-approval') && method === 'POST' &&
-                (seller.status === "PENDING_VERIFICATION" || seller.status === "REJECTED");
-            const isBankAccountRoute = url.includes('/api/shop/bank-account') &&
-                (method === 'GET' || (method === 'POST' && (seller.status === "PENDING_VERIFICATION" || seller.status === "REJECTED")));
 
             const isAllowedRoute =
-                url.includes('/api/shop/approval-status') ||
-                url.includes('/api/auth/profile') ||
-                url.includes('/api/auth/logout') ||
-                url.includes('/api/shop/ban-appeal') ||
-                url.includes('/api/locations/') ||
                 (url.includes('/api/shop') && method === 'GET') ||
-                isInitialCreate ||
-                isAllowedUpdate ||
-                isApplyApproval ||
-                isBankAccountRoute;
+                isInitialCreate;
 
             if (!isAllowedRoute) {
                 console.log(`[sellerAuth:${requestId}] FAIL: Route ${url} not allowed while shop inactive`);

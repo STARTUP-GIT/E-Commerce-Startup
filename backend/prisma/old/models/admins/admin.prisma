@@ -1,0 +1,30 @@
+model Admin {
+  id           String    @id @default(cuid())
+  email        String    @unique @db.VarChar(320)
+  passwordHash String    @db.VarChar(255)
+  firstName    String    @db.VarChar(100)
+  lastName     String    @db.VarChar(100)
+  phone        String?   @db.VarChar(20)
+  avatarUrl    String?   @db.VarChar(2048)
+  isActive     Boolean   @default(true)
+  isSuperAdmin Boolean   @default(false)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  actions                 AdminAction[]
+  approvedSellers         Seller[]             @relation("SellerApprovedBy")
+  reviewedProductReports  ProductReport[]      @relation("ProductReportReviewedBy")
+  createdDeliveryPartners DeliveryPartner[]    @relation("DeliveryPartnerCreatedBy")
+  reviewedReturns         ReturnRequest[]      @relation("ReturnReviewedBy")
+  issuedStrikes           SellerStrike[]
+  reviewedVerifications   SellerVerification[] @relation("SellerVerificationReviewedBy")
+  notifications           Notification[]
+  createdCoupons          Coupon[]             @relation("CouponCreatedBy")
+  assignedSupportTickets  SupportTicket[]      @relation("SupportTicketAssignedTo")
+  refreshTokens           AdminRefreshToken[]
+
+  @@index([email])
+  @@index([isActive])
+  @@map("admins")
+}
