@@ -69,11 +69,10 @@ class StorageService {
     formData.append("image", file);
     formData.append("folder", folder);
 
-    const response = await axios.post<{
+    const response = await axiosInstance.post<{
       success: boolean;
       data: { publicId: string; url: string };
     }>("/api/storage/image", formData, {
-      withCredentials: true,
       onUploadProgress: onProgress,
     });
 

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 
 const axiosInstance = axios.create({
-  baseURL: '', // Using Vite dev proxy for /seller and /api/storage
+  baseURL: import.meta.env.VITE_BACKEND_API_URL || '',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
