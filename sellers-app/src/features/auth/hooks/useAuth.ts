@@ -33,7 +33,7 @@ export function useAuth() {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       // Invalidate dashboard and shop queries
       queryClient.invalidateQueries({ queryKey: ['shop'] });
-      navigate('/dashboard');
+      navigate('/profile');
     },
   });
 
@@ -53,7 +53,7 @@ export function useAuth() {
         username: '',
       });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
-      navigate('/dashboard');
+      navigate('/profile');
     },
   });
 
