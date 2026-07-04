@@ -20,16 +20,14 @@ export interface EmailSendResult {
   error?: string;
 }
 
-const requireUrl = (value: string | undefined, name: string) => {
-  if (!value) {
-    throw new Error(`${name} is required for email links.`);
-  }
+const resolveUrl = (value: string | undefined, fallback: string): string => {
+  if (!value) return fallback;
   return value.replace(/\/$/, '');
 };
 
-const customerFrontendUrl = requireUrl(process.env.CUSTOMER_FRONTEND_URL || process.env.FRONTEND_CUSTOMER_URL, 'CUSTOMER_FRONTEND_URL');
-const sellerFrontendUrl = requireUrl(process.env.SELLER_FRONTEND_URL || process.env.FRONTEND_SELLER_URL, 'SELLER_FRONTEND_URL');
-const adminFrontendUrl = requireUrl(process.env.ADMIN_FRONTEND_URL || process.env.FRONTEND_ADMIN_URL, 'ADMIN_FRONTEND_URL');
+const customerFrontendUrl = resolveUrl(process.env.CUSTOMER_FRONTEND_URL || process.env.FRONTEND_CUSTOMER_URL, 'http://localhost:3000');
+const sellerFrontendUrl = resolveUrl(process.env.SELLER_FRONTEND_URL || process.env.FRONTEND_SELLER_URL, 'http://localhost:5173');
+const adminFrontendUrl = resolveUrl(process.env.ADMIN_FRONTEND_URL || process.env.FRONTEND_ADMIN_URL, 'http://localhost:8001');
 
 class EmailService {
   private static log(level: 'info' | 'warn' | 'error', event: string, payload?: Record<string, unknown>) {

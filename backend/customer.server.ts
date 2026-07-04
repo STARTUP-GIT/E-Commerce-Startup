@@ -4,6 +4,9 @@ import { validateEnv } from './src/config/envValidator.js';
 // Validate environment
 validateEnv();
 
+import { seedKarnatakaDistricts } from './src/config/seedDistricts.js';
+seedKarnatakaDistricts().catch(console.error);
+
 import http from 'http';
 import express from 'express';
 import { configureMiddlewares, configureErrorHandlers } from './src/app.js';
