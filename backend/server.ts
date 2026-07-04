@@ -11,7 +11,7 @@ import http from 'http';
 import app from './src/app.js';
 import { prisma } from './src/config/prisma.js';
 
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT || process.env.CUSTOMER_PORT || 3000);
 const server = http.createServer(app);
 
 server.listen(PORT, () => {

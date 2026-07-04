@@ -14,92 +14,125 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 
 export const register = async (req: Request, res: Response) => {
-    const { username, email, password, firstName, lastName } = req.body;
+    try {
+        console.log('[REGISTER] Incoming request body:', {
+            ...req.body,
+            password: req.body?.password ? '[REDACTED]' : undefined,
+        });
 
-    // Validate input
-    if (!username || !email || !password || !firstName) {
-        return res.status(400).json({ message: 'All fields are required' });
-    }
+        const { username, email, password, firstName, lastName } = req.body;
 
+        const missingFields: string[] = [];
+        if (!username?.trim()) missingFields.push('username');
+        if (!email?.trim()) missingFields.push('email');
+        if (!password) missingFields.push('password');
+        if (!firstName?.trim()) missingFields.push('firstName');
 
-    const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
-    const isEmailValidFormat = regex.test(email)
-
-    if (!isEmailValidFormat) {
-        return res.status(400).json({ message: "Email not in format" })
-    }
-
-    if (password.length < 6) {
-        return res.status(400).json({ message: "Password must be of min 6 characters" })
-    }
-
-
-    // Check if user already exists
-
-    const existingUser = await prisma.customer.findFirst({
-        where: {
-            OR: [
-                { email },
-                { username }
-            ]
+        if (missingFields.length > 0) {
+            console.warn('[REGISTER] Validation failed - missing fields:', missingFields);
+            return res.status(400).json({
+                message: `Missing required fields: ${missingFields.join(', ')}`,
+                fields: missingFields,
+            });
         }
-    });
 
-    const exists = await prisma.seller.findFirst({
-        where: {
-            OR: [
-                { email },
-                { username }
-            ]
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ message: 'Invalid email format' });
         }
-    })
 
-    if (exists) {
-        return res.status(400).json({
-            message: "Seller Account Already exists with this email or username"
-        })
+        if (password.length < 6) {
+            return res.status(400).json({ message: 'Password must be at least 6 characters' });
+        }
+
+        const existingUser = await prisma.customer.findFirst({
+            where: { OR: [{ email }, { username }] }
+        });
+
+        if (existingUser) {
+            const conflictField = existingUser.email === email ? 'email' : 'username';
+            return res.status(409).json({
+                message: `A customer with this ${conflictField} already exists`,
+                field: conflictField,
+            });
+        }
+
+        const existingSeller = await prisma.seller.findFirst({
+            where: { OR: [{ email }, { username }] }
+        });
+
+        if (existingSeller) {
+            return res.status(409).json({
+                message: 'A seller account already exists with this email or username',
+            });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        console.log('[REGISTER] Creating customer...');
+        const newuser = await prisma.customer.create({
+            data: {
+                firstName: firstName.trim(),
+                lastName: lastName?.trim() || null,
+                username: username.trim(),
+                email: email.trim().toLowerCase(),
+                passwordHash: hashedPassword,
+                authProvider: AuthProvider.EMAIL,
+            }
+        });
+        console.log('[REGISTER] Customer created:', { id: newuser.id, email: newuser.email });
+
+        const customerFrontendUrl = (process.env.CUSTOMER_FRONTEND_URL || '').replace(/\/$/, '');
+        try {
+            await EmailService.sendVerificationEmail(newuser.email, {
+                firstName,
+                verificationUrl: `${customerFrontendUrl}/verify-email?email=${encodeURIComponent(newuser.email)}`
+            });
+        } catch (emailErr) {
+            console.warn('[REGISTER] Verification email failed (non-blocking):', emailErr);
+        }
+        try {
+            await EmailService.sendWelcomeEmail(newuser.email, {
+                firstName,
+                loginUrl: `${customerFrontendUrl}/login`
+            });
+        } catch (emailErr) {
+            console.warn('[REGISTER] Welcome email failed (non-blocking):', emailErr);
+        }
+
+        const token = signAccessToken(newuser.id);
+        setAuthCookie(res, 'customer_session', token);
+
+        return res.status(201).json({
+            message: 'Registration successful',
+            user: {
+                id: newuser.id,
+                email: newuser.email,
+                username: newuser.username,
+                fullname: `${newuser.firstName} ${newuser.lastName ?? ''}`.trim(),
+            }
+        });
+    } catch (error: any) {
+        console.error('[REGISTER] Unhandled error:', {
+            message: error?.message,
+            code: error?.code,
+            meta: error?.meta,
+            stack: error?.stack,
+        });
+
+        if (error?.code === 'P2002') {
+            const target = error?.meta?.target as string[] | undefined;
+            const field = target?.[0] || 'field';
+            return res.status(409).json({
+                message: `A user with this ${field} already exists`,
+                field,
+            });
+        }
+
+        return res.status(500).json({ message: 'Internal server error during registration' });
     }
-
-    if (existingUser) {
-        return res.status(400).json({
-            message: "user already exists"
-        })
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newuser = await prisma.customer.create({
-        data: {
-            firstName,
-            lastName,
-            username,
-            email,
-            passwordHash: hashedPassword,
-            authProvider: AuthProvider.EMAIL,
-        }
-    });
-
-    const customerFrontendUrl = process.env.CUSTOMER_FRONTEND_URL!.replace(/\/$/, '');
-    void EmailService.sendVerificationEmail(newuser.email, { firstName, verificationUrl: `${customerFrontendUrl}/verify-email?email=${encodeURIComponent(newuser.email)}` });
-    void EmailService.sendWelcomeEmail(newuser.email, { firstName, loginUrl: `${customerFrontendUrl}/login` });
-
-    const token = signAccessToken(newuser.id);
-
-    setAuthCookie(res, 'customer_session', token);
-
-    return res.status(201).json({
-        user: {
-            id: newuser.id,
-            email: newuser.email,
-            username: newuser.username,
-            fullname: `${newuser.firstName} ${newuser.lastName ?? ""}`.trim()
-        }
-    });
-
-
-
-}
+};
 
 export const login = async (req: Request, res: Response) => {
     try {

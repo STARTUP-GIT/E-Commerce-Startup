@@ -77,19 +77,36 @@ export const configureMiddlewares = (app: express.Express) => {
     }));
     app.use(express.urlencoded({ limit: '10mb', extended: true }));
     app.use(cookieParser());
-    const allowedOrigins = [
-        ...[process.env.CUSTOMER_FRONTEND_URL, process.env.SELLER_FRONTEND_URL, process.env.ADMIN_FRONTEND_URL]
-            .filter((url): url is string => !!url)
-            .map(url => url.replace(/\/$/, '')),
+    const rawOrigins = [
+        process.env.CORS_ORIGINS,
+        process.env.CUSTOMER_FRONTEND_URL,
+        process.env.SELLER_FRONTEND_URL,
+        process.env.ADMIN_FRONTEND_URL,
+    ].filter(Boolean).join(',').split(',').map(s => s.trim()).filter(Boolean);
+
+    const localDevOrigins = [
         'http://localhost:3000',
-        'http://localhost:3001',
-        'http://localhost:3002',
         'http://localhost:5173',
-        'http://localhost:8080',
+        'http://localhost:8001',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:8001',
     ];
+
+    const allowedOrigins = [...new Set([...rawOrigins, ...localDevOrigins])];
+
     app.use(cors({
-        origin:process.env.NODE_ENV === 'production' ? allowedOrigins : '*',
-        credentials: true
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.some(o => origin.startsWith(o))) {
+                callback(null, true);
+            } else {
+                callback(new Error(`Origin ${origin} not allowed by CORS`));
+            }
+        },
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
+        optionsSuccessStatus: 204,
     }));
     app.use(requestLogger);
     app.use(limiter);
