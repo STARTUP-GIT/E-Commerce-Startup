@@ -2,6 +2,8 @@ import type { Response } from 'express';
 
 type CookieName = 'customer_session' | 'seller_session' | 'admin_session';
 
+const isProductionEnv = () => process.env.NODE_ENV?.toLowerCase() === 'production';
+
 const cookieOptions = (isProduction: boolean) => ({
   httpOnly: true,
   secure: isProduction,
@@ -15,7 +17,7 @@ const maxAges: Record<CookieName, number> = {
 };
 
 export const setAuthCookie = (res: Response, name: CookieName, token: string) => {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = isProductionEnv();
   res.cookie(name, token, {
     ...cookieOptions(isProduction),
     maxAge: maxAges[name],
@@ -24,7 +26,7 @@ export const setAuthCookie = (res: Response, name: CookieName, token: string) =>
 };
 
 export const clearAuthCookie = (res: Response, name: CookieName) => {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = isProductionEnv();
   res.clearCookie(name, {
     ...cookieOptions(isProduction),
     path: '/',
@@ -32,7 +34,7 @@ export const clearAuthCookie = (res: Response, name: CookieName) => {
 };
 
 export const setRefreshCookie = (res: Response, token: string) => {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = isProductionEnv();
   res.cookie('admin_refresh', token, {
     httpOnly: true,
     secure: isProduction,
@@ -43,7 +45,7 @@ export const setRefreshCookie = (res: Response, token: string) => {
 };
 
 export const clearRefreshCookie = (res: Response) => {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = isProductionEnv();
   res.clearCookie('admin_refresh', {
     httpOnly: true,
     secure: isProduction,
@@ -55,15 +57,15 @@ export const clearRefreshCookie = (res: Response) => {
 // Legacy named exports kept for backwards compatibility
 export const customersessionCookie = () => ({
   name: 'customer_session' as CookieName,
-  options: cookieOptions(process.env.NODE_ENV === 'production'),
+  options: cookieOptions(isProductionEnv()),
 });
 
 export const sellersessionCookie = () => ({
   name: 'seller_session' as CookieName,
-  options: cookieOptions(process.env.NODE_ENV === 'production'),
+  options: cookieOptions(isProductionEnv()),
 });
 
 export const adminsessionCookie = () => ({
   name: 'admin_session' as CookieName,
-  options: cookieOptions(process.env.NODE_ENV === 'production'),
+  options: cookieOptions(isProductionEnv()),
 });

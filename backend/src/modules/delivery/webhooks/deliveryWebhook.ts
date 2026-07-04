@@ -28,7 +28,7 @@ router.post("/webhook/delivery", express.raw({ type: "application/json" }), asyn
       const signature = typeof signatureHeader === "string" ? signatureHeader : undefined;
       const secret = process.env.PORTER_WEBHOOK_SECRET;
       
-      if (secret || process.env.NODE_ENV === "production") {
+      if (secret || process.env.NODE_ENV?.toLowerCase() === "production") {
         const valid = PorterService.verifyWebhookSignature(bodyString, signature);
         if (!valid) {
           console.warn("Invalid porter webhook signature");
