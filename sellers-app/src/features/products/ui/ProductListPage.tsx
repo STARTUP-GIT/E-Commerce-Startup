@@ -29,7 +29,7 @@ import { useConfirmStore } from '@/lib/store/confirmStore';
 
 export function ProductListPage() {
   const { products, isLoading, isError, refetch, createProduct, updateProduct, deleteProduct } = useProducts();
-  const { upload: uploadProductImage, isUploading, progress: uploadProgress, storageKey, publicUrl } = useFileUpload({ folder: 'products' });
+  const { upload: uploadProductImage, isUploading, progress: uploadProgress,  publicUrl } = useFileUpload({ folder: 'products' });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [stockFilter, setStockFilter] = useState<'ALL' | 'LOW' | 'OUT'>('ALL');
