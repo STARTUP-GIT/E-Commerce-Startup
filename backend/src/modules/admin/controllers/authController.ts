@@ -181,6 +181,68 @@ export const updateProfile = async (req: Request, res: Response) => {
     }
 };
 
+export const getSetupStatus = async (req: Request, res: Response) => {
+    try {
+        const count = await prisma.admin.count();
+        return res.status(200).json({ initialized: count > 0 });
+    } catch (error: any) {
+        console.error("GET SETUP STATUS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const setupFirstAdmin = async (req: Request, res: Response) => {
+    try {
+        const count = await prisma.admin.count();
+        if (count > 0) {
+            return res.status(403).json({ message: "Admin already initialized." });
+        }
+
+        const { name, email, password } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ message: "Name, email, and password are required" });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({ message: "Password must be at least 6 characters" });
+        }
+
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ message: "Invalid email format" });
+        }
+
+        const existingAdmin = await prisma.admin.findUnique({ where: { email } });
+        if (existingAdmin) {
+            return res.status(400).json({ message: "An admin with this email already exists" });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        const nameParts = name.trim().split(/\s+/);
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(" ") || "";
+
+        await prisma.admin.create({
+            data: {
+                email: email.trim().toLowerCase(),
+                passwordHash,
+                firstName,
+                lastName,
+                isSuperAdmin: true,
+                isActive: true,
+            }
+        });
+
+        return res.status(201).json({ message: "Admin created successfully" });
+    } catch (error: any) {
+        console.error("SETUP FIRST ADMIN ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
 export const changePassword = async (req: Request, res: Response) => {
     try {
         const adminId = req.adminId;
