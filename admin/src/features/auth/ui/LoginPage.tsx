@@ -17,7 +17,7 @@ export function LoginPage() {
   const { login, isLoggingIn } = useAuth();
   const { showToast } = useUIStore();
 
-  const [setupStatus, setSetupStatus] = useState<'loading' | 'initialized' | 'not-initialized'>('loading');
+  const [setupStatus, setSetupStatus] = useState<'loading' | 'initialized' | 'not-initialized' | 'error'>('loading');
   const [isSettingUp, setIsSettingUp] = useState(false);
 
   const loginForm = useForm<LoginInput>({
@@ -40,13 +40,15 @@ export function LoginPage() {
         }
       } catch {
         if (!cancelled) {
-          setSetupStatus('initialized');
+          setSetupStatus('error');
         }
       }
     };
-    checkSetup();
+    if (setupStatus === 'loading') {
+      checkSetup();
+    }
     return () => { cancelled = true; };
-  }, []);
+  }, [setupStatus]);
 
   const handleLogin = async (data: LoginInput) => {
     try {
@@ -100,6 +102,25 @@ export function LoginPage() {
           <Card className="border border-white/10 bg-white/[0.02] backdrop-blur-2xl shadow-2xl relative z-10">
             <CardContent className="p-8 flex items-center justify-center">
               <span className="h-8 w-8 rounded-full border-4 border-white/10 border-t-white/40 animate-spin" />
+            </CardContent>
+          </Card>
+        )}
+
+        {setupStatus === 'error' && (
+          <Card className="border border-white/10 bg-white/[0.02] backdrop-blur-2xl shadow-2xl relative z-10">
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-lg font-bold text-white/90">Connection Error</CardTitle>
+              <CardDescription className="text-xs">
+                Could not verify system status. Please check your connection and try again.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={() => setSetupStatus('loading')}
+                className="w-full h-11 text-xs font-bold tracking-wide uppercase"
+              >
+                Retry
+              </Button>
             </CardContent>
           </Card>
         )}
