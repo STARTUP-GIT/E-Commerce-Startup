@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
 import {prisma} from "../config/prisma.js";
+import type { Request,Response,NextFunction } from "express";
 
-export const sellerAuth = async (req, res, next) => {
+export const sellerAuth = async (req : Request, res : Response, next : NextFunction) => {
   try {
     console.log("========== SELLER AUTH ==========");
     console.log("Cookies:", req.cookies);
