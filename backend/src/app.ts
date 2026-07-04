@@ -88,7 +88,7 @@ export const configureMiddlewares = (app: express.Express) => {
         'http://localhost:8080',
     ];
     app.use(cors({
-        origin: allowedOrigins,
+        origin:process.env.NODE_ENV === 'production' ? allowedOrigins : '*',
         credentials: true
     }));
     app.use(requestLogger);
