@@ -14,6 +14,7 @@ export const getSellerProfile = async (req: Request, res: Response) => {
                         name: true,
                         slug: true,
                         isActive: true,
+                        businessName: true,
                         gstNumber: true,
                         gstRegistered: true,
                         createdAt: true,
