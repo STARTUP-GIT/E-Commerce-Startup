@@ -20,45 +20,64 @@ export const sellerAuth = async (req: Request, res: Response, next: NextFunction
     const method = req.method;
     const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+    // ===== DIAGNOSTIC: Cookie & Cookie-Parser =====
+    const allCookies = req.cookies ? Object.keys(req.cookies) : [];
+    const hasCookieParser = typeof req.cookies === 'object' && req.cookies !== null;
+    const token: string | undefined = req.cookies?.seller_session;
+
+    console.log(`[sellerAuth:${requestId}] ===== AUTH DIAGNOSTIC START =====`);
+    console.log(`[sellerAuth:${requestId}] Method: ${method}, URL: ${url}`);
+    console.log(`[sellerAuth:${requestId}] cookie-parser present: ${hasCookieParser}`);
+    console.log(`[sellerAuth:${requestId}] All cookie names: ${JSON.stringify(allCookies)}`);
+    console.log(`[sellerAuth:${requestId}] seller_session cookie found: ${!!token}`);
+    console.log(`[sellerAuth:${requestId}] seller_session length: ${token ? token.length : 0}`);
+    console.log(`[sellerAuth:${requestId}] seller_session preview: ${token ? token.substring(0, 30) + '...' : 'N/A'}`);
+
     try {
-        const token: string | undefined = req.cookies?.seller_session;
-
-        logger.info("sellerAuth: Starting auth check", {
-            requestId,
-            method,
-            url,
-            hasCookie: !!token,
-            cookieName: token ? 'seller_session' : 'none',
-            cookieLength: token ? token.length : 0,
-            cookiePrefix: token ? token.substring(0, 20) + '...' : 'N/A',
-        });
-
         if (!token) {
-            logger.warn("sellerAuth: Missing cookie", { requestId, method, url });
-            return res.status(401).json({ message: "Missing session cookie" });
+            console.log(`[sellerAuth:${requestId}] FAIL: seller_session missing`);
+            return res.status(401).json({ message: "seller_session missing" });
         }
 
+        // ===== DIAGNOSTIC: JWT Secret =====
+        const secretExists = !!process.env.JWT_SECRET_KEY;
+        console.log(`[sellerAuth:${requestId}] JWT_SECRET_KEY exists: ${secretExists}`);
+        console.log(`[sellerAuth:${requestId}] JWT_SECRET_KEY length: ${process.env.JWT_SECRET_KEY ? process.env.JWT_SECRET_KEY.length : 0}`);
+
+        // ===== DIAGNOSTIC: JWT Verify =====
         let decoded: JwtPayload;
         try {
             decoded = jwt.verify(token, process.env.JWT_SECRET_KEY!) as JwtPayload;
-            logger.info("sellerAuth: JWT verified", {
-                requestId,
-                decodedId: decoded.id,
-            });
+            console.log(`[sellerAuth:${requestId}] JWT verify: SUCCESS`);
+            console.log(`[sellerAuth:${requestId}] Decoded payload: ${JSON.stringify(decoded)}`);
+            console.log(`[sellerAuth:${requestId}] Payload ID field: ${decoded.id}`);
+            console.log(`[sellerAuth:${requestId}] Payload has 'id': ${'id' in decoded}`);
+            console.log(`[sellerAuth:${requestId}] Payload has 'userId': ${'userId' in decoded}`);
+            console.log(`[sellerAuth:${requestId}] Payload has 'sellerId': ${'sellerId' in decoded}`);
+            console.log(`[sellerAuth:${requestId}] Payload has 'sub': ${'sub' in decoded}`);
         } catch (jwtError: any) {
-            const isExpired = jwtError.name === 'TokenExpiredError';
-            const reason = isExpired ? 'JWT expired' : `JWT verification failed: ${jwtError.message}`;
-            logger.warn("sellerAuth: JWT rejected", {
-                requestId,
-                method,
-                url,
-                reason,
-                errorName: jwtError.name,
-            });
-            return res.status(401).json({
-                message: isExpired ? "Session expired, please login again" : "Invalid token"
-            });
+            console.log(`[sellerAuth:${requestId}] JWT verify: FAILED`);
+            console.log(`[sellerAuth:${requestId}] Error name: ${jwtError.name}`);
+            console.log(`[sellerAuth:${requestId}] Error message: ${jwtError.message}`);
+            console.log(`[sellerAuth:${requestId}] Error stack: ${jwtError.stack}`);
+            
+            if (jwtError.name === 'TokenExpiredError') {
+                return res.status(401).json({ message: "JWT expired" });
+            } else if (jwtError.name === 'JsonWebTokenError') {
+                if (jwtError.message.includes('malformed') || jwtError.message.includes('invalid')) {
+                    return res.status(401).json({ message: "JWT malformed" });
+                }
+                if (jwtError.message.includes('signature')) {
+                    return res.status(401).json({ message: "Invalid JWT signature" });
+                }
+                return res.status(401).json({ message: "Invalid JWT signature" });
+            } else {
+                return res.status(401).json({ message: "Invalid JWT signature" });
+            }
         }
+
+        // ===== DIAGNOSTIC: Prisma Seller Lookup =====
+        console.log(`[sellerAuth:${requestId}] Querying prisma.seller.findUnique for id: ${decoded.id}`);
 
         const seller = await prisma.seller.findUnique({
             where: { id: decoded.id },
@@ -66,116 +85,93 @@ export const sellerAuth = async (req: Request, res: Response, next: NextFunction
         });
 
         if (!seller) {
-            logger.warn("sellerAuth: Seller not found in database", {
-                requestId,
-                sellerId: decoded.id,
-                method,
-                url,
-            });
-            return res.status(401).json({
-                message: "Seller account not found"
-            });
+            console.log(`[sellerAuth:${requestId}] FAIL: Seller not found for id ${decoded.id}`);
+            return res.status(401).json({ message: "Seller not found" });
         }
 
-        logger.info("sellerAuth: Seller found", {
-            requestId,
-            sellerId: seller.id,
-            email: seller.email,
-            status: seller.status,
-            isDeactivated: seller.isDeactivated,
-            isBanned: seller.isBanned,
-            hasShop: !!seller.shop,
-        });
+        console.log(`[sellerAuth:${requestId}] Seller found: id=${seller.id}, email=${seller.email}`);
+        console.log(`[sellerAuth:${requestId}] Seller status: ${seller.status}`);
+        console.log(`[sellerAuth:${requestId}] Seller isDeactivated: ${seller.isDeactivated}`);
+        console.log(`[sellerAuth:${requestId}] Seller isBanned: ${seller.isBanned}`);
+        console.log(`[sellerAuth:${requestId}] Seller scheduledDeleteAt: ${seller.scheduledDeleteAt}`);
 
+        // ===== DIAGNOSTIC: Seller Validation =====
         if (seller.isDeactivated) {
-            logger.warn("sellerAuth: Seller is deactivated", {
-                requestId,
-                sellerId: seller.id,
-                email: seller.email,
-                method,
-                url,
-            });
-            return res.status(401).json({
-                message: "Account is deactivated"
-            });
+            console.log(`[sellerAuth:${requestId}] FAIL: Seller is deactivated`);
+            return res.status(401).json({ message: "Seller inactive" });
         }
 
         if (seller.scheduledDeleteAt !== null) {
-            logger.warn("sellerAuth: Seller is scheduled for deletion", {
-                requestId,
-                sellerId: seller.id,
-                email: seller.email,
-                scheduledDeleteAt: seller.scheduledDeleteAt,
-                method,
-                url,
-            });
-            return res.status(401).json({
-                message: "Account is scheduled for deletion"
-            });
+            console.log(`[sellerAuth:${requestId}] FAIL: Seller scheduled for deletion`);
+            return res.status(401).json({ message: "Seller inactive" });
         }
 
         const isBanAppeal = url.includes('/api/shop/ban-appeal');
 
         if (seller.isBanned && !isBanAppeal) {
-            logger.warn("sellerAuth: Seller is banned", {
-                requestId,
-                sellerId: seller.id,
-                email: seller.email,
-                method,
-                url,
-            });
-            return res.status(401).json({
-                message: "Account is banned"
-            });
+            console.log(`[sellerAuth:${requestId}] FAIL: Seller is banned`);
+            return res.status(401).json({ message: "Seller inactive" });
         }
 
-        // ENFORCE ACTIVE SHOP AND STATUS CHECK FOR ALL DASHBOARD ACTIONS
+        // ===== DIAGNOSTIC: Shop Validation =====
         const shop = seller.shop;
-        const isShopActive = seller.status === "APPROVED" && shop !== null && shop.isActive && !shop.isBanned && !seller.isBanned;
+        console.log(`[sellerAuth:${requestId}] Shop exists: ${!!shop}`);
+        if (shop) {
+            console.log(`[sellerAuth:${requestId}] Shop id: ${shop.id}`);
+            console.log(`[sellerAuth:${requestId}] Shop isActive: ${shop.isActive}`);
+            console.log(`[sellerAuth:${requestId}] Shop isBanned: ${shop.isBanned}`);
+        }
 
-        logger.info("sellerAuth: Shop status check", {
-            requestId,
-            sellerId: seller.id,
-            sellerStatus: seller.status,
-            hasShop: !!shop,
-            shopIsActive: shop?.isActive ?? false,
-            shopIsBanned: shop?.isBanned ?? false,
-            isShopActive,
-            method,
-            url,
-        });
+        const isShopActive = seller.status === "APPROVED" && shop !== null && shop.isActive && !shop.isBanned && !seller.isBanned;
+        console.log(`[sellerAuth:${requestId}] isShopActive (composite): ${isShopActive}`);
 
         if (!isShopActive) {
-            let inactiveReason = "";
+            let failureReason = "";
+
             if (seller.status !== "APPROVED") {
-                inactiveReason = `Seller status is "${seller.status}" (requires "APPROVED")`;
+                failureReason = `Seller status is "${seller.status}" (requires "APPROVED")`;
+                console.log(`[sellerAuth:${requestId}] FAIL: ${failureReason}`);
+                // Profile/logout are allowed even when not approved
+                const allowed = url.includes('/api/auth/profile') || url.includes('/api/auth/logout') ||
+                    url.includes('/api/shop/approval-status') || isBanAppeal;
+                if (allowed) {
+                    console.log(`[sellerAuth:${requestId}] Route ${url} allowed despite status`);
+                } else {
+                    return res.status(401).json({ message: "Seller not approved" });
+                }
             } else if (!shop) {
-                inactiveReason = "No shop exists for this seller";
+                failureReason = "No shop exists for this seller";
+                console.log(`[sellerAuth:${requestId}] FAIL: ${failureReason}`);
+                return res.status(401).json({ message: "Shop not found" });
             } else if (!shop.isActive) {
-                inactiveReason = "Shop is not active";
+                failureReason = "Shop is not active";
+                console.log(`[sellerAuth:${requestId}] FAIL: ${failureReason}`);
+                return res.status(401).json({ message: "Shop inactive" });
             } else if (shop.isBanned) {
-                inactiveReason = "Shop is banned";
+                failureReason = "Shop is banned";
+                console.log(`[sellerAuth:${requestId}] FAIL: ${failureReason}`);
+                return res.status(401).json({ message: "Shop inactive" });
             } else if (seller.isBanned) {
-                inactiveReason = "Seller is banned";
+                failureReason = "Seller is banned";
+                console.log(`[sellerAuth:${requestId}] FAIL: ${failureReason}`);
+                return res.status(401).json({ message: "Seller inactive" });
             }
 
+            // Check if the current route is in the allowed-while-inactive list
             const isInitialCreate = url.includes('/api/shop') && method === 'POST' && !shop;
-            
-            const isAllowedUpdate = url.includes('/api/shop') && method === 'PUT' && 
-                                    (seller.status === "PENDING_VERIFICATION" || seller.status === "REJECTED");
-                                    
+            const isAllowedUpdate = url.includes('/api/shop') && method === 'PUT' &&
+                (seller.status === "PENDING_VERIFICATION" || seller.status === "REJECTED");
             const isApplyApproval = url.includes('/api/shop/apply-approval') && method === 'POST' &&
-                                    (seller.status === "PENDING_VERIFICATION" || seller.status === "REJECTED");
-            
-            const isBankAccountRoute = url.includes('/api/shop/bank-account') && 
-                                        (method === 'GET' || (method === 'POST' && (seller.status === "PENDING_VERIFICATION" || seller.status === "REJECTED")));
+                (seller.status === "PENDING_VERIFICATION" || seller.status === "REJECTED");
+            const isBankAccountRoute = url.includes('/api/shop/bank-account') &&
+                (method === 'GET' || (method === 'POST' && (seller.status === "PENDING_VERIFICATION" || seller.status === "REJECTED")));
 
-            const isAllowedRoute = 
-                url.includes('/api/shop/approval-status') || 
-                url.includes('/api/auth/profile') || 
-                url.includes('/api/auth/logout') || 
+            const isAllowedRoute =
+                url.includes('/api/shop/approval-status') ||
+                url.includes('/api/auth/profile') ||
+                url.includes('/api/auth/logout') ||
                 url.includes('/api/shop/ban-appeal') ||
-                url.includes('/api/locations/') || 
+                url.includes('/api/locations/') ||
                 (url.includes('/api/shop') && method === 'GET') ||
                 isInitialCreate ||
                 isAllowedUpdate ||
@@ -183,42 +179,25 @@ export const sellerAuth = async (req: Request, res: Response, next: NextFunction
                 isBankAccountRoute;
 
             if (!isAllowedRoute) {
-                logger.warn("sellerAuth: Route blocked — shop inactive", {
-                    requestId,
-                    sellerId: seller.id,
-                    email: seller.email,
-                    sellerStatus: seller.status,
-                    inactiveReason,
-                    method,
-                    url,
-                    shopId: shop?.id ?? null,
-                    shopIsActive: shop?.isActive ?? false,
-                });
+                console.log(`[sellerAuth:${requestId}] FAIL: Route ${url} not allowed while shop inactive`);
                 return res.status(403).json({
-                    message: `Your shop is currently inactive. ${inactiveReason ? `Reason: ${inactiveReason}` : ''} Shop management actions are disabled until it is reactivated by an administrator.`
+                    message: `Your shop is currently inactive. Shop management actions are disabled until it is reactivated by an administrator.`
                 });
             }
+
+            console.log(`[sellerAuth:${requestId}] Route ${url} allowed through inactive exception`);
         }
 
+        // ===== DIAGNOSTIC: Auth Success =====
         req.sellerId = decoded.id;
-
-        logger.info("sellerAuth: Auth success", {
-            requestId,
-            sellerId: seller.id,
-            method,
-            url,
-        });
+        console.log(`[sellerAuth:${requestId}] AUTH SUCCESS: sellerId=${seller.id}, continuing to next()`);
+        console.log(`[sellerAuth:${requestId}] ===== AUTH DIAGNOSTIC END =====`);
 
         next();
 
     } catch (error: any) {
-        logger.error("sellerAuth: Unexpected error", {
-            requestId,
-            method,
-            url,
-            error: error?.message,
-            stack: error?.stack,
-        });
+        console.log(`[sellerAuth:${requestId}] CATCH: Unexpected error: ${error?.message}`);
+        console.log(`[sellerAuth:${requestId}] Stack: ${error?.stack}`);
         return res.status(401).json({
             message: "Authentication error"
         });
