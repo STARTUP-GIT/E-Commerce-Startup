@@ -104,7 +104,7 @@ export function ProfileDashboard() {
 
   React.useEffect(() => {
     if (locationsConfig) {
-      setActiveStatesData(locationsConfig.states, locationsConfig.districtRequired);
+      setActiveStatesData(locationsConfig.states.map(s => s.name), locationsConfig.districtRequired);
     }
   }, [locationsConfig, setActiveStatesData]);
 
