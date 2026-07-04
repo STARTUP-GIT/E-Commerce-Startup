@@ -3,7 +3,7 @@ import { prisma } from "../../../config/prisma.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../../config/token.js";
-import { adminsessionCookie } from "../../../config/sessionCookies.js";
+import { setAuthCookie, clearAuthCookie, setRefreshCookie, clearRefreshCookie, adminsessionCookie } from "../../../config/sessionCookies.js";
 
 export const login = async (req: Request, res: Response) => {
     try {
@@ -26,18 +26,16 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ message: "Invalid credentials" });
         }
 
-        // Generate access token and short-lived cookie
+        // Generate access token and set session cookie
         const accessToken = signAccessToken(admin.id);
-        const cookie = adminsessionCookie();
-        // set access cookie with short expiry (15 minutes)
-        res.cookie(cookie.name, accessToken, { ...cookie.options, maxAge: 1000 * 60 * 15 });
+        setAuthCookie(res, 'admin_session', accessToken);
 
         // Generate refresh token, store hashed, and set httpOnly refresh cookie
         const refreshToken = signRefreshToken(admin.id);
         const refreshHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30); // 30 days
         await prisma.refreshToken.create({ data: { userId: admin.id, userType: 'ADMIN', tokenHash: refreshHash, expiresAt } });
-        res.cookie('admin_refresh', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 1000 * 60 * 60 * 24 * 30 });
+        setRefreshCookie(res, refreshToken);
 
         // Update last login
         await prisma.admin.update({
@@ -63,14 +61,8 @@ export const login = async (req: Request, res: Response) => {
 
 export const logout = async (req: Request, res: Response) => {
     try {
-        const cookie = adminsessionCookie();
-        res.clearCookie(cookie.name, {
-            httpOnly: cookie.options.httpOnly,
-            secure: cookie.options.secure,
-            sameSite: cookie.options.sameSite
-        });
-        // Clear refresh cookie and revoke refresh tokens for this admin if available
-        res.clearCookie('admin_refresh', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
+        clearAuthCookie(res, 'admin_session');
+        clearRefreshCookie(res);
         if (req.adminId) {
             await prisma.refreshToken.updateMany({ where: { userId: req.adminId, userType: 'ADMIN', revoked: false }, data: { revoked: true } });
         }
@@ -107,9 +99,8 @@ export const refresh = async (req: Request, res: Response) => {
         await prisma.refreshToken.create({ data: { userId, userType: 'ADMIN', tokenHash: newHash, expiresAt } });
 
         const accessToken = signAccessToken(userId);
-        const cookie = adminsessionCookie();
-        res.cookie(cookie.name, accessToken, { ...cookie.options, maxAge: 1000 * 60 * 15 });
-        res.cookie('admin_refresh', newRefresh, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 1000 * 60 * 60 * 24 * 30 });
+        setAuthCookie(res, 'admin_session', accessToken);
+        setRefreshCookie(res, newRefresh);
 
         return res.status(200).json({ message: 'Refreshed' });
     } catch (err) {
