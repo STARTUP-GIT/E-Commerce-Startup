@@ -18,23 +18,46 @@ declare global {
 export const sellerAuth = async (req: Request, res: Response, next: NextFunction) => {
     const url = (req.originalUrl || "").split('?')[0];
     const method = req.method;
+    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     try {
-        const token = req.cookies.seller_session;
+        const token: string | undefined = req.cookies?.seller_session;
+
+        logger.info("sellerAuth: Starting auth check", {
+            requestId,
+            method,
+            url,
+            hasCookie: !!token,
+            cookieName: token ? 'seller_session' : 'none',
+            cookieLength: token ? token.length : 0,
+            cookiePrefix: token ? token.substring(0, 20) + '...' : 'N/A',
+        });
 
         if (!token) {
-            logger.warn("sellerAuth: No session cookie", { method, url });
-            return res.status(401).json({
-                message: "Unauthorized"
-            });
+            logger.warn("sellerAuth: Missing cookie", { requestId, method, url });
+            return res.status(401).json({ message: "Missing session cookie" });
         }
 
         let decoded: JwtPayload;
         try {
             decoded = jwt.verify(token, process.env.JWT_SECRET_KEY!) as JwtPayload;
+            logger.info("sellerAuth: JWT verified", {
+                requestId,
+                decodedId: decoded.id,
+            });
         } catch (jwtError: any) {
-            logger.warn("sellerAuth: JWT verification failed", { method, url, jwtError: jwtError.message });
-            return res.status(401).json({ message: "Invalid token" });
+            const isExpired = jwtError.name === 'TokenExpiredError';
+            const reason = isExpired ? 'JWT expired' : `JWT verification failed: ${jwtError.message}`;
+            logger.warn("sellerAuth: JWT rejected", {
+                requestId,
+                method,
+                url,
+                reason,
+                errorName: jwtError.name,
+            });
+            return res.status(401).json({
+                message: isExpired ? "Session expired, please login again" : "Invalid token"
+            });
         }
 
         const seller = await prisma.seller.findUnique({
@@ -43,28 +66,66 @@ export const sellerAuth = async (req: Request, res: Response, next: NextFunction
         });
 
         if (!seller) {
-            logger.warn("sellerAuth: Seller not found", { sellerId: decoded.id, method, url });
-            return res.status(401).json({ message: "Unauthorized" });
+            logger.warn("sellerAuth: Seller not found in database", {
+                requestId,
+                sellerId: decoded.id,
+                method,
+                url,
+            });
+            return res.status(401).json({
+                message: "Seller account not found"
+            });
         }
 
-        if (seller.isDeactivated || seller.scheduledDeleteAt !== null) {
+        logger.info("sellerAuth: Seller found", {
+            requestId,
+            sellerId: seller.id,
+            email: seller.email,
+            status: seller.status,
+            isDeactivated: seller.isDeactivated,
+            isBanned: seller.isBanned,
+            hasShop: !!seller.shop,
+        });
+
+        if (seller.isDeactivated) {
             logger.warn("sellerAuth: Seller is deactivated", {
+                requestId,
                 sellerId: seller.id,
                 email: seller.email,
-                isDeactivated: seller.isDeactivated,
+                method,
+                url,
+            });
+            return res.status(401).json({
+                message: "Account is deactivated"
+            });
+        }
+
+        if (seller.scheduledDeleteAt !== null) {
+            logger.warn("sellerAuth: Seller is scheduled for deletion", {
+                requestId,
+                sellerId: seller.id,
+                email: seller.email,
                 scheduledDeleteAt: seller.scheduledDeleteAt,
                 method,
-                url
+                url,
             });
-            return res.status(401).json({ message: "Unauthorized" });
+            return res.status(401).json({
+                message: "Account is scheduled for deletion"
+            });
         }
 
         const isBanAppeal = url.includes('/api/shop/ban-appeal');
 
         if (seller.isBanned && !isBanAppeal) {
-            logger.warn("sellerAuth: Seller is banned", { sellerId: seller.id, email: seller.email, method, url });
+            logger.warn("sellerAuth: Seller is banned", {
+                requestId,
+                sellerId: seller.id,
+                email: seller.email,
+                method,
+                url,
+            });
             return res.status(401).json({
-                message: "Unauthorized - Seller is banned"
+                message: "Account is banned"
             });
         }
 
@@ -72,28 +133,40 @@ export const sellerAuth = async (req: Request, res: Response, next: NextFunction
         const shop = seller.shop;
         const isShopActive = seller.status === "APPROVED" && shop !== null && shop.isActive && !shop.isBanned && !seller.isBanned;
 
-        logger.info("sellerAuth: Request authorized", {
+        logger.info("sellerAuth: Shop status check", {
+            requestId,
             sellerId: seller.id,
-            email: seller.email,
             sellerStatus: seller.status,
-            shopId: shop?.id ?? null,
+            hasShop: !!shop,
             shopIsActive: shop?.isActive ?? false,
+            shopIsBanned: shop?.isBanned ?? false,
             isShopActive,
             method,
-            url
+            url,
         });
 
         if (!isShopActive) {
+            let inactiveReason = "";
+            if (seller.status !== "APPROVED") {
+                inactiveReason = `Seller status is "${seller.status}" (requires "APPROVED")`;
+            } else if (!shop) {
+                inactiveReason = "No shop exists for this seller";
+            } else if (!shop.isActive) {
+                inactiveReason = "Shop is not active";
+            } else if (shop.isBanned) {
+                inactiveReason = "Shop is banned";
+            } else if (seller.isBanned) {
+                inactiveReason = "Seller is banned";
+            }
+
             const isInitialCreate = url.includes('/api/shop') && method === 'POST' && !shop;
             
-            // Allow updating shop or applying for approval only if in DRAFT or REJECTED
             const isAllowedUpdate = url.includes('/api/shop') && method === 'PUT' && 
                                     (seller.status === "PENDING_VERIFICATION" || seller.status === "REJECTED");
                                     
             const isApplyApproval = url.includes('/api/shop/apply-approval') && method === 'POST' &&
                                     (seller.status === "PENDING_VERIFICATION" || seller.status === "REJECTED");
             
-            // Allow managing bank details only if in DRAFT or REJECTED
             const isBankAccountRoute = url.includes('/api/shop/bank-account') && 
                                         (method === 'GET' || (method === 'POST' && (seller.status === "PENDING_VERIFICATION" || seller.status === "REJECTED")));
 
@@ -111,33 +184,43 @@ export const sellerAuth = async (req: Request, res: Response, next: NextFunction
 
             if (!isAllowedRoute) {
                 logger.warn("sellerAuth: Route blocked — shop inactive", {
+                    requestId,
                     sellerId: seller.id,
                     email: seller.email,
                     sellerStatus: seller.status,
+                    inactiveReason,
                     method,
                     url,
                     shopId: shop?.id ?? null,
-                    shopIsActive: shop?.isActive ?? false
+                    shopIsActive: shop?.isActive ?? false,
                 });
                 return res.status(403).json({
-                    message: "Your shop is currently inactive. Shop management actions are disabled until it is reactivated by an administrator."
+                    message: `Your shop is currently inactive. ${inactiveReason ? `Reason: ${inactiveReason}` : ''} Shop management actions are disabled until it is reactivated by an administrator.`
                 });
             }
         }
 
         req.sellerId = decoded.id;
 
+        logger.info("sellerAuth: Auth success", {
+            requestId,
+            sellerId: seller.id,
+            method,
+            url,
+        });
+
         next();
 
     } catch (error: any) {
         logger.error("sellerAuth: Unexpected error", {
+            requestId,
             method,
             url,
             error: error?.message,
-            stack: error?.stack
+            stack: error?.stack,
         });
         return res.status(401).json({
-            message: "Invalid token"
+            message: "Authentication error"
         });
     }
 
