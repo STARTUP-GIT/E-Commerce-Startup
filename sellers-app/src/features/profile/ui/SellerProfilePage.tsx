@@ -13,9 +13,7 @@ import {
   Mail,
   Phone,
   Store,
-  ShieldCheck,
   Calendar,
-  Percent,
   Edit3,
   PlusCircle,
   Eye,
@@ -25,7 +23,7 @@ import {
 
 export function SellerProfilePage() {
   const { profile, isLoading, isError, updateProfile, isUpdating } = useSellerProfile();
-  const { user } = useAuth();
+  useAuth();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);

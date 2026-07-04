@@ -6,7 +6,7 @@ export function useSellerProfile() {
 
   const profileQuery = useQuery({
     queryKey: ['seller-profile'],
-    queryFn: ({ signal }) => profileApi.getProfile(),
+    queryFn: () => profileApi.getProfile(),
     staleTime: 30_000,
   });
 
