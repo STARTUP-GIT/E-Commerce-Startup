@@ -1,0 +1,30 @@
+// =============================================================================
+// InventoryLog — audit trail for all stock changes (seller manage inventory)
+// =============================================================================
+
+model InventoryLog {
+  id               String              @id @default(cuid())
+  sellerId         String
+  productId        String
+  productVariantId String?
+  changeType       InventoryChangeType
+  quantityBefore   Int
+  quantityChange   Int
+  quantityAfter    Int
+  referenceType    String?             @db.VarChar(50)
+  referenceId      String?             @db.VarChar(30)
+  notes            String?             @db.Text
+  createdAt        DateTime            @default(now())
+
+  seller         Seller          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+
+  @@index([sellerId])
+  @@index([productId])
+  @@index([productVariantId])
+  @@index([changeType])
+  @@index([createdAt])
+  @@index([referenceType, referenceId])
+  @@map("inventory_logs")
+}
