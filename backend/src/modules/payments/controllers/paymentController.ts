@@ -442,7 +442,7 @@ export const paymentWebhook = async (req: Request, res: Response) => {
             ? (req as any).rawBody.toString("utf8") 
             : JSON.stringify(req.body);
 
-        if (secret || process.env.NODE_ENV === "production") {
+        if (secret || process.env.NODE_ENV?.toLowerCase() === "production") {
             if (!signatureHeader || !secret) {
                 return res.status(401).json({ message: "Invalid signature" });
             }
