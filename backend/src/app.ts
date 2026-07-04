@@ -79,16 +79,9 @@ export const configureMiddlewares = (app: express.Express) => {
     app.use(cookieParser());
     const allowedOrigins = [
         ...[process.env.CUSTOMER_FRONTEND_URL, process.env.SELLER_FRONTEND_URL, process.env.ADMIN_FRONTEND_URL]
-            .filter((url): url is string => !!url)
-            .map(url => url.replace(/\/$/, '')),
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://localhost:3002',
-        'http://localhost:5173',
-        'http://localhost:8080',
     ];
     app.use(cors({
-        origin:process.env.NODE_ENV === 'production' ? allowedOrigins : '*',
+        origin: allowedOrigins as string[], 
         credentials: true
     }));
     app.use(requestLogger);
