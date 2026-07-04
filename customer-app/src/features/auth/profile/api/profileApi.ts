@@ -72,12 +72,12 @@ export const profileApi = {
     const response = await axiosInstance.delete('/api/auth/profile/delete');
     return response.data;
   },
-  getLocationsStates: async (): Promise<{ states: string[]; allStates?: { name: string; isEnabled: boolean }[]; districtRequired: boolean }> => {
-    const response = await axiosInstance.get('/api/locations/states');
+  getLocationsStates: async (): Promise<{ states: { id: string; name: string }[]; allStates?: { id: string; name: string; isEnabled: boolean }[]; districtRequired: boolean }> => {
+    const response = await axiosInstance.get('/customer/api/location/states');
     return response.data;
   },
-  getLocationsDistricts: async (state: string): Promise<{ districts: string[]; allDistricts?: { name: string; isEnabled: boolean }[] }> => {
-    const response = await axiosInstance.get('/api/locations/districts', { params: { state } });
+  getLocationsDistricts: async (state: string): Promise<{ districts: string[]; allDistricts?: { id: string; name: string; isEnabled: boolean; stateId: string }[] }> => {
+    const response = await axiosInstance.get('/customer/api/location/districts', { params: { state } });
     return response.data;
   },
 };

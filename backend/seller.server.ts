@@ -15,6 +15,8 @@ import { prisma } from './src/config/prisma.js';
 // Seller routes
 import sellerAuth from './src/modules/seller/routes/authroute.js';
 import shopRoutes from './src/modules/seller/routes/shopRoute.js';
+import sellerProfileRoute from './src/modules/seller/routes/profileRoute.js';
+import sellerLocationRoute from './src/modules/seller/routes/locationRoute.js';
 import sellerProducts from './src/modules/seller/routes/productRoute.js';
 import ordersRoutes from './src/modules/seller/routes/ordersRoute.js';
 import analyticsRoutes from './src/modules/seller/routes/analyticsRoute.js';
@@ -29,6 +31,8 @@ configureMiddlewares(app);
 
 app.use('/seller', sellerAuth);
 app.use('/seller', shopRoutes);
+app.use('/seller', sellerProfileRoute);
+app.use('/seller', sellerLocationRoute);
 app.use('/seller', sellerProducts);
 app.use('/seller', ordersRoutes);
 app.use('/seller', analyticsRoutes);

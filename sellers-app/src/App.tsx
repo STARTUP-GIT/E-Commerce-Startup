@@ -23,6 +23,7 @@ import { PayoutsPage } from '@/features/payouts/ui/PayoutsPage';
 import { ReviewsPage } from '@/features/reviews/ui/ReviewsPage';
 import { NotificationsPage } from '@/features/notifications/ui/NotificationsPage';
 import { SettingsPage } from '@/features/settings/ui/SettingsPage';
+import { SellerProfilePage } from '@/features/profile/ui/SellerProfilePage';
 import { ToastContainer } from '@/shared/components/ToastContainer';
 import { ComingSoonDialog } from '@/components/ui/ComingSoonDialog';
 import { PremiumDialogContainer } from '@/components/ui/PremiumDialogContainer';
@@ -147,10 +148,11 @@ function App() {
         </Route>
 
 
-        <Route element={<ProtectedRoute />}>
-          <Route path="/shop-setup" element={<NoShopRequiredRoute />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/shop-setup" element={<NoShopRequiredRoute />} />
+            <Route path="/profile" element={<SellerProfilePage />} />
 
-          <Route element={<ShopRequiredRoute />}>
+            <Route element={<ShopRequiredRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/products" element={<ProductListPage />} />
             <Route path="/orders" element={<OrdersPage />} />
