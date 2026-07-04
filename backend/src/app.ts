@@ -19,10 +19,13 @@ import customerReviewRoutes from './modules/customer/routes/reviewRoute.js';
 import customerNotificationRoutes from './modules/customer/routes/notificationRoute.js';
 import customerCustomOrderRoutes from './modules/customer/routes/customOrderRoute.js';
 import customerCityRoute from './modules/customer/routes/cityRoute.js';
+import customerLocationRoute from './modules/customer/routes/locationRoute.js';
 import corePaymentRoutes from './modules/payments/routes/paymentRoute.js';
 
 import sellerAuth from './modules/seller/routes/authroute.js';
 import shopRoutes from './modules/seller/routes/shopRoute.js';
+import sellerProfileRoute from './modules/seller/routes/profileRoute.js';
+import sellerLocationRoute from './modules/seller/routes/locationRoute.js';
 import { limiter } from './middleware/ratelimiter.js';
 import sellerProducts from './modules/seller/routes/productRoute.js';
 import ordersRoutes from './modules/seller/routes/ordersRoute.js';
@@ -148,11 +151,14 @@ app.use('/users', customerReviewRoutes);
 app.use('/users', customerNotificationRoutes);
 app.use('/users', customerCustomOrderRoutes);
 app.use('/users/cities', customerCityRoute);
+app.use('/customer/api/location', customerLocationRoute);
 app.use('/', corePaymentRoutes);
 
 //seller routes 
 app.use('/seller', sellerAuth);
 app.use('/seller', shopRoutes);
+app.use('/seller', sellerProfileRoute);
+app.use('/seller', sellerLocationRoute);
 app.use('/seller', sellerProducts);
 app.use('/seller', ordersRoutes);
 app.use('/seller', analyticsRoutes);

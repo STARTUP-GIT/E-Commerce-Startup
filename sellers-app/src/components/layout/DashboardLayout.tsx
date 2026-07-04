@@ -18,6 +18,7 @@ import {
   Menu,
   ChevronRight,
   AlertTriangle,
+  UserCircle,
 } from 'lucide-react';
 import { Button } from '@/shared/components/Button';
 import { Badge } from '@/shared/components/Badge';
@@ -51,6 +52,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { name: 'Analytics', path: '/analytics', icon: BarChart3 },
     { name: 'Payouts', path: '/payouts', icon: CreditCard },
     { name: 'Reviews', path: '/reviews', icon: Star },
+    { name: 'Seller Profile', path: '/profile', icon: UserCircle },
     { name: 'Shop & Bank', path: '/shop-settings', icon: Store },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
@@ -128,6 +130,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               const isAllowed = 
                 approval?.status === 'APPROVED' || 
                 item.path === '/dashboard' || 
+                item.path === '/profile' || 
                 item.path === '/shop-settings' || 
                 item.path === '/settings' || 
                 item.path === '/notifications';

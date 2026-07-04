@@ -55,4 +55,14 @@ export const authApi = {
     const response = await axiosInstance.post('/api/admin/auth/refresh');
     return response.data;
   },
+
+  getSetupStatus: async (): Promise<{ initialized: boolean }> => {
+    const response = await axiosInstance.get('/api/admin/auth/setup/status');
+    return response.data;
+  },
+
+  setupAdmin: async (payload: { name: string; email: string; password: string }): Promise<{ message: string }> => {
+    const response = await axiosInstance.post('/api/admin/auth/setup', payload);
+    return response.data;
+  },
 };
