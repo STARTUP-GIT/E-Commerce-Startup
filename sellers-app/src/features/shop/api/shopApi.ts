@@ -124,11 +124,20 @@ export const shopApi = {
   },
 
   getLocationsStates: async (): Promise<{ states: string[]; allStates?: { name: string; isEnabled: boolean }[]; districtRequired: boolean }> => {
-    const response = await axiosInstance.get('/seller/api/locations/states');
-    return response.data;
+    const response = await axiosInstance.get<Array<{ id: string; name: string }>>('/seller/api/location/states');
+    const statesArray = response.data;
+    return {
+      states: statesArray.map(s => s.name),
+      allStates: statesArray.map(s => ({ name: s.name, isEnabled: true })),
+      districtRequired: true,
+    };
   },
   getLocationsDistricts: async (state: string): Promise<{ districts: string[]; allDistricts?: { name: string; isEnabled: boolean }[] }> => {
-    const response = await axiosInstance.get('/seller/api/locations/districts', { params: { state } });
-    return response.data;
+    const response = await axiosInstance.get<Array<{ id: string; name: string; stateId: string }>>('/seller/api/location/districts', { params: { state } });
+    const districtsArray = response.data;
+    return {
+      districts: districtsArray.map(d => d.name),
+      allDistricts: districtsArray.map(d => ({ name: d.name, isEnabled: true })),
+    };
   },
 };
