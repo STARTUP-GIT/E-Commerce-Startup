@@ -16,8 +16,6 @@ const setSessionCookie = async (cookieHeader: string[] | undefined) => {
   const options: any = {
     path: '/',
     httpOnly: true,
-    sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
   };
 
   directives.forEach((d) => {
@@ -26,6 +24,10 @@ const setSessionCookie = async (cookieHeader: string[] | undefined) => {
       options.maxAge = parseInt(trimmed.split('=')[1], 10);
     } else if (trimmed.startsWith('expires=')) {
       options.expires = new Date(trimmed.split('=')[1]);
+    } else if (trimmed === 'secure') {
+      options.secure = true;
+    } else if (trimmed.startsWith('samesite=')) {
+      options.sameSite = trimmed.split('=')[1] as 'lax' | 'strict' | 'none';
     }
   });
 

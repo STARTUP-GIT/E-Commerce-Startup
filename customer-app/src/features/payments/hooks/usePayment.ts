@@ -56,13 +56,45 @@ export function usePayment() {
       });
 
       if (orderDetails.gateway === 'RAZORPAY') {
+        const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_dummykey';
+        const amountPaise = Math.round(orderDetails.amount * 100);
+        const currency = orderDetails.currency;
+        const orderId = orderDetails.gatewayOrderId;
+
+        console.log('=== Razorpay Validation ===');
+        console.log('Razorpay Key:', razorpayKey);
+        console.log('Order ID:', orderId);
+        console.log('Amount (paise):', amountPaise);
+        console.log('Currency:', currency);
+
+        if (!razorpayKey) {
+          throw new Error(
+            'RAZORPAY_UNDEFINED: key is undefined. Set NEXT_PUBLIC_RAZORPAY_KEY_ID in Vercel env.'
+          );
+        }
+        if (!orderId) {
+          throw new Error(
+            'RAZORPAY_UNDEFINED: order_id is undefined. Backend did not return gatewayOrderId.'
+          );
+        }
+        if (!amountPaise || isNaN(amountPaise)) {
+          throw new Error(
+            'RAZORPAY_UNDEFINED: amount is invalid. Backend returned amount=' + orderDetails.amount
+          );
+        }
+        if (!currency) {
+          throw new Error(
+            'RAZORPAY_UNDEFINED: currency is undefined.'
+          );
+        }
+
         const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_dummykey',
-          amount: Math.round(orderDetails.amount * 100),
-          currency: orderDetails.currency,
+          key: razorpayKey,
+          amount: amountPaise,
+          currency: currency,
           name: 'Aura Marketplace',
           description: 'Aura Marketplace Checkout Payment',
-          order_id: orderDetails.gatewayOrderId,
+          order_id: orderId,
           handler: async (response: any) => {
             await verifyPaymentMutation.mutateAsync({
               shippingAddressId: params.shippingAddressId,
@@ -74,13 +106,15 @@ export function usePayment() {
             });
           },
           prefill: {
-            name: params.userName,
-            email: params.userEmail,
+            name: params.userName || 'Customer',
+            email: params.userEmail || '',
           },
           theme: {
             color: '#7c3aed',
           },
         };
+
+        console.log('Razorpay Options:', options);
 
         const rzp = new (window as any).Razorpay(options);
         rzp.on('payment.failed', function (resp: any) {

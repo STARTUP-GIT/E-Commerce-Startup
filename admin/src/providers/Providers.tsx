@@ -21,11 +21,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SetupGuard>
-        <SessionProvider>
+      <SessionProvider>
+        <SetupGuard>
           {children}
-        </SessionProvider>
-      </SetupGuard>
+        </SetupGuard>
+      </SessionProvider>
       <ToastContainer />
     </QueryClientProvider>
   );
