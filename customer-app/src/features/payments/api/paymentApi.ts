@@ -1,9 +1,16 @@
 import axiosInstance from '@/lib/axios/axiosInstance';
 
+export interface BuyNowParams {
+  productId: string;
+  productVariantId?: string;
+  quantity: number;
+}
+
 export interface CreatePaymentPayload {
   shippingAddressId: string;
   couponCode?: string;
   packingFees?: { sellerId: string; amount: number }[];
+  buyNow?: BuyNowParams;
 }
 
 export interface RazorpayOrderDetails {
@@ -19,6 +26,7 @@ export interface VerifyPaymentPayload {
   shippingAddressId: string;
   couponCode?: string;
   packingFees?: { sellerId: string; amount: number }[];
+  buyNow?: BuyNowParams;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   razorpaySignature?: string;

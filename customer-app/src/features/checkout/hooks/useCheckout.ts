@@ -1,24 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { checkoutApi } from '../api/checkoutApi';
+import { checkoutApi, BuyNowParams } from '../api/checkoutApi';
 import { useState } from 'react';
 
-export function useCheckout() {
+export function useCheckout(buyNow?: BuyNowParams) {
   const queryClient = useQueryClient();
   const [couponCode, setCouponCode] = useState<string>('');
 
   const summaryQuery = useQuery({
-    queryKey: ['checkout-summary', couponCode],
-    queryFn: () => checkoutApi.getSummary(couponCode || undefined),
+    queryKey: ['checkout-summary', couponCode, buyNow],
+    queryFn: () => checkoutApi.getSummary(couponCode || undefined, buyNow),
   });
 
   const validateQuery = useQuery({
-    queryKey: ['checkout-validation'],
-    queryFn: () => checkoutApi.validateCheckout(),
+    queryKey: ['checkout-validation', buyNow],
+    queryFn: () => checkoutApi.validateCheckout(buyNow),
     retry: false,
   });
 
   const applyCouponMutation = useMutation({
-    mutationFn: (code: string) => checkoutApi.applyCoupon(code),
+    mutationFn: (code: string) => checkoutApi.applyCoupon(code, buyNow),
     onSuccess: (data) => {
       setCouponCode(data.coupon.code);
       queryClient.invalidateQueries({ queryKey: ['checkout-summary'] });
@@ -26,7 +26,7 @@ export function useCheckout() {
   });
 
   const removeCouponMutation = useMutation({
-    mutationFn: (code: string) => checkoutApi.removeCoupon(code),
+    mutationFn: (code: string) => checkoutApi.removeCoupon(code, buyNow),
     onSuccess: () => {
       setCouponCode('');
       queryClient.invalidateQueries({ queryKey: ['checkout-summary'] });

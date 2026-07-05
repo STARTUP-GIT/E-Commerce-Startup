@@ -1,5 +1,11 @@
 import axiosInstance from '@/lib/axios/axiosInstance';
 
+export interface BuyNowParams {
+  productId: string;
+  productVariantId?: string;
+  quantity: number;
+}
+
 export interface CheckoutSummary {
   items: {
     productId: string;
@@ -24,20 +30,21 @@ export interface CheckoutSummary {
 }
 
 export const checkoutApi = {
-  getSummary: async (couponCode?: string): Promise<{ checkoutSummary: CheckoutSummary }> => {
-    const response = await axiosInstance.post('/api/checkout', { couponCode });
+  getSummary: async (couponCode?: string, buyNow?: BuyNowParams): Promise<{ checkoutSummary: CheckoutSummary }> => {
+    const response = await axiosInstance.post('/api/checkout', { couponCode, buyNow });
     return response.data;
   },
-  validateCheckout: async (): Promise<{ isValid: boolean; message?: string }> => {
-    const response = await axiosInstance.get('/api/checkout/validate');
+  validateCheckout: async (buyNow?: BuyNowParams): Promise<{ isValid: boolean; message?: string }> => {
+    const params = buyNow ? { buyNow: 'true', productId: buyNow.productId, productVariantId: buyNow.productVariantId, quantity: buyNow.quantity } : undefined;
+    const response = await axiosInstance.get('/api/checkout/validate', { params });
     return response.data;
   },
-  applyCoupon: async (couponCode: string): Promise<{ message: string; coupon: any; discount: number }> => {
-    const response = await axiosInstance.post('/api/checkout/apply-coupon', { couponCode });
+  applyCoupon: async (couponCode: string, buyNow?: BuyNowParams): Promise<{ message: string; coupon: any; discount: number }> => {
+    const response = await axiosInstance.post('/api/checkout/apply-coupon', { couponCode, buyNow });
     return response.data;
   },
-  removeCoupon: async (couponCode: string): Promise<{ message: string }> => {
-    const response = await axiosInstance.post('/api/checkout/remove-coupon', { couponCode });
+  removeCoupon: async (couponCode: string, buyNow?: BuyNowParams): Promise<{ message: string }> => {
+    const response = await axiosInstance.post('/api/checkout/remove-coupon', { couponCode, buyNow });
     return response.data;
   },
 };

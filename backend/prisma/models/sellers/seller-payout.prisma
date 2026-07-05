@@ -9,7 +9,7 @@ model SellerPayout {
   bankAccountId   String?
   amount          Decimal      @db.Decimal(12, 2)
   platformFee     Decimal      @db.Decimal(12, 2)
-  currency        String       @default("USD") @db.VarChar(3)
+  currency        String       @default("INR") @db.VarChar(3)
   status          PayoutStatus @default(PENDING)
   gatewayPayoutId String?      @unique @db.VarChar(255)
   processedAt     DateTime?

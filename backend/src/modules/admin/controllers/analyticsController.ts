@@ -31,6 +31,9 @@ export const getDashboard = async (req: Request, res: Response) => {
 
         // 3. Shops
         const totalShops = await prisma.shop.count();
+        const pendingShopApprovals = await prisma.shop.count({ where: { status: "PENDING" } });
+        const activeShops = await prisma.shop.count({ where: { status: "APPROVED" } });
+        const inactiveShops = await prisma.shop.count({ where: { status: { notIn: ["PENDING", "APPROVED"] } } });
 
         // 4. Products
         const totalProducts = await prisma.product.count({ where: { isDeleted: false } });
@@ -85,6 +88,14 @@ export const getDashboard = async (req: Request, res: Response) => {
         const todayRevenue = Number(todayOrders._sum.grandTotal || 0);
         const monthlyRevenue = Number(monthlyOrders._sum.grandTotal || 0);
 
+        const totalAccruedOrders = await prisma.order.aggregate({
+            where: {
+                status: { not: "CANCELLED" }
+            },
+            _sum: { grandTotal: true }
+        });
+        const totalRevenue = Number(totalAccruedOrders._sum.grandTotal || 0);
+
         // 8. Platform Revenue (Sum of commission and fees from seller orders)
         const sellerOrdersRevenue = await prisma.sellerOrder.aggregate({
             _sum: {
@@ -137,11 +148,15 @@ export const getDashboard = async (req: Request, res: Response) => {
             sellersCount,
             totalCustomers,
             totalShops,
+            pendingShopApprovals,
+            activeShops,
+            inactiveShops,
             totalProducts,
             ordersCount,
             totalPayments,
             todayRevenue,
             monthlyRevenue,
+            totalRevenue,
             platformRevenue,
             pendingPackingRequests,
             recentOrders,
