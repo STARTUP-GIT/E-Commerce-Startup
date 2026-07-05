@@ -8,6 +8,12 @@ export function useAuth() {
   const router = useRouter();
   const { showToast } = useUIStore();
 
+  const { data: setupData } = useQuery({
+    queryKey: ['setup-status'],
+    queryFn: authApi.getSetupStatus,
+    staleTime: Infinity,
+  });
+
   // Profile Query: Single source of truth for auth state
   const profileQuery = useQuery({
     queryKey: ['profile'],
@@ -22,6 +28,7 @@ export function useAuth() {
     },
     staleTime: 5 * 60 * 1000, // cache for 5 minutes
     retry: false, // Do not retry auth calls
+    enabled: setupData?.initialized === true,
   });
 
   const loginMutation = useMutation({
