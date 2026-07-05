@@ -22,7 +22,8 @@ export interface ShopInfo {
   bannerUrl?: string;
   supportEmail?: string;
   supportPhone?: string;
-  isActive: boolean;
+  status: string;
+  rejectionReason?: string;
   defaultPickupAddress?: ShopAddress;
   commissionPercentage?: number;
   customerDeliveryShare?: number;
@@ -72,21 +73,6 @@ export const shopApi = {
 
   updateShop: async (payload: Partial<ShopSetupPayload>): Promise<{ message: string; shop: ShopInfo }> => {
     const response = await axiosInstance.put('/seller/api/shop', payload);
-    return response.data;
-  },
-
-  applyApproval: async (payload: { gstRegistered: boolean; gstNumber?: string }): Promise<{ message: string }> => {
-    const response = await axiosInstance.post('/seller/api/shop/apply-approval', payload);
-    return response.data;
-  },
-
-  getApprovalStatus: async (): Promise<{
-    status: 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
-    approvedAt?: string;
-    rejectedAt?: string;
-    rejectionReason?: string;
-  }> => {
-    const response = await axiosInstance.get('/seller/api/shop/approval-status');
     return response.data;
   },
 

@@ -67,11 +67,11 @@ export const calculateTotals = async (params: {
         }
 
         const seller = product.seller;
-        if (seller.isBanned || seller.status !== "APPROVED") {
+        if (seller.isBanned || seller.status !== "ACTIVE") {
             throw new Error(`Seller of product '${product.name}' is not approved or is banned.`);
         }
 
-        if (!seller.shop || !seller.shop.isActive) {
+        if (!seller.shop || seller.shop.status !== "APPROVED") {
             throw new Error(`Shop of product '${product.name}' is inactive.`);
         }
 

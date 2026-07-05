@@ -2,8 +2,6 @@ import express from "express";
 import {
     createShop,
     getShopInfo,
-    applyForApproval,
-    getApprovalStatus,
     addBankAccountDetails,
     getBankAccountDetails,
     raiseBanIssue,
@@ -21,8 +19,6 @@ const router = express.Router();
 router.post("/api/shop", sellerAuth, createShop);
 router.put("/api/shop", sellerAuth, updateShop);
 router.get("/api/shop", sellerAuth, getShopInfo);
-router.post("/api/shop/apply-approval", sellerAuth, applyForApproval);
-router.get("/api/shop/approval-status", sellerAuth, getApprovalStatus);
 router.post("/api/shop/bank-account", sellerAuth, addBankAccountDetails);
 router.get("/api/shop/bank-account", sellerAuth, getBankAccountDetails);
 router.post("/api/shop/ban-appeal", sellerAuth, raiseBanIssue);

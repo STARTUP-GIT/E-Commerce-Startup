@@ -52,7 +52,7 @@ const runCheckoutValidation = async (customerId: string) => {
         }
 
         const seller = item.product.seller;
-        if (!seller.shop || !seller.shop.isActive) {
+        if (!seller.shop || seller.shop.status !== "APPROVED") {
             return { isValid: false, message: `Shop of product '${item.product.name}' is inactive.` };
         }
 

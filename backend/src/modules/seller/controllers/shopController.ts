@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
-import { SellerStatus, SellerOrderStatus, SellerAddressType } from "@prisma/client";
+import { SellerOrderStatus, SellerAddressType } from "@prisma/client";
 
 
 export const createShop = async (req: Request,res: Response) => {
@@ -221,7 +221,7 @@ export const createShop = async (req: Request,res: Response) => {
                             defaultPickupAddressId:
                                 address.id,
 
-                            isActive: false,
+                            status: "PENDING",
                             gstRegistered: isGstRegistered,
                             gstNumber: cleanGst
                         }
@@ -286,148 +286,7 @@ export const getShopInfo = async (req: Request , res:Response) =>   {
 }
 
 
-export const applyForApproval = async (req: Request, res: Response) => {
-    try {
 
-        const sellerId = req.sellerId!;
-
-        const {
-            gstRegistered,
-            gstNumber
-        } = req.body;
-
-        const seller = await prisma.seller.findUnique({
-            where: {
-                id: sellerId
-            },
-            include: {
-                shop: true
-            }
-        });
-
-        if (!seller) {
-            return res.status(404).json({
-                message: "Seller not found"
-            });
-        }
-
-        if (!seller.shop) {
-            return res.status(400).json({
-                message: "Create shop first"
-            });
-        }
-
-        const isGstRegistered = gstRegistered === undefined ? (!!gstNumber) : (!!gstRegistered);
-
-        if (isGstRegistered) {
-            if (!gstNumber || !gstNumber.trim()) {
-                return res.status(400).json({
-                    message: "GST Number is required when GST registered is selected."
-                });
-            }
-            const cleanGst = gstNumber.trim().toUpperCase();
-            const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-            if (!gstRegex.test(cleanGst)) {
-                return res.status(400).json({
-                    message: "Invalid GST Number format. Must be a valid 15-character Indian GSTIN."
-                });
-            }
-
-            await prisma.sellerVerification.create({
-                data: {
-                    sellerId,
-                    gstNumber: cleanGst,
-                    gstRegistered: true,
-                    status: "PENDING"
-                }
-            });
-
-            await prisma.shop.update({
-                where: { sellerId },
-                data: {
-                    gstNumber: cleanGst,
-                    gstRegistered: true
-                }
-            });
-        } else {
-            await prisma.sellerVerification.create({
-                data: {
-                    sellerId,
-                    gstNumber: null,
-                    gstRegistered: false,
-                    status: "PENDING"
-                }
-            });
-
-            await prisma.shop.update({
-                where: { sellerId },
-                data: {
-                    gstNumber: null,
-                    gstRegistered: false
-                }
-            });
-        }
-
-        await prisma.seller.update({
-            where: { id: sellerId },
-            data: { status: "PENDING_APPROVAL" }
-        });
-
-        return res.status(200).json({
-            message: isGstRegistered
-                ? "GST submitted for verification"
-                : "Manual verification request submitted"
-        });
-
-    } catch (error) {
-        console.error("APPLY FOR APPROVAL ERROR:", error);
-        return res.status(500).json({
-            message: "Internal Server Error"
-        });
-    }
-};
-
-export const getApprovalStatus = async (req: Request, res: Response) => {
-    try {
-
-        const sellerId = req.sellerId!;
-
-        const seller = await prisma.seller.findUnique({
-            where: {
-                id: sellerId
-            },
-            select: {
-                status: true,
-                approvedAt: true,
-                rejectedAt: true,
-                rejectionReason: true
-            }
-        });
-
-        if (!seller) {
-            return res.status(404).json({
-                message: "Seller not found"
-            });
-        }
-
-        let status = seller.status as string;
-        if (status === "PENDING_VERIFICATION") {
-            status = "DRAFT";
-        }
-
-        return res.status(200).json({
-            status,
-            approvedAt: seller.approvedAt,
-            rejectedAt: seller.rejectedAt,
-            rejectionReason: seller.rejectionReason
-        });
-
-    } catch (error) {
-        return res.status(500).json({
-            message: "Internal Server Error"
-        });
-    }
-};
 
 export const addBankAccountDetails = async (req: Request,res: Response) => {
     try {
@@ -456,6 +315,9 @@ export const addBankAccountDetails = async (req: Request,res: Response) => {
         const seller = await prisma.seller.findUnique({
             where: {
                 id: sellerId
+            },
+            include: {
+                shop: true
             }
         });
 
@@ -472,11 +334,12 @@ export const addBankAccountDetails = async (req: Request,res: Response) => {
         }
 
         if (
-            seller.status !== SellerStatus.APPROVED
+            !seller.shop ||
+            seller.shop.status !== "APPROVED"
         ) {
             return res.status(403).json({
                 message:
-                    "Seller approval required before adding bank account"
+                    "Shop approval required before adding bank account"
             });
         }
 

@@ -9,14 +9,6 @@ export const sellerApi = {
     const response = await axiosInstance.get(`/api/admin/sellers/sellers/${id}`);
     return response.data;
   },
-  approveSeller: async (id: string) => {
-    const response = await axiosInstance.patch(`/api/admin/sellers/sellers/${id}/approve`);
-    return response.data;
-  },
-  rejectSeller: async (id: string, reason?: string) => {
-    const response = await axiosInstance.patch(`/api/admin/sellers/sellers/${id}/reject`, { reason });
-    return response.data;
-  },
   banSeller: async (id: string, reason?: string) => {
     const response = await axiosInstance.patch(`/api/admin/sellers/sellers/${id}/ban`, { reason });
     return response.data;
