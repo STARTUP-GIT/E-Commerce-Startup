@@ -10,7 +10,7 @@ import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
-import { Search, CheckCircle, XCircle, ExternalLink, Package } from 'lucide-react';
+import { Search, CheckCircle, XCircle, ExternalLink, Package, ShieldOff, Pause } from 'lucide-react';
 import Link from 'next/link';
 
 export function ShopsPage() {
@@ -39,6 +39,38 @@ export function ShopsPage() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shops'] }); showToast('Packing permission rejected.', 'info'); },
     onError: (e: any) => showToast(e.message, 'error'),
   });
+
+  const approveShop = useMutation({
+    mutationFn: (id: string) => shopApi.approveShop(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shops'] }); showToast('Shop approved.', 'success'); },
+    onError: (e: any) => showToast(e.message, 'error'),
+  });
+
+  const rejectShop = useMutation({
+    mutationFn: (id: string) => shopApi.rejectShop(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shops'] }); showToast('Shop rejected.', 'info'); },
+    onError: (e: any) => showToast(e.message, 'error'),
+  });
+
+  const suspendShop = useMutation({
+    mutationFn: (id: string) => shopApi.suspendShop(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shops'] }); showToast('Shop suspended.', 'info'); },
+    onError: (e: any) => showToast(e.message, 'error'),
+  });
+
+  const disableShop = useMutation({
+    mutationFn: (id: string) => shopApi.disableShop(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shops'] }); showToast('Shop disabled.', 'info'); },
+    onError: (e: any) => showToast(e.message, 'error'),
+  });
+
+  const STATUS_BADGE: Record<string, 'success' | 'warning' | 'destructive' | 'outline' | 'secondary'> = {
+    APPROVED: 'success',
+    PENDING: 'warning',
+    REJECTED: 'destructive',
+    SUSPENDED: 'warning',
+    DISABLED: 'destructive',
+  };
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -75,7 +107,7 @@ export function ShopsPage() {
                   <TableHead>Shop</TableHead>
                   <TableHead>City</TableHead>
                   <TableHead>Packing Status</TableHead>
-                  <TableHead>Active</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -100,14 +132,34 @@ export function ShopsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={shop.isActive ? 'success' : 'destructive'} className="text-[8px]">{shop.isActive ? 'Active' : 'Inactive'}</Badge>
+                      <Badge variant={STATUS_BADGE[shop.status] ?? 'outline'} className="text-[8px]">{shop.status}</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1.5">
+                        {shop.status === 'PENDING' && (
+                          <>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={approveShop.isPending} onClick={() => approveShop.mutate(shop.id)}>
+                              <CheckCircle className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={rejectShop.isPending} onClick={() => rejectShop.mutate(shop.id)}>
+                              <XCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                        {shop.status === 'APPROVED' && (
+                          <>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-400 hover:bg-orange-500/10" isLoading={suspendShop.isPending} onClick={() => suspendShop.mutate(shop.id)}>
+                              <Pause className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={disableShop.isPending} onClick={() => disableShop.mutate(shop.id)}>
+                              <ShieldOff className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
                         {shop.packingPermission === 'PENDING' && (
                           <>
                             <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={approvePacking.isPending} onClick={() => approvePacking.mutate(shop.id)}>
-                              <CheckCircle className="h-3.5 w-3.5" />
+                              <Package className="h-3.5 w-3.5" />
                             </Button>
                             <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={rejectPacking.isPending} onClick={() => rejectPacking.mutate(shop.id)}>
                               <XCircle className="h-3.5 w-3.5" />

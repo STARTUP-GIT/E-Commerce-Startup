@@ -85,38 +85,38 @@ export function ShopDetailPage() {
   };
 
   // Mutations
-  const activateMutation = useMutation({
-    mutationFn: () => shopApi.activateShop(shopId),
+  const approveMutation = useMutation({
+    mutationFn: () => shopApi.approveShop(shopId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shop-detail', shopId] });
-      showToast('Shop activated.', 'success');
+      showToast('Shop approved.', 'success');
     },
     onError: (e: any) => showToast(e.message, 'error'),
   });
 
-  const deactivateMutation = useMutation({
-    mutationFn: () => shopApi.deactivateShop(shopId),
+  const rejectMutation = useMutation({
+    mutationFn: () => shopApi.rejectShop(shopId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shop-detail', shopId] });
-      showToast('Shop deactivated.', 'info');
+      showToast('Shop rejected.', 'info');
     },
     onError: (e: any) => showToast(e.message, 'error'),
   });
 
-  const banMutation = useMutation({
-    mutationFn: (reason: string) => shopApi.banShop(shopId, reason),
+  const suspendMutation = useMutation({
+    mutationFn: () => shopApi.suspendShop(shopId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shop-detail', shopId] });
-      showToast('Shop banned.', 'info');
+      showToast('Shop suspended.', 'info');
     },
     onError: (e: any) => showToast(e.message, 'error'),
   });
 
-  const unbanMutation = useMutation({
-    mutationFn: () => shopApi.unbanShop(shopId),
+  const disableMutation = useMutation({
+    mutationFn: () => shopApi.disableShop(shopId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shop-detail', shopId] });
-      showToast('Shop unbanned.', 'success');
+      showToast('Shop disabled.', 'info');
     },
     onError: (e: any) => showToast(e.message, 'error'),
   });
@@ -170,14 +170,9 @@ export function ShopDetailPage() {
               <h1 className="text-2xl font-bold tracking-tight text-white/95">
                 {shop.name}
               </h1>
-              <Badge variant={shop.isActive ? 'success' : 'secondary'} className="text-[9px] px-2 py-0.5 font-bold">
-                {shop.isActive ? 'Active' : 'Inactive'}
+              <Badge variant={shop.status === 'APPROVED' ? 'success' : shop.status === 'PENDING' ? 'warning' : shop.status === 'REJECTED' ? 'destructive' : shop.status === 'SUSPENDED' ? 'warning' : 'destructive'} className="text-[9px] px-2 py-0.5 font-bold">
+                {shop.status}
               </Badge>
-              {shop.isBanned && (
-                <Badge variant="destructive" className="text-[9px] px-2 py-0.5 font-bold">
-                  BANNED
-                </Badge>
-              )}
             </div>
             <p className="text-xs text-white/45 mt-1">Slug: /shops/{shop.slug} • ID: {shop.id}</p>
           </div>
@@ -185,70 +180,34 @@ export function ShopDetailPage() {
 
         {/* Administration Actions Panel */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Activate / Deactivate Toggle */}
-          {shop.isActive ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-9 text-xs text-white/50 border-white/5 hover:bg-white/[0.04]"
-              isLoading={deactivateMutation.isPending}
-              onClick={() => {
-                showConfirm({
-                  title: 'Deactivate Shop',
-                  message: 'Are you sure you want to deactivate this shop? Customers will not be able to browse its products.',
-                  confirmText: 'Deactivate',
-                  onConfirm: () => deactivateMutation.mutate(),
-                });
-              }}
-            >
-              <ToggleRight className="h-4 w-4 mr-1.5" /> Deactivate
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-9 text-xs text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/10"
-              isLoading={activateMutation.isPending}
-              onClick={() => activateMutation.mutate()}
-            >
-              <ToggleLeft className="h-4 w-4 mr-1.5" /> Activate
-            </Button>
+          {/* Approve / Reject */}
+          {shop.status === 'PENDING' && (
+            <>
+              <Button size="sm" variant="default" className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-9 text-xs" isLoading={approveMutation.isPending} onClick={() => approveMutation.mutate()}>
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Approve
+              </Button>
+              <Button size="sm" variant="destructive" className="h-9 text-xs" isLoading={rejectMutation.isPending} onClick={() => rejectMutation.mutate()}>
+                <XCircle className="h-3.5 w-3.5 mr-1.5" /> Reject
+              </Button>
+            </>
           )}
 
-          {/* Ban / Unban Toggle */}
-          {shop.isBanned ? (
-            <Button
-              size="sm"
-              variant="default"
-              className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-9 text-xs"
-              isLoading={unbanMutation.isPending}
-              onClick={() => {
-                showConfirm({
-                  title: 'Unban Shop',
-                  message: 'Are you sure you want to unban this shop? This will set it back to operational state.',
-                  confirmText: 'Unban',
-                  onConfirm: () => unbanMutation.mutate(),
-                });
-              }}
-            >
-              <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Unban Shop
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="destructive"
-              className="h-9 text-xs"
-              isLoading={banMutation.isPending}
-              onClick={() => {
-                showConfirm({
-                  title: 'Ban Shop',
-                  message: 'Banning a shop makes it hidden and inaccessible to customers. Note: This will NOT ban the associated seller (One-Way relation).',
-                  confirmText: 'Ban Shop',
-                  onConfirm: () => banMutation.mutate('Policy violations'),
-                });
-              }}
-            >
-              <ShieldOff className="h-3.5 w-3.5 mr-1.5" /> Ban Shop
+          {/* Suspend / Disable for Approved */}
+          {shop.status === 'APPROVED' && (
+            <>
+              <Button size="sm" variant="secondary" className="h-9 text-xs border border-orange-500/20 text-orange-400 hover:bg-orange-500/10" isLoading={suspendMutation.isPending} onClick={() => suspendMutation.mutate()}>
+                <AlertTriangle className="h-3.5 w-3.5 mr-1.5" /> Suspend
+              </Button>
+              <Button size="sm" variant="destructive" className="h-9 text-xs" isLoading={disableMutation.isPending} onClick={() => disableMutation.mutate()}>
+                <ShieldOff className="h-3.5 w-3.5 mr-1.5" /> Disable
+              </Button>
+            </>
+          )}
+
+          {/* Restore / Unban for Suspended / Disabled / Rejected */}
+          {(shop.status === 'SUSPENDED' || shop.status === 'DISABLED' || shop.status === 'REJECTED') && (
+            <Button size="sm" variant="default" className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-9 text-xs" isLoading={approveMutation.isPending} onClick={() => approveMutation.mutate()}>
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Restore (Approve)
             </Button>
           )}
 
@@ -368,10 +327,10 @@ export function ShopDetailPage() {
                   {shop.enablePackingFee ? 'Enabled' : 'Disabled'}
                 </Badge>
               </div>
-              {shop.banReason && (
+              {shop.rejectionReason && (
                 <div className="p-3 border border-red-500/20 bg-red-500/5 rounded-xl space-y-1">
-                  <span className="text-[10px] font-bold text-red-400 block uppercase">Ban Reason</span>
-                  <span className="text-white/70 text-[11px] block">{shop.banReason}</span>
+                  <span className="text-[10px] font-bold text-red-400 block uppercase">Rejection Reason</span>
+                  <span className="text-white/70 text-[11px] block">{shop.rejectionReason}</span>
                 </div>
               )}
             </CardContent>

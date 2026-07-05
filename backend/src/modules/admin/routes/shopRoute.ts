@@ -6,10 +6,10 @@ import {
     approvePackingPermission,
     rejectPackingPermission,
     revokePackingPermission,
-    activateShop,
-    deactivateShop,
-    banShop,
-    unbanShop,
+    approveShop,
+    rejectShop,
+    suspendShop,
+    disableShop,
     updateShopConfig
 } from "../controllers/shopController.js";
 import { adminAuth } from "../../../middleware/adminAuth.js";
@@ -22,10 +22,10 @@ router.delete("/shops/:id", adminAuth, deleteShop);
 router.patch("/shops/:id/approve-packing", adminAuth, approvePackingPermission);
 router.patch("/shops/:id/reject-packing", adminAuth, rejectPackingPermission);
 router.patch("/shops/:id/revoke-packing", adminAuth, revokePackingPermission);
-router.patch("/shops/:id/activate", adminAuth, activateShop);
-router.patch("/shops/:id/deactivate", adminAuth, deactivateShop);
-router.patch("/shops/:id/ban", adminAuth, banShop);
-router.patch("/shops/:id/unban", adminAuth, unbanShop);
+router.patch("/shops/:id/approve", adminAuth, approveShop);
+router.patch("/shops/:id/reject", adminAuth, rejectShop);
+router.patch("/shops/:id/suspend", adminAuth, suspendShop);
+router.patch("/shops/:id/disable", adminAuth, disableShop);
 router.put("/shops/:id/config", adminAuth, updateShopConfig);
 
 export default router;

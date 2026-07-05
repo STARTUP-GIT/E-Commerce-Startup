@@ -17,9 +17,8 @@ export const getDashboard = async (req: Request, res: Response) => {
         };
         for (const item of sellersGroup) {
             sellersCount.total += item._count.id;
-            if (item.status === "APPROVED") sellersCount.approved = item._count.id;
-            else if (item.status === "PENDING_APPROVAL" || item.status === "PENDING_VERIFICATION") sellersCount.pending += item._count.id;
-            else if (item.status === "REJECTED") sellersCount.rejected = item._count.id;
+            if (item.status === "ACTIVE") sellersCount.approved = item._count.id;
+            else if (item.status === "DISABLED") sellersCount.pending += item._count.id;
             else if (item.status === "BANNED") sellersCount.banned = item._count.id;
         }
 

@@ -5,12 +5,12 @@ import { AdminActionType } from "@prisma/client";
 
 export const getShops = async (req: Request, res: Response) => {
     try {
-        const { search, active, page = 1, limit = 10 } = req.query;
+        const { search, status, page = 1, limit = 10 } = req.query;
 
         const whereClause: any = {};
 
-        if (active !== undefined) {
-            whereClause.isActive = active === "true";
+        if (status) {
+            whereClause.status = String(status);
         }
 
         if (search) {
@@ -224,67 +224,84 @@ export const revokePackingPermission = async (req: Request, res: Response) => {
     }
 };
 
-export const activateShop = async (req: Request, res: Response) => {
+export const approveShop = async (req: Request, res: Response) => {
     try {
         const shopId = String(req.params.id);
         const adminId = req.adminId!;
 
-        const shop = await prisma.shop.findUnique({ where: { id: shopId } });
+        const shop = await prisma.shop.findUnique({
+            where: { id: shopId },
+            include: { seller: true }
+        });
         if (!shop) return res.status(404).json({ message: "Shop not found" });
 
         const updatedShop = await prisma.shop.update({
             where: { id: shopId },
-            data: { isActive: true }
+            data: {
+                status: "APPROVED",
+                reviewedByAdminId: adminId,
+                reviewedAt: new Date(),
+                rejectionReason: null
+            }
         });
 
         await logAdminAction({
             adminId,
-            actionType: AdminActionType.MARKETPLACE_SETTINGS_UPDATED,
+            actionType: AdminActionType.SHOP_APPROVED,
             targetType: "Shop",
             targetId: shopId,
-            description: `Shop ${shop.name} activated by admin`,
-            previousValue: { isActive: shop.isActive },
-            newValue: { isActive: true }
+            description: `Shop ${shop.name} approved by admin`,
+            previousValue: { status: shop.status },
+            newValue: { status: "APPROVED" }
         });
 
-        return res.status(200).json({ message: "Shop activated successfully", shop: updatedShop });
+        return res.status(200).json({ message: "Shop approved successfully", shop: updatedShop });
     } catch (error: any) {
-        console.error("ACTIVATE SHOP ERROR:", error);
+        console.error("APPROVE SHOP ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };
 
-export const deactivateShop = async (req: Request, res: Response) => {
+export const rejectShop = async (req: Request, res: Response) => {
     try {
         const shopId = String(req.params.id);
         const adminId = req.adminId!;
+        const { reason } = req.body;
 
-        const shop = await prisma.shop.findUnique({ where: { id: shopId } });
+        const shop = await prisma.shop.findUnique({
+            where: { id: shopId },
+            include: { seller: true }
+        });
         if (!shop) return res.status(404).json({ message: "Shop not found" });
 
         const updatedShop = await prisma.shop.update({
             where: { id: shopId },
-            data: { isActive: false }
+            data: {
+                status: "REJECTED",
+                reviewedByAdminId: adminId,
+                reviewedAt: new Date(),
+                rejectionReason: reason || "Shop does not meet platform criteria"
+            }
         });
 
         await logAdminAction({
             adminId,
-            actionType: AdminActionType.MARKETPLACE_SETTINGS_UPDATED,
+            actionType: AdminActionType.SHOP_REJECTED,
             targetType: "Shop",
             targetId: shopId,
-            description: `Shop ${shop.name} deactivated by admin`,
-            previousValue: { isActive: shop.isActive },
-            newValue: { isActive: false }
+            description: `Shop ${shop.name} rejected by admin. Reason: ${reason}`,
+            previousValue: { status: shop.status },
+            newValue: { status: "REJECTED", rejectionReason: reason }
         });
 
-        return res.status(200).json({ message: "Shop deactivated successfully", shop: updatedShop });
+        return res.status(200).json({ message: "Shop rejected", shop: updatedShop });
     } catch (error: any) {
-        console.error("DEACTIVATE SHOP ERROR:", error);
+        console.error("REJECT SHOP ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };
 
-export const banShop = async (req: Request, res: Response) => {
+export const suspendShop = async (req: Request, res: Response) => {
     try {
         const shopId = String(req.params.id);
         const adminId = req.adminId!;
@@ -296,33 +313,35 @@ export const banShop = async (req: Request, res: Response) => {
         const updatedShop = await prisma.shop.update({
             where: { id: shopId },
             data: {
-                isBanned: true,
-                isActive: false,
-                banReason: reason || "Violations of platform policy"
+                status: "SUSPENDED",
+                reviewedByAdminId: adminId,
+                reviewedAt: new Date(),
+                rejectionReason: reason || "Suspended for policy review"
             }
         });
 
         await logAdminAction({
             adminId,
-            actionType: AdminActionType.SELLER_BANNED,
+            actionType: AdminActionType.SHOP_SUSPENDED,
             targetType: "Shop",
             targetId: shopId,
-            description: `Shop ${shop.name} banned by admin. Reason: ${reason || 'None provided'}`,
-            previousValue: { isBanned: shop.isBanned, isActive: shop.isActive },
-            newValue: { isBanned: true, isActive: false, banReason: reason }
+            description: `Shop ${shop.name} suspended by admin. Reason: ${reason || 'None provided'}`,
+            previousValue: { status: shop.status },
+            newValue: { status: "SUSPENDED" }
         });
 
-        return res.status(200).json({ message: "Shop banned successfully", shop: updatedShop });
+        return res.status(200).json({ message: "Shop suspended successfully", shop: updatedShop });
     } catch (error: any) {
-        console.error("BAN SHOP ERROR:", error);
+        console.error("SUSPEND SHOP ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };
 
-export const unbanShop = async (req: Request, res: Response) => {
+export const disableShop = async (req: Request, res: Response) => {
     try {
         const shopId = String(req.params.id);
         const adminId = req.adminId!;
+        const { reason } = req.body;
 
         const shop = await prisma.shop.findUnique({ where: { id: shopId } });
         if (!shop) return res.status(404).json({ message: "Shop not found" });
@@ -330,25 +349,26 @@ export const unbanShop = async (req: Request, res: Response) => {
         const updatedShop = await prisma.shop.update({
             where: { id: shopId },
             data: {
-                isBanned: false,
-                isActive: true,
-                banReason: null
+                status: "DISABLED",
+                reviewedByAdminId: adminId,
+                reviewedAt: new Date(),
+                rejectionReason: reason || "Permanently disabled by admin"
             }
         });
 
         await logAdminAction({
             adminId,
-            actionType: AdminActionType.SELLER_UNBANNED,
+            actionType: AdminActionType.SHOP_DISABLED,
             targetType: "Shop",
             targetId: shopId,
-            description: `Shop ${shop.name} unbanned by admin`,
-            previousValue: { isBanned: shop.isBanned, isActive: shop.isActive },
-            newValue: { isBanned: false, isActive: true }
+            description: `Shop ${shop.name} disabled by admin. Reason: ${reason || 'None provided'}`,
+            previousValue: { status: shop.status },
+            newValue: { status: "DISABLED" }
         });
 
-        return res.status(200).json({ message: "Shop unbanned successfully", shop: updatedShop });
+        return res.status(200).json({ message: "Shop disabled successfully", shop: updatedShop });
     } catch (error: any) {
-        console.error("UNBAN SHOP ERROR:", error);
+        console.error("DISABLE SHOP ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };

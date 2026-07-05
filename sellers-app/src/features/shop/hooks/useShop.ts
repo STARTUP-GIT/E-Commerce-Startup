@@ -19,19 +19,6 @@ export function useShop() {
     retry: false,
   });
 
-  // Approval Status Query
-  const approvalStatusQuery = useQuery({
-    queryKey: ['shop-approval'],
-    queryFn: async () => {
-      try {
-        return await shopApi.getApprovalStatus();
-      } catch {
-        return null;
-      }
-    },
-    enabled: !!shopQuery.data,
-  });
-
   // Bank Account Query
   const bankQuery = useQuery({
     queryKey: ['bank-account'],
@@ -85,13 +72,6 @@ export function useShop() {
     },
   });
 
-  const applyApprovalMutation = useMutation({
-    mutationFn: shopApi.applyApproval,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shop-approval'] });
-    },
-  });
-
   const submitBanAppealMutation = useMutation({
     mutationFn: shopApi.submitBanAppeal,
   });
@@ -111,9 +91,6 @@ export function useShop() {
     isErrorShop: shopQuery.isError,
     refetchShop: shopQuery.refetch,
 
-    approval: approvalStatusQuery.data ?? null,
-    isLoadingApproval: approvalStatusQuery.isLoading,
-
     bankAccounts: bankQuery.data ?? [],
     isLoadingBank: bankQuery.isLoading,
 
@@ -131,9 +108,6 @@ export function useShop() {
 
     addBankAccount: addBankAccountMutation.mutateAsync,
     isAddingBank: addBankAccountMutation.isPending,
-
-    applyApproval: applyApprovalMutation.mutateAsync,
-    isApplyingApproval: applyApprovalMutation.isPending,
 
     submitBanAppeal: submitBanAppealMutation.mutateAsync,
     isSubmittingAppeal: submitBanAppealMutation.isPending,

@@ -66,23 +66,10 @@ export const addProducts = async (req: Request, res: Response) => {
             });
         }
 
-        const seller = await prisma.seller.findUnique({
-            where: {
-                id: sellerId
-            }
-        });
-
-        if (!seller) {
-            return res.status(404).json({
-                message:
-                    "Seller not found"
-            });
-        }
-
-        if (seller.status !== "APPROVED") {
+        if (shop.status !== "APPROVED") {
             return res.status(403).json({
                 message:
-                    "Seller not approved"
+                    "Shop is not approved"
             });
         }
 

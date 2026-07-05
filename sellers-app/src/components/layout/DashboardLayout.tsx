@@ -27,7 +27,7 @@ import { useConfirmStore } from '@/lib/store/confirmStore';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
-  const { shop, approval } = useShop();
+  const { shop } = useShop();
   const { sidebarOpen, toggleSidebar } = useUIStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -59,22 +59,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const shopStatusLabel = () => {
     if (!shop) return 'No Shop Setup';
-    if (!approval) return 'Checking Status';
-    return approval.status;
+    return shop.status;
   };
 
   const shopStatusVariant = () => {
     if (!shop) return 'destructive';
-    if (!approval) return 'outline';
-    switch (approval.status) {
+    switch (shop.status) {
       case 'APPROVED':
         return 'success';
-      case 'PENDING_APPROVAL':
+      case 'PENDING':
         return 'default';
       case 'REJECTED':
+      case 'SUSPENDED':
+      case 'DISABLED':
         return 'destructive';
-      case 'DRAFT':
-        return 'secondary';
       default:
         return 'outline';
     }
@@ -128,7 +126,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isAllowed = 
-                approval?.status === 'APPROVED' || 
+                shop?.status === 'APPROVED' || 
                 item.path === '/dashboard' || 
                 item.path === '/profile' || 
                 item.path === '/shop-settings' || 
@@ -202,10 +200,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
           <div className="flex items-center gap-4">
             {/* Quick stats indicator */}
-            {shop && !shop.isActive && (
+            {shop && shop.status !== 'APPROVED' && (
               <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full border border-yellow-500/20 bg-yellow-500/10 text-[10px] font-bold text-yellow-400">
                 <AlertTriangle className="h-3.5 w-3.5" />
-                <span>Shop Inactive - Complete Approval</span>
+                <span>Shop {shop.status} - Awaiting Approval</span>
               </div>
             )}
 
@@ -221,57 +219,35 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Warning Banners */}
-        {shop && approval && approval.status !== 'APPROVED' && (
+        {shop && shop.status !== 'APPROVED' && (
           <div className="px-6 pt-6 animate-fade-in">
             <div className={`p-4 rounded-xl border flex items-start gap-3 ${
-              approval.status === 'REJECTED'
-                ? 'border-red-500/20 bg-red-500/5'
-                : approval.status === 'SUSPENDED'
+              shop.status === 'REJECTED' || shop.status === 'SUSPENDED'
                 ? 'border-red-500/20 bg-red-500/5'
                 : 'border-yellow-500/20 bg-yellow-500/5'
             }`}>
               <AlertTriangle className={`h-5 w-5 shrink-0 mt-0.5 ${
-                approval.status === 'REJECTED' || approval.status === 'SUSPENDED'
+                shop.status === 'REJECTED' || shop.status === 'SUSPENDED' || shop.status === 'DISABLED'
                   ? 'text-red-400'
                   : 'text-yellow-400'
               }`} />
               <div>
                 <h5 className={`text-xs font-bold ${
-                  approval.status === 'REJECTED' || approval.status === 'SUSPENDED'
+                  shop.status === 'REJECTED' || shop.status === 'SUSPENDED' || shop.status === 'DISABLED'
                     ? 'text-red-400'
                     : 'text-yellow-400'
                 }`}>
-                  {approval.status === 'DRAFT' && 'Shop Setup & Verification Required'}
-                  {approval.status === 'PENDING_APPROVAL' && 'Shop Under Review'}
-                  {approval.status === 'REJECTED' && 'Shop Approval Rejected'}
-                  {approval.status === 'SUSPENDED' && 'Shop Suspended'}
+                  {shop.status === 'PENDING' && 'Shop Awaiting Approval'}
+                  {shop.status === 'REJECTED' && 'Shop Approval Rejected'}
+                  {shop.status === 'SUSPENDED' && 'Shop Suspended'}
+                  {shop.status === 'DISABLED' && 'Shop Disabled'}
                 </h5>
                 <p className="text-[11px] text-white/60 leading-relaxed mt-1">
-                  {approval.status === 'DRAFT' && 'Your shop is currently in DRAFT status. To list products publicly and receive payouts, you must submit your shop details and GST verification under Shop & Bank.'}
-                  {approval.status === 'PENDING_APPROVAL' && 'Your shop is under review by our Admin team. You cannot receive customer orders or appear in public listings until approved.'}
-                  {approval.status === 'REJECTED' && `Your shop was rejected by our Admin team. Rejection Reason: "${approval.rejectionReason}". Please edit your shop details under Shop & Bank and submit again.`}
-                  {approval.status === 'SUSPENDED' && 'Your shop has been suspended by our Admin team. Please appeal this issue or contact support.'}
+                  {shop.status === 'PENDING' && 'Your shop is awaiting admin approval. Some features are restricted until approved.'}
+                  {shop.status === 'REJECTED' && `Your shop was rejected. Reason: "${shop.rejectionReason || 'N/A'}". Contact support for more information.`}
+                  {shop.status === 'SUSPENDED' && 'Your shop has been suspended. Contact support for more information.'}
+                  {shop.status === 'DISABLED' && 'Your shop has been disabled by an administrator.'}
                 </p>
-                {approval.status === 'DRAFT' && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="mt-2.5 text-[10px] h-7 font-bold"
-                    onClick={() => navigate('/shop-settings')}
-                  >
-                    Apply for Verification
-                  </Button>
-                )}
-                {approval.status === 'REJECTED' && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="mt-2.5 text-[10px] h-7 font-bold border border-red-500/25 text-red-300 bg-red-500/10 hover:bg-red-500/20"
-                    onClick={() => navigate('/shop-settings')}
-                  >
-                    Edit Shop Details
-                  </Button>
-                )}
               </div>
             </div>
           </div>

@@ -46,12 +46,10 @@ export const getProducts = async (req: Request, res: Response) => {
         }
         whereClause.seller.isBanned = false;
         whereClause.seller.isDeactivated = false;
-        whereClause.seller.status = "APPROVED";
         if (!whereClause.seller.shop) {
             whereClause.seller.shop = {};
         }
-        whereClause.seller.shop.isActive = true;
-        whereClause.seller.shop.isBanned = false;
+        whereClause.seller.shop.status = "APPROVED";
 
         const products = await prisma.product.findMany({
             where: whereClause,
@@ -121,10 +119,8 @@ export const getProduct = async (req: Request, res: Response) => {
             product.status !== "ACTIVE" || 
             product.seller.isBanned || 
             product.seller.isDeactivated || 
-            product.seller.status !== "APPROVED" || 
             !product.seller.shop || 
-            !product.seller.shop.isActive || 
-            product.seller.shop.isBanned
+            product.seller.shop.status !== "APPROVED"
         ) {
             return res.status(404).json({
                 message: "Product not found"
@@ -192,12 +188,10 @@ export const searchProducts = async (req: Request, res: Response) => {
         }
         whereClause.seller.isBanned = false;
         whereClause.seller.isDeactivated = false;
-        whereClause.seller.status = "APPROVED";
         if (!whereClause.seller.shop) {
             whereClause.seller.shop = {};
         }
-        whereClause.seller.shop.isActive = true;
-        whereClause.seller.shop.isBanned = false;
+        whereClause.seller.shop.status = "APPROVED";
 
         const products = await prisma.product.findMany({
             where: whereClause
@@ -290,12 +284,11 @@ export const filterProducts = async (req: Request, res: Response) => {
         }
         where.seller.isBanned = false;
         where.seller.isDeactivated = false;
-        where.seller.status = "APPROVED";
+        where.seller.status = "ACTIVE";
         if (!where.seller.shop) {
             where.seller.shop = {};
         }
-        where.seller.shop.isActive = true;
-        where.seller.shop.isBanned = false;
+        where.seller.shop.status = "APPROVED";
 
         const products = await prisma.product.findMany({
             where,
@@ -363,12 +356,10 @@ export const getProductsByCategory = async (req: Request, res: Response) => {
         }
         whereClause.seller.isBanned = false;
         whereClause.seller.isDeactivated = false;
-        whereClause.seller.status = "APPROVED";
         if (!whereClause.seller.shop) {
             whereClause.seller.shop = {};
         }
-        whereClause.seller.shop.isActive = true;
-        whereClause.seller.shop.isBanned = false;
+        whereClause.seller.shop.status = "APPROVED";
 
         const products = await prisma.product.findMany({
             where: whereClause
@@ -426,12 +417,10 @@ export const getFeaturedProducts = async (req: Request, res: Response) => {
         }
         whereClause.seller.isBanned = false;
         whereClause.seller.isDeactivated = false;
-        whereClause.seller.status = "APPROVED";
         if (!whereClause.seller.shop) {
             whereClause.seller.shop = {};
         }
-        whereClause.seller.shop.isActive = true;
-        whereClause.seller.shop.isBanned = false;
+        whereClause.seller.shop.status = "APPROVED";
 
         const products = await prisma.product.findMany({
             where: whereClause,
@@ -524,12 +513,10 @@ export const getRecommendedProducts = async (req: Request, res: Response) => {
         }
         whereClause.seller.isBanned = false;
         whereClause.seller.isDeactivated = false;
-        whereClause.seller.status = "APPROVED";
         if (!whereClause.seller.shop) {
             whereClause.seller.shop = {};
         }
-        whereClause.seller.shop.isActive = true;
-        whereClause.seller.shop.isBanned = false;
+        whereClause.seller.shop.status = "APPROVED";
 
         const products = await prisma.product.findMany({
             where: whereClause,
@@ -572,10 +559,8 @@ export const getRecentlyViewedProducts = async (req: Request, res: Response) => 
                 seller: {
                     isBanned: false,
                     isDeactivated: false,
-                    status: "APPROVED",
                     shop: {
-                        isActive: true,
-                        isBanned: false
+                        status: "APPROVED"
                     }
                 }
             }

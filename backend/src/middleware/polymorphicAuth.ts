@@ -53,7 +53,7 @@ export const polymorphicAuth = async (req: Request, res: Response, next: NextFun
             try {
                 const decoded = jwt.verify(sellerToken, process.env.JWT_SECRET_KEY!) as JwtPayload;
                 const seller = await prisma.seller.findUnique({ where: { id: decoded.id } });
-                if (seller && !seller.isBanned && !seller.isDeactivated && seller.status === "APPROVED" && seller.scheduledDeleteAt === null) {
+                if (seller && !seller.isBanned && !seller.isDeactivated && seller.status === "ACTIVE" && seller.scheduledDeleteAt === null) {
                     req.sellerId = decoded.id;
                     return next();
                 }

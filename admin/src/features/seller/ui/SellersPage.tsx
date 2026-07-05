@@ -10,17 +10,13 @@ import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
-import { Search, CheckCircle, XCircle, ShieldOff, ShieldCheck, Trash2, ExternalLink } from 'lucide-react';
+import { Search, ShieldOff, ShieldCheck, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'outline' | 'secondary' | 'default'> = {
-  APPROVED: 'success',
-  PENDING_APPROVAL: 'warning',
-  PENDING_VERIFICATION: 'secondary',
-  DRAFT: 'secondary',
-  REJECTED: 'destructive',
-  SUSPENDED: 'warning',
+  ACTIVE: 'success',
+  DISABLED: 'destructive',
   BANNED: 'destructive',
 };
 
@@ -33,30 +29,12 @@ export function SellersPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['sellers', { search, status: statusFilter, page }],
-    queryFn: () => sellerApi.getSellers({ search, status: statusFilter === 'DRAFT' ? 'PENDING_VERIFICATION' : (statusFilter || undefined), page, limit: 20 }),
+    queryFn: () => sellerApi.getSellers({ search, status: statusFilter || undefined, page, limit: 20 }),
     staleTime: 30 * 1000,
   });
 
   const sellers = data?.sellers ?? data?.data ?? [];
   const total = data?.total ?? 0;
-
-  const approveMutation = useMutation({
-    mutationFn: (id: string) => sellerApi.approveSeller(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sellers'] });
-      showToast('Seller approved successfully.', 'success');
-    },
-    onError: (e: any) => showToast(e.message, 'error'),
-  });
-
-  const rejectMutation = useMutation({
-    mutationFn: (id: string) => sellerApi.rejectSeller(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sellers'] });
-      showToast('Seller rejected.', 'info');
-    },
-    onError: (e: any) => showToast(e.message, 'error'),
-  });
 
   const banMutation = useMutation({
     mutationFn: (id: string) => sellerApi.banSeller(id),
@@ -76,7 +54,7 @@ export function SellersPage() {
     onError: (e: any) => showToast(e.message, 'error'),
   });
 
-  const statuses = ['', 'PENDING_APPROVAL', 'DRAFT', 'APPROVED', 'REJECTED', 'SUSPENDED', 'BANNED'];
+  const statuses = ['', 'ACTIVE', 'DISABLED', 'BANNED'];
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -161,51 +139,27 @@ export function SellersPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-xs text-white/60">{seller.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_COLORS[seller.status] ?? 'outline'} className="text-[8px]">
-                        {seller.status === 'PENDING_VERIFICATION' ? 'DRAFT' : seller.status}
-                      </Badge>
+                      <TableCell>
+                        <Badge variant={STATUS_COLORS[seller.status] ?? 'outline'} className="text-[8px]">
+                          {seller.status}
+                        </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-white/40">
                       {seller.createdAt ? new Date(seller.createdAt).toLocaleDateString() : '—'}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1.5">
-                        {seller.status === 'PENDING_APPROVAL' && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 px-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-                              isLoading={approveMutation.isPending}
-                              onClick={() => approveMutation.mutate(seller.id)}
-                              title="Approve"
-                            >
-                              <CheckCircle className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                              isLoading={rejectMutation.isPending}
-                              onClick={() => rejectMutation.mutate(seller.id)}
-                              title="Reject"
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                            </Button>
-                          </>
-                        )}
-                        {seller.status === 'APPROVED' && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-2 text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
-                            isLoading={banMutation.isPending}
-                            onClick={() => banMutation.mutate(seller.id)}
-                            title="Ban"
-                          >
-                            <ShieldOff className="h-3.5 w-3.5" />
-                          </Button>
+                        {seller.status === 'ACTIVE' && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
+                          isLoading={banMutation.isPending}
+                          onClick={() => banMutation.mutate(seller.id)}
+                          title="Ban"
+                        >
+                          <ShieldOff className="h-3.5 w-3.5" />
+                        </Button>
                         )}
                         {seller.status === 'BANNED' && (
                           <Button

@@ -93,7 +93,7 @@ export const addToCart = async (req: Request, res: Response) => {
             });
         }
 
-        if (product.seller.isBanned || product.seller.status !== "APPROVED") {
+        if (product.seller.isBanned || product.seller.status !== "ACTIVE") {
             return res.status(403).json({
                 message: "Seller is not active or approved"
             });

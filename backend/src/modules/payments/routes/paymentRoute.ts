@@ -49,7 +49,7 @@ const paymentAuth = async (req: Request, res: Response, next: NextFunction) => {
         if (sellerToken) {
             const decoded = jwt.verify(sellerToken, process.env.JWT_SECRET_KEY!) as JwtPayload;
             const seller = await prisma.seller.findUnique({ where: { id: decoded.id } });
-            if (!seller || seller.isBanned || seller.isDeactivated || seller.status !== "APPROVED" || seller.scheduledDeleteAt !== null) {
+            if (!seller || seller.isBanned || seller.isDeactivated || seller.status !== "ACTIVE" || seller.scheduledDeleteAt !== null) {
                 return res.status(401).json({ message: "Unauthorized" });
             }
             req.sellerId = decoded.id;
