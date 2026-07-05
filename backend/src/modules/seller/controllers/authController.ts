@@ -180,7 +180,7 @@ export const login = async (req: Request, res: Response) => {
             route: req.originalUrl,
             method: req.method,
             payload: { ...req.body, password: req.body?.password ? '[redacted]' : undefined },
-            error
+            error: error instanceof Error ? { message: error.message, name: error.name, stack: error.stack } : error
         });
         return res.status(500).json({ message: 'Internal Server Error' });
     }
