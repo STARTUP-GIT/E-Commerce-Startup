@@ -25,6 +25,8 @@ import {
   Menu,
   ChevronRight,
   ShieldAlert,
+  UserCircle,
+  UserCog,
 } from 'lucide-react';
 import { Badge } from '@/shared/components/Badge';
 import { useConfirmStore } from '@/lib/store/confirmStore';
@@ -64,6 +66,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { name: 'Coupons', path: '/coupons', icon: Tag },
     { name: 'Settings', path: '/settings', icon: Settings },
     { name: 'Audit Logs', path: '/audit-logs', icon: FileSpreadsheet },
+    { name: 'My Profile', path: '/profile', icon: UserCircle },
+    ...(admin?.isSuperAdmin ? [{ name: 'Admin Management', path: '/admin-management', icon: UserCog }] : []),
   ];
 
   const activePageName = () => {
