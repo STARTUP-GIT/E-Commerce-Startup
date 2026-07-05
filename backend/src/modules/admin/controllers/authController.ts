@@ -13,15 +13,19 @@ export const login = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Email and password are required" });
         }
 
+        console.log(`[LOGIN LOGGER] Querying admin by email: ${email}`);
         const admin = await prisma.admin.findUnique({
             where: { email }
         });
+        console.log(`[LOGIN LOGGER] Admin query completed. Found: ${admin ? 'YES' : 'NO'}`);
 
         if (!admin || !admin.isActive) {
             return res.status(401).json({ message: "Invalid credentials" });
         }
 
+        console.log(`[LOGIN LOGGER] Comparing passwords...`);
         const isMatch = await bcrypt.compare(password, admin.passwordHash);
+        console.log(`[LOGIN LOGGER] Password comparison completed. Match: ${isMatch}`);
         if (!isMatch) {
             return res.status(401).json({ message: "Invalid credentials" });
         }
@@ -34,14 +38,27 @@ export const login = async (req: Request, res: Response) => {
         const refreshToken = signRefreshToken(admin.id);
         const refreshHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30); // 30 days
-        await prisma.refreshToken.create({ data: { userId: admin.id, userType: 'ADMIN', tokenHash: refreshHash, expiresAt } });
+        
+        console.log(`[LOGIN LOGGER] Inserting RefreshToken in database...`);
+        const createdToken = await prisma.refreshToken.create({ 
+            data: { 
+                userId: admin.id, 
+                userType: 'ADMIN', 
+                tokenHash: refreshHash, 
+                expiresAt 
+            } 
+        });
+        console.log(`[LOGIN LOGGER] RefreshToken insert completed. ID: ${createdToken.id}`);
+        
         setRefreshCookie(res, refreshToken);
 
         // Update last login
-        await prisma.admin.update({
+        console.log(`[LOGIN LOGGER] Updating admin lastLoginAt...`);
+        const updatedAdmin = await prisma.admin.update({
             where: { id: admin.id },
             data: { lastLoginAt: new Date() }
         });
+        console.log(`[LOGIN LOGGER] Admin lastLoginAt update completed.`);
 
         return res.status(200).json({
             message: "Login successful",
