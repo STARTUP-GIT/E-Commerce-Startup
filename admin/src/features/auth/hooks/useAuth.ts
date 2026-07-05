@@ -3,6 +3,7 @@ import { authApi } from '../api/authApi';
 import { useRouter } from 'next/navigation';
 import { useUIStore } from '@/lib/store/uiStore';
 import { useSession, signIn, signOut } from 'next-auth/react';
+import axiosInstance from '@/lib/axios/axiosInstance';
 
 export function useAuth() {
   const queryClient = useQueryClient();
@@ -28,6 +29,15 @@ export function useAuth() {
 
   const login = async (credentials: { email: string; password?: string }) => {
     try {
+      // Step 1: Call the backend DIRECTLY from the browser via Next.js proxy.
+      //         The backend responds with Set-Cookie: admin_session=...
+      //         which Next.js forwards to the browser. The cookie is stored
+      //         NATURALLY in the browser's cookie jar — no server-side
+      //         cookies() forwarding required.
+      await authApi.login(credentials);
+
+      // Step 2: Create the NextAuth session (server-side call via authorize).
+      //         The admin_session cookie from Step 1 is already in the browser.
       const result = await signIn('credentials', {
         redirect: false,
         email: credentials.email,
@@ -62,6 +72,10 @@ export function useAuth() {
     googleId: string;
   }) => {
     try {
+      // Step 1: Establish admin_session cookie directly from the browser.
+      await axiosInstance.post('/api/admin/auth/google', googlePayload);
+
+      // Step 2: Create the NextAuth session.
       const result = await signIn('credentials', {
         redirect: false,
         isGoogleMock: 'true',
