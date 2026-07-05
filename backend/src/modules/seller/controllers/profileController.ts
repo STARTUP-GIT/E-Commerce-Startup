@@ -13,7 +13,8 @@ export const getSellerProfile = async (req: Request, res: Response) => {
                         id: true,
                         name: true,
                         slug: true,
-                        isActive: true,
+                        status: true,
+                        rejectionReason: true,
                         businessName: true,
                         gstNumber: true,
                         gstRegistered: true,
@@ -132,10 +133,11 @@ export const updateSellerProfile = async (req: Request, res: Response) => {
                         id: true,
                         name: true,
                         slug: true,
+                        status: true,
+                        rejectionReason: true,
                         businessName: true,
                         gstNumber: true,
                         gstRegistered: true,
-                        isActive: true,
                     }
                 });
             } else {

@@ -275,12 +275,12 @@ model DeliveryBoy {
 
 // Platform settings for delivery shares and provider selection
 model PlatformDeliverySetting {
-  id                       Int      @id @default(1)
-  customerDeliveryShare    Int      @default(75)
-  sellerDeliveryShare      Int      @default(25)
-  defaultProvider          String   @default("PORTER")
-  maxDeliveryRadiusMeters  Int      @default(5000)
-  deliveryEnabled          Boolean  @default(true)
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  id                      Int      @id @default(1)
+  customerDeliveryShare   Int      @default(75)
+  sellerDeliveryShare     Int      @default(25)
+  defaultProvider         String   @default("PORTER")
+  maxDeliveryRadiusMeters Int      @default(5000)
+  deliveryEnabled         Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 }

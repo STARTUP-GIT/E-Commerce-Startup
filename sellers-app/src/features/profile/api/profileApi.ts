@@ -26,7 +26,8 @@ export interface SellerProfileResponse {
     id: string;
     name: string;
     slug: string;
-    isActive: boolean;
+    status: string;
+    rejectionReason?: string;
     businessName: string | null;
     gstNumber: string | null;
     gstRegistered: boolean;

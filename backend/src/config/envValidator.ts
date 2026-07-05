@@ -37,6 +37,10 @@ export const validateEnv = () => {
         if (!process.env.S3_BUCKET_NAME) missing.push('S3_BUCKET_NAME');
     }
 
+    if (!process.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
+    if (!process.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
+    if (!process.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
+
     if (!process.env.RESEND_API_KEY) missing.push('RESEND_API_KEY');
     if (!process.env.EMAIL_FROM) missing.push('EMAIL_FROM');
 
