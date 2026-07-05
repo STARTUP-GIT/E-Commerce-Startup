@@ -38,7 +38,14 @@ export function useAuth() {
         throw new Error(result.error);
       }
 
-      await queryClient.invalidateQueries({ queryKey: ['profile'] });
+      // Refetch profile to validate the backend session
+      await queryClient.refetchQueries({ queryKey: ['profile'] });
+      const profileData = queryClient.getQueryData(['profile']);
+
+      if (!profileData) {
+        throw new Error('Session verification failed: profile endpoint returned unauthorized.');
+      }
+
       showToast('Welcome back, Admin!', 'success');
       router.push('/dashboard');
     } catch (error: any) {
@@ -65,7 +72,14 @@ export function useAuth() {
         throw new Error(result.error);
       }
 
-      await queryClient.invalidateQueries({ queryKey: ['profile'] });
+      // Refetch profile to validate the backend session
+      await queryClient.refetchQueries({ queryKey: ['profile'] });
+      const profileData = queryClient.getQueryData(['profile']);
+
+      if (!profileData) {
+        throw new Error('Session verification failed: profile endpoint returned unauthorized.');
+      }
+
       showToast('Signed in via Google successfully!', 'success');
       router.push('/dashboard');
     } catch (error: any) {
