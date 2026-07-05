@@ -1,11 +1,11 @@
 // Webhook event idempotency and audit log
 model WebhookEvent {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   provider        String
-  providerEventId String?  @db.VarChar(200)
-  payloadHash     String   @db.VarChar(128)
-  processedAt     DateTime? 
-  createdAt       DateTime @default(now())
+  providerEventId String?   @db.VarChar(200)
+  payloadHash     String    @db.VarChar(128)
+  processedAt     DateTime?
+  createdAt       DateTime  @default(now())
 
   @@index([provider, providerEventId])
   @@index([payloadHash])

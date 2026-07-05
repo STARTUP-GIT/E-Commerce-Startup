@@ -17,6 +17,7 @@ model Admin {
   role         String       @default("ADMIN")
 
   actions                 AdminAction[]
+  reviewedShops           Shop[]               @relation("ShopReviewedBy")
   approvedSellers         Seller[]             @relation("SellerApprovedBy")
   reviewedProductReports  ProductReport[]      @relation("ProductReportReviewedBy")
   createdDeliveryPartners DeliveryPartner[]    @relation("DeliveryPartnerCreatedBy")

@@ -20,7 +20,6 @@ import {
   AlertTriangle,
   UserCircle,
 } from 'lucide-react';
-import { Button } from '@/shared/components/Button';
 import { Badge } from '@/shared/components/Badge';
 
 import { useConfirmStore } from '@/lib/store/confirmStore';

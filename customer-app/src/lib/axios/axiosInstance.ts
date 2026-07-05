@@ -24,10 +24,18 @@ if (isServer && !serverBackendUrl) {
 const axiosInstance = axios.create({
   baseURL: isServer ? `${serverBackendUrl!.replace(/\/$/, '')}/customer` : '',
   withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
+
+// Set Content-Type per-request — never for FormData (browser sets multipart boundary)
+axiosInstance.interceptors.request.use(
+  (config) => {
+    if (config.data && !(config.data instanceof FormData)) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 axiosInstance.interceptors.request.use(
   (config) => {

@@ -31,6 +31,11 @@ router.post(
 router.post(
   "/image",
   authGuard,
+  (req, _res, next) => {
+    console.log("[Multer] Incoming Content-Type:", req.headers["content-type"]);
+    console.log("[Multer] Content-Length:", req.headers["content-length"]);
+    next();
+  },
   uploadSingleImage,
   validateSingleImage,
   validateFolder,

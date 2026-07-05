@@ -6,7 +6,7 @@ model SellerVerification {
   id       String @id @default(cuid())
   sellerId String
 
-  gstNumber String? @db.VarChar(15)
+  gstNumber     String? @db.VarChar(15)
   gstRegistered Boolean @default(true)
 
   documentType VerificationDocumentType?
