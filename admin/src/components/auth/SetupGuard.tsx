@@ -3,7 +3,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { authApi } from '@/features/auth/api/authApi';
-import { LoginPage } from '@/features/auth/ui/LoginPage';
+import { SetupPage } from '@/features/auth/ui/SetupPage';
 
 export function SetupGuard({ children }: { children: React.ReactNode }) {
   const { data, isLoading, error, refetch } = useQuery({
@@ -40,7 +40,7 @@ export function SetupGuard({ children }: { children: React.ReactNode }) {
 
   // If the admin is not initialized, ignore any existing cookie/session and force the setup view
   if (!data.initialized) {
-    return <LoginPage />;
+    return <SetupPage />;
   }
 
   return <>{children}</>;
