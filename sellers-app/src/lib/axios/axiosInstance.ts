@@ -4,10 +4,18 @@ import { useConfirmStore } from '@/lib/store/confirmStore';
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_API_URL || '',
   withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
+
+// Set Content-Type per-request — never for FormData (browser sets multipart boundary)
+axiosInstance.interceptors.request.use(
+  (config) => {
+    if (config.data && !(config.data instanceof FormData)) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 // Unwrap backend error messages for cleaner DX
 axiosInstance.interceptors.response.use(

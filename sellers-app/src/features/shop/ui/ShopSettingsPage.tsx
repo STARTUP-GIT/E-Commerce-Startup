@@ -359,7 +359,7 @@ export function ShopSettingsPage() {
                     <span>Your shop is approved and active</span>
                   </div>
                 ) : shop?.status === 'PENDING' ? (
-                  <Badge variant="warning" className="text-[10px]">
+                  <Badge variant="secondary" className="bg-amber-500/10 text-amber-400 border-amber-500/20">
                     Awaiting Review
                   </Badge>
                 ) : (
