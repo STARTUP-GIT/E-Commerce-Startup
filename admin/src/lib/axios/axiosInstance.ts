@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const axiosInstance = axios.create({
-  baseURL: process.env.ADMIN_BACKEND_API_URL || '',
+  baseURL: typeof window === 'undefined' ? (process.env.ADMIN_BACKEND_API_URL || '') : '',
   withCredentials: true,
 });
 
