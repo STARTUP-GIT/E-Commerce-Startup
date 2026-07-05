@@ -57,12 +57,12 @@ export const authApi = {
   },
 
   getSetupStatus: async (): Promise<{ initialized: boolean }> => {
-    const response = await axiosInstance.get('/api/admin/auth/setup/status');
+    const response = await axiosInstance.get('/admin/api/auth/setup/status');
     return response.data;
   },
 
   setupAdmin: async (payload: { name: string; email: string; password: string }): Promise<{ message: string }> => {
-    const response = await axiosInstance.post('/api/admin/auth/setup', payload);
+    const response = await axiosInstance.post('/admin/api/auth/setup', payload);
     return response.data;
   },
 };
