@@ -29,7 +29,14 @@ const axiosInstance = axios.create({
 // Set Content-Type per-request — never for FormData (browser sets multipart boundary)
 axiosInstance.interceptors.request.use(
   (config) => {
-    if (config.data && !(config.data instanceof FormData)) {
+    const isFormData =
+      config.data instanceof FormData ||
+      (config.data &&
+        Object.prototype.toString.call(config.data) === '[object FormData]');
+
+    if (isFormData) {
+      delete config.headers['Content-Type'];
+    } else if (config.data) {
       config.headers['Content-Type'] = 'application/json';
     }
     return config;
