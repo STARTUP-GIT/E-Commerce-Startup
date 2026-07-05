@@ -12,12 +12,27 @@ import { Button } from '@/shared/components/Button';
 import { ShieldCheck, Mail, Lock, User, KeyRound } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useUIStore } from '@/lib/store/uiStore';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export function LoginPage() {
   const { login, isLoggingIn } = useAuth();
   const { showToast } = useUIStore();
+  const queryClient = useQueryClient();
 
-  const [setupStatus, setSetupStatus] = useState<'loading' | 'initialized' | 'not-initialized' | 'error'>('loading');
+  const { data: setupData, isLoading: isLoadingSetup, error: setupError, refetch: refetchSetup } = useQuery({
+    queryKey: ['setup-status'],
+    queryFn: authApi.getSetupStatus,
+    staleTime: Infinity,
+  });
+
+  const setupStatus = isLoadingSetup
+    ? 'loading'
+    : setupError
+    ? 'error'
+    : setupData?.initialized
+    ? 'initialized'
+    : 'not-initialized';
+
   const [isSettingUp, setIsSettingUp] = useState(false);
 
   const loginForm = useForm<LoginInput>({
@@ -29,26 +44,6 @@ export function LoginPage() {
     resolver: zodResolver(setupSchema),
     defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
   });
-
-  useEffect(() => {
-    let cancelled = false;
-    const checkSetup = async () => {
-      try {
-        const res = await authApi.getSetupStatus();
-        if (!cancelled) {
-          setSetupStatus(res.initialized ? 'initialized' : 'not-initialized');
-        }
-      } catch {
-        if (!cancelled) {
-          setSetupStatus('error');
-        }
-      }
-    };
-    if (setupStatus === 'loading') {
-      checkSetup();
-    }
-    return () => { cancelled = true; };
-  }, [setupStatus]);
 
   const handleLogin = async (data: LoginInput) => {
     try {
@@ -67,7 +62,7 @@ export function LoginPage() {
         password: data.password,
       });
       showToast('Admin created successfully. Please log in.', 'success');
-      setSetupStatus('initialized');
+      await queryClient.invalidateQueries({ queryKey: ['setup-status'] });
       setupForm.reset();
     } catch (err: any) {
       showToast(err.message || 'Failed to create admin.', 'error');
@@ -116,7 +111,7 @@ export function LoginPage() {
             </CardHeader>
             <CardContent>
               <Button
-                onClick={() => setSetupStatus('loading')}
+                onClick={() => refetchSetup()}
                 className="w-full h-11 text-xs font-bold tracking-wide uppercase"
               >
                 Retry
