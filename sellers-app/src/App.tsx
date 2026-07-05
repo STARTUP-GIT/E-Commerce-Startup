@@ -69,7 +69,6 @@ function NoShopRequiredRoute() {
 
 function App() {
   const { isAuthenticated } = useAuth();
-  const { hasShop } = useShop();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -151,9 +150,9 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/shop-setup" element={<NoShopRequiredRoute />} />
             <Route path="/profile" element={<SellerProfilePage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
 
             <Route element={<ShopRequiredRoute />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/products" element={<ProductListPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/:orderId" element={<OrderDetailPage />} />
@@ -167,7 +166,7 @@ function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route
               path="*"
-              element={<Navigate to={hasShop ? '/dashboard' : '/shop-setup'} replace />}
+              element={<Navigate to="/dashboard" replace />}
             />
           </Route>
         </Route>
@@ -175,7 +174,7 @@ function App() {
 
         <Route
           path="*"
-          element={<Navigate to={isAuthenticated ? (hasShop ? '/dashboard' : '/shop-setup') : '/login'} replace />}
+          element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
         />
       </Routes>
     </>

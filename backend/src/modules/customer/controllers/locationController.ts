@@ -9,15 +9,10 @@ export const getEnabledStates = async (req: Request, res: Response) => {
             orderBy: { name: "asc" },
         });
 
-        const settingsRow = await prisma.platformSetting.findUnique({ where: { id: 1 } });
-        const settings = settingsRow?.data as any;
-        const districtRequired = settings?.districtRequired !== false;
-
-        return res.status(200).json({
-            states: states.map(s => s.name),
-            allStates: states.map(s => ({ id: s.id, name: s.name, isEnabled: true })),
-            districtRequired,
-        });
+        return res.status(200).json(states.map(s => ({
+            id: s.id,
+            name: s.name,
+        })));
     } catch (error: any) {
         console.error("GET ENABLED STATES ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
@@ -60,15 +55,11 @@ export const getEnabledDistricts = async (req: Request, res: Response) => {
             orderBy: { name: "asc" },
         });
 
-        return res.status(200).json({
-            districts: districts.map(d => d.name),
-            allDistricts: districts.map(d => ({
-                id: d.id,
-                name: d.name,
-                isEnabled: true,
-                stateId: state.id,
-            })),
-        });
+        return res.status(200).json(districts.map(d => ({
+            id: d.id,
+            name: d.name,
+            stateId: state!.id,
+        })));
     } catch (error: any) {
         console.error("GET ENABLED DISTRICTS ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });

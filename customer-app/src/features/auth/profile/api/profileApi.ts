@@ -73,11 +73,20 @@ export const profileApi = {
     return response.data;
   },
   getLocationsStates: async (): Promise<{ states: { id: string; name: string }[]; allStates?: { id: string; name: string; isEnabled: boolean }[]; districtRequired: boolean }> => {
-    const response = await axiosInstance.get('/customer/api/location/states');
-    return response.data;
+    const response = await axiosInstance.get<Array<{ id: string; name: string }>>('/customer/api/location/states');
+    const statesArray = response.data;
+    return {
+      states: statesArray,
+      allStates: statesArray.map(s => ({ id: s.id, name: s.name, isEnabled: true })),
+      districtRequired: true,
+    };
   },
   getLocationsDistricts: async (state: string): Promise<{ districts: string[]; allDistricts?: { id: string; name: string; isEnabled: boolean; stateId: string }[] }> => {
-    const response = await axiosInstance.get('/customer/api/location/districts', { params: { state } });
-    return response.data;
+    const response = await axiosInstance.get<Array<{ id: string; name: string; stateId: string }>>('/customer/api/location/districts', { params: { state } });
+    const districtsArray = response.data;
+    return {
+      districts: districtsArray.map(d => d.name),
+      allDistricts: districtsArray.map(d => ({ id: d.id, name: d.name, isEnabled: true, stateId: d.stateId })),
+    };
   },
 };
