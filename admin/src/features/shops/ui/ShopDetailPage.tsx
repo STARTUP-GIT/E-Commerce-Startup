@@ -334,8 +334,87 @@ export function ShopDetailPage() {
                 </div>
               )}
             </CardContent>
-          </Card>
+          {/* Shop Configurations */}
+          <Card className="border border-white/5 bg-white/[0.01]">
+            <CardHeader className="border-b border-white/5">
+              <CardTitle className="text-xs font-bold text-white/95">Platform Configurations</CardTitle>
+              <CardDescription>Adjust shop-specific payouts & packaging terms</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-5">
+              <form onSubmit={handleConfigSubmit} className="space-y-4 text-xs">
+                {/* Commission input */}
+                <div className="space-y-1.5">
+                  <label className="text-white/50 block font-medium font-bold">Commission Percentage (%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={configComm}
+                    onChange={(e) => setConfigComm(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-purple-500 transition-all font-semibold"
+                  />
+                </div>
 
+                {/* Delivery Fee split inputs */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-white/50 block font-medium font-bold">Customer Share (%)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={configCustShare}
+                      onChange={(e) => setConfigCustShare(e.target.value)}
+                      className="w-full h-9 px-3 rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-purple-500 transition-all font-semibold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-white/50 block font-medium font-bold">Seller Share (%)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={configSellerShare}
+                      onChange={(e) => setConfigSellerShare(e.target.value)}
+                      className="w-full h-9 px-3 rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-purple-500 transition-all font-semibold"
+                    />
+                  </div>
+                </div>
+
+                {/* Packing fee approved flag */}
+                {shop.enablePackingFee && (
+                  <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.02] mt-2">
+                    <div>
+                      <span className="text-white/90 block font-medium font-bold">Approve Packing Fee</span>
+                      <span className="text-[10px] text-white/40 block mt-0.5 font-semibold">Allows shop to charge custom packing fees</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setConfigPackingApproved(!configPackingApproved)}
+                      className="text-white/60 hover:text-white transition-all focus:outline-none"
+                    >
+                      {configPackingApproved ? (
+                        <ToggleRight className="h-7 w-7 text-purple-500" />
+                      ) : (
+                        <ToggleLeft className="h-7 w-7" />
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Submit button */}
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="w-full h-9 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white mt-4"
+                  isLoading={updateConfigMutation.isPending}
+                >
+                  Save Configurations
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

@@ -10,8 +10,9 @@ import { Button } from '@/shared/components/Button';
 import { Badge } from '@/shared/components/Badge';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Card, CardContent } from '@/shared/components/Card';
-import { ShoppingCart, Heart, Star, Store, Package, Check, ArrowLeft, Send } from 'lucide-react';
+import { ShoppingCart, Heart, Star, Store, Package, Check, ArrowLeft, Send, Zap } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { useConfirmStore } from '@/lib/store/confirmStore';
 
@@ -20,6 +21,7 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
   const { addToCart, isAdding } = useCart();
   const { wishlist, addToWishlist } = useWishlist();
   const showAlert = useConfirmStore((state) => state.showAlert);
+  const router = useRouter();
 
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
@@ -79,6 +81,14 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
           showAlert({ title: 'Added to Cart', message: 'Item was successfully added to your cart!' });
         },
       }
+    );
+  };
+
+  const handleBuyNow = () => {
+    router.push(
+      `/checkout?buyNow=true&productId=${product.id}&quantity=${quantity}${
+        selectedVariantId ? `&variantId=${selectedVariantId}` : ''
+      }`
     );
   };
 
@@ -276,6 +286,15 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
             >
               <ShoppingCart className="h-4 w-4" />
               Add to Cart
+            </Button>
+
+            <Button
+              onClick={handleBuyNow}
+              disabled={stockAvailable <= 0}
+              className="flex-1 flex items-center justify-center gap-2 py-5 cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold"
+            >
+              <Zap className="h-4 w-4" />
+              Buy Now
             </Button>
 
             <Button

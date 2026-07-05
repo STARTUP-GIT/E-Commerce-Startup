@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { prisma } from "../../../config/prisma.js";
 import {
     createPayment as createPaymentService,
     verifyPayment as verifyPaymentService,
@@ -37,7 +38,10 @@ export const verifyPayment = async (req: Request, res: Response) => {
             });
         }
 
-        const payment = await verifyPaymentService(req.body);
+        const payment = await verifyPaymentService({
+            ...req.body,
+            customerId
+        });
 
         return res.status(200).json(payment);
     } catch (error: any) {
@@ -54,6 +58,22 @@ export const refundPayment = async (req: Request, res: Response) => {
         if (!customerId) {
             return res.status(401).json({
                 message: "Unauthorized"
+            });
+        }
+
+        const { paymentId } = req.body;
+        if (!paymentId) {
+            return res.status(400).json({
+                message: "paymentId is required"
+            });
+        }
+
+        const paymentRecord = await prisma.payment.findUnique({
+            where: { id: paymentId }
+        });
+        if (!paymentRecord || paymentRecord.customerId !== customerId) {
+            return res.status(403).json({
+                message: "Forbidden"
             });
         }
 

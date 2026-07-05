@@ -9,29 +9,73 @@ export const calculateTotals = async (params: {
     couponCode?: string;
     packingFees?: { sellerId: string; amount: number }[];
     shippingAddressId?: string;
+    buyNow?: { productId: string; productVariantId?: string; quantity: number };
 }) => {
-    const { customerId, couponCode, packingFees = [], shippingAddressId } = params;
+    const { customerId, couponCode, packingFees = [], shippingAddressId, buyNow } = params;
 
-    const cart = await prisma.cart.findUnique({
-        where: { customerId },
-        include: {
-            items: {
-                include: {
-                    product: {
-                        include: {
-                            seller: {
-                                include: {
-                                    shop: true,
-                                    addresses: true
-                                }
-                            }
-                        }
-                    },
-                    productVariant: true
+    let cart: any = null;
+    if (buyNow) {
+        const product = await prisma.product.findUnique({
+            where: { id: buyNow.productId },
+            include: {
+                seller: {
+                    include: {
+                        shop: true,
+                        addresses: true
+                    }
                 }
             }
+        });
+        if (!product) {
+            throw new Error(`Product not found`);
         }
-    });
+
+        let productVariant = null;
+        if (buyNow.productVariantId) {
+            productVariant = await prisma.productVariant.findUnique({
+                where: { id: buyNow.productVariantId }
+            });
+            if (!productVariant) {
+                throw new Error(`Product variant not found`);
+            }
+        }
+
+        cart = {
+            id: "temp_buy_now_cart",
+            customerId,
+            items: [
+                {
+                    id: "temp_buy_now_item",
+                    productId: buyNow.productId,
+                    productVariantId: buyNow.productVariantId || null,
+                    quantity: buyNow.quantity,
+                    product,
+                    productVariant
+                }
+            ]
+        };
+    } else {
+        cart = await prisma.cart.findUnique({
+            where: { customerId },
+            include: {
+                items: {
+                    include: {
+                        product: {
+                            include: {
+                                seller: {
+                                    include: {
+                                        shop: true,
+                                        addresses: true
+                                    }
+                                }
+                            }
+                        },
+                        productVariant: true
+                    }
+                }
+            }
+        });
+    }
 
     if (!cart || cart.items.length === 0) {
         throw new Error("Cart is empty");
@@ -229,11 +273,12 @@ export const createPayment = async (paymentData: {
     billingAddressId?: string;
     couponCode?: string;
     packingFees?: { sellerId: string; amount: number }[];
+    buyNow?: { productId: string; productVariantId?: string; quantity: number };
 }) => {
-    const { customerId, shippingAddressId, couponCode, packingFees } = paymentData;
+    const { customerId, shippingAddressId, couponCode, packingFees, buyNow } = paymentData;
 
     // 1. Calculate totals dynamically
-    const totals = await calculateTotals({ customerId, couponCode, packingFees, shippingAddressId });
+    const totals = await calculateTotals({ customerId, couponCode, packingFees, shippingAddressId, buyNow });
 
     const receipt = `RCPT_${Date.now()}`;
     const gateway = process.env.PAYMENT_GATEWAY || "RAZORPAY";
@@ -277,6 +322,7 @@ export const verifyPayment = async (paymentData: {
     billingAddressId?: string;
     couponCode?: string;
     packingFees?: { sellerId: string; amount: number }[];
+    buyNow?: { productId: string; productVariantId?: string; quantity: number };
     // Gateway payload
     razorpayOrderId?: string;
     razorpayPaymentId?: string;
@@ -289,6 +335,7 @@ export const verifyPayment = async (paymentData: {
         billingAddressId,
         couponCode,
         packingFees,
+        buyNow,
         razorpayOrderId,
         razorpayPaymentId,
         razorpaySignature,
@@ -334,7 +381,7 @@ export const verifyPayment = async (paymentData: {
     }
 
     // 2. Re-calculate totals and check stock levels
-    const totals = await calculateTotals({ customerId, couponCode, packingFees, shippingAddressId });
+    const totals = await calculateTotals({ customerId, couponCode, packingFees, shippingAddressId, buyNow });
     const {
         cart,
         productSubtotal,
@@ -381,7 +428,7 @@ export const verifyPayment = async (paymentData: {
             const sellerTaxable = sellerSubtotal + sellerPackingFee;
             const sellerTax = (sellerTaxable * gstPercentage) / 100;
 
-            const seller = cart.items.find((item) => item.product.sellerId === sellerId)!.product.seller;
+            const seller = cart.items.find((item: any) => item.product.sellerId === sellerId)!.product.seller;
             const pickupSellerAddressId = seller.addresses?.[0]?.id;
 
             if (!pickupSellerAddressId) {
@@ -412,7 +459,7 @@ export const verifyPayment = async (paymentData: {
             });
 
             // Create items under this SellerOrder and reduce stock
-            const sellerItems = cart.items.filter((item) => item.product.sellerId === sellerId);
+            const sellerItems = cart.items.filter((item: any) => item.product.sellerId === sellerId);
             for (const item of sellerItems) {
                 const price = item.productVariant ? Number(item.productVariant.price) : Number(item.product.price);
                 const total = price * item.quantity;
@@ -504,9 +551,11 @@ export const verifyPayment = async (paymentData: {
         }
 
         // Clear Cart
-        await tx.cartItem.deleteMany({
-            where: { cartId: cart.id }
-        });
+        if (!buyNow) {
+            await tx.cartItem.deleteMany({
+                where: { cartId: cart.id }
+            });
+        }
 
         // Create timeline event for main Order
         await tx.orderTimelineEvent.create({

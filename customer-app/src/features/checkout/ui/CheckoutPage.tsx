@@ -16,10 +16,19 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { profileApi } from '@/features/auth/profile/api/profileApi';
 import { useLocationStore } from '@/lib/store/locationStore';
+import { useSearchParams } from 'next/navigation';
 
 export function CheckoutPage() {
   const { data: session } = useSession();
   const { profile, isLoading: profileLoading } = useProfile();
+  const searchParams = useSearchParams();
+  const isBuyNow = searchParams.get('buyNow') === 'true';
+  const buyNowParams = isBuyNow ? {
+    productId: searchParams.get('productId') || '',
+    productVariantId: searchParams.get('variantId') || undefined,
+    quantity: parseInt(searchParams.get('quantity') || '1', 10)
+  } : undefined;
+
   const {
     summary,
     isLoading: checkoutLoading,
@@ -28,7 +37,7 @@ export function CheckoutPage() {
     isApplyingCoupon,
     removeCoupon,
     couponCode,
-  } = useCheckout();
+  } = useCheckout(buyNowParams);
 
   const { processPayment, isProcessing: paymentLoading, error: paymentError } = usePayment();
 
@@ -112,6 +121,7 @@ export function CheckoutPage() {
       couponCode: couponCode || undefined,
       userEmail: session?.user?.email || '',
       userName: session?.user?.name || 'Customer',
+      buyNow: buyNowParams,
     });
   };
 

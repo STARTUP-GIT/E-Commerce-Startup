@@ -1,12 +1,15 @@
 import { Navbar } from '@/shared/components/Navbar';
 import { CheckoutPage } from '@/features/checkout/ui/CheckoutPage';
+import { Suspense } from 'react';
 
 export default function CheckoutRoute() {
   return (
     <>
       <Navbar />
       <main className="py-6 bg-zinc-950/20 min-h-[calc(100vh-64px)]">
-        <CheckoutPage />
+        <Suspense fallback={<div className="max-w-7xl mx-auto px-6 py-8 text-muted-foreground">Loading checkout details...</div>}>
+          <CheckoutPage />
+        </Suspense>
       </main>
     </>
   );

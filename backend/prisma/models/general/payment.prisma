@@ -7,7 +7,7 @@ model Payment {
   orderId          String
   customerId       String
   amount           Decimal       @db.Decimal(12, 2)
-  currency         String        @default("USD") @db.VarChar(3)
+  currency         String        @default("INR") @db.VarChar(3)
   status           PaymentStatus @default(PENDING)
   method           PaymentMethod
   gatewayPaymentId String?       @unique @db.VarChar(255)
