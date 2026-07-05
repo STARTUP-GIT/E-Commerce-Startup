@@ -33,7 +33,7 @@ import { useNavigate } from 'react-router-dom';
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const { hasShop } = useShop();
+  const { hasShop, shop } = useShop();
   const { metrics, chartData, isLoadingMetrics } = useAnalytics();
   const { orders, isLoading: isLoadingOrders } = useOrders();
   const navigate = useNavigate();
@@ -115,6 +115,21 @@ export function DashboardPage() {
               <Button onClick={() => navigate('/shop-setup')} className="text-xs font-bold w-full sm:w-auto">
                 Create Shop Now
               </Button>
+            </div>
+          </Card>
+        ) : shop && shop.status !== 'APPROVED' ? (
+          <Card className="border border-yellow-500/20 bg-yellow-500/5 p-8 rounded-2xl backdrop-blur-md">
+            <div className="flex items-center gap-4">
+              <AlertTriangle className="h-8 w-8 text-yellow-400 shrink-0" />
+              <div>
+                <h3 className="text-lg font-bold text-white">Your shop is {shop.status === 'PENDING' ? 'awaiting approval' : shop.status === 'REJECTED' ? 'has been rejected' : shop.status === 'SUSPENDED' ? 'has been suspended' : 'has been disabled'}</h3>
+                <p className="text-xs text-white/50 mt-1">
+                  {shop.status === 'PENDING' && 'An admin will review your shop shortly. You can manage products and settings, but they won\'t be visible to customers until your shop is approved.'}
+                  {shop.status === 'REJECTED' && (shop.rejectionReason ? `Reason: ${shop.rejectionReason}` : 'Your shop application was rejected. Contact support for more information.')}
+                  {shop.status === 'SUSPENDED' && 'Your shop has been suspended. Please contact support for more information.'}
+                  {shop.status === 'DISABLED' && 'Your shop has been disabled by an administrator.'}
+                </p>
+              </div>
             </div>
           </Card>
         ) : (

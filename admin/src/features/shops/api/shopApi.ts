@@ -25,20 +25,20 @@ export const shopApi = {
     const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/revoke-packing`);
     return response.data;
   },
-  activateShop: async (id: string) => {
-    const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/activate`);
+  approveShop: async (id: string) => {
+    const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/approve`);
     return response.data;
   },
-  deactivateShop: async (id: string) => {
-    const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/deactivate`);
+  rejectShop: async (id: string, reason?: string) => {
+    const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/reject`, { reason });
     return response.data;
   },
-  banShop: async (id: string, reason?: string) => {
-    const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/ban`, { reason });
+  suspendShop: async (id: string) => {
+    const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/suspend`);
     return response.data;
   },
-  unbanShop: async (id: string) => {
-    const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/unban`);
+  disableShop: async (id: string) => {
+    const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/disable`);
     return response.data;
   },
   updateShopConfig: async (id: string, payload: { commissionPercentage?: number; customerDeliveryShare?: number; sellerDeliveryShare?: number; enablePackingFee?: boolean; packingFeeApproved?: boolean }) => {

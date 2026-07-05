@@ -7,9 +7,7 @@ export const getSellers = async (req: Request, res: Response) => {
     try {
         const { search, status, page = 1, limit = 10 } = req.query;
 
-        const whereClause: any = {
-            isDeactivated: false
-        };
+        const whereClause: any = {};
 
         if (status) {
             whereClause.status = String(status);
@@ -81,132 +79,6 @@ export const getSeller = async (req: Request, res: Response) => {
     }
 };
 
-export const approveSeller = async (req: Request, res: Response) => {
-    try {
-        const sellerId = String(req.params.id);
-        const adminId = req.adminId!;
-
-        const seller = await prisma.seller.findUnique({
-            where: { id: sellerId }
-        });
-
-        if (!seller) {
-            return res.status(404).json({ message: "Seller not found" });
-        }
-
-        if (seller.status === "PENDING_VERIFICATION") {
-            return res.status(400).json({ message: "Shop is in DRAFT status and must be submitted for approval by the seller first." });
-        }
-
-        const updatedSeller = await prisma.seller.update({
-            where: { id: sellerId },
-            data: {
-                status: "APPROVED",
-                approvedAt: new Date(),
-                approvedByAdminId: adminId
-            }
-        });
-
-        // Activate the shop automatically if exists
-        await prisma.shop.updateMany({
-            where: { sellerId },
-            data: { isActive: true }
-        });
-
-        // Update pending verifications to APPROVED
-        await prisma.sellerVerification.updateMany({
-            where: { sellerId, status: "PENDING" },
-            data: {
-                status: "APPROVED",
-                reviewedByAdminId: adminId,
-                reviewedAt: new Date()
-            }
-        });
-
-        await logAdminAction({
-            adminId,
-            actionType: AdminActionType.SELLER_APPROVED,
-            targetType: "Seller",
-            targetId: sellerId,
-            description: `Seller ${seller.username} approved by admin`,
-            previousValue: { status: seller.status },
-            newValue: { status: "APPROVED" }
-        });
-
-        return res.status(200).json({
-            message: "Seller approved successfully",
-            seller: updatedSeller
-        });
-    } catch (error: any) {
-        console.error("APPROVE SELLER ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
-    }
-};
-
-export const rejectSeller = async (req: Request, res: Response) => {
-    try {
-        const sellerId = String(req.params.id);
-        const adminId = req.adminId!;
-        const { reason } = req.body;
-
-        const seller = await prisma.seller.findUnique({
-            where: { id: sellerId }
-        });
-
-        if (!seller) {
-            return res.status(404).json({ message: "Seller not found" });
-        }
-
-        if (seller.status === "PENDING_VERIFICATION") {
-            return res.status(400).json({ message: "Shop is in DRAFT status and must be submitted for approval by the seller first." });
-        }
-
-        const updatedSeller = await prisma.seller.update({
-            where: { id: sellerId },
-            data: {
-                status: "REJECTED",
-                rejectedAt: new Date(),
-                rejectionReason: reason || "Does not meet criteria"
-            }
-        });
-
-        // Deactivate shop
-        await prisma.shop.updateMany({
-            where: { sellerId },
-            data: { isActive: false }
-        });
-
-        // Update pending verifications to REJECTED
-        await prisma.sellerVerification.updateMany({
-            where: { sellerId, status: "PENDING" },
-            data: {
-                status: "REJECTED",
-                reviewedByAdminId: adminId,
-                reviewedAt: new Date(),
-                rejectionReason: reason || "Does not meet criteria"
-            }
-        });
-
-        await logAdminAction({
-            adminId,
-            actionType: AdminActionType.SELLER_REJECTED,
-            targetType: "Seller",
-            targetId: sellerId,
-            description: `Seller ${seller.username} verification rejected. Reason: ${reason}`,
-            previousValue: { status: seller.status },
-            newValue: { status: "REJECTED", rejectionReason: reason }
-        });
-
-        return res.status(200).json({
-            message: "Seller verification rejected",
-            seller: updatedSeller
-        });
-    } catch (error: any) {
-        console.error("REJECT SELLER ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
-    }
-};
-
 export const banSeller = async (req: Request, res: Response) => {
     try {
         const sellerId = String(req.params.id);
@@ -231,13 +103,12 @@ export const banSeller = async (req: Request, res: Response) => {
             }
         });
 
-        // Deactivate and Ban shop belonging to this seller
+        // Disable shop belonging to this seller
         await prisma.shop.updateMany({
             where: { sellerId },
             data: { 
-                isActive: false,
-                isBanned: true,
-                banReason: `Banned due to seller ban: ${reason || 'Violations of platform policy'}`
+                status: "DISABLED",
+                rejectionReason: `Banned due to seller ban: ${reason || 'Violations of platform policy'}`
             }
         });
 
@@ -278,19 +149,18 @@ export const unbanSeller = async (req: Request, res: Response) => {
             where: { id: sellerId },
             data: {
                 isBanned: false,
-                status: "APPROVED",
+                status: "ACTIVE",
                 bannedAt: null,
                 banReason: null
             }
         });
 
-        // Reactivate and Unban shop
+        // Restore shop status (set back to PENDING, admin can re-approve)
         await prisma.shop.updateMany({
             where: { sellerId },
             data: { 
-                isActive: true,
-                isBanned: false,
-                banReason: null
+                status: "PENDING",
+                rejectionReason: null
             }
         });
 
@@ -301,7 +171,7 @@ export const unbanSeller = async (req: Request, res: Response) => {
             targetId: sellerId,
             description: `Seller ${seller.username} unbanned by admin`,
             previousValue: { isBanned: seller.isBanned, status: seller.status },
-            newValue: { isBanned: false, status: "APPROVED" }
+            newValue: { isBanned: false, status: "ACTIVE" }
         });
 
         return res.status(200).json({
@@ -335,10 +205,10 @@ export const deleteSeller = async (req: Request, res: Response) => {
             }
         });
 
-        // Deactivate shop
+        // Disable shop
         await prisma.shop.updateMany({
             where: { sellerId },
-            data: { isActive: false }
+            data: { status: "DISABLED" }
         });
 
         await logAdminAction({
@@ -446,12 +316,12 @@ export const suspendSeller = async (req: Request, res: Response) => {
 
         const updatedSeller = await prisma.seller.update({
             where: { id: sellerId },
-            data: { status: "SUSPENDED" }
+            data: { status: "BANNED", isBanned: true }
         });
 
         await prisma.shop.updateMany({
             where: { sellerId },
-            data: { isActive: false }
+            data: { status: "SUSPENDED" }
         });
 
         await logAdminAction({
@@ -482,7 +352,7 @@ export const restoreSeller = async (req: Request, res: Response) => {
         const updatedSeller = await prisma.seller.update({
             where: { id: sellerId },
             data: {
-                status: "APPROVED",
+                status: "ACTIVE",
                 isBanned: false,
                 isDeactivated: false,
                 bannedAt: null,
@@ -494,9 +364,8 @@ export const restoreSeller = async (req: Request, res: Response) => {
         await prisma.shop.updateMany({
             where: { sellerId },
             data: {
-                isActive: true,
-                isBanned: false,
-                banReason: null
+                status: "PENDING",
+                rejectionReason: null
             }
         });
 
@@ -507,7 +376,7 @@ export const restoreSeller = async (req: Request, res: Response) => {
             targetId: sellerId,
             description: `Seller ${seller.username} restored by admin`,
             previousValue: { status: seller.status, isBanned: seller.isBanned, isDeactivated: seller.isDeactivated },
-            newValue: { status: "APPROVED", isBanned: false, isDeactivated: false }
+            newValue: { status: "ACTIVE", isBanned: false, isDeactivated: false }
         });
 
         return res.status(200).json({ message: "Seller restored successfully", seller: updatedSeller });
@@ -528,7 +397,7 @@ export const activateSeller = async (req: Request, res: Response) => {
         const updatedSeller = await prisma.seller.update({
             where: { id: sellerId },
             data: {
-                status: "APPROVED",
+                status: "ACTIVE",
                 isDeactivated: false,
                 deactivatedAt: null
             }
@@ -536,17 +405,17 @@ export const activateSeller = async (req: Request, res: Response) => {
 
         await prisma.shop.updateMany({
             where: { sellerId },
-            data: { isActive: true }
+            data: { status: "APPROVED" }
         });
 
         await logAdminAction({
             adminId,
-            actionType: AdminActionType.SELLER_APPROVED,
+            actionType: AdminActionType.SHOP_APPROVED,
             targetType: "Seller",
             targetId: sellerId,
             description: `Seller ${seller.username} activated by admin`,
             previousValue: { status: seller.status, isDeactivated: seller.isDeactivated },
-            newValue: { status: "APPROVED", isDeactivated: false }
+            newValue: { status: "ACTIVE", isDeactivated: false }
         });
 
         return res.status(200).json({ message: "Seller activated successfully", seller: updatedSeller });
@@ -567,6 +436,7 @@ export const deactivateSeller = async (req: Request, res: Response) => {
         const updatedSeller = await prisma.seller.update({
             where: { id: sellerId },
             data: {
+                status: "DISABLED",
                 isDeactivated: true,
                 deactivatedAt: new Date()
             }
@@ -574,7 +444,7 @@ export const deactivateSeller = async (req: Request, res: Response) => {
 
         await prisma.shop.updateMany({
             where: { sellerId },
-            data: { isActive: false }
+            data: { status: "DISABLED" }
         });
 
         await logAdminAction({

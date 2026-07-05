@@ -78,12 +78,11 @@ export const register = async (req: Request, res: Response) => {
             email,
             passwordHash: hashedPassword,
             authProvider: AuthProvider.EMAIL,
-            status: 'PENDING_VERIFICATION',
+            status: 'ACTIVE',
         }
     });
 
     const sellerFrontendUrl = process.env.SELLER_FRONTEND_URL!.replace(/\/$/, '');
-    void EmailService.sendVerificationEmail(newSeller.email, { firstName, verificationUrl: `${sellerFrontendUrl}/verify-email?email=${encodeURIComponent(newSeller.email)}` });
 
     const token = signAccessToken(newSeller.id);
 
@@ -356,7 +355,7 @@ export const googleOAuth = async (req: Request, res: Response) => {
                 lastName,
                 avatarUrl,
                 emailVerified: true,
-                status: 'PENDING_VERIFICATION'
+                status: 'ACTIVE'
             }
         });
 

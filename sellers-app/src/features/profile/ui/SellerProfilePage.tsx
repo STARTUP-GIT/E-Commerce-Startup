@@ -124,16 +124,12 @@ export function SellerProfilePage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'APPROVED':
-        return <Badge variant="success">Approved</Badge>;
-      case 'PENDING_APPROVAL':
-        return <Badge variant="default">Pending Approval</Badge>;
-      case 'PENDING_VERIFICATION':
-        return <Badge variant="secondary">Pending Verification</Badge>;
-      case 'REJECTED':
-        return <Badge variant="destructive">Rejected</Badge>;
-      case 'SUSPENDED':
-        return <Badge variant="destructive">Suspended</Badge>;
+      case 'ACTIVE':
+        return <Badge variant="success">Active</Badge>;
+      case 'DISABLED':
+        return <Badge variant="secondary">Disabled</Badge>;
+      case 'BANNED':
+        return <Badge variant="destructive">Banned</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -498,8 +494,8 @@ export function SellerProfilePage() {
                   <span className="text-[10px] text-white/45 uppercase font-bold block">Shop</span>
                   <div className="mt-1">
                     {shop ? (
-                      <Badge variant={shop.isActive ? 'success' : 'secondary'}>
-                        {shop.isActive ? 'Active' : 'Inactive'}
+                      <Badge variant={shop.status === 'APPROVED' ? 'success' : 'secondary'}>
+                        {shop.status}
                       </Badge>
                     ) : (
                       <Badge variant="destructive">Not Created</Badge>

@@ -35,10 +35,8 @@ export const getNearbyShops = async (req: Request, res: Response) => {
         }
 
         const whereClause: any = {
-            isActive: true,
-            isBanned: false,
+            status: "APPROVED",
             seller: {
-                status: "APPROVED",
                 isBanned: false
             }
         };
@@ -99,10 +97,8 @@ export const searchShops = async (req: Request, res: Response) => {
         }
 
         const whereClause: any = {
-            isActive: true,
-            isBanned: false,
+            status: "APPROVED",
             seller: {
-                status: "APPROVED",
                 isBanned: false
             },
             OR: [
@@ -156,10 +152,8 @@ export const getShopDetails = async (req: Request, res: Response) => {
 
         const shop = await prisma.shop.findFirst({
             where: {
-                isActive: true,
-                isBanned: false,
+                status: "APPROVED",
                 seller: {
-                    status: "APPROVED",
                     isBanned: false
                 },
                 OR: [
@@ -227,10 +221,8 @@ export const getShopCategories = async (req: Request, res: Response) => {
 
         const shop = await prisma.shop.findFirst({
             where: {
-                isActive: true,
-                isBanned: false,
+                status: "APPROVED",
                 seller: {
-                    status: "APPROVED",
                     isBanned: false
                 },
                 OR: [
@@ -289,10 +281,8 @@ export const getShopProducts = async (req: Request, res: Response) => {
 
         const shop = await prisma.shop.findFirst({
             where: {
-                isActive: true,
-                isBanned: false,
+                status: "APPROVED",
                 seller: {
-                    status: "APPROVED",
                     isBanned: false
                 },
                 OR: [
@@ -359,10 +349,8 @@ export const getFeaturedShops = async (req: Request, res: Response) => {
         const state = req.query.state as string;
 
         const whereClause: any = {
-            isActive: true,
-            isBanned: false,
+            status: "APPROVED",
             seller: {
-                status: "APPROVED",
                 isBanned: false
             }
         };

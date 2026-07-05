@@ -16,12 +16,8 @@ import {
 import { useParams, useRouter } from 'next/navigation';
 
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'outline' | 'secondary' | 'default'> = {
-  APPROVED: 'success',
-  PENDING_APPROVAL: 'warning',
-  PENDING_VERIFICATION: 'secondary',
-  DRAFT: 'secondary',
-  REJECTED: 'destructive',
-  SUSPENDED: 'warning',
+  ACTIVE: 'success',
+  DISABLED: 'destructive',
   BANNED: 'destructive',
 };
 
@@ -43,24 +39,6 @@ export function SellerDetailPage() {
   const seller = data?.seller;
 
   // Mutations
-  const approveMutation = useMutation({
-    mutationFn: () => sellerApi.approveSeller(sellerId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['seller-detail', sellerId] });
-      showToast('Seller approved successfully.', 'success');
-    },
-    onError: (e: any) => showToast(e.message, 'error'),
-  });
-
-  const rejectMutation = useMutation({
-    mutationFn: (reason: string) => sellerApi.rejectSeller(sellerId, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['seller-detail', sellerId] });
-      showToast('Seller rejected.', 'info');
-    },
-    onError: (e: any) => showToast(e.message, 'error'),
-  });
-
   const banMutation = useMutation({
     mutationFn: (reason: string) => sellerApi.banSeller(sellerId, reason),
     onSuccess: () => {
@@ -148,7 +126,7 @@ export function SellerDetailPage() {
     );
   }
 
-  const isSuspendedOrBanned = seller.status === 'SUSPENDED' || seller.status === 'BANNED' || seller.isBanned;
+  const isBanned = seller.status === 'BANNED' || seller.isBanned;
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -167,7 +145,7 @@ export function SellerDetailPage() {
                 {seller.firstName} {seller.lastName}
               </h1>
               <Badge variant={STATUS_COLORS[seller.status] ?? 'outline'} className="text-[9px] px-2 py-0.5 font-bold">
-                {seller.status === 'PENDING_VERIFICATION' ? 'DRAFT' : seller.status}
+                {seller.status}
               </Badge>
               {seller.isBanned && (
                 <Badge variant="destructive" className="text-[9px] px-2 py-0.5 font-bold">
@@ -181,56 +159,9 @@ export function SellerDetailPage() {
 
         {/* Administration Actions Panel */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Action Approve / Reject */}
-          {seller.status === 'PENDING_APPROVAL' && (
+          {/* Action Ban / Restore */}
+          {seller.status === 'ACTIVE' && (
             <>
-              <Button
-                size="sm"
-                variant="default"
-                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-9 text-xs"
-                isLoading={approveMutation.isPending}
-                onClick={() => approveMutation.mutate()}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Approve
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                className="h-9 text-xs"
-                isLoading={rejectMutation.isPending}
-                onClick={() => {
-                  showConfirm({
-                    title: 'Reject Seller Profile',
-                    message: 'Please confirm that you want to reject this seller. This action will deactivate their store setup.',
-                    confirmText: 'Reject',
-                    onConfirm: () => rejectMutation.mutate('Does not meet onboarding criteria'),
-                  });
-                }}
-              >
-                <XCircle className="h-3.5 w-3.5 mr-1.5" /> Reject
-              </Button>
-            </>
-          )}
-
-          {/* Action Suspend / Ban / Restore */}
-          {seller.status === 'APPROVED' && (
-            <>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-9 text-xs border border-orange-500/20 text-orange-400 hover:bg-orange-500/10"
-                isLoading={suspendMutation.isPending}
-                onClick={() => {
-                  showConfirm({
-                    title: 'Suspend Seller',
-                    message: 'Are you sure you want to suspend this seller? Their shop will be deactivated.',
-                    confirmText: 'Suspend',
-                    onConfirm: () => suspendMutation.mutate('Suspended due to policy check'),
-                  });
-                }}
-              >
-                <AlertTriangle className="h-3.5 w-3.5 mr-1.5" /> Suspend
-              </Button>
               <Button
                 size="sm"
                 variant="destructive"
@@ -239,7 +170,7 @@ export function SellerDetailPage() {
                 onClick={() => {
                   showConfirm({
                     title: 'Ban Seller',
-                    message: 'CRITICAL: Banning this seller will also automatically ban and hide all shops and products linked to them. The seller status becomes BANNED.',
+                    message: 'CRITICAL: Banning this seller will also disable all shops and products linked to them.',
                     confirmText: 'Ban Seller',
                     onConfirm: () => banMutation.mutate('Violations of platform standards'),
                   });
@@ -251,7 +182,7 @@ export function SellerDetailPage() {
           )}
 
           {/* Restore / Unban */}
-          {isSuspendedOrBanned && (
+          {(seller.status === 'BANNED' || seller.isBanned) && (
             <Button
               size="sm"
               variant="default"
@@ -260,48 +191,46 @@ export function SellerDetailPage() {
               onClick={() => {
                 showConfirm({
                   title: 'Restore Seller Status',
-                  message: 'Are you sure you want to restore this seller and unban/activate their shop?',
+                  message: 'Are you sure you want to restore this seller? Their shop will be set to pending review.',
                   confirmText: 'Restore',
                   onConfirm: () => restoreMutation.mutate(),
                 });
               }}
             >
-              <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Restore & Unban
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Restore
             </Button>
           )}
 
-          {/* Toggle Activate / Deactivate */}
-          {seller.status === 'APPROVED' && (
-            <>
-              {seller.isDeactivated ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-9 text-xs text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/10"
-                  isLoading={activateMutation.isPending}
-                  onClick={() => activateMutation.mutate()}
-                >
-                  <ToggleLeft className="h-4 w-4 mr-1.5" /> Activate
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-9 text-xs text-white/50 border-white/5 hover:bg-white/[0.04]"
-                  isLoading={deactivateMutation.isPending}
-                  onClick={() => {
-                    showConfirm({
-                      title: 'Deactivate Seller',
-                      message: 'Deactivating will hide their shop listing but will not ban the seller. Proceed?',
-                      confirmText: 'Deactivate',
-                      onConfirm: () => deactivateMutation.mutate(),
-                    });
-                  }}
-                >
-                  <ToggleRight className="h-4 w-4 mr-1.5" /> Deactivate
-                </Button>
-              )}
-            </>
+          {/* Toggle Disable / Activate */}
+          {seller.status === 'ACTIVE' && !seller.isDeactivated && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 text-xs text-white/50 border-white/5 hover:bg-white/[0.04]"
+              isLoading={deactivateMutation.isPending}
+              onClick={() => {
+                showConfirm({
+                  title: 'Disable Seller',
+                  message: 'Disabling will disable their shop but will not ban the seller. Proceed?',
+                  confirmText: 'Disable',
+                  onConfirm: () => deactivateMutation.mutate(),
+                });
+              }}
+            >
+              <ToggleRight className="h-4 w-4 mr-1.5" /> Disable
+            </Button>
+          )}
+
+          {seller.status === 'DISABLED' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 text-xs text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/10"
+              isLoading={activateMutation.isPending}
+              onClick={() => activateMutation.mutate()}
+            >
+              <ToggleLeft className="h-4 w-4 mr-1.5" /> Activate
+            </Button>
           )}
 
           {/* Delete Seller */}
@@ -313,7 +242,7 @@ export function SellerDetailPage() {
             onClick={() => {
               showConfirm({
                 title: 'Delete Seller Account',
-                message: 'WARNING: This will soft-delete/deactivate this seller profile permanently. This action cannot be easily undone.',
+                message: 'WARNING: This will soft-delete/deactivate this seller profile permanently.',
                 confirmText: 'Delete Seller',
                 onConfirm: () => deleteMutation.mutate(),
               });
@@ -345,12 +274,12 @@ export function SellerDetailPage() {
                     <p className="text-[10px] text-white/40 mt-0.5">Slug: {seller.shop.slug || '—'}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={seller.shop.isActive ? 'success' : 'secondary'} className="text-[8px]">
-                      {seller.shop.isActive ? 'Active' : 'Inactive'}
+                    <Badge variant={seller.shop.status === 'APPROVED' ? 'success' : 'secondary'} className="text-[8px]">
+                      {seller.shop.status}
                     </Badge>
-                    {seller.shop.isBanned && (
+                    {(seller.shop.status === 'SUSPENDED' || seller.shop.status === 'DISABLED') && (
                       <Badge variant="destructive" className="text-[8px]">
-                        Banned
+                        {seller.shop.status}
                       </Badge>
                     )}
                   </div>
