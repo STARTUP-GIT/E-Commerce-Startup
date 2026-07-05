@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
 
     return [
       {
+        source: "/admin/api/auth/:path*",
+        destination: `${adminBackendUrl.replace(/\/$/, "")}/admin/api/auth/:path*`,
+      },
+      {
         source: "/api/admin/:path*",
         destination: `${adminBackendUrl.replace(/\/$/, "")}/api/admin/:path*`,
       },
