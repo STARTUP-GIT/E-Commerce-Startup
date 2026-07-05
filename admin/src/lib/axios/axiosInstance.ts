@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const axiosInstance = axios.create({
-  baseURL: '', // Let Next.js rewrites proxy requests based on route
+  baseURL: process.env.ADMIN_BACKEND_API_URL || '',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',

@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  env: {
+    ADMIN_BACKEND_API_URL: process.env.ADMIN_BACKEND_API_URL || process.env.BACKEND_API_URL || "",
+  },
   async rewrites() {
     const adminBackendUrl = process.env.ADMIN_BACKEND_API_URL || process.env.BACKEND_API_URL;
     const storageBackendUrl = process.env.STORAGE_BACKEND_API_URL || process.env.SELLER_BACKEND_API_URL || process.env.BACKEND_API_URL;
