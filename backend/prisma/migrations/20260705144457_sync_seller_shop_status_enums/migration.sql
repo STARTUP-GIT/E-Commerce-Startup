@@ -76,7 +76,18 @@ UPDATE "shops" SET "status" = 'PENDING'  WHERE "isActive" = false AND "status" =
 
 -- 3a. gstNumber (Prisma model has it; DB has legacy taxId)
 ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "gstNumber" VARCHAR(15);
-UPDATE "shops" SET "gstNumber" = "taxId" WHERE "taxId" IS NOT NULL AND "gstNumber" IS NULL;
+
+-- Only update from taxId if the column exists in the database
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name='shops' AND column_name='taxId'
+    ) THEN
+        EXECUTE 'UPDATE "shops" SET "gstNumber" = "taxId" WHERE "taxId" IS NOT NULL AND "gstNumber" IS NULL';
+    END IF;
+END $$;
 
 -- 3b. Columns referenced by the Shop model
 ALTER TABLE "shops" ADD COLUMN IF NOT EXISTS "rejectionReason"  TEXT;
