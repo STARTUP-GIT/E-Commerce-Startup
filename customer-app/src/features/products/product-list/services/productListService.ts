@@ -3,7 +3,7 @@ const RECENTLY_VIEWED_KEY = 'aura_recently_viewed_products';
 export const productListService = {
   formatPrice: (price: number | string): string => {
     const num = typeof price === 'string' ? parseFloat(price) : price;
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(num);
   },
   getRecentlyViewedIds: (): string[] => {
     if (typeof window === 'undefined') return [];

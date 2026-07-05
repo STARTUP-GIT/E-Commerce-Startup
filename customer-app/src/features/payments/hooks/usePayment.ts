@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { paymentApi, CreatePaymentPayload, VerifyPaymentPayload } from '../api/paymentApi';
+import { paymentApi, CreatePaymentPayload, VerifyPaymentPayload, BuyNowParams } from '../api/paymentApi';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -40,6 +40,7 @@ export function usePayment() {
     couponCode?: string;
     userEmail: string;
     userName: string;
+    buyNow?: BuyNowParams;
   }) => {
     setError(null);
     try {
@@ -51,6 +52,7 @@ export function usePayment() {
       const orderDetails = await createPaymentMutation.mutateAsync({
         shippingAddressId: params.shippingAddressId,
         couponCode: params.couponCode,
+        buyNow: params.buyNow,
       });
 
       if (orderDetails.gateway === 'RAZORPAY') {
@@ -65,6 +67,7 @@ export function usePayment() {
             await verifyPaymentMutation.mutateAsync({
               shippingAddressId: params.shippingAddressId,
               couponCode: params.couponCode,
+              buyNow: params.buyNow,
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,

@@ -17,25 +17,11 @@ export const getDashboard = async (req: Request, res: Response) => {
             totalProducts,
             activeProducts,
             deletedProducts,
-            totalOrders,
-            pendingOrders,
-            processingOrders,
-            readyToShipOrders,
-            shippedOrders,
-            deliveredOrders,
-            cancelledOrders,
             lowStockProducts
         ] = await Promise.all([
             prisma.product.count({ where: { sellerId } }),
             prisma.product.count({ where: { sellerId, isDeleted: false } }),
             prisma.product.count({ where: { sellerId, isDeleted: true } }),
-            prisma.sellerOrder.count({ where: { sellerId } }),
-            prisma.sellerOrder.count({ where: { sellerId, status: "PENDING" } }),
-            prisma.sellerOrder.count({ where: { sellerId, status: "PROCESSING" } }),
-            prisma.sellerOrder.count({ where: { sellerId, status: "READY_TO_SHIP" } }),
-            prisma.sellerOrder.count({ where: { sellerId, status: "SHIPPED" } }),
-            prisma.sellerOrder.count({ where: { sellerId, status: "DELIVERED" } }),
-            prisma.sellerOrder.count({ where: { sellerId, status: "CANCELLED" } }),
             prisma.product.count({
                 where: {
                     sellerId,
@@ -47,33 +33,74 @@ export const getDashboard = async (req: Request, res: Response) => {
             })
         ]);
 
-        const deliveredOrdersList = await prisma.sellerOrder.findMany({
-            where: {
-                sellerId,
-                status: "DELIVERED"
-            },
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        // Fetch all seller orders to calculate precise dashboard metrics
+        const allSellerOrders = await prisma.sellerOrder.findMany({
+            where: { sellerId },
             select: {
+                status: true,
+                subtotal: true,
+                platformCommission: true,
                 sellerEarnings: true,
                 createdAt: true
             }
         });
 
-        const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-        let totalRevenue = 0;
-        let monthlyRevenue = 0;
+        let totalSales = 0;
+        let pendingOrdersCount = 0;
+        let processingOrdersCount = 0;
+        let readyToShipOrdersCount = 0;
+        let shippedOrdersCount = 0;
+        let completedOrdersCount = 0;
+        let cancelledOrdersCount = 0;
+        
+        let revenue = 0;
+        let platformCommission = 0;
+        let netEarnings = 0;
+        let todaysOrdersCount = 0;
         let todaysRevenue = 0;
+        let monthlyRevenue = 0;
 
-        for (const order of deliveredOrdersList) {
+        for (const order of allSellerOrders) {
+            const subtotal = Number(order.subtotal || 0);
+            const commission = Number(order.platformCommission || 0);
             const earnings = Number(order.sellerEarnings || 0);
-            totalRevenue += earnings;
-            if (order.createdAt >= startOfMonth) {
-                monthlyRevenue += earnings;
+
+            // Gross active sales: non-cancelled and non-rejected orders
+            if (order.status !== "CANCELLED" && order.status !== "REJECTED") {
+                totalSales += subtotal;
             }
+
+            if (order.status === "PENDING") {
+                pendingOrdersCount++;
+            } else if (order.status === "PROCESSING") {
+                processingOrdersCount++;
+            } else if (order.status === "READY_TO_SHIP") {
+                readyToShipOrdersCount++;
+            } else if (order.status === "SHIPPED") {
+                shippedOrdersCount++;
+            } else if (order.status === "DELIVERED") {
+                completedOrdersCount++;
+                revenue += subtotal;
+                platformCommission += commission;
+                netEarnings += earnings;
+
+                // Monthly and today's earnings (net earnings) for chart & stats compatibility
+                if (order.createdAt >= startOfMonth) {
+                    monthlyRevenue += earnings;
+                }
+                if (order.createdAt >= startOfToday) {
+                    todaysRevenue += earnings;
+                }
+            } else if (order.status === "CANCELLED") {
+                cancelledOrdersCount++;
+            }
+
             if (order.createdAt >= startOfToday) {
-                todaysRevenue += earnings;
+                todaysOrdersCount++;
             }
         }
 
@@ -81,15 +108,24 @@ export const getDashboard = async (req: Request, res: Response) => {
             totalProducts,
             activeProducts,
             deletedProducts,
-            totalOrders,
-            pendingOrders,
-            processingOrders,
-            readyToShipOrders,
-            shippedOrders,
-            deliveredOrders,
-            cancelledOrders,
+            totalOrders: allSellerOrders.length,
+            pendingOrders: pendingOrdersCount,
+            processingOrders: processingOrdersCount,
+            readyToShipOrders: readyToShipOrdersCount,
+            shippedOrders: shippedOrdersCount,
+            completedOrders: completedOrdersCount,
+            cancelledOrders: cancelledOrdersCount,
             lowStockProducts,
-            totalRevenue,
+            
+            // Required Dashboard fields
+            totalSales,
+            revenue,
+            platformCommission,
+            netEarnings,
+            todaysOrders: todaysOrdersCount,
+
+            // Chart / legacy compatibility fields
+            totalRevenue: netEarnings,
             monthlyRevenue,
             "today'sRevenue": todaysRevenue
         });
