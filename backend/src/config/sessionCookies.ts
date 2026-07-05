@@ -2,10 +2,7 @@ import type { Response } from 'express';
 
 type CookieName = 'customer_session' | 'seller_session' | 'admin_session';
 
-const isProductionEnv = () =>
-  process.env.NODE_ENV?.toLowerCase() === 'production' ||
-  process.env.RENDER === 'true' ||
-  !!process.env.DATABASE_URL?.includes('render.com');
+const isProductionEnv = () => process.env.NODE_ENV?.toLowerCase() === 'production';
 
 const cookieOptions = (isProduction: boolean) => ({
   httpOnly: true,
