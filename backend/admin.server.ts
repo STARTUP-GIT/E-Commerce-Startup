@@ -34,8 +34,9 @@ import adminDeliveryRoute from './src/modules/delivery/routes/adminDeliveryRoute
 const app = express();
 configureMiddlewares(app);
 
-app.use('/api/admin/auth', adminAuthRoute);
-app.use('/admin', adminAuthRoute);
+app.use('/api/admin/auth', adminAuthRoute);  // /api/admin/auth/login, /api/admin/auth/setup/status
+app.use('/api/admin', adminAuthRoute);        // /api/admin/profile, /api/admin/list, /api/admin/:id/status
+app.use('/admin', adminAuthRoute);            // /admin/setup/status (legacy fallback)
 app.use('/api/admin/analytics', adminAnalyticsRoute);
 app.use('/api/admin/sellers', adminSellerRoute);
 app.use('/api/admin/customers', adminCustomerRoute);

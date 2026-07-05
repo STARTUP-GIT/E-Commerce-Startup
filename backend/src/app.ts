@@ -168,8 +168,9 @@ app.use('/seller', payoutRoutes);
 app.use('/seller', reviewRoutes);
 
 // Admin routes
-app.use('/api/admin/auth', adminAuthRoute);
-app.use('/admin', adminAuthRoute);
+app.use('/api/admin/auth', adminAuthRoute);  // handles /api/admin/auth/login, /api/admin/auth/setup/status etc.
+app.use('/api/admin', adminAuthRoute);        // handles /api/admin/profile, /api/admin/list, /api/admin/:id/status etc.
+app.use('/admin', adminAuthRoute);            // handles /admin/api/auth/setup/status (legacy)
 app.use('/api/admin/analytics', adminAnalyticsRoute);
 app.use('/api/admin/sellers', adminSellerRoute);
 app.use('/api/admin/customers', adminCustomerRoute);
