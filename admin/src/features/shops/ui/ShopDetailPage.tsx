@@ -334,6 +334,7 @@ export function ShopDetailPage() {
                 </div>
               )}
             </CardContent>
+          </Card>
           {/* Shop Configurations */}
           <Card className="border border-white/5 bg-white/[0.01]">
             <CardHeader className="border-b border-white/5">

@@ -15,6 +15,12 @@ export interface DashboardMetrics {
   totalRevenue: number;
   monthlyRevenue: number;
   "today'sRevenue": number;
+  totalSales: number;
+  revenue: number;
+  platformCommission: number;
+  netEarnings: number;
+  todaysOrders: number;
+  completedOrders: number;
 }
 
 export interface SalesSummary {
