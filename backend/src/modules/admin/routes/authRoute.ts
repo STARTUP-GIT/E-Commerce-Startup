@@ -12,5 +12,7 @@ router.put("/profile", adminAuth, updateProfile);
 router.put("/change-password", adminAuth, changePassword);
 router.get("/setup/status", getSetupStatus);
 router.post("/setup", setupFirstAdmin);
+router.get("/api/auth/setup/status", getSetupStatus);
+router.post("/api/auth/setup", setupFirstAdmin);
 
 export default router;
