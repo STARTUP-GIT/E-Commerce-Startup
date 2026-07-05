@@ -9,9 +9,10 @@ export const getEnabledStates = async (req: Request, res: Response) => {
             orderBy: { name: "asc" },
         });
 
-        return res.status(200).json({
-            states: states.map(s => ({ id: s.id, name: s.name })),
-        });
+        return res.status(200).json(states.map(s => ({
+            id: s.id,
+            name: s.name,
+        })));
     } catch (error: any) {
         console.error("GET ENABLED STATES ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
@@ -54,13 +55,11 @@ export const getEnabledDistricts = async (req: Request, res: Response) => {
             orderBy: { name: "asc" },
         });
 
-        return res.status(200).json({
-            districts: districts.map(d => ({
-                id: d.id,
-                name: d.name,
-                stateId: state.id,
-            })),
-        });
+        return res.status(200).json(districts.map(d => ({
+            id: d.id,
+            name: d.name,
+            stateId: state!.id,
+        })));
     } catch (error: any) {
         console.error("GET ENABLED DISTRICTS ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });

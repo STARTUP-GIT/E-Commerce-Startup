@@ -169,6 +169,7 @@ app.use('/seller', reviewRoutes);
 
 // Admin routes
 app.use('/api/admin/auth', adminAuthRoute);
+app.use('/admin/api/auth', adminAuthRoute);
 app.use('/api/admin/analytics', adminAnalyticsRoute);
 app.use('/api/admin/sellers', adminSellerRoute);
 app.use('/api/admin/customers', adminCustomerRoute);
