@@ -9,7 +9,7 @@ export const metadata = {
 
 export default function SignupPage() {
   return (
-    <main className="min-h-screen relative overflow-hidden bg-[#080810] flex items-center justify-center py-8">
+    <main className="min-h-screen relative overflow-y-auto bg-[#080810] flex flex-col items-center justify-center p-6 py-12 sm:py-16 pt-safe pb-safe px-safe">
 
       {/* ── Animated Orb Background ─────────────────────────────── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -29,7 +29,7 @@ export default function SignupPage() {
       </div>
 
       {/* ── Floating Badge Pills ─────────────────────────────────── */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden hidden md:block">
         <div className="absolute top-[10%] left-[7%] flex items-center gap-1.5 px-3 py-1.5 glass-sm rounded-full animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <Users className="h-3 w-3 text-indigo-400" />
           <span className="text-[11px] font-medium text-white/60">Join 50k+ Buyers</span>
@@ -48,8 +48,8 @@ export default function SignupPage() {
         </div>
       </div>
 
-      {/* ── Brand header ─────────────────────────────────────────── */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 animate-fade-in">
+      {/* ── Brand header (centered layout flow) ──────────────────── */}
+      <div className="mb-8 z-10 animate-fade-in">
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="relative flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden">
             <div className="absolute inset-0 gradient-btn rounded-xl" />
@@ -60,7 +60,7 @@ export default function SignupPage() {
       </div>
 
       {/* ── Glass Form Card ─────────────────────────────────────── */}
-      <div className="relative z-10 w-full max-w-md px-4 animate-fade-up mt-10">
+      <div className="relative z-10 w-full max-w-md animate-fade-up">
         <SignupForm />
       </div>
     </main>

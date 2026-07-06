@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { ForgotPasswordForm } from '@/features/auth/forgot-password/ui/ForgotPasswordForm';
-import { ShoppingBag, Shield, KeyRound, Clock, Star } from 'lucide-react';
+import { ShoppingBag, Shield, KeyRound, Clock } from 'lucide-react';
 import Link from 'next/link';
 
 export const metadata = {
@@ -10,7 +10,7 @@ export const metadata = {
 
 export default function ForgotPasswordPage() {
   return (
-    <main className="min-h-screen relative overflow-hidden bg-[#080810] flex items-center justify-center">
+    <main className="min-h-screen relative overflow-y-auto bg-[#080810] flex flex-col items-center justify-center p-6 py-12 sm:py-16 pt-safe pb-safe px-safe">
 
       {/* ── Animated Orb Background ─────────────────────────────── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
       </div>
 
       {/* ── Floating Badge Pills ─────────────────────────────────── */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden hidden md:block">
         <div className="absolute top-[12%] left-[8%] flex items-center gap-1.5 px-3 py-1.5 glass-sm rounded-full animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <Shield className="h-3 w-3 text-green-400" />
           <span className="text-[11px] font-medium text-white/60">Secure Recovery</span>
@@ -49,8 +49,8 @@ export default function ForgotPasswordPage() {
         </div>
       </div>
 
-      {/* ── Brand header (top center) ────────────────────────────── */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 animate-fade-in">
+      {/* ── Brand header (centered layout flow) ──────────────────── */}
+      <div className="mb-8 z-10 animate-fade-in">
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="relative flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden">
             <div className="absolute inset-0 gradient-btn rounded-xl" />
@@ -61,9 +61,9 @@ export default function ForgotPasswordPage() {
       </div>
 
       {/* ── Glass Form Card ─────────────────────────────────────── */}
-      <div className="relative z-10 w-full max-w-md px-4 animate-fade-up">
+      <div className="relative z-10 w-full max-w-md animate-fade-up">
         <Suspense fallback={
-          <div className="glass-card p-8 space-y-6 text-center text-white/50 text-sm">
+          <div className="glass-card p-6 sm:p-8 space-y-6 text-center text-white/50 text-sm">
             <span className="h-6 w-6 rounded-full border-2 border-white/20 border-t-white animate-spin inline-block mr-2 align-middle" />
             Loading recovery form...
           </div>
