@@ -7,7 +7,7 @@ import { loginSchema, LoginInput } from '../services/loginService';
 import { useLogin } from '../hooks/useLogin';
 import { GoogleButton } from '@/features/auth/google-auth/ui/GoogleButton';
 import Link from 'next/link';
-import { Eye, EyeOff, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
 export function LoginForm() {
@@ -42,7 +42,7 @@ export function LoginForm() {
   };
 
   return (
-    <div className="glass-card p-8 space-y-6">
+    <div className="glass-card p-6 sm:p-8 space-y-5 sm:space-y-6">
       {/* Header */}
       <div className="space-y-1.5 text-center">
         <h1 className="text-2xl font-bold tracking-tight text-white">
@@ -91,7 +91,7 @@ export function LoginForm() {
             <label className="text-xs font-semibold text-white/60 uppercase tracking-wider" htmlFor="password">
               Password
             </label>
-            <Link href="/forgot-password" className="text-[11px] text-purple-400 hover:text-purple-300 transition-colors font-medium">
+            <Link href="/forgot-password" className="text-[11px] text-purple-400 hover:text-purple-300 transition-colors font-semibold">
               Forgot password?
             </Link>
           </div>
@@ -122,11 +122,11 @@ export function LoginForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full h-11 rounded-xl gradient-btn text-sm font-semibold text-white cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-2 flex items-center justify-center gap-2"
+          className="w-full h-11 rounded-xl gradient-btn text-sm font-semibold text-white cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-2 flex items-center justify-center gap-2 transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50"
         >
           {isLoading ? (
             <>
-              <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
               Signing in…
             </>
           ) : (

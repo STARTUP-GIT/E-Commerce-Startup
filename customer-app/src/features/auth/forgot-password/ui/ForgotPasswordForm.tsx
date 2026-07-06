@@ -4,10 +4,9 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Input } from '@/shared/components/Input';
-import { Button } from '@/shared/components/Button';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 
 const forgotPasswordSchema = z.object({
   identifier: z.string().min(1, 'Email or Username is required'),
@@ -25,6 +24,8 @@ export function ForgotPasswordForm() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  
   const searchParams = useSearchParams();
   const resetToken = searchParams?.get('token') || '';
   const identifier = searchParams?.get('identifier') || '';
@@ -95,88 +96,139 @@ export function ForgotPasswordForm() {
   };
 
   return (
-    <div className="w-full max-w-md space-y-6 p-8 bg-card rounded-2xl border border-border shadow-xl backdrop-blur-md">
-      <div className="flex flex-col space-y-2 text-center md:text-left">
-        <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
-          Reset Password
+    <div className="glass-card p-8 space-y-6">
+      {/* Header */}
+      <div className="space-y-1.5 text-center">
+        <h1 className="text-2xl font-bold tracking-tight text-white">
+          {isResetMode ? 'New Password' : 'Reset Password'}
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-white/45">
           {success
-            ? isResetMode ? 'Your password has been updated.' : "Check your inbox for a recovery link."
-            : isResetMode ? 'Enter a new password for your account.' : "Enter your email or username and we'll send you a password recovery link."}
+            ? isResetMode 
+              ? 'Your password has been updated.' 
+              : 'Check your inbox for a recovery link.'
+            : isResetMode 
+              ? 'Enter a new password for your account.' 
+              : "Enter your details and we'll send a recovery link."}
         </p>
       </div>
 
+      {/* Error Banner */}
       {error && (
-        <div className="p-4 text-xs font-semibold text-red-500 bg-red-500/10 rounded-lg border border-red-500/20">
+        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium animate-fade-in">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
           {error}
         </div>
       )}
 
+      {/* Success State */}
       {success ? (
         <div className="space-y-4">
-          <div className="p-4 text-xs font-semibold text-emerald-500 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-            {isResetMode
-              ? 'Your password has been updated. You can now sign in.'
-              : 'A password reset email has been sent. Please follow the instructions to reset your password.'}
+          <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium animate-fade-in">
+            <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            <span>
+              {isResetMode
+                ? 'Your password has been updated. You can now sign in.'
+                : 'A password reset email has been sent. Please follow the instructions in the email to reset your password.'}
+            </span>
           </div>
-          <Link href="/login" className="block">
-            <Button variant="secondary" className="w-full py-5 cursor-pointer">
+          <Link href="/login" className="block mt-2">
+            <button
+              type="button"
+              className="w-full h-11 rounded-xl glass-input border border-white/10 hover:border-white/20 text-sm font-semibold text-white/80 hover:text-white cursor-pointer transition-all flex items-center justify-center gap-2"
+            >
               Back to Sign In
-            </Button>
+            </button>
           </Link>
         </div>
       ) : isResetMode ? (
+        /* Reset Password Form */
         <form onSubmit={handleResetSubmit(onResetSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="newPassword">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-white/60 uppercase tracking-wider" htmlFor="newPassword">
               New Password
             </label>
-            <Input
-              id="newPassword"
-              type="password"
-              placeholder="New password"
-              error={!!resetErrors.newPassword}
-              disabled={loading}
-              {...registerReset('newPassword')}
-            />
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+              <input
+                id="newPassword"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="New password"
+                disabled={loading}
+                className={`glass-input w-full h-11 pl-10 pr-10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${resetErrors.newPassword ? 'border-red-500/50' : ''}`}
+                {...registerReset('newPassword')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
             {resetErrors.newPassword && (
-              <p className="text-xs text-destructive">{resetErrors.newPassword.message}</p>
+              <p className="text-[11px] text-red-400 font-medium">{resetErrors.newPassword.message}</p>
             )}
           </div>
 
-          <Button type="submit" className="w-full mt-2 cursor-pointer py-5" isLoading={loading}>
-            Update Password
-          </Button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-11 rounded-xl gradient-btn text-sm font-semibold text-white cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-2 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+          >
+            {loading ? (
+              <>
+                <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                Updating…
+              </>
+            ) : (
+              'Update Password'
+            )}
+          </button>
 
-          <Link href="/login" className="block text-center text-sm text-primary hover:underline mt-4">
+          <Link href="/login" className="block text-center text-sm text-purple-400 hover:text-purple-300 font-semibold transition-colors mt-4">
             Back to Sign In
           </Link>
         </form>
       ) : (
+        /* Forgot Password (Request Reset Link) Form */
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="identifier">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-white/60 uppercase tracking-wider" htmlFor="identifier">
               Email or Username
             </label>
-            <Input
-              id="identifier"
-              type="text"
-              placeholder="Email or Username"
-              error={!!errors.identifier}
-              disabled={loading}
-              {...register('identifier')}
-            />
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+              <input
+                id="identifier"
+                type="text"
+                placeholder="Email or Username"
+                disabled={loading}
+                className={`glass-input w-full h-11 pl-10 pr-4 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.identifier ? 'border-red-500/50 focus:border-red-500/70' : ''}`}
+                {...register('identifier')}
+              />
+            </div>
             {errors.identifier && (
-              <p className="text-xs text-destructive">{errors.identifier.message}</p>
+              <p className="text-[11px] text-red-400 font-medium">{errors.identifier.message}</p>
             )}
           </div>
 
-          <Button type="submit" className="w-full mt-2 cursor-pointer py-5" isLoading={loading}>
-            Send Reset Link
-          </Button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-11 rounded-xl gradient-btn text-sm font-semibold text-white cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-2 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+          >
+            {loading ? (
+              <>
+                <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                Sending link…
+              </>
+            ) : (
+              'Send Reset Link'
+            )}
+          </button>
 
-          <Link href="/login" className="block text-center text-sm text-primary hover:underline mt-4">
+          <Link href="/login" className="block text-center text-sm text-purple-400 hover:text-purple-300 font-semibold transition-colors mt-4">
             Back to Sign In
           </Link>
         </form>

@@ -1,47 +1,73 @@
 import { Suspense } from 'react';
 import { ForgotPasswordForm } from '@/features/auth/forgot-password/ui/ForgotPasswordForm';
-import { ShoppingBag } from 'lucide-react';
+import { ShoppingBag, Shield, KeyRound, Clock, Star } from 'lucide-react';
+import Link from 'next/link';
+
+export const metadata = {
+  title: 'Reset Password | Aura Marketplace',
+  description: 'Recover or reset your Aura account password safely and securely.',
+};
 
 export default function ForgotPasswordPage() {
   return (
-    <main className="min-h-screen grid lg:grid-cols-2 bg-background">
-      {/* Brand Column */}
-      <div className="hidden lg:flex flex-col justify-between p-12 bg-zinc-950 text-white relative overflow-hidden border-r border-zinc-800">
-        {/* Ambient Glows */}
-        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-primary/10 rounded-full blur-[100px] -mr-40 -mt-40"></div>
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[100px] -ml-40 -mb-40"></div>
+    <main className="min-h-screen relative overflow-hidden bg-[#080810] flex items-center justify-center">
 
-        {/* Logo block */}
-        <div className="flex items-center gap-2 relative z-10">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <ShoppingBag className="h-5 w-5 text-white" />
-          </div>
-          <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
-            Aura Marketplace
-          </span>
+      {/* ── Animated Orb Background ─────────────────────────────── */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="orb-1 absolute -top-40 -left-32 w-[500px] h-[500px] rounded-full bg-purple-600/20 blur-[100px]" />
+        <div className="orb-2 absolute top-1/3 -right-40 w-[400px] h-[400px] rounded-full bg-indigo-500/15 blur-[90px]" />
+        <div className="orb-3 absolute -bottom-32 left-1/4 w-[350px] h-[350px] rounded-full bg-violet-600/15 blur-[80px]" />
+
+        {/* Grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px),
+                             linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)`,
+            backgroundSize: '60px 60px',
+          }}
+        />
+      </div>
+
+      {/* ── Floating Badge Pills ─────────────────────────────────── */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[12%] left-[8%] flex items-center gap-1.5 px-3 py-1.5 glass-sm rounded-full animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <Shield className="h-3 w-3 text-green-400" />
+          <span className="text-[11px] font-medium text-white/60">Secure Recovery</span>
         </div>
-
-        {/* Testimonial block */}
-        <div className="space-y-6 relative z-10 max-w-lg">
-          <blockquote className="space-y-2">
-            <p className="text-lg text-zinc-300 font-medium leading-relaxed">
-              &ldquo;Security and trust are everything. Aura ensures that recovering your account credentials is quick and fully secured.&rdquo;
-            </p>
-            <footer className="text-sm text-zinc-500">
-              — Aura Security Team
-            </footer>
-          </blockquote>
+        <div className="absolute top-[22%] right-[10%] flex items-center gap-1.5 px-3 py-1.5 glass-sm rounded-full animate-fade-in" style={{ animationDelay: '0.4s' }}>
+          <KeyRound className="h-3 w-3 text-purple-400" />
+          <span className="text-[11px] font-medium text-white/60">Encrypted Tokens</span>
         </div>
-
-        {/* Footer brand */}
-        <div className="text-xs text-zinc-600 relative z-10">
-          &copy; 2026 Aura Inc. All rights reserved.
+        <div className="absolute bottom-[20%] left-[6%] flex items-center gap-1.5 px-3 py-1.5 glass-sm rounded-full animate-fade-in" style={{ animationDelay: '0.6s' }}>
+          <Clock className="h-3 w-3 text-indigo-400" />
+          <span className="text-[11px] font-medium text-white/60">Quick Reset</span>
+        </div>
+        <div className="absolute bottom-[30%] right-[8%] flex items-center gap-1.5 px-3 py-1.5 glass-sm rounded-full animate-fade-in" style={{ animationDelay: '0.8s' }}>
+          <ShoppingBag className="h-3 w-3 text-pink-400" />
+          <span className="text-[11px] font-medium text-white/60">Local Artisans</span>
         </div>
       </div>
 
-      {/* Form Column */}
-      <div className="flex items-center justify-center p-6 bg-zinc-900/50">
-        <Suspense fallback={<div className="w-full max-w-md p-8 text-center text-muted-foreground">Loading...</div>}>
+      {/* ── Brand header (top center) ────────────────────────────── */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 animate-fade-in">
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="relative flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden">
+            <div className="absolute inset-0 gradient-btn rounded-xl" />
+            <ShoppingBag className="relative h-4.5 w-4.5 text-white z-10" />
+          </div>
+          <span className="text-lg font-bold gradient-text">Aura</span>
+        </Link>
+      </div>
+
+      {/* ── Glass Form Card ─────────────────────────────────────── */}
+      <div className="relative z-10 w-full max-w-md px-4 animate-fade-up">
+        <Suspense fallback={
+          <div className="glass-card p-8 space-y-6 text-center text-white/50 text-sm">
+            <span className="h-6 w-6 rounded-full border-2 border-white/20 border-t-white animate-spin inline-block mr-2 align-middle" />
+            Loading recovery form...
+          </div>
+        }>
           <ForgotPasswordForm />
         </Suspense>
       </div>

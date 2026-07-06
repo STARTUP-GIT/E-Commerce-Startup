@@ -7,7 +7,7 @@ import { signupSchema, SignupInput } from '../services/signupService';
 import { useSignup } from '../hooks/useSignup';
 import { GoogleButton } from '@/features/auth/google-auth/ui/GoogleButton';
 import Link from 'next/link';
-import { Eye, EyeOff, Mail, Lock, User, AtSign, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, AtSign, AlertCircle, Loader2 } from 'lucide-react';
 
 export function SignupForm() {
   const { signup, isLoading, error } = useSignup();
@@ -26,7 +26,7 @@ export function SignupForm() {
   };
 
   return (
-    <div className="glass-card p-8 space-y-5">
+    <div className="glass-card p-6 sm:p-8 space-y-5 sm:space-y-6">
       {/* Header */}
       <div className="space-y-1.5 text-center">
         <h1 className="text-2xl font-bold tracking-tight text-white">
@@ -49,18 +49,18 @@ export function SignupForm() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
         {/* First + Last Name */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-3">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-white/60 uppercase tracking-wider" htmlFor="firstName">
               First Name
             </label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
               <input
                 id="firstName"
                 placeholder="John"
                 disabled={isLoading}
-                className={`glass-input w-full h-10 pl-9 pr-3 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.firstName ? 'border-red-500/50' : ''}`}
+                className={`glass-input w-full h-11 pl-10 pr-3 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.firstName ? 'border-red-500/50' : ''}`}
                 {...register('firstName')}
               />
             </div>
@@ -73,12 +73,12 @@ export function SignupForm() {
               Last Name
             </label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
               <input
                 id="lastName"
                 placeholder="Doe"
                 disabled={isLoading}
-                className={`glass-input w-full h-10 pl-9 pr-3 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.lastName ? 'border-red-500/50' : ''}`}
+                className={`glass-input w-full h-11 pl-10 pr-3 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.lastName ? 'border-red-500/50' : ''}`}
                 {...register('lastName')}
               />
             </div>
@@ -96,7 +96,7 @@ export function SignupForm() {
               id="username"
               placeholder="johndoe"
               disabled={isLoading}
-              className={`glass-input w-full h-10 pl-10 pr-4 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.username ? 'border-red-500/50' : ''}`}
+              className={`glass-input w-full h-11 pl-10 pr-4 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.username ? 'border-red-500/50' : ''}`}
               {...register('username')}
             />
           </div>
@@ -117,7 +117,7 @@ export function SignupForm() {
               type="email"
               placeholder="name@example.com"
               disabled={isLoading}
-              className={`glass-input w-full h-10 pl-10 pr-4 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.email ? 'border-red-500/50' : ''}`}
+              className={`glass-input w-full h-11 pl-10 pr-4 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.email ? 'border-red-500/50' : ''}`}
               {...register('email')}
             />
           </div>
@@ -138,7 +138,7 @@ export function SignupForm() {
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
               disabled={isLoading}
-              className={`glass-input w-full h-10 pl-10 pr-10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.password ? 'border-red-500/50' : ''}`}
+              className={`glass-input w-full h-11 pl-10 pr-10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.password ? 'border-red-500/50' : ''}`}
               {...register('password')}
             />
             <button
@@ -158,11 +158,11 @@ export function SignupForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full h-11 rounded-xl gradient-btn text-sm font-semibold text-white cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-1 flex items-center justify-center gap-2"
+          className="w-full h-11 rounded-xl gradient-btn text-sm font-semibold text-white cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-1 flex items-center justify-center gap-2 transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50"
         >
           {isLoading ? (
             <>
-              <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
               Creating account…
             </>
           ) : (
