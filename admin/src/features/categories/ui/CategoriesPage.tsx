@@ -145,7 +145,7 @@ export function CategoriesPage() {
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
                       {cat.imageUrl ? (
-                        <img src={cat.imageUrl} alt="" className="w-full h-full object-cover" />
+                        <img src={cat.imageUrl} alt="" loading="lazy" className="w-full h-full object-cover" />
                       ) : (
                         <Grid className="h-5 w-5 text-white/40" />
                       )}

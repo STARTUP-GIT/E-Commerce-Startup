@@ -12,7 +12,7 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
   return (
     <>
       <Navbar />
-      <main className="min-h-[calc(100vh-64px)] flex items-center justify-center bg-zinc-950/20 p-6">
+      <main className="min-h-[calc(100dvh-64px)] flex items-center justify-center bg-zinc-950/20 p-6">
         <div className="w-full max-w-md bg-card border border-border p-8 rounded-2xl shadow-xl text-center space-y-6">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
             <CheckCircle className="h-10 w-10" />

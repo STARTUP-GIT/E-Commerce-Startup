@@ -117,7 +117,7 @@ export function ShopsPage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                          {shop.logoUrl ? <img src={shop.logoUrl} alt={shop.name} className="h-full w-full object-cover rounded-lg" /> : <Package className="h-4 w-4 text-white/30" />}
+                          {shop.logoUrl ? <img src={shop.logoUrl} alt={shop.name} loading="lazy" className="h-full w-full object-cover rounded-lg" /> : <Package className="h-4 w-4 text-white/30" />}
                         </div>
                         <div>
                           <p className="text-xs font-bold text-white/90">{shop.name}</p>

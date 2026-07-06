@@ -90,7 +90,7 @@ export function ProductsPage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {product.images?.[0] && (
-                          <img src={product.images[0]} alt={product.name} className="h-8 w-8 rounded-lg object-cover bg-white/5" />
+                          <img src={product.images[0]} alt={product.name} loading="lazy" className="h-8 w-8 rounded-lg object-cover bg-white/5" />
                         )}
                         <p className="text-xs font-bold text-white/90 line-clamp-1">{product.name}</p>
                       </div>

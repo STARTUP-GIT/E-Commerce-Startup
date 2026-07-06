@@ -14,6 +14,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
+    build: {
+      target: 'es2020',
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

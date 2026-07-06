@@ -80,7 +80,7 @@ export function AnalyticsPage() {
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="h-9 w-9 border border-white/10 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center shrink-0">
                           {item.product?.imageUrl ? (
-                            <img src={item.product.imageUrl} alt={item.product.name} className="h-full w-full object-cover" />
+                            <img src={item.product.imageUrl} alt={item.product.name} loading="lazy" className="h-full w-full object-cover" />
                           ) : (
                             <Package className="h-5 w-5 text-white/20" />
                           )}
@@ -138,7 +138,7 @@ export function AnalyticsPage() {
                       <TableCell>
                         <div className="h-9 w-9 border border-white/10 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center">
                           {prod.imageUrl ? (
-                            <img src={prod.imageUrl} alt={prod.name} className="h-full w-full object-cover" />
+                            <img src={prod.imageUrl} alt={prod.name} loading="lazy" className="h-full w-full object-cover" />
                           ) : (
                             <Package className="h-4.5 w-4.5 text-white/30" />
                           )}

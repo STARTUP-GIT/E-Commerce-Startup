@@ -5,7 +5,7 @@ export default function ProfilePage() {
   return (
     <>
       <Navbar />
-      <main className="py-8 bg-zinc-950/20 min-h-[calc(100vh-64px)]">
+      <main className="py-8 bg-zinc-950/20 min-h-[calc(100dvh-64px)]">
         <ProfileDashboard />
       </main>
     </>

@@ -264,7 +264,7 @@ export function CustomOrderPage() {
       ) : customOrders.length > 0 ? (
         <div className="grid md:grid-cols-[320px_1fr] gap-4 sm:gap-8 items-start">
           {/* Left Panel: Request List */}
-          <div className="space-y-3 md:max-h-[calc(100vh-250px)] overflow-y-auto md:pr-2">
+          <div className="space-y-3 md:max-h-[calc(100dvh-250px)] overflow-y-auto md:pr-2">
             {customOrders.map((ord) => {
               const isSelected = selectedOrderId === ord.id;
               return (

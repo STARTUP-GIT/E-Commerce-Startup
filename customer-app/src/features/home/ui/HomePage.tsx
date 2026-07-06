@@ -62,7 +62,7 @@ function ShopCard({ shop, index }: { shop: any; index: number }) {
             }}
           >
             {shop.logoUrl
-              ? <img src={shop.logoUrl} alt={shop.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ? <img src={shop.logoUrl} alt={shop.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <Store style={{ width: 22, height: 22, color: 'rgba(255,255,255,0.5)' }} />
             }
           </div>
@@ -110,7 +110,7 @@ export function HomePage() {
           ══════════════════════════════════════════ */}
       <section
         style={{
-          minHeight: 'calc(100vh - 64px)',
+          minHeight: 'calc(100dvh - 64px)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -209,6 +209,7 @@ export function HomePage() {
               border: '1px solid rgba(255,255,255,0.12)',
               borderRadius: '16px',
               padding: '8px',
+              WebkitBackdropFilter: 'blur(20px)',
               backdropFilter: 'blur(20px)',
             }}
           >
@@ -318,7 +319,7 @@ export function HomePage() {
                   }}
                 >
                   {cat.imageUrl ? (
-                    <img src={cat.imageUrl} alt={cat.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} className="group-hover:opacity-90 transition-opacity" />
+                    <img src={cat.imageUrl} alt={cat.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} className="group-hover:opacity-90 transition-opacity" />
                   ) : (
                     <Grid3X3 className="group-hover:text-black transition-colors" style={{ width: 24, height: 24, color: 'rgba(255,255,255,0.75)' }} />
                   )}

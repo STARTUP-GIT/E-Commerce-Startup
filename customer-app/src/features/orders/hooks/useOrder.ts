@@ -42,7 +42,12 @@ export function useOrder(orderId?: string) {
     mutationFn: (id: string) => orderApi.downloadInvoice(id),
     onSuccess: (data) => {
       if (data?.invoiceUrl) {
-        window.open(data.invoiceUrl, '_blank');
+        const anchor = document.createElement('a');
+        anchor.href = data.invoiceUrl;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener noreferrer';
+        anchor.click();
+        anchor.remove();
       } else {
         showAlert({ title: 'Invoice Downloaded', message: 'The invoice has been generated successfully.' });
       }

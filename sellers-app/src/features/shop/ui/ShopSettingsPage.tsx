@@ -244,7 +244,7 @@ export function ShopSettingsPage() {
             <CardContent className="flex flex-col items-center py-6">
               <div className="relative h-28 w-28 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden mb-4 group shadow-lg">
                 {shop?.logoUrl ? (
-                  <img src={shop.logoUrl} alt="Store logo" className="h-full w-full object-cover" />
+                  <img src={shop.logoUrl} alt="Store logo" loading="lazy" className="h-full w-full object-cover" />
                 ) : (
                   <Store className="h-10 w-10 text-white/20" />
                 )}
@@ -278,7 +278,7 @@ export function ShopSettingsPage() {
             <CardContent className="py-4">
               <div className="relative h-28 w-full rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden mb-4 shadow-inner">
                 {shop?.bannerUrl ? (
-                  <img src={shop.bannerUrl} alt="Store banner" className="h-full w-full object-cover" />
+                  <img src={shop.bannerUrl} alt="Store banner" loading="lazy" className="h-full w-full object-cover" />
                 ) : (
                   <div className="text-center space-y-1.5">
                     <Store className="h-6 w-6 text-white/10 mx-auto" />

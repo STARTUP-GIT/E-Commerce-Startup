@@ -214,6 +214,7 @@ export function SellerProfilePage() {
                         <img
                           src={formData.avatarUrl}
                           alt="Avatar"
+                          loading="lazy"
                           className="h-16 w-16 rounded-full object-cover border border-white/10"
                         />
                       ) : (
@@ -356,6 +357,7 @@ export function SellerProfilePage() {
                         <img
                           src={seller.avatarUrl}
                           alt="Profile"
+                          loading="lazy"
                           className="h-16 w-16 rounded-full object-cover border border-white/10"
                         />
                       ) : (

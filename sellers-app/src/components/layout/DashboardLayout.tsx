@@ -111,7 +111,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
                   {shop.logoUrl ? (
-                    <img src={shop.logoUrl} alt={shop.name} className="h-full w-full object-cover" />
+                    <img src={shop.logoUrl} alt={shop.name} loading="lazy" className="h-full w-full object-cover" />
                   ) : (
                     <Store className="h-5 w-5 text-white/30" />
                   )}

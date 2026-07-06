@@ -88,7 +88,7 @@ export function ReviewsPage() {
                     <div className="flex gap-3 items-center">
                       <div className="h-9 w-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-bold text-white/60 shrink-0">
                         {rev.customer?.avatarUrl ? (
-                          <img src={rev.customer.avatarUrl} className="h-full w-full rounded-full object-cover" />
+                          <img src={rev.customer.avatarUrl} loading="lazy" className="h-full w-full rounded-full object-cover" />
                         ) : (
                           <User className="h-4.5 w-4.5" />
                         )}

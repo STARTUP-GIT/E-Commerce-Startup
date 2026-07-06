@@ -73,6 +73,7 @@ export function RegisterPage() {
                   <label className="text-xs font-semibold text-white/60 ml-1">First Name</label>
                   <Input
                     placeholder="John"
+                    autoComplete="given-name"
                     error={!!errors.firstName}
                     {...formRegister('firstName')}
                   />
@@ -85,6 +86,7 @@ export function RegisterPage() {
                   <label className="text-xs font-semibold text-white/60 ml-1">Last Name</label>
                   <Input
                     placeholder="Doe"
+                    autoComplete="family-name"
                     error={!!errors.lastName}
                     {...formRegister('lastName')}
                   />
@@ -111,6 +113,7 @@ export function RegisterPage() {
                 <Input
                   type="email"
                   placeholder="name@example.com"
+                  autoComplete="email"
                   error={!!errors.email}
                   {...formRegister('email')}
                 />
@@ -124,6 +127,7 @@ export function RegisterPage() {
                 <Input
                   type="password"
                   placeholder="••••••••"
+                  autoComplete="new-password"
                   error={!!errors.password}
                   {...formRegister('password')}
                 />

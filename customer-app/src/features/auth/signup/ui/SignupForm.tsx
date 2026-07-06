@@ -60,6 +60,7 @@ export function SignupForm() {
                 id="firstName"
                 placeholder="John"
                 disabled={isLoading}
+                autoComplete="given-name"
                 className={`glass-input w-full h-10 sm:h-11 pl-10 pr-3 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.firstName ? 'border-red-500/50' : ''}`}
                 {...register('firstName')}
               />
@@ -78,6 +79,7 @@ export function SignupForm() {
                 id="lastName"
                 placeholder="Doe"
                 disabled={isLoading}
+                autoComplete="family-name"
                 className={`glass-input w-full h-10 sm:h-11 pl-10 pr-3 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.lastName ? 'border-red-500/50' : ''}`}
                 {...register('lastName')}
               />
@@ -117,6 +119,7 @@ export function SignupForm() {
               type="email"
               placeholder="name@example.com"
               disabled={isLoading}
+              autoComplete="email"
               className={`glass-input w-full h-10 sm:h-11 pl-10 pr-4 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.email ? 'border-red-500/50' : ''}`}
               {...register('email')}
             />
@@ -138,6 +141,7 @@ export function SignupForm() {
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
               disabled={isLoading}
+              autoComplete="new-password"
               className={`glass-input w-full h-10 sm:h-11 pl-10 pr-10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.password ? 'border-red-500/50' : ''}`}
               {...register('password')}
             />

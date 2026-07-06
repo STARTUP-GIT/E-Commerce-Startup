@@ -71,6 +71,7 @@ export function LoginPage() {
                 <Input
                   type="text"
                   placeholder="Email or Username"
+                  autoComplete="username"
                   error={!!errors.identifier}
                   {...formRegister('identifier')}
                 />
@@ -92,6 +93,7 @@ export function LoginPage() {
                 <Input
                   type="password"
                   placeholder="••••••••"
+                  autoComplete="current-password"
                   error={!!errors.password}
                   {...formRegister('password')}
                 />

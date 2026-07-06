@@ -76,6 +76,7 @@ export function LoginForm() {
               type="text"
               placeholder="Email or Username"
               disabled={isLoading}
+              autoComplete="username"
               className={`glass-input w-full h-10 sm:h-11 pl-10 pr-4 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.email ? 'border-red-500/50 focus:border-red-500/70' : ''}`}
               {...register('email')}
             />
@@ -102,6 +103,7 @@ export function LoginForm() {
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
               disabled={isLoading}
+              autoComplete="current-password"
               className={`glass-input w-full h-10 sm:h-11 pl-10 pr-10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.password ? 'border-red-500/50' : ''}`}
               {...register('password')}
             />

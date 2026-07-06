@@ -249,7 +249,7 @@ export function ProductListPage() {
                       <TableCell>
                         <div className="h-11 w-11 rounded-lg border border-white/10 overflow-hidden bg-white/5 flex items-center justify-center">
                           {prod.imageUrl ? (
-                            <img src={prod.imageUrl} alt={prod.name} className="h-full w-full object-cover" />
+                            <img src={prod.imageUrl} alt={prod.name} loading="lazy" className="h-full w-full object-cover" />
                           ) : (
                             <Package className="h-5 w-5 text-white/30" />
                           )}
@@ -388,7 +388,7 @@ export function ProductListPage() {
               <div className="flex gap-4 items-center">
                 <div className="h-16 w-16 border border-white/10 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center shrink-0">
                   {publicUrl || watchCreateImg ? (
-                    <img src={publicUrl || watchCreateImg} alt="Preview" className="h-full w-full object-cover" />
+                    <img src={publicUrl || watchCreateImg} alt="Preview" loading="lazy" className="h-full w-full object-cover" />
                   ) : (
                     <Package className="h-6 w-6 text-white/20" />
                   )}
@@ -490,7 +490,7 @@ export function ProductListPage() {
               <div className="flex gap-4 items-center">
                 <div className="h-16 w-16 border border-white/10 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center shrink-0">
                   {publicUrl || watchEditImg ? (
-                    <img src={publicUrl || watchEditImg} alt="Preview" className="h-full w-full object-cover" />
+                    <img src={publicUrl || watchEditImg} alt="Preview" loading="lazy" className="h-full w-full object-cover" />
                   ) : (
                     <Package className="h-6 w-6 text-white/20" />
                   )}

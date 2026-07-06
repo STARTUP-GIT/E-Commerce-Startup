@@ -134,6 +134,7 @@
     color: hsl(var(--foreground));
     font-family: 'Inter', sans-serif;
     min-height: 100vh;
+    min-height: 100dvh;
     @apply bg-background text-foreground;
   }
 }

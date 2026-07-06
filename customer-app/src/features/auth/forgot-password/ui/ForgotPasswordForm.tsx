@@ -155,6 +155,7 @@ export function ForgotPasswordForm() {
                 type={showPassword ? 'text' : 'password'}
                 placeholder="New password"
                 disabled={loading}
+                autoComplete="new-password"
                 className={`glass-input w-full h-10 sm:h-11 pl-10 pr-10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${resetErrors.newPassword ? 'border-red-500/50' : ''}`}
                 {...registerReset('newPassword')}
               />
@@ -204,6 +205,7 @@ export function ForgotPasswordForm() {
                 type="text"
                 placeholder="Email or Username"
                 disabled={loading}
+                autoComplete="username"
                 className={`glass-input w-full h-10 sm:h-11 pl-10 pr-4 rounded-xl text-sm text-white placeholder:text-white/25 outline-none transition-all ${errors.identifier ? 'border-red-500/50 focus:border-red-500/70' : ''}`}
                 {...register('identifier')}
               />

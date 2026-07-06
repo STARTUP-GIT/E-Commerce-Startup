@@ -11,7 +11,7 @@ export default async function ShopPage({ params }: ShopPageProps) {
   return (
     <>
       <Navbar />
-      <main className="bg-zinc-950/20 min-h-[calc(100vh-64px)] flex flex-col justify-between">
+      <main className="bg-zinc-950/20 min-h-[calc(100dvh-64px)] flex flex-col justify-between">
         <div className="flex-1 py-6">
           <ShopDetailsPage shopId={resolvedParams.id} />
         </div>

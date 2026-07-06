@@ -10,7 +10,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
   return (
     <>
       <Navbar />
-      <main className="py-6 bg-zinc-950/20 min-h-[calc(100vh-64px)]">
+      <main className="py-6 bg-zinc-950/20 min-h-[calc(100dvh-64px)]">
         <OrderDetailPage orderId={resolvedParams.id} />
       </main>
     </>

@@ -67,6 +67,7 @@ export function LoginPage() {
                   <Input
                     type="email"
                     placeholder="admin@aura.com"
+                    autoComplete="email"
                     error={!!loginForm.formState.errors.email}
                     className="pl-11"
                     {...loginForm.register('email')}
@@ -89,6 +90,7 @@ export function LoginPage() {
                   <Input
                     type="password"
                     placeholder="••••••••"
+                    autoComplete="current-password"
                     error={!!loginForm.formState.errors.password}
                     className="pl-11"
                     {...loginForm.register('password')}

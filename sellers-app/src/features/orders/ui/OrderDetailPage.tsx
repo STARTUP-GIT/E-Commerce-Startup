@@ -287,7 +287,7 @@ export function OrderDetailPage() {
                         <TableCell>
                           <div className="h-10 w-10 border border-white/10 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center">
                             {item.product.imageUrl ? (
-                              <img src={item.product.imageUrl} alt={item.product.name} className="h-full w-full object-cover" />
+                              <img src={item.product.imageUrl} alt={item.product.name} loading="lazy" className="h-full w-full object-cover" />
                             ) : (
                               <Package className="h-4.5 w-4.5 text-white/30" />
                             )}
@@ -336,7 +336,7 @@ export function OrderDetailPage() {
                   <div className="grid grid-cols-3 gap-3">
                     {order.packingProof.imageUrls.map((url, idx) => (
                       <div key={idx} className="aspect-video border border-white/10 rounded-lg overflow-hidden bg-white/5">
-                        <img src={url} alt={`Proof asset ${idx + 1}`} className="h-full w-full object-cover" />
+                        <img src={url} alt={`Proof asset ${idx + 1}`} loading="lazy" className="h-full w-full object-cover" />
                       </div>
                     ))}
                   </div>
@@ -521,7 +521,7 @@ export function OrderDetailPage() {
               <div className="grid grid-cols-3 gap-2">
                 {proofImages.map((img, idx) => (
                   <div key={idx} className="aspect-video rounded-lg overflow-hidden border border-white/10 bg-white/5">
-                    <img src={img} className="h-full w-full object-cover" />
+                    <img src={img} loading="lazy" className="h-full w-full object-cover" />
                   </div>
                 ))}
               </div>

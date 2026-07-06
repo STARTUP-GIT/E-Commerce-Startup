@@ -318,7 +318,7 @@ export default function AdminManagementPage() {
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-xs font-bold text-white shrink-0">
                             {a.avatarUrl ? (
-                              <img src={a.avatarUrl} alt="" className="h-full w-full rounded-full object-cover" />
+                              <img src={a.avatarUrl} alt="" loading="lazy" className="h-full w-full rounded-full object-cover" />
                             ) : (
                               `${a.firstName?.[0] ?? ""}${a.lastName?.[0] ?? ""}`.toUpperCase()
                             )}

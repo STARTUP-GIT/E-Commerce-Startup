@@ -140,7 +140,7 @@ export default function ProfilePage() {
           <div className="absolute -bottom-10 left-6">
             <div className="h-20 w-20 rounded-2xl border-4 border-[#07070a] bg-white/10 flex items-center justify-center text-2xl font-black text-white overflow-hidden">
               {admin.avatarUrl ? (
-                <img src={admin.avatarUrl} alt={fullName} className="h-full w-full object-cover" />
+                <img src={admin.avatarUrl} alt={fullName} loading="lazy" className="h-full w-full object-cover" />
               ) : (
                 initials
               )}
