@@ -231,8 +231,8 @@ export function ProductListPage() {
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {products.map((prod) => (
                   <Link href={`/products/${prod.id}`} key={prod.id} className="group block">
-                    <Card className="overflow-hidden h-full border border-border bg-card hover:shadow-md transition-shadow duration-200">
-                      <div className="h-44 bg-zinc-800 relative overflow-hidden">
+                    <Card className="overflow-hidden flex flex-col h-full border border-border bg-card hover:shadow-md transition-shadow duration-200">
+                      <div className="h-44 bg-zinc-800 relative overflow-hidden shrink-0">
                         {prod.imageUrl ? (
                           <img
                             src={prod.imageUrl}
@@ -250,22 +250,22 @@ export function ProductListPage() {
                           </span>
                         )}
                       </div>
-                      <CardContent className="p-4 flex flex-col justify-between h-[calc(100%-176px)]">
+                      <CardContent className="p-4 flex flex-col flex-1 justify-between">
                         <div className="space-y-1">
                           <h4 className="font-bold text-base group-hover:text-primary transition-colors line-clamp-1">
                             {prod.name}
                           </h4>
-                          <p className="text-xs text-muted-foreground line-clamp-2">
+                          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                             {prod.description}
                           </p>
                         </div>
                         <div className="flex items-center justify-between mt-4">
-                          <span className="text-lg font-extrabold text-foreground">
+                          <span className="text-base sm:text-lg font-extrabold text-foreground">
                             {productListService.formatPrice(prod.price)}
                           </span>
                           <Button size="sm" className="flex items-center gap-1 cursor-pointer">
-                            <Eye className="h-3 w-3" />
-                            View Details
+                            <Eye className="h-3.5 w-3.5" />
+                            View
                           </Button>
                         </div>
                       </CardContent>
