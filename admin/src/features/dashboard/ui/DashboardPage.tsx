@@ -115,7 +115,7 @@ export function DashboardPage() {
     },
     {
       label: "Total Sellers",
-      value: dashboard?.sellersCount ?? 0,
+      value: typeof dashboard?.sellersCount === 'object' ? (dashboard?.sellersCount?.total ?? 0) : (dashboard?.sellersCount ?? 0),
       desc: 'Registered seller accounts',
       icon: Users,
       iconColor: 'text-white/40',
@@ -124,7 +124,7 @@ export function DashboardPage() {
   ];
 
   // Prepare chart data from monthly revenue
-  const chartData = monthlyRevenue?.data ?? monthlyRevenue ?? [];
+  const chartData = monthlyRevenue?.monthlyRevenue ?? monthlyRevenue?.data ?? (Array.isArray(monthlyRevenue) ? monthlyRevenue : []);
 
   return (
     <div className="space-y-8 animate-fade-up">
