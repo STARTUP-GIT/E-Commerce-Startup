@@ -8,6 +8,7 @@ import axiosInstance from '@/lib/axios/axiosInstance';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 import { GuestRoute, ProtectedRoute } from '@/router/guards';
 import { LoginPage } from '@/features/auth/ui/LoginPage';
+import { AuthCallbackPage } from '@/features/auth/ui/AuthCallbackPage';
 import { RegisterPage } from '@/features/auth/ui/RegisterPage';
 import { ForgotPasswordPage } from '@/features/auth/ui/ForgotPasswordPage';
 import { ShopSetupPage } from '@/features/shop/ui/ShopSetupPage';
@@ -102,8 +103,13 @@ function App() {
             queryClient.invalidateQueries({ queryKey: ['shop'] });
 
             const path = window.location.pathname;
-            if (path === '/login' || path === '/register') {
-              window.location.href = '/profile';
+            if (path === '/login' || path === '/register' || path === '/auth/callback') {
+              window.location.href = '/dashboard';
+            }
+          } else {
+            const path = window.location.pathname;
+            if (path === '/auth/callback') {
+              window.location.href = '/dashboard';
             }
           }
         } catch (err: any) {
@@ -117,6 +123,10 @@ function App() {
             message: err?.message || 'Verification failed. Please try another account.',
             confirmText: 'Acknowledge',
           });
+
+          if (window.location.pathname === '/auth/callback') {
+            window.location.href = '/login';
+          }
         }
       } else if (event === 'SIGNED_OUT') {
         try {
@@ -145,6 +155,7 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         </Route>
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
 
           <Route element={<ProtectedRoute />}>
