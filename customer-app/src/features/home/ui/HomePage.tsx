@@ -109,7 +109,7 @@ export function HomePage() {
           ══════════════════════════════════════════ */}
       <section
         style={{
-          minHeight: '100vh',
+          minHeight: 'calc(100vh - 64px)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -247,7 +247,7 @@ export function HomePage() {
           </form>
 
           {/* CTAs */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center', marginBottom: '60px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center' }}>
             <Link href="/shops">
               <button
                 style={{
@@ -279,31 +279,6 @@ export function HomePage() {
               </button>
             </Link>
           </div>
-
-          {/* Stats */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '48px' }}>
-            {[
-              { n: '500+', label: 'Local Shops' },
-              { n: '12k+', label: 'Products' },
-              { n: '50k+', label: 'Happy Buyers' },
-            ].map(({ n, label }) => (
-              <div key={label} style={{ textAlign: 'center' }}>
-                <p style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', fontWeight: 900, color: '#fff', lineHeight: 1 }}>{n}</p>
-                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', fontWeight: 600, marginTop: '6px' }}>{label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Scroll hint */}
-        <div style={{
-          position: 'absolute', bottom: '32px', left: '50%', transform: 'translateX(-50%)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
-          color: 'rgba(255,255,255,0.2)', fontSize: '10px', fontWeight: 700,
-          letterSpacing: '0.2em', textTransform: 'uppercase',
-        }}>
-          <div style={{ width: '1px', height: '40px', background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.2))' }} />
-          Scroll
         </div>
       </section>
 
