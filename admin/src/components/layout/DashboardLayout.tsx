@@ -27,6 +27,7 @@ import {
   ShieldAlert,
   UserCircle,
   UserCog,
+  Grid,
 } from 'lucide-react';
 import { Badge } from '@/shared/components/Badge';
 import { useConfirmStore } from '@/lib/store/confirmStore';
@@ -56,6 +57,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { name: 'Customers', path: '/customers', icon: UserCheck },
     { name: 'Shops', path: '/shops', icon: Store },
     { name: 'Products', path: '/products', icon: Box },
+    { name: 'Marketplace Categories', path: '/categories', icon: Grid },
     { name: 'Orders', path: '/orders', icon: ShoppingBag },
     { name: 'Payments', path: '/payments', icon: CreditCard },
     { name: 'Delivery', path: '/delivery', icon: Truck },

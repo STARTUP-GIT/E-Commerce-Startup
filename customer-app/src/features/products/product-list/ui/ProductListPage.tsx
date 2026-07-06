@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useProductList } from '../hooks/useProductList';
+import { useQuery } from '@tanstack/react-query';
+import axiosInstance from '@/lib/axios/axiosInstance';
 import { productListService } from '../services/productListService';
 import { Card, CardContent } from '@/shared/components/Card';
 import { Button } from '@/shared/components/Button';
@@ -13,6 +15,13 @@ import Link from 'next/link';
 
 export function ProductListPage() {
   const searchParams = useSearchParams();
+
+  const { data: categoriesData } = useQuery<any>({
+    queryKey: ['allowed-categories'],
+    queryFn: async () => (await axiosInstance.get('/api/categories/allowed')).data,
+    staleTime: 5 * 60_000,
+  });
+  const allowedCategories = categoriesData?.categories || [];
   
   const [searchQuery, setSearchQuery] = useState('');
   const [mode, setMode] = useState<'all' | 'recommended' | 'recently-viewed'>('all');
@@ -159,11 +168,11 @@ export function ProductListPage() {
                   className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <option value="">All Categories</option>
-                  <option value="3d-prints">3D Prints</option>
-                  <option value="crafts">Crafts</option>
-                  <option value="decor">Decor</option>
-                  <option value="clothing">Clothing</option>
-                  <option value="other">Other</option>
+                  {allowedCategories.map((cat: any) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

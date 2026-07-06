@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useProducts } from '../hooks/useProducts';
@@ -24,6 +24,7 @@ import {
   Upload,
   RefreshCw,
 } from 'lucide-react';
+import { productApi } from '../api/productApi';
 
 import { useConfirmStore } from '@/lib/store/confirmStore';
 
@@ -32,6 +33,13 @@ export function ProductListPage() {
   const { upload: uploadProductImage, isUploading, progress: uploadProgress,  publicUrl } = useFileUpload({ folder: 'products' });
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+
+  useEffect(() => {
+    productApi.getAllowedCategories()
+      .then(setCategories)
+      .catch((e) => console.error('Failed to load allowed categories:', e));
+  }, []);
   const [stockFilter, setStockFilter] = useState<'ALL' | 'LOW' | 'OUT'>('ALL');
 
   // Dialog States
@@ -93,6 +101,7 @@ export function ProductListPage() {
         productquantity: data.productquantity,
         productprice: data.productprice,
         imageUrl: data.imageKey,
+        categoryId: data.categoryId || undefined,
       });
       setIsCreateOpen(false);
       resetCreate();
@@ -110,6 +119,7 @@ export function ProductListPage() {
           productquantity: data.productquantity,
           productprice: data.productprice,
           imageUrl: data.imageKey,
+          categoryId: data.categoryId || '',
         },
       });
       setIsEditOpen(false);
@@ -278,6 +288,7 @@ export function ProductListPage() {
                               setValueEdit('productprice', prod.price);
                               setValueEdit('productquantity', prod.stockQuantity);
                               setValueEdit('imageKey', prod.imageUrl);
+                              setValueEdit('categoryId', prod.categoryId || '');
                               setIsEditOpen(true);
                             }}
                           >
@@ -354,6 +365,21 @@ export function ProductListPage() {
                   <p className="text-[9px] text-red-400 ml-1">{errorsCreate.productprice.message}</p>
                 )}
               </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-white/60 ml-1">Category (Optional)</label>
+              <select
+                {...registerCreate('categoryId')}
+                className="flex h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-white/80"
+              >
+                <option value="" className="bg-[#0b0b0f] text-white/50">Select a category (Optional)</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id} className="bg-[#0b0b0f] text-white">
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Image Upload Form Panel */}
@@ -441,6 +467,21 @@ export function ProductListPage() {
                   <p className="text-[9px] text-red-400 ml-1">{errorsEdit.productprice.message}</p>
                 )}
               </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-white/60 ml-1">Category (Optional)</label>
+              <select
+                {...registerEdit('categoryId')}
+                className="flex h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-white/80"
+              >
+                <option value="" className="bg-[#0b0b0f] text-white/50">Select a category (Optional)</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id} className="bg-[#0b0b0f] text-white">
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Image Upload Form Panel */}

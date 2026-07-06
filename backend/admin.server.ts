@@ -29,6 +29,7 @@ import adminSettingsRoute from './src/modules/admin/routes/settingsRoute.js';
 import adminLogRoute from './src/modules/admin/routes/logRoute.js';
 import adminCityRoute from './src/modules/admin/routes/cityRoute.js';
 import adminStateRoute from './src/modules/admin/routes/stateRoute.js';
+import adminCategoryRoute from './src/modules/admin/routes/categoryRoute.js';
 import adminDeliveryRoute from './src/modules/delivery/routes/adminDeliveryRoute.js';
 
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api/admin/settings', adminSettingsRoute);
 app.use('/api/admin/logs', adminLogRoute);
 app.use('/api/admin/cities', adminCityRoute);
 app.use('/api/admin/states', adminStateRoute);
+app.use('/api/admin/categories', adminCategoryRoute);
 app.use('/api/admin', adminDeliveryRoute);
 
 configureErrorHandlers(app);

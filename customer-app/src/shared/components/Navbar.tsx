@@ -58,6 +58,14 @@ export function Navbar() {
   const setCartOpen = useUIStore((state) => state.setCartOpen);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [mobileCatOpen, setMobileCatOpen] = useState(false);
+
+  const { data: categoriesData } = useQuery({
+    queryKey: ['allowed-categories'],
+    queryFn: async () => (await axiosInstance.get('/api/categories/allowed')).data,
+    staleTime: 5 * 60_000,
+  });
+  const allowedCategories = categoriesData?.categories || [];
 
   const {
     selectedState,
@@ -113,7 +121,6 @@ export function Navbar() {
   const navLinks = [
     { href: '/shops', label: 'Shops' },
     { href: '/products', label: 'Products' },
-    { href: '/custom-orders', label: 'Custom Prints' },
     { href: '/orders', label: 'Orders' },
   ];
 
@@ -161,7 +168,41 @@ export function Navbar() {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map(({ href, label }) => (
+            {navLinks.slice(0, 2).map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white/55 hover:text-white hover:bg-white/[0.07] transition-all duration-150"
+              >
+                {label}
+              </Link>
+            ))}
+
+            {/* Categories Hover Dropdown */}
+            <div className="relative group/cat">
+              <button className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white/55 hover:text-white hover:bg-white/[0.07] transition-all duration-150 cursor-pointer select-none">
+                Categories
+                <span className="text-[8px] opacity-40 shrink-0">▼</span>
+              </button>
+              <div className="absolute left-0 top-full mt-1.5 w-56 glass-card border border-white/5 bg-black/90 backdrop-blur-xl p-1.5 opacity-0 invisible group-hover/cat:opacity-100 group-hover/cat:visible focus-within:opacity-100 focus-within:visible transition-all duration-150 z-50">
+                <div className="max-h-80 overflow-y-auto scrollbar-none space-y-0.5">
+                  {allowedCategories.map((cat: any) => (
+                    <Link
+                      key={cat.id}
+                      href={`/products?category=${cat.id}`}
+                      className="block px-3 py-2 rounded-xl text-xs font-semibold text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors"
+                    >
+                      {cat.name}
+                    </Link>
+                  ))}
+                  {allowedCategories.length === 0 && (
+                    <span className="block px-3 py-2 text-xs font-medium text-white/30 italic">No categories</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {navLinks.slice(2).map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
@@ -275,7 +316,45 @@ export function Navbar() {
         {/* Mobile Nav Drawer */}
         {mobileNavOpen && (
           <div className="md:hidden border-t border-white/[0.08] bg-black/80 backdrop-blur-xl px-4 py-3 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
-            {navLinks.map(({ href, label }) => (
+            {navLinks.slice(0, 2).map(({ href, label }) => (
+              <Link key={href} href={href} onClick={() => setMobileNavOpen(false)}
+                className="flex items-center px-4 py-3 rounded-xl text-sm font-medium text-white/65 hover:text-white hover:bg-white/[0.07] transition-all">
+                {label}
+              </Link>
+            ))}
+
+            {/* Categories Accordion */}
+            <div className="space-y-1">
+              <button
+                onClick={() => setMobileCatOpen(!mobileCatOpen)}
+                className="flex items-center justify-between w-full px-4 py-3 rounded-xl text-sm font-medium text-white/65 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
+              >
+                <span>Categories</span>
+                <span className={`text-[8px] opacity-40 transition-transform duration-200 ${mobileCatOpen ? 'rotate-180' : ''}`}>▼</span>
+              </button>
+              {mobileCatOpen && (
+                <div className="pl-6 pr-4 py-1.5 space-y-0.5 max-h-60 overflow-y-auto border-l border-white/5 ml-4">
+                  {allowedCategories.map((cat: any) => (
+                    <Link
+                      key={cat.id}
+                      href={`/products?category=${cat.id}`}
+                      onClick={() => {
+                        setMobileCatOpen(false);
+                        setMobileNavOpen(false);
+                      }}
+                      className="block px-3 py-2 rounded-xl text-xs font-semibold text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors"
+                    >
+                      {cat.name}
+                    </Link>
+                  ))}
+                  {allowedCategories.length === 0 && (
+                    <span className="block px-3 py-2 text-xs font-medium text-white/30 italic">No categories</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {navLinks.slice(2).map(({ href, label }) => (
               <Link key={href} href={href} onClick={() => setMobileNavOpen(false)}
                 className="flex items-center px-4 py-3 rounded-xl text-sm font-medium text-white/65 hover:text-white hover:bg-white/[0.07] transition-all">
                 {label}

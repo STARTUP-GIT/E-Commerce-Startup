@@ -7,6 +7,7 @@ export interface Product {
   price: number;
   imageUrl: string;
   isDeleted: boolean;
+  categoryId?: string;
   createdAt: string;
 }
 
@@ -33,6 +34,7 @@ export const productApi = {
     productquantity: number;
     productprice: number;
     imageUrl: string;
+    categoryId?: string;
   }): Promise<{ message: string; product: Product }> => {
     const response = await axiosInstance.post('/seller/api/products', payload);
     return response.data;
@@ -44,6 +46,7 @@ export const productApi = {
       productquantity?: number;
       productprice?: number;
       imageUrl?: string;
+      categoryId?: string;
     }
   ): Promise<{ message: string; product: Product }> => {
     const response = await axiosInstance.put(`/seller/api/products/${productId}`, payload);
@@ -68,5 +71,10 @@ export const productApi = {
       stockQuantity: stock,
     });
     return response.data;
+  },
+
+  getAllowedCategories: async (): Promise<Array<{ id: string; name: string }>> => {
+    const response = await axiosInstance.get('/seller/api/categories/allowed');
+    return response.data.categories || response.data;
   },
 };

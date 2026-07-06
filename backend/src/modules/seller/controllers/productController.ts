@@ -8,6 +8,7 @@ interface Products {
     productquantity: number
     productprice: number
     imageUrl: string;
+    categoryId?: string;
 }
 
 export const addProducts = async (req: Request, res: Response) => {
@@ -17,7 +18,8 @@ export const addProducts = async (req: Request, res: Response) => {
             productname,
             productquantity,
             productprice,
-            imageUrl
+            imageUrl,
+            categoryId
         }: Products = req.body;
 
         const sellerId = req.sellerId;
@@ -101,6 +103,13 @@ export const addProducts = async (req: Request, res: Response) => {
             });
         }
 
+        if (categoryId) {
+            const cat = await prisma.category.findFirst({ where: { id: categoryId, isActive: true } });
+            if (!cat) {
+                return res.status(400).json({ message: "Invalid or inactive category selected" });
+            }
+        }
+
         const productadded =
             await prisma.product.create({
                 data: {
@@ -109,12 +118,8 @@ export const addProducts = async (req: Request, res: Response) => {
                         productquantity,
                     price: productprice,
                     imageUrl: imageUrl.trim(),
-
-                    seller: {
-                        connect: {
-                            id: sellerId
-                        }
-                    }
+                    categoryId: categoryId || null,
+                    sellerId: sellerId
                 }
             });
 
@@ -199,17 +204,19 @@ export const EditProduct = async (req: Request, res: Response) => {
         const {
             productquantity,
             productprice,
-            imageUrl
+            imageUrl,
+            categoryId
         } = req.body;
 
         if (
             productquantity === undefined &&
             productprice === undefined &&
-            imageUrl === undefined
+            imageUrl === undefined &&
+            categoryId === undefined
         ) {
             return res.status(400).json({
                 message:
-                    "Provide quantity, price or image to update"
+                    "Provide quantity, price, image or category to update"
             });
         }
 
@@ -231,6 +238,13 @@ export const EditProduct = async (req: Request, res: Response) => {
                 message:
                     "Product price must be greater than 0"
             });
+        }
+
+        if (categoryId) {
+            const cat = await prisma.category.findFirst({ where: { id: categoryId, isActive: true } });
+            if (!cat) {
+                return res.status(400).json({ message: "Invalid or inactive category selected" });
+            }
         }
 
         const product = await prisma.product.findUnique({
@@ -268,6 +282,10 @@ export const EditProduct = async (req: Request, res: Response) => {
 
                     ...(imageUrl !== undefined && {
                         imageUrl: imageUrl.trim()
+                    }),
+
+                    ...(categoryId !== undefined && {
+                        categoryId: categoryId || null
                     })
                 }
             });

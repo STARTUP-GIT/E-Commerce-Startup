@@ -114,7 +114,63 @@ export async function seedKarnatakaDistricts() {
         } else {
             console.log("Karnataka districts already present in database.");
         }
+
+        // Seed Default Categories
+        await seedCategories();
+
     } catch (error) {
         console.error("FAILED TO SEED KARNATAKA DISTRICTS AND STATES:", error);
+    }
+}
+
+const DEFAULT_CATEGORIES = [
+    "Electronics",
+    "Fashion",
+    "Home & Kitchen",
+    "Furniture",
+    "Books",
+    "Sports",
+    "Toys",
+    "Beauty",
+    "Health",
+    "Groceries",
+    "Automotive",
+    "Jewellery",
+    "Pet Supplies",
+    "Office Supplies",
+    "Garden",
+    "Baby Products",
+    "Musical Instruments",
+    "Art & Craft",
+    "Industrial",
+    "Tools",
+    "3D Printing",
+    "Stationery",
+    "Accessories",
+    "Other"
+];
+
+export async function seedCategories() {
+    try {
+        console.log("Seeding default categories...");
+        for (const name of DEFAULT_CATEGORIES) {
+            const slug = name.toLowerCase()
+                             .replace(/&/g, 'and')
+                             .replace(/[^a-z0-9]+/g, '-')
+                             .replace(/(^-|-$)/g, '');
+            await prisma.category.upsert({
+                where: { slug },
+                update: {},
+                create: {
+                    name,
+                    slug,
+                    isActive: true,
+                    description: `${name} products`
+                }
+            });
+        }
+        console.log("Successfully seeded categories.");
+    } catch (e) {
+        console.error("FAILED TO SEED CATEGORIES:", e);
     }
 }

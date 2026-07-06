@@ -24,6 +24,7 @@ import customOrderRoutes from './src/modules/seller/routes/customOrderRoute.js';
 import notificationRoutes from './src/modules/seller/routes/notificationRoute.js';
 import payoutRoutes from './src/modules/seller/routes/payoutRoute.js';
 import reviewRoutes from './src/modules/seller/routes/reviewRoute.js';
+import sellerCategoryRoute from './src/modules/seller/routes/categoryRoute.js';
 import storageRoute from './src/modules/storage/routes/storage.routes.js';
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/seller', customOrderRoutes);
 app.use('/seller', notificationRoutes);
 app.use('/seller', payoutRoutes);
 app.use('/seller', reviewRoutes);
+app.use('/seller', sellerCategoryRoute);
 app.use('/api/storage', storageRoute);
 
 configureErrorHandlers(app);
