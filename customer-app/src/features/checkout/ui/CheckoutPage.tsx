@@ -127,11 +127,11 @@ export function CheckoutPage() {
 
   if (profileLoading || checkoutLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-        <Skeleton className="h-10 w-1/4" />
-        <div className="grid lg:grid-cols-[1fr_380px] gap-8">
-          <Skeleton className="h-96 w-full" />
-          <Skeleton className="h-[400px] w-full" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        <Skeleton className="h-8 sm:h-10 w-1/3 sm:w-1/4" />
+        <div className="grid lg:grid-cols-[1fr_380px] gap-6 sm:gap-8">
+          <Skeleton className="h-80 sm:h-96 w-full" />
+          <Skeleton className="h-[350px] sm:h-[400px] w-full" />
         </div>
       </div>
     );
@@ -147,19 +147,19 @@ export function CheckoutPage() {
   const items = summary?.items || [];
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* Title */}
-      <div className="border-b border-border pb-6">
-        <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-zinc-400 bg-clip-text text-transparent">
+      <div className="border-b border-border pb-4 sm:pb-6">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-zinc-400 bg-clip-text text-transparent">
           Secure Checkout
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
           Review your items, choose shipping, and complete your payment securely.
         </p>
       </div>
 
       {/* Main Grid */}
-      <div className="grid lg:grid-cols-[1fr_380px] gap-8 items-start">
+      <div className="grid lg:grid-cols-[1fr_380px] gap-6 sm:gap-8 items-start">
         {/* Left Column: Address and Coupons */}
         <div className="space-y-6">
           {/* Address select */}
@@ -180,22 +180,22 @@ export function CheckoutPage() {
                       <div
                         key={addr.id}
                         onClick={() => handleAddressSelect(addr)}
-                        className={`p-4 border rounded-xl cursor-pointer transition-all ${
+                        className={`p-3 sm:p-4 border rounded-xl cursor-pointer transition-all ${
                           isSelected
                             ? 'border-primary bg-primary/[0.03]'
                             : 'border-border bg-zinc-950/20 hover:border-zinc-700'
                         }`}
                       >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-sm">{addr.fullName}</span>
-                          <Badge variant="secondary">{addr.type}</Badge>
-                          {addr.isDefault && <Badge variant="default">Default</Badge>}
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
+                          <span className="font-semibold text-xs sm:text-sm">{addr.fullName}</span>
+                          <Badge variant="secondary" className="text-[9px] sm:text-xs">{addr.type}</Badge>
+                          {addr.isDefault && <Badge variant="default" className="text-[9px] sm:text-xs">Default</Badge>}
                         </div>
-                        <p className="text-xs text-muted-foreground">{addr.addressLine1}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {addr.city}, {addr.state} {addr.postalCode}, {addr.country}
+                        <p className="text-[11px] sm:text-xs text-muted-foreground">{addr.addressLine1}</p>
+                        <p className="text-[11px] sm:text-xs text-muted-foreground">
+                          {addr.city}, {addr.state} {addr.postalCode}
                         </p>
-                        <p className="text-[10px] text-muted-foreground font-medium pt-1">Phone: {addr.phone}</p>
+                        <p className="text-[9px] sm:text-[10px] text-muted-foreground font-medium pt-1">Phone: {addr.phone}</p>
                       </div>
                     );
                   })}
@@ -322,9 +322,9 @@ export function CheckoutPage() {
                 </div>
               </div>
 
-              <div className="border-t border-border pt-4 flex justify-between items-center">
-                <span className="text-sm font-bold text-foreground">Total Amount</span>
-                <span className="text-xl font-extrabold text-foreground bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
+              <div className="border-t border-border pt-3 sm:pt-4 flex justify-between items-center">
+                <span className="text-xs sm:text-sm font-bold text-foreground">Total Amount</span>
+                <span className="text-base sm:text-xl font-extrabold text-foreground bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
                   {productListService.formatPrice(grandTotal)}
                 </span>
               </div>

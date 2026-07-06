@@ -234,61 +234,61 @@ export function CustomOrderPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4 sm:pb-6">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-zinc-400 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-zinc-400 bg-clip-text text-transparent">
             Custom Manufacturing Requests
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Submit custom designs, view fabricator quotations, and monitor bespoke production.
           </p>
         </div>
 
-        <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-1.5 cursor-pointer">
-          <Plus className="h-4 w-4" />
+        <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-1.5 cursor-pointer h-9 sm:h-10 text-xs sm:text-sm">
+          <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           New Custom Request
         </Button>
       </div>
 
       {isCustomOrdersLoading ? (
-        <div className="grid md:grid-cols-[300px_1fr] gap-8">
-          <div className="space-y-4">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
+        <div className="grid md:grid-cols-[300px_1fr] gap-4 sm:gap-8">
+          <div className="space-y-3 sm:space-y-4">
+            <Skeleton className="h-20 sm:h-24 w-full" />
+            <Skeleton className="h-20 sm:h-24 w-full" />
+            <Skeleton className="h-20 sm:h-24 w-full" />
           </div>
-          <Skeleton className="h-96 w-full" />
+          <Skeleton className="h-64 sm:h-96 w-full" />
         </div>
       ) : customOrders.length > 0 ? (
-        <div className="grid md:grid-cols-[320px_1fr] gap-8 items-start">
+        <div className="grid md:grid-cols-[320px_1fr] gap-4 sm:gap-8 items-start">
           {/* Left Panel: Request List */}
-          <div className="space-y-3 max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
+          <div className="space-y-3 md:max-h-[calc(100vh-250px)] overflow-y-auto md:pr-2">
             {customOrders.map((ord) => {
               const isSelected = selectedOrderId === ord.id;
               return (
                 <div
                   key={ord.id}
                   onClick={() => setSelectedOrderId(ord.id)}
-                  className={`p-4 border rounded-xl cursor-pointer transition-all ${
+                  className={`p-3 sm:p-4 border rounded-xl cursor-pointer transition-all ${
                     isSelected
                       ? 'border-primary bg-primary/[0.03] shadow-[0_0_12px_-3px_rgba(var(--primary-rgb),0.2)]'
                       : 'border-border bg-zinc-950/20 hover:border-zinc-700'
                   }`}
                 >
-                  <div className="flex justify-between items-start gap-2 mb-2">
-                    <span className="font-extrabold text-xs text-foreground tracking-wider block">
+                  <div className="flex justify-between items-start gap-2 mb-1.5 sm:mb-2">
+                    <span className="font-extrabold text-[10px] sm:text-xs text-foreground tracking-wider block truncate">
                       {ord.orderNumber}
                     </span>
-                    <Badge variant={customOrderService.getStatusBadgeVariant(ord.status)} className="text-[9px] px-1.5 py-0">
+                    <Badge variant={customOrderService.getStatusBadgeVariant(ord.status)} className="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0 shrink-0">
                       {customOrderService.formatStatus(ord.status)}
                     </Badge>
                   </div>
-                  <h4 className="font-bold text-sm text-foreground line-clamp-1 mb-1">{ord.title}</h4>
-                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{ord.description}</p>
+                  <h4 className="font-bold text-xs sm:text-sm text-foreground line-clamp-1 mb-0.5 sm:mb-1 break-words">{ord.title}</h4>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2 mb-2 sm:mb-3">{ord.description}</p>
                   
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground border-t border-border/50 pt-2">
+                  <div className="flex items-center justify-between text-[9px] sm:text-[10px] text-muted-foreground border-t border-border/50 pt-1.5 sm:pt-2">
                     <span>Qty: {ord.quantity}</span>
                     <span>{new Date(ord.submittedAt).toLocaleDateString()}</span>
                   </div>
@@ -298,26 +298,26 @@ export function CustomOrderPage() {
           </div>
 
           {/* Right Panel: Detail View */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {isActiveLoading ? (
-              <div className="space-y-6">
-                <Skeleton className="h-12 w-1/3" />
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-40 w-full" />
+              <div className="space-y-4 sm:space-y-6">
+                <Skeleton className="h-8 sm:h-12 w-1/3" />
+                <Skeleton className="h-40 sm:h-48 w-full" />
+                <Skeleton className="h-32 sm:h-40 w-full" />
               </div>
             ) : activeOrder ? (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* Title & Metadata */}
-                <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/50 pb-4">
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h2 className="text-xl font-bold tracking-tight text-foreground">{activeOrder.title}</h2>
-                        <Badge variant={customOrderService.getStatusBadgeVariant(activeOrder.status)}>
+                <div className="bg-card border border-border rounded-xl sm:rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4 border-b border-border/50 pb-3 sm:pb-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                        <h2 className="text-base sm:text-xl font-bold tracking-tight text-foreground break-words">{activeOrder.title}</h2>
+                        <Badge variant={customOrderService.getStatusBadgeVariant(activeOrder.status)} className="text-[9px] sm:text-xs shrink-0">
                           {customOrderService.formatStatus(activeOrder.status)}
                         </Badge>
                       </div>
-                      <span className="text-xs text-muted-foreground tracking-wide mt-1 block">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground tracking-wide mt-1 block">
                         Order Code: {activeOrder.orderNumber} | Submitted: {new Date(activeOrder.submittedAt).toLocaleString()}
                       </span>
                     </div>
@@ -527,20 +527,20 @@ export function CustomOrderPage() {
                 </Card>
               </div>
             ) : (
-              <div className="text-center py-20 border border-dashed border-border rounded-2xl">
-                <p className="text-sm text-muted-foreground">Select a custom request from the left pane to view quotations and details.</p>
+              <div className="text-center py-12 sm:py-20 border border-dashed border-border rounded-xl sm:rounded-2xl px-4">
+                <p className="text-xs sm:text-sm text-muted-foreground">Select a custom request from the left pane to view quotations and details.</p>
               </div>
             )}
           </div>
         </div>
       ) : (
-        <div className="text-center py-20 border border-dashed border-border rounded-2xl max-w-md mx-auto">
-          <ClipboardList className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-4" />
-          <h4 className="text-base font-bold text-foreground">No Custom Requests</h4>
-          <p className="text-sm text-muted-foreground mt-1 px-4">
+        <div className="text-center py-12 sm:py-20 border border-dashed border-border rounded-xl sm:rounded-2xl max-w-md mx-auto px-4">
+          <ClipboardList className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground opacity-50 mb-3 sm:mb-4" />
+          <h4 className="text-sm sm:text-base font-bold text-foreground">No Custom Requests</h4>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 px-4">
             Submit custom design files (like STL or CAD drawings) to get manufacturing quotes from our shops.
           </p>
-          <Button onClick={() => setIsModalOpen(true)} className="mt-6 cursor-pointer">
+          <Button onClick={() => setIsModalOpen(true)} className="mt-4 sm:mt-6 cursor-pointer" size="sm">
             Create First Request
           </Button>
         </div>

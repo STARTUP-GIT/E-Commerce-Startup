@@ -58,14 +58,6 @@ export function Navbar() {
   const setCartOpen = useUIStore((state) => state.setCartOpen);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [mobileCatOpen, setMobileCatOpen] = useState(false);
-
-  const { data: categoriesData } = useQuery({
-    queryKey: ['allowed-categories'],
-    queryFn: async () => (await axiosInstance.get('/api/categories/allowed')).data,
-    staleTime: 5 * 60_000,
-  });
-  const allowedCategories = categoriesData?.categories || [];
 
   const {
     selectedState,
@@ -119,6 +111,8 @@ export function Navbar() {
   const unreadCount = notifData?.notifications?.filter((n: any) => !n.isRead).length || 0;
 
   const navLinks = [
+    { href: '/', label: 'Home' },
+    { href: '/categories', label: 'Categories' },
     { href: '/shops', label: 'Shops' },
     { href: '/products', label: 'Products' },
     { href: '/orders', label: 'Orders' },
@@ -131,15 +125,15 @@ export function Navbar() {
         <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
 
           {/* Logo + Location */}
-          <div className="flex items-center gap-4 flex-shrink-0">
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white">
-                <ShoppingBag className="h-4.5 w-4.5 text-black" />
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-shrink">
+            <Link href="/" className="flex items-center gap-2 sm:gap-3 group shrink-0">
+              <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-white">
+                <ShoppingBag className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-black" />
               </div>
-              <span className="text-xl font-black tracking-tight text-white">Aura</span>
+              <span className="text-lg sm:text-xl font-black tracking-tight text-white hidden xs:inline">Aura</span>
             </Link>
 
-            {/* Location selector */}
+            {/* Location selector - hidden on very small screens, shown as icon-only */}
             {(() => {
               const activeAddress = profile?.user?.addresses?.find((a: any) => a.id === selectedAddressId) || 
                                     profile?.user?.addresses?.find((a: any) => a.isDefault) || 
@@ -147,20 +141,20 @@ export function Navbar() {
               return (
                 <button
                   onClick={() => setAddressSelectorOpen(true)}
-                  className="flex items-center gap-2 px-3 py-1 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/15 text-[10px] sm:text-xs font-bold text-white/80 transition-all cursor-pointer shadow-sm select-none text-left"
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/15 text-[9px] sm:text-[10px] lg:text-xs font-bold text-white/80 transition-all cursor-pointer shadow-sm select-none text-left max-w-[160px] xs:max-w-[200px] sm:max-w-none"
                 >
                   <div className="flex flex-col min-w-0 leading-tight">
-                    <span className="text-[10px] text-white/45 font-medium truncate max-w-[150px] flex items-center gap-1">
-                      <span>📍 Deliver to</span>
-                      <span className="font-bold text-white/70">{activeAddress ? activeAddress.fullName : (session?.user?.name || 'Guest')}</span>
+                    <span className="hidden xs:flex text-[9px] sm:text-[10px] text-white/45 font-medium truncate max-w-[120px] sm:max-w-[150px] items-center gap-1">
+                      <span>📍</span>
+                      <span className="truncate">{activeAddress ? activeAddress.fullName : (session?.user?.name || 'Guest')}</span>
                     </span>
-                    <span className="text-[11px] text-white/90 truncate max-w-[185px] font-extrabold mt-0.5">
+                    <span className="text-[10px] sm:text-[11px] text-white/90 truncate max-w-[130px] xs:max-w-[160px] sm:max-w-[185px] font-extrabold mt-0.5">
                       {activeAddress
-                        ? `${activeAddress.city}, ${activeAddress.state} - ${activeAddress.postalCode}`
-                        : `${selectedDistrict}, ${selectedState}`}
+                        ? `${activeAddress.city}, ${activeAddress.state}`
+                        : `${selectedDistrict || 'Select'}, ${selectedState || 'Location'}`}
                     </span>
                   </div>
-                  <span className="text-[8px] text-white/30 ml-0.5 align-middle shrink-0">▼</span>
+                  <span className="text-[7px] sm:text-[8px] text-white/30 ml-0.5 align-middle shrink-0">▼</span>
                 </button>
               );
             })()}
@@ -168,41 +162,7 @@ export function Navbar() {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">
-            {navLinks.slice(0, 2).map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-white/55 hover:text-white hover:bg-white/[0.07] transition-all duration-150"
-              >
-                {label}
-              </Link>
-            ))}
-
-            {/* Categories Hover Dropdown */}
-            <div className="relative group/cat">
-              <button className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white/55 hover:text-white hover:bg-white/[0.07] transition-all duration-150 cursor-pointer select-none">
-                Categories
-                <span className="text-[8px] opacity-40 shrink-0">▼</span>
-              </button>
-              <div className="absolute left-0 top-full mt-1.5 w-56 glass-card border border-white/5 bg-black/90 backdrop-blur-xl p-1.5 opacity-0 invisible group-hover/cat:opacity-100 group-hover/cat:visible focus-within:opacity-100 focus-within:visible transition-all duration-150 z-50">
-                <div className="max-h-80 overflow-y-auto scrollbar-none space-y-0.5">
-                  {allowedCategories.map((cat: any) => (
-                    <Link
-                      key={cat.id}
-                      href={`/products?category=${cat.id}`}
-                      className="block px-3 py-2 rounded-xl text-xs font-semibold text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors"
-                    >
-                      {cat.name}
-                    </Link>
-                  ))}
-                  {allowedCategories.length === 0 && (
-                    <span className="block px-3 py-2 text-xs font-medium text-white/30 italic">No categories</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {navLinks.slice(2).map(({ href, label }) => (
+            {navLinks.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
@@ -316,45 +276,7 @@ export function Navbar() {
         {/* Mobile Nav Drawer */}
         {mobileNavOpen && (
           <div className="md:hidden border-t border-white/[0.08] bg-black/80 backdrop-blur-xl px-4 py-3 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
-            {navLinks.slice(0, 2).map(({ href, label }) => (
-              <Link key={href} href={href} onClick={() => setMobileNavOpen(false)}
-                className="flex items-center px-4 py-3 rounded-xl text-sm font-medium text-white/65 hover:text-white hover:bg-white/[0.07] transition-all">
-                {label}
-              </Link>
-            ))}
-
-            {/* Categories Accordion */}
-            <div className="space-y-1">
-              <button
-                onClick={() => setMobileCatOpen(!mobileCatOpen)}
-                className="flex items-center justify-between w-full px-4 py-3 rounded-xl text-sm font-medium text-white/65 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
-              >
-                <span>Categories</span>
-                <span className={`text-[8px] opacity-40 transition-transform duration-200 ${mobileCatOpen ? 'rotate-180' : ''}`}>▼</span>
-              </button>
-              {mobileCatOpen && (
-                <div className="pl-6 pr-4 py-1.5 space-y-0.5 max-h-60 overflow-y-auto border-l border-white/5 ml-4">
-                  {allowedCategories.map((cat: any) => (
-                    <Link
-                      key={cat.id}
-                      href={`/products?category=${cat.id}`}
-                      onClick={() => {
-                        setMobileCatOpen(false);
-                        setMobileNavOpen(false);
-                      }}
-                      className="block px-3 py-2 rounded-xl text-xs font-semibold text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors"
-                    >
-                      {cat.name}
-                    </Link>
-                  ))}
-                  {allowedCategories.length === 0 && (
-                    <span className="block px-3 py-2 text-xs font-medium text-white/30 italic">No categories</span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {navLinks.slice(2).map(({ href, label }) => (
+            {navLinks.map(({ href, label }) => (
               <Link key={href} href={href} onClick={() => setMobileNavOpen(false)}
                 className="flex items-center px-4 py-3 rounded-xl text-sm font-medium text-white/65 hover:text-white hover:bg-white/[0.07] transition-all">
                 {label}

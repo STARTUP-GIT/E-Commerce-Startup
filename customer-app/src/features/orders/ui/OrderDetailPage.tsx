@@ -33,20 +33,20 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
 
   if (isOrderLoading) {
     return (
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
-        <Skeleton className="h-10 w-1/4" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-96 w-full" />
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-4 sm:space-y-6">
+        <Skeleton className="h-8 sm:h-10 w-1/3 sm:w-1/4" />
+        <Skeleton className="h-40 sm:h-48 w-full" />
+        <Skeleton className="h-64 sm:h-96 w-full" />
       </div>
     );
   }
 
   if (isOrderError || !order) {
     return (
-      <div className="max-w-md mx-auto mt-20 p-6 text-center space-y-4">
-        <p className="text-destructive font-semibold">Failed to load order details.</p>
+      <div className="max-w-md mx-auto mt-12 sm:mt-20 px-4 py-6 sm:p-6 text-center space-y-3 sm:space-y-4">
+        <p className="text-sm sm:text-base text-destructive font-semibold">Failed to load order details.</p>
         <Link href="/orders">
-          <Button>Back to Orders</Button>
+          <Button size="sm" className="sm:h-10">Back to Orders</Button>
         </Link>
       </div>
     );
@@ -64,31 +64,31 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* Header toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-extrabold tracking-wider">{order.orderNumber}</h1>
-            <Badge variant={orderService.getStatusBadgeVariant(order.status)}>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 border-b border-border pb-4 sm:pb-6">
+        <div className="space-y-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-lg sm:text-2xl font-extrabold tracking-wider truncate">{order.orderNumber}</h1>
+            <Badge variant={orderService.getStatusBadgeVariant(order.status)} className="text-[9px] sm:text-xs shrink-0">
               {orderService.formatStatus(order.status)}
             </Badge>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[10px] sm:text-xs text-muted-foreground">
             Placed on {new Date(order.placedAt).toLocaleString()}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {order.status === 'PENDING' && (
             <Button
               variant="outline"
               onClick={handleCancelOrder}
               isLoading={isCancelling}
-              className="text-xs border-red-500/20 text-red-500 hover:bg-red-500/10 cursor-pointer"
+              className="text-[10px] sm:text-xs border-red-500/20 text-red-500 hover:bg-red-500/10 cursor-pointer h-8 sm:h-9"
             >
-              <XOctagon className="h-3.5 w-3.5 mr-1" />
-              Cancel Order
+              <XOctagon className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+              Cancel
             </Button>
           )}
 
@@ -96,18 +96,18 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
             variant="secondary"
             onClick={() => downloadInvoice(order.id)}
             isLoading={isDownloadingInvoice}
-            className="text-xs flex items-center gap-1.5 cursor-pointer border border-border"
+            className="text-[10px] sm:text-xs flex items-center gap-1 sm:gap-1.5 cursor-pointer border border-border h-8 sm:h-9"
           >
-            <Download className="h-3.5 w-3.5" />
-            Download Invoice
+            <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            Invoice
           </Button>
         </div>
       </div>
 
       {/* Main Grid: Details */}
-      <div className="grid md:grid-cols-[1fr_300px] gap-8 items-start">
+      <div className="grid md:grid-cols-[1fr_300px] gap-6 sm:gap-8 items-start">
         {/* Left Column: Vendor items & Tracking timeline */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Vendor specific suborders */}
           <div className="space-y-6">
             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
@@ -116,24 +116,24 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
             {order.sellerOrders?.map((sellerOrder) => (
               <Card key={sellerOrder.id} className="overflow-hidden border-border bg-card">
                 {/* Seller order sub-header */}
-                <div className="bg-zinc-950/40 p-4 border-b border-border flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-xs">
-                    <Store className="h-4 w-4 text-primary" />
+                <div className="bg-zinc-950/40 p-3 sm:p-4 border-b border-border flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-[10px] sm:text-xs min-w-0">
+                    <Store className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary shrink-0" />
                     {sellerOrder.seller?.shop ? (
                       <Link
                         href={`/shops/${sellerOrder.seller.shop.slug}`}
-                        className="font-bold hover:underline"
+                        className="font-bold hover:underline truncate"
                       >
                         {sellerOrder.seller.shop.name}
                       </Link>
                     ) : (
-                      <span className="font-bold">
+                      <span className="font-bold truncate">
                         {sellerOrder.seller?.firstName} {sellerOrder.seller?.lastName}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant={orderService.getStatusBadgeVariant(sellerOrder.status)}>
+                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                    <Badge variant={orderService.getStatusBadgeVariant(sellerOrder.status)} className="text-[8px] sm:text-[10px]">
                       {orderService.formatStatus(sellerOrder.status)}
                     </Badge>
                     {sellerOrder.status === 'SHIPPED' && (
@@ -141,10 +141,10 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
                         size="sm"
                         onClick={() => confirmDelivery(sellerOrder.id)}
                         isLoading={isConfirmingDelivery}
-                        className="text-[10px] h-7 px-2 cursor-pointer"
+                        className="text-[9px] sm:text-[10px] h-6 sm:h-7 px-1.5 sm:px-2 cursor-pointer"
                       >
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Confirm Delivery
+                        <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                        Confirm
                       </Button>
                     )}
                   </div>
@@ -153,23 +153,23 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
                 {/* Items loop */}
                 <div className="divide-y divide-border">
                   {sellerOrder.items?.map((item) => (
-                    <div key={item.id} className="p-4 flex gap-4 items-center">
-                      <div className="h-12 w-12 rounded-lg bg-zinc-800 flex items-center justify-center border border-border">
-                        <Package className="h-5 w-5 text-muted-foreground" />
+                    <div key={item.id} className="p-3 sm:p-4 flex gap-3 sm:gap-4 items-center">
+                      <div className="h-8 w-8 sm:h-12 sm:w-12 rounded-lg bg-zinc-800 flex items-center justify-center border border-border shrink-0">
+                        <Package className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h5 className="font-semibold text-sm text-foreground truncate">
+                        <h5 className="font-semibold text-xs sm:text-sm text-foreground truncate">
                           {item.productName}
                         </h5>
                         {item.variantName && (
-                          <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">
+                          <span className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider block">
                             Option: {item.variantName}
                           </span>
                         )}
-                        <span className="text-xs text-muted-foreground">Qty: {item.quantity}</span>
+                        <span className="text-[10px] sm:text-xs text-muted-foreground">Qty: {item.quantity}</span>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-sm text-foreground">
+                      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                        <span className="font-bold text-xs sm:text-sm text-foreground whitespace-nowrap">
                           {productListService.formatPrice(item.totalPrice)}
                         </span>
                         {sellerOrder.status === 'DELIVERED' && (
@@ -184,9 +184,9 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
                               });
                               setReviewModalOpen(true);
                             }}
-                            className="text-[10px] h-7 px-2 cursor-pointer border-border"
+                            className="text-[9px] sm:text-[10px] h-6 sm:h-7 px-1.5 sm:px-2 cursor-pointer border-border"
                           >
-                            Review Product
+                            Review
                           </Button>
                         )}
                       </div>
@@ -203,9 +203,9 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
               <CardTitle>Delivery Timeline</CardTitle>
               <CardDescription>Follow the status of your order events.</CardDescription>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               {order.timelineEvents && (order.timelineEvents as any).length > 0 ? (
-                <div className="relative border-l border-border pl-6 space-y-6 ml-3">
+                <div className="relative border-l border-border pl-4 sm:pl-6 space-y-4 sm:space-y-6 ml-2 sm:ml-3">
                   {(order.timelineEvents as any).map((evt: any, idx: number) => {
                     const isLast = idx === (order.timelineEvents as any).length - 1;
                     return (
@@ -243,17 +243,17 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
         </div>
 
         {/* Right Column: Address & Price Breakdown */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Shipping Address */}
           {order.shippingAddress && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-primary" />
+              <CardHeader className="p-3 sm:p-4">
+                <CardTitle className="text-xs sm:text-sm font-bold flex items-center gap-2">
+                  <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary shrink-0" />
                   Shipping Address
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs space-y-1">
+              <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4 text-[10px] sm:text-xs space-y-1">
                 <span className="font-semibold text-foreground block">
                   {order.shippingAddress.fullName}
                 </span>
@@ -271,10 +271,10 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
 
           {/* Pricing totals */}
           <Card>
-            <CardHeader className="border-b border-border pb-3">
-              <CardTitle className="text-sm">Summary Breakdown</CardTitle>
+            <CardHeader className="border-b border-border pb-2 sm:pb-3 p-3 sm:p-4">
+              <CardTitle className="text-xs sm:text-sm">Summary Breakdown</CardTitle>
             </CardHeader>
-            <CardContent className="p-4 space-y-3 text-xs">
+            <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3 text-[10px] sm:text-xs">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-semibold text-foreground">
@@ -299,9 +299,9 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
                   {productListService.formatPrice(order.taxTotal)}
                 </span>
               </div>
-              <div className="border-t border-border pt-3 flex justify-between items-center text-sm font-bold">
+              <div className="border-t border-border pt-2 sm:pt-3 flex justify-between items-center text-xs sm:text-sm font-bold">
                 <span>Grand Total</span>
-                <span className="text-base text-primary">
+                <span className="text-sm sm:text-base text-primary">
                   {productListService.formatPrice(order.grandTotal)}
                 </span>
               </div>

@@ -32,42 +32,42 @@ export function WishlistPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* Header title */}
-      <div className="border-b border-border pb-6">
-        <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-zinc-400 bg-clip-text text-transparent">
+      <div className="border-b border-border pb-4 sm:pb-6">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-zinc-400 bg-clip-text text-transparent">
           My Wishlist
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
           Keep track of items you love and add them to your cart when ready.
         </p>
       </div>
 
       {isLoading ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
           {Array.from({ length: 3 }).map((_, i) => (
             <Card key={i} className="overflow-hidden">
-              <Skeleton className="h-44 w-full" />
-              <CardContent className="p-4 space-y-3">
-                <Skeleton className="h-5 w-2/3" />
-                <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-28 sm:h-44 w-full" />
+              <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+                <Skeleton className="h-4 sm:h-5 w-2/3" />
+                <Skeleton className="h-3 sm:h-4 w-full" />
               </CardContent>
             </Card>
           ))}
         </div>
       ) : isError ? (
-        <div className="text-center py-12 text-destructive font-semibold">
+        <div className="text-center py-8 sm:py-12 text-destructive font-semibold text-sm sm:text-base">
           Error loading your wishlist. Please try again later.
         </div>
       ) : items.length > 0 ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
           {items.map((item) => {
             const prod = item.product;
             const isOutOfStock = prod.stockQuantity <= 0;
 
             return (
               <Card key={item.id} className="overflow-hidden flex flex-col justify-between border border-border bg-card group">
-                <div className="h-44 bg-zinc-800 relative overflow-hidden">
+                <div className="aspect-[4/3] sm:h-44 bg-zinc-800 relative overflow-hidden">
                   {prod.imageUrl ? (
                     <img
                       src={prod.imageUrl}
@@ -76,42 +76,42 @@ export function WishlistPage() {
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900 flex items-center justify-center">
-                      <Package className="h-10 w-10 text-muted-foreground" />
+                      <Package className="h-6 w-6 sm:h-10 sm:w-10 text-muted-foreground" />
                     </div>
                   )}
                   <button
                     onClick={() => removeFromWishlist(item.id)}
-                    className="absolute top-3 right-3 p-2 rounded-full bg-zinc-950/80 backdrop-blur-md text-red-400 hover:text-red-500 border border-white/10 cursor-pointer"
+                    className="absolute top-2 right-2 sm:top-3 sm:right-3 p-1.5 sm:p-2 rounded-full bg-zinc-950/80 backdrop-blur-md text-red-400 hover:text-red-500 border border-white/10 cursor-pointer"
                     title="Remove from wishlist"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                   </button>
                   {isOutOfStock && (
-                    <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-red-500/90 text-[10px] font-bold text-white uppercase">
+                    <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-1.5 sm:px-2 py-0.5 rounded-full bg-red-500/90 text-[8px] sm:text-[10px] font-bold text-white uppercase">
                       Out of stock
                     </span>
                   )}
                 </div>
 
-                <CardContent className="p-4 flex flex-col justify-between h-[calc(100%-176px)]">
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-base line-clamp-1 text-foreground">
+                <CardContent className="p-3 sm:p-4 flex flex-col justify-between flex-1">
+                  <div className="space-y-0.5 sm:space-y-1">
+                    <h4 className="font-bold text-xs sm:text-base line-clamp-1 text-foreground break-words">
                       {prod.name}
                     </h4>
-                    <p className="text-xs text-muted-foreground line-clamp-2">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2">
                       {prod.description}
                     </p>
                   </div>
 
-                  <div className="mt-6 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-extrabold text-foreground">
+                  <div className="mt-3 sm:mt-6 space-y-2 sm:space-y-3">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs sm:text-lg font-extrabold text-foreground">
                         {productListService.formatPrice(prod.price)}
                       </span>
                       <Link href={`/products/${prod.id}`}>
-                        <Button variant="ghost" size="sm" className="flex items-center gap-1 cursor-pointer">
-                          <Eye className="h-3.5 w-3.5" />
-                          View Details
+                        <Button variant="ghost" size="sm" className="flex items-center gap-1 cursor-pointer h-7 sm:h-9 px-2 sm:px-3 text-[10px] sm:text-xs">
+                          <Eye className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                          <span className="hidden xs:inline">View</span>
                         </Button>
                       </Link>
                     </div>
@@ -119,10 +119,10 @@ export function WishlistPage() {
                     <Button
                       onClick={() => handleAddToCart(prod.id, item.id)}
                       disabled={isOutOfStock}
-                      className="w-full flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer text-xs sm:text-sm py-2 sm:py-2.5"
                     >
-                      <ShoppingCart className="h-4 w-4" />
-                      Add to Cart
+                      <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <span className="xs:inline">Add to Cart</span>
                     </Button>
                   </div>
                 </CardContent>
@@ -131,14 +131,14 @@ export function WishlistPage() {
           })}
         </div>
       ) : (
-        <div className="text-center py-20 border border-dashed border-border rounded-2xl max-w-md mx-auto">
-          <Heart className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-4" />
-          <h4 className="text-base font-bold text-foreground">Your wishlist is empty</h4>
-          <p className="text-sm text-muted-foreground mt-1 px-4">
+        <div className="text-center py-12 sm:py-20 border border-dashed border-border rounded-xl sm:rounded-2xl max-w-md mx-auto px-4">
+          <Heart className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground opacity-50 mb-3 sm:mb-4" />
+          <h4 className="text-sm sm:text-base font-bold text-foreground">Your wishlist is empty</h4>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 px-4">
             Tap the heart icon on any product details page to save it here!
           </p>
-          <Link href="/products" className="inline-block mt-4">
-            <Button className="cursor-pointer">Explore Products</Button>
+          <Link href="/products" className="inline-block mt-3 sm:mt-4">
+            <Button size="sm" className="cursor-pointer">Explore Products</Button>
           </Link>
         </div>
       )}

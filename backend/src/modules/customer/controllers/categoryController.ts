@@ -4,7 +4,7 @@ import { prisma } from "../../../config/prisma.js";
 export const getAllCategories = async (req: Request, res: Response) => {
     try {
         const categories = await prisma.category.findMany({
-            orderBy: { name: "asc" }
+            orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
         });
         return res.status(200).json({ categories });
     } catch (error: any) {
@@ -17,7 +17,7 @@ export const getAllowedCategories = async (req: Request, res: Response) => {
     try {
         const categories = await prisma.category.findMany({
             where: { isActive: true },
-            orderBy: { name: "asc" }
+            orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
         });
         return res.status(200).json({ categories });
     } catch (error: any) {

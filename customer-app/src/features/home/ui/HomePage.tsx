@@ -3,23 +3,17 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useQuery } from '@tanstack/react-query';
+import axiosInstance from '@/lib/axios/axiosInstance';
 import { useShopList } from '@/features/shops/shop-list/hooks/useShopList';
 import { shopListService } from '@/features/shops/shop-list/services/shopListService';
 import { Skeleton } from '@/shared/components/Skeleton';
 import {
   Search, ArrowRight, MapPin, Store, Printer,
   Paintbrush, Home as HomeIcon, Shirt, Cpu,
-  Users, Clock, ShieldCheck, ChevronRight,
+  Users, Clock, ShieldCheck, ChevronRight, Grid3X3,
 } from 'lucide-react';
 import Link from 'next/link';
-
-const categories = [
-  { name: '3D Printing',     icon: Printer,    href: '/products?category=3d-prints' },
-  { name: 'Handmade Crafts', icon: Paintbrush, href: '/products?category=crafts' },
-  { name: 'Home Decor',      icon: HomeIcon,   href: '/products?category=decor' },
-  { name: 'Apparel',         icon: Shirt,      href: '/products?category=clothing' },
-  { name: 'Custom Prints',   icon: Cpu,        href: '/custom-orders' },
-];
 
 const valueProps = [
   { icon: Users,       title: 'Support Local Crafters', desc: 'Every purchase goes directly to independent local makers in your area.' },
@@ -95,6 +89,13 @@ export function HomePage() {
   const { data: session } = useSession();
   const [search, setSearch] = useState('');
   const { shops, isLoading: shopsLoading } = useShopList();
+
+  const { data: categoriesData } = useQuery<any>({
+    queryKey: ['home-categories'],
+    queryFn: async () => (await axiosInstance.get('/api/categories/allowed')).data,
+    staleTime: 5 * 60_000,
+  });
+  const homeCategories = categoriesData?.categories || [];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -292,7 +293,7 @@ export function HomePage() {
             <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '12px' }}>Browse by</p>
             <h2 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1 }}>Categories</h2>
           </div>
-          <Link href="/products">
+          <Link href="/categories">
             <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
               className="hover:text-white transition-colors">
               View all <ArrowRight style={{ width: 15, height: 15 }} />
@@ -300,35 +301,37 @@ export function HomePage() {
           </Link>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-          {categories.map((cat, i) => {
-            const Icon = cat.icon;
-            return (
-              <Link key={i} href={cat.href} className="group block">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px' }}>
+          {homeCategories.slice(0, 12).map((cat: any, i: number) => (
+            <Link key={cat.id} href={`/products?category=${cat.id}`} className="group block">
+              <div
+                className="glass-card glass-hover"
+                style={{ padding: '28px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '16px' }}
+              >
                 <div
-                  className="glass-card glass-hover"
-                  style={{ padding: '32px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '20px' }}
+                  className="group-hover:bg-white group-hover:scale-110 transition-all duration-200"
+                  style={{
+                    width: '56px', height: '56px', borderRadius: '16px',
+                    background: 'rgba(255,255,255,0.08)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    overflow: 'hidden',
+                  }}
                 >
-                  <div
-                    className="group-hover:bg-white group-hover:scale-110 transition-all duration-200"
-                    style={{
-                      width: '64px', height: '64px', borderRadius: '18px',
-                      background: 'rgba(255,255,255,0.08)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    <Icon className="group-hover:text-black transition-colors" style={{ width: 26, height: 26, color: 'rgba(255,255,255,0.75)' }} />
-                  </div>
-                  <span
-                    style={{ fontSize: '15px', fontWeight: 800, color: 'rgba(255,255,255,0.8)', lineHeight: 1.3 }}
-                    className="group-hover:text-white transition-colors"
-                  >
-                    {cat.name}
-                  </span>
+                  {cat.imageUrl ? (
+                    <img src={cat.imageUrl} alt={cat.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} className="group-hover:opacity-90 transition-opacity" />
+                  ) : (
+                    <Grid3X3 className="group-hover:text-black transition-colors" style={{ width: 24, height: 24, color: 'rgba(255,255,255,0.75)' }} />
+                  )}
                 </div>
-              </Link>
-            );
-          })}
+                <span
+                  style={{ fontSize: '14px', fontWeight: 800, color: 'rgba(255,255,255,0.8)', lineHeight: 1.3 }}
+                  className="group-hover:text-white transition-colors"
+                >
+                  {cat.name}
+                </span>
+              </div>
+            </Link>
+          ))}
         </div>
       </section>
 

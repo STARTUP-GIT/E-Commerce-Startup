@@ -9,7 +9,7 @@ import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { useUIStore } from '@/lib/store/uiStore';
-import { Grid, Plus, Trash2, Edit2 } from 'lucide-react';
+import { Grid, Plus, Trash2, Edit2, GripVertical, ImageUp } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 export function CategoriesPage() {
@@ -27,8 +27,8 @@ export function CategoriesPage() {
 
   const categories = data?.categories ?? data?.data ?? data ?? [];
 
-  const createForm = useForm({ defaultValues: { name: '', description: '', isActive: true } });
-  const editForm = useForm({ defaultValues: { name: '', description: '' } });
+  const createForm = useForm({ defaultValues: { name: '', description: '', imageUrl: '', sortOrder: 0, isActive: true } });
+  const editForm = useForm({ defaultValues: { name: '', description: '', imageUrl: '', sortOrder: 0 } });
 
   const createMutation = useMutation({
     mutationFn: (v: any) => categoryApi.createCategory(v),
@@ -75,9 +75,13 @@ export function CategoriesPage() {
     editForm.reset({
       name: cat.name,
       description: cat.description || '',
+      imageUrl: cat.imageUrl || '',
+      sortOrder: cat.sortOrder ?? 0,
     });
     setShowEditModal(true);
   };
+
+  const catArray = Array.isArray(categories) ? categories : [];
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -98,17 +102,19 @@ export function CategoriesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5 flex-1 font-sans">
                   <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Category Name</label>
-                  <Input
-                    placeholder="e.g., Electronics"
-                    {...createForm.register('name', { required: true })}
-                  />
+                  <Input placeholder="e.g., Electronics" {...createForm.register('name', { required: true })} />
                 </div>
                 <div className="space-y-1.5 flex-1 font-sans">
                   <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Description (Optional)</label>
-                  <Input
-                    placeholder="e.g., Devices, gadgets, and accessories"
-                    {...createForm.register('description')}
-                  />
+                  <Input placeholder="e.g., Devices, gadgets, and accessories" {...createForm.register('description')} />
+                </div>
+                <div className="space-y-1.5 flex-1 font-sans">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Icon/Image URL (Optional)</label>
+                  <Input placeholder="https://example.com/icon.png" {...createForm.register('imageUrl')} />
+                </div>
+                <div className="space-y-1.5 flex-1 font-sans">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Display Order</label>
+                  <Input type="number" placeholder="0" {...createForm.register('sortOrder', { valueAsNumber: true })} />
                 </div>
               </div>
               <div className="flex justify-end gap-2">
@@ -124,22 +130,37 @@ export function CategoriesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
+      ) : catArray.length === 0 ? (
+        <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl">
+          <Grid className="mx-auto h-12 w-12 text-white/20 mb-4" />
+          <h4 className="text-base font-bold text-white/60">No categories yet</h4>
+          <p className="text-sm text-white/30 mt-1">Create your first marketplace category to get started.</p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(Array.isArray(categories) ? categories : []).map((cat: any) => (
+          {catArray.map((cat: any) => (
             <Card key={cat.id} className={`border glass-hover ${cat.isActive ? 'border-white/8' : 'border-white/3 opacity-60'}`}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                      <Grid className="h-5 w-5 text-white/40" />
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                      {cat.imageUrl ? (
+                        <img src={cat.imageUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Grid className="h-5 w-5 text-white/40" />
+                      )}
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-white/90">{cat.name}</p>
-                      <p className="text-[10px] text-white/40 line-clamp-1">{cat.description || 'No description provided'}</p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-white/90 truncate flex items-center gap-2">
+                        {cat.name}
+                        {cat.sortOrder > 0 && (
+                          <span className="text-[9px] text-white/30 font-mono">#{cat.sortOrder}</span>
+                        )}
+                      </p>
+                      <p className="text-[10px] text-white/40 line-clamp-1">{cat.description || 'No description'}</p>
                     </div>
                   </div>
-                  <Badge variant={cat.isActive ? 'success' : 'secondary'} className="text-[8px] font-extrabold tracking-wider uppercase shrink-0">
+                  <Badge variant={cat.isActive ? 'success' : 'secondary'} className="text-[8px] font-extrabold tracking-wider uppercase shrink-0 ml-2">
                     {cat.isActive ? 'ALLOWED' : 'NOT ALLOWED'}
                   </Badge>
                 </div>
@@ -178,10 +199,10 @@ export function CategoriesPage() {
       )}
 
       {showEditModal && editingCategory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md p-6 bg-[#0c0c12] border border-white/10 rounded-2xl shadow-xl">
             <h2 className="text-base font-bold text-white mb-1">Edit Category</h2>
-            <p className="text-[11px] text-white/40 mb-4">Update the name or description of this marketplace category</p>
+            <p className="text-[11px] text-white/40 mb-4">Update the details of this marketplace category</p>
             <form onSubmit={editForm.handleSubmit((v) => updateMutation.mutate({ id: editingCategory.id, payload: v }))} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Category Name</label>
@@ -190,6 +211,14 @@ export function CategoriesPage() {
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Description (Optional)</label>
                 <Input {...editForm.register('description')} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Icon/Image URL (Optional)</label>
+                <Input placeholder="https://example.com/icon.png" {...editForm.register('imageUrl')} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Display Order</label>
+                <Input type="number" placeholder="0" {...editForm.register('sortOrder', { valueAsNumber: true })} />
               </div>
               <div className="flex justify-end gap-2.5 pt-2">
                 <Button type="button" variant="outline" onClick={() => { setShowEditModal(false); setEditingCategory(null); }}>

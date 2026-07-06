@@ -15,15 +15,15 @@ function ShopCardSkeleton() {
   return (
     <div className="glass-card overflow-hidden animate-pulse">
       {/* Banner */}
-      <Skeleton className="h-28 w-full rounded-none rounded-t-[0.875rem]" />
-      <div className="p-5 pt-10 relative">
+      <Skeleton className="h-24 sm:h-28 w-full rounded-none rounded-t-[0.875rem]" />
+      <div className="p-4 sm:p-5 pt-8 sm:pt-10 relative">
         {/* Avatar */}
-        <div className="absolute -top-7 left-5 h-14 w-14 rounded-xl skeleton-glass ring-4 ring-[#080810]" />
-        <div className="space-y-2.5 mt-1">
-          <Skeleton className="h-5 w-2/3" />
-          <Skeleton className="h-3.5 w-full" />
-          <Skeleton className="h-3.5 w-5/6" />
-          <Skeleton className="h-3 w-1/3 mt-3" />
+        <div className="absolute -top-6 sm:-top-7 left-4 sm:left-5 h-11 w-11 sm:h-14 sm:w-14 rounded-xl skeleton-glass ring-4 ring-[#080810]" />
+        <div className="space-y-2 sm:space-y-2.5 mt-1">
+          <Skeleton className="h-4 sm:h-5 w-2/3" />
+          <Skeleton className="h-3 sm:h-3.5 w-full" />
+          <Skeleton className="h-3 sm:h-3.5 w-5/6" />
+          <Skeleton className="h-2.5 sm:h-3 w-1/3 mt-2 sm:mt-3" />
         </div>
       </div>
     </div>
@@ -51,44 +51,44 @@ function ShopCard({ shop, index }: ShopCardProps) {
       <div className="glass-card overflow-hidden h-full glass-hover">
         {/* Banner */}
         <div
-          className="h-28 bg-cover bg-center relative overflow-hidden"
+          className="h-24 sm:h-28 bg-cover bg-center relative overflow-hidden"
           style={{ background: bgBanner }}
         >
           {/* Gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
           {shop.distance !== undefined && shop.distance !== Infinity && (
-            <span className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full glass text-[10px] font-bold text-white/90">
-              <MapPin className="h-3 w-3 text-purple-400" />
+            <span className="absolute top-2 sm:top-3 right-2 sm:right-3 flex items-center gap-1 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full glass text-[8px] sm:text-[10px] font-bold text-white/90">
+              <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-400" />
               {shopListService.formatDistance(shop.distance)}
             </span>
           )}
         </div>
 
         {/* Content */}
-        <div className="p-5 relative pt-10 flex flex-col h-[calc(100%-112px)] justify-between">
+        <div className="p-4 sm:p-5 relative pt-8 sm:pt-10 flex flex-col h-[calc(100%-96px)] sm:h-[calc(100%-112px)] justify-between">
           {/* Logo avatar */}
-          <div className="absolute -top-7 left-5 h-14 w-14 rounded-xl ring-4 ring-[#080810] bg-gradient-to-br from-purple-900/80 to-indigo-900/80 glass flex items-center justify-center overflow-hidden">
+          <div className="absolute -top-6 sm:-top-7 left-4 sm:left-5 h-11 w-11 sm:h-14 sm:w-14 rounded-xl ring-4 ring-[#080810] bg-gradient-to-br from-purple-900/80 to-indigo-900/80 glass flex items-center justify-center overflow-hidden">
             {shop.logoUrl ? (
               <img src={shop.logoUrl} alt={shop.name} className="h-full w-full object-cover" />
             ) : (
-              <Store className="h-6 w-6 text-white/60" />
+              <Store className="h-5 w-5 sm:h-6 sm:w-6 text-white/60" />
             )}
           </div>
 
-          <div className="space-y-1.5">
-            <h4 className="text-sm font-bold text-white/90 group-hover:text-purple-300 transition-colors line-clamp-1">
+          <div className="space-y-1 sm:space-y-1.5">
+            <h4 className="text-xs sm:text-sm font-bold text-white/90 group-hover:text-purple-300 transition-colors line-clamp-1">
               {shop.name}
             </h4>
-            <p className="text-xs text-white/45 line-clamp-2 leading-relaxed">
+            <p className="text-[10px] sm:text-xs text-white/45 line-clamp-2 leading-relaxed">
               {shop.description || 'No description provided.'}
             </p>
           </div>
 
           {shop.defaultPickupAddress && (
-            <div className="flex items-center gap-1 text-[11px] text-white/35 font-medium mt-4">
-              <MapPin className="h-3 w-3" />
-              <span>
+            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-white/35 font-medium mt-3 sm:mt-4">
+              <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+              <span className="truncate">
                 {shop.defaultPickupAddress.city}, {shop.defaultPickupAddress.state}
               </span>
             </div>
@@ -143,40 +143,40 @@ export function ShopListPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-5 py-8 space-y-8 animate-fade-up">
+    <div className="max-w-7xl mx-auto px-4 sm:px-5 py-6 sm:py-8 space-y-6 sm:space-y-8 animate-fade-up">
 
       {/* ── Hero Banner ─────────────────────────────────────────── */}
-      <div className="glass-card p-8 relative overflow-hidden min-h-[200px] flex flex-col justify-between">
+      <div className="glass-card p-5 sm:p-8 relative overflow-hidden min-h-[180px] sm:min-h-[200px] flex flex-col justify-between">
         {/* Glow blobs */}
         <div className="absolute top-0 right-0 w-72 h-72 bg-purple-600/15 rounded-full blur-[80px] pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-[60px] pointer-events-none" />
 
         <div className="relative z-10 space-y-1.5 max-w-xl">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full glass-sm text-[11px] font-semibold text-purple-300 mb-2">
-            <Store className="h-3 w-3" />
+          <div className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full glass-sm text-[9px] sm:text-[11px] font-semibold text-purple-300 mb-1.5 sm:mb-2">
+            <Store className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
             Local Craft Marketplace
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-white">
+          <h2 className="text-xl sm:text-3xl font-extrabold tracking-tight text-white">
             Discover Local Craft Shops
           </h2>
-          <p className="text-sm text-white/45 leading-relaxed">
+          <p className="text-xs sm:text-sm text-white/45 leading-relaxed">
             Support local vendors, explore unique products, and order customized 3D prints from nearby makers.
           </p>
         </div>
 
         {/* Controls */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 mt-6 relative z-10">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 sm:gap-3 mt-4 sm:mt-6 relative z-10">
           {/* Search */}
           <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-white/30" />
             <input
               placeholder="Search shops by name or category…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="glass-input w-full h-10 pl-10 pr-4 rounded-xl text-sm text-white placeholder:text-white/25 outline-none"
+              className="glass-input w-full h-9 sm:h-10 pl-9 sm:pl-10 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder:text-white/25 outline-none"
             />
             {isFetching && !isLoading && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 border-purple-400/30 border-t-purple-400 animate-spin" />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 h-3 w-3 sm:h-3.5 sm:w-3.5 rounded-full border-2 border-purple-400/30 border-t-purple-400 animate-spin" />
             )}
           </div>
 
@@ -184,16 +184,16 @@ export function ShopListPage() {
           <button
             onClick={handleNearbyToggle}
             disabled={geoLoading}
-            className={`flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-sm font-semibold transition-all cursor-pointer disabled:opacity-60
+            className={`flex items-center justify-center gap-1.5 sm:gap-2 h-9 sm:h-10 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer disabled:opacity-60
               ${coords
                 ? 'gradient-btn text-white'
                 : 'glass-input text-white/70 hover:text-white/95 hover:border-white/20'
               }`}
           >
             {geoLoading ? (
-              <span className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              <span className="h-3 w-3 sm:h-3.5 sm:w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
             ) : (
-              <Navigation className={`h-4 w-4 ${coords ? 'animate-pulse' : ''}`} />
+              <Navigation className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${coords ? 'animate-pulse' : ''}`} />
             )}
             {coords ? 'Viewing Nearby' : 'Find Nearby'}
           </button>
@@ -203,7 +203,7 @@ export function ShopListPage() {
             <select
               value={radius}
               onChange={(e) => setRadius(Number(e.target.value))}
-              className="glass-input h-10 px-3 rounded-xl text-sm text-white/70 outline-none cursor-pointer"
+              className="glass-input h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl text-xs sm:text-sm text-white/70 outline-none cursor-pointer"
             >
               <option value={10}>Within 10 km</option>
               <option value={25}>Within 25 km</option>
@@ -216,50 +216,50 @@ export function ShopListPage() {
 
       {/* ── Grid ──────────────────────────────────────────────────── */}
       <div>
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold text-white/90">
+        <div className="flex items-center justify-between mb-4 sm:mb-5">
+          <h3 className="text-sm sm:text-lg font-bold text-white/90">
             {coords ? 'Nearby Vendors' : searchQuery ? `Results for "${searchQuery}"` : 'Featured Shops'}
           </h3>
           {shops.length > 0 && (
-            <span className="text-xs text-white/35 font-medium">{shops.length} shops</span>
+            <span className="text-[10px] sm:text-xs text-white/35 font-medium">{shops.length} shops</span>
           )}
         </div>
 
         {isLoading ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {Array.from({ length: 6 }).map((_, i) => (
               <ShopCardSkeleton key={i} />
             ))}
           </div>
         ) : isError ? (
-          <div className="glass-card p-12 text-center space-y-4">
-            <AlertCircle className="mx-auto h-10 w-10 text-red-400/60" />
-            <p className="text-sm font-semibold text-red-400">
+          <div className="glass-card p-6 sm:p-12 text-center space-y-3 sm:space-y-4">
+            <AlertCircle className="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-red-400/60" />
+            <p className="text-xs sm:text-sm font-semibold text-red-400">
               {(error as any)?.response?.data?.message || error?.message || 'Error loading shops.'}
             </p>
             <button
               onClick={() => refetch()}
-              className="inline-flex items-center gap-2 h-9 px-4 rounded-lg glass-input text-xs font-medium text-white/70 hover:text-white/95 cursor-pointer transition-all"
+              className="inline-flex items-center gap-2 h-8 sm:h-9 px-3 sm:px-4 rounded-lg glass-input text-[10px] sm:text-xs font-medium text-white/70 hover:text-white/95 cursor-pointer transition-all"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
+              <RefreshCw className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               Retry
             </button>
           </div>
         ) : shops.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {shops.map((shop, index) => (
               <ShopCard key={shop.id} shop={shop} index={index} />
             ))}
           </div>
         ) : (
-          <div className="glass-card p-16 text-center space-y-4 relative overflow-hidden">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-white/[0.01] rounded-full blur-[55px] pointer-events-none" />
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.02] border border-white/10 mx-auto shadow-sm">
-              <Store className="h-7 w-7 text-white/20 animate-pulse" />
+          <div className="glass-card p-8 sm:p-16 text-center space-y-3 sm:space-y-4 relative overflow-hidden">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-36 sm:w-48 h-36 sm:h-48 bg-white/[0.01] rounded-full blur-[55px] pointer-events-none" />
+            <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/10 mx-auto shadow-sm">
+              <Store className="h-5 w-5 sm:h-7 sm:w-7 text-white/20 animate-pulse" />
             </div>
             <div className="space-y-1 relative z-10">
-              <h4 className="text-base font-bold text-white/80">No Vendors Operational Here</h4>
-              <p className="text-xs text-white/35 max-w-sm mx-auto leading-relaxed">
+              <h4 className="text-sm sm:text-base font-bold text-white/80">No Vendors Operational Here</h4>
+              <p className="text-[10px] sm:text-xs text-white/35 max-w-sm mx-auto leading-relaxed">
                 We couldn&apos;t find any active shops in this area matching your preferences. Try selecting another city or widening your query.
               </p>
             </div>

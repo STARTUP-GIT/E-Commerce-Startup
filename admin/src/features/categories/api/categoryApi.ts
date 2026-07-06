@@ -5,11 +5,11 @@ export const categoryApi = {
     const response = await axiosInstance.get('/api/admin/categories');
     return response.data;
   },
-  createCategory: async (payload: { name: string; description?: string; isActive?: boolean }) => {
+  createCategory: async (payload: { name: string; description?: string; imageUrl?: string; sortOrder?: number; isActive?: boolean }) => {
     const response = await axiosInstance.post('/api/admin/categories', payload);
     return response.data;
   },
-  updateCategory: async (id: string, payload: { name?: string; description?: string; isActive?: boolean }) => {
+  updateCategory: async (id: string, payload: { name?: string; description?: string; imageUrl?: string; sortOrder?: number; isActive?: boolean }) => {
     const response = await axiosInstance.put(`/api/admin/categories/${id}`, payload);
     return response.data;
   },

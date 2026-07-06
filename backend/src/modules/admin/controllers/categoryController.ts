@@ -12,7 +12,7 @@ const generateSlug = (name: string) => {
 
 export const createCategory = async (req: Request, res: Response) => {
     try {
-        const { name, description, isActive } = req.body;
+        const { name, description, isActive, sortOrder, imageUrl } = req.body;
         if (!name?.trim()) {
             return res.status(400).json({ message: "Category name is required" });
         }
@@ -30,6 +30,8 @@ export const createCategory = async (req: Request, res: Response) => {
                 name: normalized,
                 slug,
                 description: description ? description.trim() : null,
+                imageUrl: imageUrl || null,
+                sortOrder: sortOrder !== undefined ? Number(sortOrder) : 0,
                 isActive: isActive !== undefined ? !!isActive : true
             }
         });
@@ -44,7 +46,7 @@ export const createCategory = async (req: Request, res: Response) => {
 export const getCategories = async (req: Request, res: Response) => {
     try {
         const categories = await prisma.category.findMany({
-            orderBy: { name: "asc" }
+            orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
         });
         return res.status(200).json({ categories });
     } catch (error: any) {
@@ -56,7 +58,7 @@ export const getCategories = async (req: Request, res: Response) => {
 export const updateCategory = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const { name, description, isActive } = req.body;
+        const { name, description, isActive, sortOrder, imageUrl } = req.body;
 
         if (!id) {
             return res.status(400).json({ message: "Category ID is required" });
@@ -85,6 +87,14 @@ export const updateCategory = async (req: Request, res: Response) => {
 
         if (isActive !== undefined) {
             data.isActive = !!isActive;
+        }
+
+        if (sortOrder !== undefined) {
+            data.sortOrder = Number(sortOrder);
+        }
+
+        if (imageUrl !== undefined) {
+            data.imageUrl = imageUrl || null;
         }
 
         const updated = await prisma.category.update({

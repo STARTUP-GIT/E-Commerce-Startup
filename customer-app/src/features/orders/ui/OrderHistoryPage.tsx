@@ -15,13 +15,13 @@ export function OrderHistoryPage() {
   const { orders, isOrdersLoading, downloadInvoice } = useOrder();
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* Title */}
-      <div className="border-b border-border pb-6">
-        <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-zinc-400 bg-clip-text text-transparent">
+      <div className="border-b border-border pb-4 sm:pb-6">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-zinc-400 bg-clip-text text-transparent">
           Order History
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
           Track active shipments, view invoices, or verify delivered packages.
         </p>
       </div>
@@ -47,51 +47,51 @@ export function OrderHistoryPage() {
 
             return (
               <Card key={order.id} className="hover:shadow-md transition-shadow duration-200">
-                <CardContent className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="font-extrabold text-base tracking-wider text-foreground">
+                <CardContent className="p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
+                  <div className="space-y-2 flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                      <span className="font-extrabold text-sm sm:text-base tracking-wider text-foreground truncate">
                         {order.orderNumber}
                       </span>
-                      <Badge variant={orderService.getStatusBadgeVariant(order.status)}>
+                      <Badge variant={orderService.getStatusBadgeVariant(order.status)} className="text-[9px] sm:text-xs">
                         {orderService.formatStatus(order.status)}
                       </Badge>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-1 text-[10px] sm:text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
-                        <Calendar className="h-3.5 w-3.5" />
-                        <span>Placed: {new Date(order.placedAt).toLocaleDateString()}</span>
+                        <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                        <span>{new Date(order.placedAt).toLocaleDateString()}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Package className="h-3.5 w-3.5" />
+                        <Package className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                         <span>
                           {totalItemsCount} {totalItemsCount === 1 ? 'item' : 'items'}
                         </span>
                       </div>
                       <div className="flex items-center gap-1 font-semibold text-foreground">
-                        <IndianRupee className="h-3.5 w-3.5" />
-                        <span>Total: {productListService.formatPrice(order.grandTotal)}</span>
+                        <IndianRupee className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                        <span>{productListService.formatPrice(order.grandTotal)}</span>
                       </div>
                     </div>
 
                     {/* Quick items list */}
-                    <div className="text-xs text-muted-foreground pt-1 line-clamp-1 max-w-2xl">
+                    <div className="text-[10px] sm:text-xs text-muted-foreground pt-1 line-clamp-1 max-w-2xl">
                       {order.sellerOrders?.flatMap((so) => so.items.map((it) => it.productName)).join(', ')}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => downloadInvoice(order.id)}
-                      className="text-xs cursor-pointer border-border"
+                      className="text-[10px] sm:text-xs cursor-pointer border-border h-8 sm:h-9"
                     >
                       Invoice
                     </Button>
                     <Link href={`/orders/${order.id}`}>
-                      <Button size="sm" className="flex items-center gap-1 cursor-pointer">
+                      <Button size="sm" className="flex items-center gap-1 cursor-pointer h-8 sm:h-9 text-[10px] sm:text-xs">
                         Details
                         <ArrowRight className="h-3 w-3" />
                       </Button>
@@ -103,14 +103,14 @@ export function OrderHistoryPage() {
           })}
         </div>
       ) : (
-        <div className="text-center py-20 border border-dashed border-border rounded-2xl max-w-md mx-auto">
-          <ClipboardList className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-4" />
-          <h4 className="text-base font-bold text-foreground">No orders placed</h4>
-          <p className="text-sm text-muted-foreground mt-1 px-4">
+        <div className="text-center py-12 sm:py-20 border border-dashed border-border rounded-xl sm:rounded-2xl max-w-md mx-auto px-4">
+          <ClipboardList className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground opacity-50 mb-3 sm:mb-4" />
+          <h4 className="text-sm sm:text-base font-bold text-foreground">No orders placed</h4>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 px-4">
             You haven&apos;t placed any orders on the marketplace yet.
           </p>
           <Link href="/products" className="inline-block mt-4">
-            <Button className="cursor-pointer">Start Shopping</Button>
+            <Button size="sm" className="cursor-pointer">Start Shopping</Button>
           </Link>
         </div>
       )}
