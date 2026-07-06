@@ -8,7 +8,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { TrendingUp, ShoppingBag, Users, DollarSign } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, IndianRupee } from 'lucide-react';
+import { formatPrice } from '@/shared/utils/format';
 
 const CHART_COLORS = ['#ffffff', '#a1a1aa', '#71717a', '#3f3f46'];
 
@@ -19,7 +20,7 @@ export function AnalyticsPage() {
   const chartData = monthlyRevenue?.data ?? monthlyRevenue ?? [];
 
   const statItems = [
-    { label: 'Total Revenue', value: stats?.totalRevenue ? `₹${Number(stats.totalRevenue).toLocaleString()}` : '—', icon: DollarSign, color: 'text-white/60' },
+    { label: 'Total Revenue', value: stats?.totalRevenue ? formatPrice(stats.totalRevenue) : '—', icon: IndianRupee, color: 'text-white/60' },
     { label: 'Total Orders', value: stats?.totalOrders ?? '—', icon: ShoppingBag, color: 'text-white/60' },
     { label: 'Total Customers', value: stats?.totalCustomers ?? '—', icon: Users, color: 'text-white/60' },
     { label: 'Growth Rate', value: stats?.growthRate ? `${stats.growthRate}%` : '—', icon: TrendingUp, color: 'text-white/60' },

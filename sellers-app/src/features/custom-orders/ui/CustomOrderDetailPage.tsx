@@ -24,7 +24,7 @@ import {
   FileCode,
   Download,
   Trash2,
-  DollarSign,
+  IndianRupee,
 } from 'lucide-react';
 
 import { useConfirmStore } from '@/lib/store/confirmStore';
@@ -295,7 +295,7 @@ export function CustomOrderDetailPage() {
             <Card className="border border-white/5">
               <CardHeader className="border-b border-white/5 pb-4">
                 <CardTitle className="text-xs font-bold text-white/90 flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-purple-400" />
+                  <IndianRupee className="h-4 w-4 text-purple-400" />
                   <span>Your Quote Details</span>
                 </CardTitle>
               </CardHeader>

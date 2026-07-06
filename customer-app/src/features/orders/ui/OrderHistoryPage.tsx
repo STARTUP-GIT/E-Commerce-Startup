@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/sha
 import { Button } from '@/shared/components/Button';
 import { Badge } from '@/shared/components/Badge';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { ClipboardList, Calendar, DollarSign, ArrowRight, Package } from 'lucide-react';
+import { ClipboardList, Calendar, IndianRupee, ArrowRight, Package } from 'lucide-react';
 import Link from 'next/link';
 
 export function OrderHistoryPage() {
@@ -70,7 +70,7 @@ export function OrderHistoryPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-1 font-semibold text-foreground">
-                        <DollarSign className="h-3.5 w-3.5" />
+                        <IndianRupee className="h-3.5 w-3.5" />
                         <span>Total: {productListService.formatPrice(order.grandTotal)}</span>
                       </div>
                     </div>

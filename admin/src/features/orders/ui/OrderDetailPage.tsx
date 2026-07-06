@@ -15,6 +15,7 @@ import {
   ArrowLeft, CheckCircle2, XCircle, RotateCcw, Clock
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
+import { formatPrice } from '@/shared/utils/format';
 
 export function OrderDetailPage() {
   const { id } = useParams();
@@ -182,7 +183,7 @@ export function OrderDetailPage() {
               onClick={() => {
                 showConfirm({
                   title: 'Refund Order Payment',
-                  message: `Process full refund of ₹${Number(order.grandTotal).toLocaleString()} to the customer?`,
+                  message: `Process full refund of ${formatPrice(order.grandTotal)} to the customer?`,
                   confirmText: 'Issue Full Refund',
                   onConfirm: () => refundMutation.mutate(Number(order.grandTotal)),
                 });
@@ -216,8 +217,8 @@ export function OrderDetailPage() {
                   <TableRow key={item.id}>
                     <TableCell className="text-xs font-bold text-white/90">{item.productName}</TableCell>
                     <TableCell className="text-xs text-white/60">{item.quantity}</TableCell>
-                    <TableCell className="text-xs text-white/60">₹{Number(item.unitPrice).toLocaleString()}</TableCell>
-                    <TableCell className="text-xs font-semibold text-white/90 text-right">₹{Number(item.totalPrice).toLocaleString()}</TableCell>
+                    <TableCell className="text-xs text-white/60">{formatPrice(item.unitPrice)}</TableCell>
+                    <TableCell className="text-xs font-semibold text-white/90 text-right">{formatPrice(item.totalPrice)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -228,27 +229,27 @@ export function OrderDetailPage() {
               <div className="w-64 space-y-2.5 text-xs text-white/60">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span className="text-white/80">₹{Number(order.subtotal ?? 0).toLocaleString()}</span>
+                  <span className="text-white/80">{formatPrice(order.subtotal ?? 0)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Shipping Total</span>
-                  <span className="text-white/80">₹{Number(order.shippingTotal ?? 0).toLocaleString()}</span>
+                  <span className="text-white/80">{formatPrice(order.shippingTotal ?? 0)}</span>
                 </div>
                 {Number(order.packingFeeTotal) > 0 && (
                   <div className="flex justify-between">
                     <span>Packing Fees</span>
-                    <span className="text-white/80">₹{Number(order.packingFeeTotal).toLocaleString()}</span>
+                    <span className="text-white/80">{formatPrice(order.packingFeeTotal)}</span>
                   </div>
                 )}
                 {Number(order.taxTotal) > 0 && (
                   <div className="flex justify-between">
                     <span>Tax (GST)</span>
-                    <span className="text-white/80">₹{Number(order.taxTotal).toLocaleString()}</span>
+                    <span className="text-white/80">{formatPrice(order.taxTotal)}</span>
                   </div>
                 )}
                 <div className="flex justify-between border-t border-white/10 pt-2.5 font-bold text-white text-sm">
                   <span>Grand Total</span>
-                  <span className="text-purple-400">₹{Number(order.grandTotal ?? 0).toLocaleString()}</span>
+                  <span className="text-purple-400">{formatPrice(order.grandTotal ?? 0)}</span>
                 </div>
               </div>
             </div>

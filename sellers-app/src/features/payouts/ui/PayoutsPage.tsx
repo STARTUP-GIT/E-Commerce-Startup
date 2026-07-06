@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/sha
 import { Badge } from '@/shared/components/Badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { DollarSign, CheckCircle2, Clock, Landmark } from 'lucide-react';
+import { IndianRupee, CheckCircle2, Clock, Landmark } from 'lucide-react';
 
 export function PayoutsPage() {
   const { payouts, pendingPayouts, completedPayouts, summary, isLoadingSummary } = usePayouts();
@@ -20,7 +20,7 @@ export function PayoutsPage() {
     {
       name: 'Gross Lifetime Revenue',
       value: productService.formatPrice(summary?.totalEarnings ?? 0),
-      icon: DollarSign,
+      icon: IndianRupee,
       color: 'text-purple-400',
     },
     {

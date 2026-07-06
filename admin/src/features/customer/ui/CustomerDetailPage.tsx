@@ -15,6 +15,7 @@ import {
   Trash2, ArrowLeft, RotateCcw, AlertTriangle, CreditCard, ShoppingBag, MapPin
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
+import { formatPrice } from '@/shared/utils/format';
 
 export function CustomerDetailPage() {
   const { id } = useParams();
@@ -304,7 +305,7 @@ export function CustomerDetailPage() {
                   {orders.map((order: any) => (
                     <TableRow key={order.id} className="cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
                       <TableCell className="font-bold text-white/90 text-xs">{order.orderNumber}</TableCell>
-                      <TableCell className="text-xs text-white/80 font-semibold">₹{Number(order.grandTotal ?? 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-xs text-white/80 font-semibold">{formatPrice(order.grandTotal)}</TableCell>
                       <TableCell>
                         <Badge variant={order.status === 'DELIVERED' ? 'success' : order.status === 'CANCELLED' ? 'destructive' : 'warning'} className="text-[7px]">
                           {order.status}
@@ -343,7 +344,7 @@ export function CustomerDetailPage() {
                   {payments.map((p: any) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-mono text-xs text-white/50">{p.id?.slice(0, 12)}...</TableCell>
-                      <TableCell className="text-xs text-white/90 font-semibold">₹{Number(p.amount ?? 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-xs text-white/90 font-semibold">{formatPrice(p.amount)}</TableCell>
                       <TableCell className="text-xs text-white/60">{p.method ?? '—'}</TableCell>
                       <TableCell>
                         <Badge variant={p.status === 'SUCCESS' ? 'success' : p.status === 'FAILED' ? 'destructive' : 'warning'} className="text-[7px]">

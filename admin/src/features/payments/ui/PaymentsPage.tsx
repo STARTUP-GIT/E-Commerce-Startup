@@ -11,6 +11,7 @@ import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
 import { Search, CheckCircle, XCircle } from 'lucide-react';
+import { formatPrice } from '@/shared/utils/format';
 
 export function PaymentsPage() {
   const [tab, setTab] = useState<'payments' | 'refunds'>('payments');
@@ -97,7 +98,7 @@ export function PaymentsPage() {
                   {payments.map((p: any) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-mono text-xs text-white/60">{p.id?.slice(0, 12)}...</TableCell>
-                      <TableCell className="text-xs font-bold text-white/90">₹{Number(p.amount ?? 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-xs font-bold text-white/90">{formatPrice(p.amount)}</TableCell>
                       <TableCell className="text-xs text-white/60">{p.method ?? p.paymentMethod ?? '—'}</TableCell>
                       <TableCell><Badge variant={p.status === 'SUCCESS' ? 'success' : p.status === 'FAILED' ? 'destructive' : 'outline'} className="text-[8px]">{p.status}</Badge></TableCell>
                       <TableCell className="text-xs text-white/40">{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—'}</TableCell>
@@ -121,7 +122,7 @@ export function PaymentsPage() {
                   {refunds.map((r: any) => (
                     <TableRow key={r.id}>
                       <TableCell className="font-mono text-xs text-white/60">{r.paymentId?.slice(0, 12) ?? r.id?.slice(0, 12)}...</TableCell>
-                      <TableCell className="text-xs font-bold text-white/90">₹{Number(r.refundAmount ?? r.amount ?? 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-xs font-bold text-white/90">{formatPrice(r.refundAmount ?? r.amount)}</TableCell>
                       <TableCell><Badge variant={r.refundStatus === 'APPROVED' ? 'success' : r.refundStatus === 'REJECTED' ? 'destructive' : 'warning'} className="text-[8px]">{r.refundStatus ?? 'PENDING'}</Badge></TableCell>
                       <TableCell>
                         {(!r.refundStatus || r.refundStatus === 'PENDING') && (

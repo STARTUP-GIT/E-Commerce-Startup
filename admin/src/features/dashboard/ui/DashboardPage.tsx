@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { formatPrice } from '@/shared/utils/format';
 
 function StatCard({
   label, value, desc, icon: Icon, iconColor, href, index
@@ -51,7 +52,7 @@ export function DashboardPage() {
   const stats = [
     {
       label: "Total Revenue",
-      value: dashboard?.totalRevenue ? `₹${Number(dashboard.totalRevenue).toLocaleString()}` : '₹0',
+      value: dashboard?.totalRevenue ? formatPrice(dashboard.totalRevenue) : '₹0.00',
       desc: 'Lifetime platform order value',
       icon: IndianRupee,
       iconColor: 'text-white/40',
@@ -59,7 +60,7 @@ export function DashboardPage() {
     },
     {
       label: "Commission Earned",
-      value: dashboard?.platformRevenue ? `₹${Number(dashboard.platformRevenue).toLocaleString()}` : '₹0',
+      value: dashboard?.platformRevenue ? formatPrice(dashboard.platformRevenue) : '₹0.00',
       desc: 'Lifetime platform commission',
       icon: IndianRupee,
       iconColor: 'text-white/40',

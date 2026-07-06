@@ -8,7 +8,7 @@ import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { useUIStore } from '@/lib/store/uiStore';
-import { Settings, DollarSign, Package, CreditCard, ShoppingCart } from 'lucide-react';
+import { Settings, IndianRupee, Package, CreditCard, ShoppingCart } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 export function SettingsPage() {
@@ -59,7 +59,7 @@ export function SettingsPage() {
         <Card className="border border-white/5">
           <CardHeader className="border-b border-white/5 pb-4">
             <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-white/40" />
+              <IndianRupee className="h-4 w-4 text-white/40" />
               <CardTitle className="text-xs font-bold text-white/90">GST Configuration</CardTitle>
             </div>
             <CardDescription>Set the applicable GST rate for transactions</CardDescription>

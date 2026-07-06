@@ -11,6 +11,7 @@ import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
 import { Search, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { formatPrice } from '@/shared/utils/format';
 
 export function ProductsPage() {
   const [search, setSearch] = useState('');
@@ -95,7 +96,7 @@ export function ProductsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-xs text-white/60">{product.shop?.name ?? '—'}</TableCell>
-                    <TableCell className="text-xs font-semibold text-white/80">₹{Number(product.price ?? 0).toLocaleString()}</TableCell>
+                    <TableCell className="text-xs font-semibold text-white/80">{formatPrice(product.price)}</TableCell>
                     <TableCell className="text-xs text-white/60">{product.stock ?? 0}</TableCell>
                     <TableCell>
                       <Badge variant={product.isHidden ? 'secondary' : product.isDeleted ? 'destructive' : 'success'} className="text-[8px]">

@@ -10,6 +10,7 @@ import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { Search, ExternalLink } from 'lucide-react';
+import { formatPrice } from '@/shared/utils/format';
 import Link from 'next/link';
 
 const ORDER_STATUS_COLORS: Record<string, any> = {
@@ -88,7 +89,7 @@ export function OrdersPage() {
                   <TableRow key={order.id}>
                     <TableCell className="font-bold text-white/90 text-xs">{order.orderNumber ?? order.id?.slice(0, 8)}</TableCell>
                     <TableCell className="text-xs text-white/60">{order.customer?.firstName ?? order.customerId}</TableCell>
-                    <TableCell className="text-xs font-semibold text-white/80">₹{Number(order.totalAmount ?? order.amount ?? 0).toLocaleString()}</TableCell>
+                    <TableCell className="text-xs font-semibold text-white/80">{formatPrice(order.totalAmount ?? order.amount ?? 0)}</TableCell>
                     <TableCell>
                       <Badge variant={ORDER_STATUS_COLORS[order.status] ?? 'outline'} className="text-[8px]">{order.status}</Badge>
                     </TableCell>

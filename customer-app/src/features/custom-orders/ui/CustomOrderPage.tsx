@@ -21,7 +21,6 @@ import {
   Paperclip,
   MapPin,
   Calendar,
-  DollarSign,
   Clock,
   Store,
   Check,

@@ -11,6 +11,7 @@ import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
 import { Tag, Plus, Trash2, X } from 'lucide-react';
+import { formatPrice } from '@/shared/utils/format';
 import { useForm } from 'react-hook-form';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -139,7 +140,7 @@ export function CouponsPage() {
                   <TableRow key={coupon.id}>
                     <TableCell className="font-mono font-bold text-xs text-white/90">{coupon.code}</TableCell>
                     <TableCell className="text-xs text-white/60">{coupon.discountType}</TableCell>
-                    <TableCell className="text-xs font-semibold text-white/80">{coupon.discountType === 'PERCENTAGE' ? `${coupon.discountValue}%` : `₹${coupon.discountValue}`}</TableCell>
+                    <TableCell className="text-xs font-semibold text-white/80">{coupon.discountType === 'PERCENTAGE' ? `${coupon.discountValue}%` : formatPrice(coupon.discountValue)}</TableCell>
                     <TableCell className="text-xs text-white/60">{coupon.usedCount ?? 0} / {coupon.maxUses ?? '∞'}</TableCell>
                     <TableCell><Badge variant={coupon.isActive ? 'success' : 'secondary'} className="text-[8px]">{coupon.isActive ? 'Active' : 'Inactive'}</Badge></TableCell>
                     <TableCell className="text-xs text-white/40">{coupon.expiresAt ? new Date(coupon.expiresAt).toLocaleDateString() : 'Never'}</TableCell>
