@@ -377,7 +377,7 @@ export const updateShopConfig = async (req: Request, res: Response) => {
     try {
         const shopId = String(req.params.id);
         const adminId = req.adminId!;
-        const { commissionPercentage, customerDeliveryShare, sellerDeliveryShare, enablePackingFee, packingFeeApproved } = req.body;
+        const { commissionPercentage, commissionNotes, customerDeliveryShare, sellerDeliveryShare, enablePackingFee, packingFeeApproved } = req.body;
 
         const shop = await prisma.shop.findUnique({ where: { id: shopId } });
         if (!shop) return res.status(404).json({ message: "Shop not found" });
@@ -386,6 +386,7 @@ export const updateShopConfig = async (req: Request, res: Response) => {
             where: { id: shopId },
             data: {
                 commissionPercentage: commissionPercentage !== undefined ? Number(commissionPercentage) : undefined,
+                commissionNotes: commissionNotes !== undefined ? commissionNotes : undefined,
                 customerDeliveryShare: customerDeliveryShare !== undefined ? Number(customerDeliveryShare) : undefined,
                 sellerDeliveryShare: sellerDeliveryShare !== undefined ? Number(sellerDeliveryShare) : undefined,
                 enablePackingFee: enablePackingFee !== undefined ? Boolean(enablePackingFee) : undefined,
@@ -401,6 +402,7 @@ export const updateShopConfig = async (req: Request, res: Response) => {
             description: `Configured shop settings for ${shop.name}`,
             previousValue: {
                 commissionPercentage: shop.commissionPercentage,
+                commissionNotes: shop.commissionNotes,
                 customerDeliveryShare: shop.customerDeliveryShare,
                 sellerDeliveryShare: shop.sellerDeliveryShare,
                 enablePackingFee: shop.enablePackingFee,
@@ -408,6 +410,7 @@ export const updateShopConfig = async (req: Request, res: Response) => {
             },
             newValue: {
                 commissionPercentage: updatedShop.commissionPercentage,
+                commissionNotes: updatedShop.commissionNotes,
                 customerDeliveryShare: updatedShop.customerDeliveryShare,
                 sellerDeliveryShare: updatedShop.sellerDeliveryShare,
                 enablePackingFee: updatedShop.enablePackingFee,

@@ -24,7 +24,7 @@ export function SettingsPage() {
   const settings = data?.settings ?? data ?? {};
 
   const gstForm = useForm({ defaultValues: { gstPercentage: settings?.gstPercentage ?? 18 } });
-  const feeForm = useForm({ defaultValues: { platformFeePercentage: settings?.platformFeePercentage ?? 10 } });
+  const feeForm = useForm({ defaultValues: { platformFee: settings?.platformFee ?? 10 } });
 
   const updateGST = useMutation({
     mutationFn: (v: any) => settingsApi.updateGST({ gstPercentage: Number(v.gstPercentage) }),
@@ -33,7 +33,7 @@ export function SettingsPage() {
   });
 
   const updateFee = useMutation({
-    mutationFn: (v: any) => settingsApi.updatePlatformFee({ platformFeePercentage: Number(v.platformFeePercentage) }),
+    mutationFn: (v: any) => settingsApi.updatePlatformFee({ platformFee: Number(v.platformFee) }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['settings'] }); showToast('Platform fee updated.', 'success'); },
     onError: (e: any) => showToast(e.message, 'error'),
   });
@@ -80,15 +80,15 @@ export function SettingsPage() {
           <CardHeader className="border-b border-white/5 pb-4">
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-white/40" />
-              <CardTitle className="text-xs font-bold text-white/90">Platform Commission</CardTitle>
+              <CardTitle className="text-xs font-bold text-white/90">Platform Fee</CardTitle>
             </div>
             <CardDescription>Set the platform fee charged on each transaction</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             <form onSubmit={feeForm.handleSubmit((v) => updateFee.mutate(v))} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Fee Percentage (%)</label>
-                <Input type="number" step="0.01" min="0" max="100" {...feeForm.register('platformFeePercentage')} defaultValue={settings?.platformFeePercentage ?? 10} />
+                <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Platform Fee (₹)</label>
+                <Input type="number" step="1" min="0" {...feeForm.register('platformFee')} defaultValue={settings?.platformFee ?? 10} />
               </div>
               <Button type="submit" size="sm" isLoading={updateFee.isPending} className="w-full">Update Fee</Button>
             </form>

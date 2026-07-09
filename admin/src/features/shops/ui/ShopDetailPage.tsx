@@ -33,6 +33,7 @@ export function ShopDetailPage() {
   const shop = data?.shop;
 
   const [configComm, setConfigComm] = useState('10.0');
+  const [configCommNotes, setConfigCommNotes] = useState('');
   const [configCustShare, setConfigCustShare] = useState('75');
   const [configSellerShare, setConfigSellerShare] = useState('25');
   const [configPackingApproved, setConfigPackingApproved] = useState(false);
@@ -41,14 +42,40 @@ export function ShopDetailPage() {
   useEffect(() => {
     if (shop) {
       setConfigComm(String(shop.commissionPercentage ?? '10.0'));
+      setConfigCommNotes(shop.commissionNotes ?? '');
       setConfigCustShare(String(shop.customerDeliveryShare ?? '75'));
       setConfigSellerShare(String(shop.sellerDeliveryShare ?? '25'));
       setConfigPackingApproved(Boolean(shop.packingFeeApproved));
     }
   }, [shop]);
 
+  const [isSavingComm, setIsSavingComm] = useState(false);
+
+  const handleCommissionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const comm = parseFloat(configComm);
+    if (isNaN(comm) || comm < 0 || comm > 100) {
+      showToast('Commission must be a percentage between 0 and 100.', 'error');
+      return;
+    }
+
+    try {
+      setIsSavingComm(true);
+      await shopApi.updateShopConfig(shopId, {
+        commissionPercentage: comm,
+        commissionNotes: configCommNotes,
+      });
+      queryClient.invalidateQueries({ queryKey: ['shop-detail', shopId] });
+      showToast('Shop commission updated successfully.', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update shop commission.', 'error');
+    } finally {
+      setIsSavingComm(false);
+    }
+  };
+
   const updateConfigMutation = useMutation({
-    mutationFn: (payload: { commissionPercentage: number; customerDeliveryShare: number; sellerDeliveryShare: number; packingFeeApproved: boolean }) =>
+    mutationFn: (payload: { customerDeliveryShare: number; sellerDeliveryShare: number; packingFeeApproved: boolean }) =>
       shopApi.updateShopConfig(shopId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shop-detail', shopId] });
@@ -59,14 +86,9 @@ export function ShopDetailPage() {
 
   const handleConfigSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const comm = parseFloat(configComm);
     const cust = parseInt(configCustShare);
     const sell = parseInt(configSellerShare);
 
-    if (isNaN(comm) || comm < 0 || comm > 100) {
-      showToast('Commission must be a percentage between 0 and 100.', 'error');
-      return;
-    }
     if (isNaN(cust) || cust < 0 || cust > 100 || isNaN(sell) || sell < 0 || sell > 100) {
       showToast('Delivery shares must be between 0 and 100.', 'error');
       return;
@@ -77,7 +99,6 @@ export function ShopDetailPage() {
     }
 
     updateConfigMutation.mutate({
-      commissionPercentage: comm,
       customerDeliveryShare: cust,
       sellerDeliveryShare: sell,
       packingFeeApproved: configPackingApproved,
@@ -335,17 +356,16 @@ export function ShopDetailPage() {
               )}
             </CardContent>
           </Card>
-          {/* Shop Configurations */}
+          {/* Shop Commission Card */}
           <Card className="border border-white/5 bg-white/[0.01]">
             <CardHeader className="border-b border-white/5">
-              <CardTitle className="text-xs font-bold text-white/95">Platform Configurations</CardTitle>
-              <CardDescription>Adjust shop-specific payouts & packaging terms</CardDescription>
+              <CardTitle className="text-xs font-bold text-white/95">Shop Commission</CardTitle>
+              <CardDescription>Adjust commission rate and log specific terms for this storefront</CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-5">
-              <form onSubmit={handleConfigSubmit} className="space-y-4 text-xs">
-                {/* Commission input */}
+              <form onSubmit={handleCommissionSubmit} className="space-y-4 text-xs">
                 <div className="space-y-1.5">
-                  <label className="text-white/50 block font-medium font-bold">Commission Percentage (%)</label>
+                  <label className="text-white/50 block font-medium font-bold">Commission Amount (%)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -356,7 +376,36 @@ export function ShopDetailPage() {
                     className="w-full h-9 px-3 rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-purple-500 transition-all font-semibold"
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-white/50 block font-medium font-bold">Commission Notes (Optional)</label>
+                  <textarea
+                    placeholder="e.g. Special rate for introductory period"
+                    rows={3}
+                    value={configCommNotes}
+                    onChange={(e) => setConfigCommNotes(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-purple-500 transition-all font-semibold resize-none"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="w-full h-9 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white mt-4"
+                  isLoading={isSavingComm}
+                >
+                  Save Commission
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
 
+          {/* Shop Configurations */}
+          <Card className="border border-white/5 bg-white/[0.01]">
+            <CardHeader className="border-b border-white/5">
+              <CardTitle className="text-xs font-bold text-white/95">Platform Configurations</CardTitle>
+              <CardDescription>Adjust shop-specific payouts & packaging terms</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-5">
+              <form onSubmit={handleConfigSubmit} className="space-y-4 text-xs">
                 {/* Delivery Fee split inputs */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">

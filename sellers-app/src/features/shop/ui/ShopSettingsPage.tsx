@@ -221,6 +221,11 @@ export function ShopSettingsPage() {
             <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
               <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Commission</p>
               <p className="mt-1 font-semibold text-white">{shop?.commissionPercentage ?? 10}%</p>
+              {shop?.commissionNotes && (
+                <p className="text-[10px] text-white/45 mt-1 border-t border-white/5 pt-1 italic font-normal">
+                  Notes: {shop.commissionNotes}
+                </p>
+              )}
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
               <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Customer / Seller Delivery</p>
@@ -319,6 +324,11 @@ export function ShopSettingsPage() {
             <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
               <p className="text-[9px] font-bold text-white/35 uppercase tracking-wider mb-1">Platform Commission</p>
               <p className="text-sm font-bold text-white/90">{(shop as any)?.commissionPercentage ?? 10}%</p>
+              {(shop as any)?.commissionNotes && (
+                <p className="text-[10px] text-white/40 mt-1 border-t border-white/5 pt-1 italic font-normal">
+                  Notes: {(shop as any).commissionNotes}
+                </p>
+              )}
             </div>
             <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
               <p className="text-[9px] font-bold text-white/35 uppercase tracking-wider mb-1">Delivery Split (Customer / Seller)</p>

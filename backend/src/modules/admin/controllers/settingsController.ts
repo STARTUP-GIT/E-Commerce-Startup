@@ -5,11 +5,7 @@ import { prisma } from "../../../config/prisma.js";
 
 export interface PlatformSettings {
     gstPercentage: number;
-    platformFee: {
-        enabled: boolean;
-        percentage: number;
-        fixedAmount: number;
-    };
+    platformFee: number;
     packingRules: {
         maxPercentage: number;
         maxAmount: number;
@@ -26,11 +22,7 @@ export interface PlatformSettings {
 
 const DEFAULT_SETTINGS: PlatformSettings = {
     gstPercentage: 18,
-    platformFee: {
-        enabled: false,
-        percentage: 0,
-        fixedAmount: 0
-    },
+    platformFee: 10,
     packingRules: {
         maxPercentage: 5,
         maxAmount: 100
@@ -138,16 +130,16 @@ export const updateGST = async (req: Request, res: Response) => {
 export const updatePlatformFee = async (req: Request, res: Response) => {
     try {
         const adminId = req.adminId!;
-        const { enabled, percentage, fixedAmount } = req.body;
+        const { platformFee } = req.body;
+
+        if (platformFee === undefined) {
+            return res.status(400).json({ message: "platformFee is required" });
+        }
 
         const previous = await getPlatformSettings();
         const updated = {
             ...previous,
-            platformFee: {
-                enabled: enabled !== undefined ? !!enabled : previous.platformFee.enabled,
-                percentage: percentage !== undefined ? Number(percentage) : previous.platformFee.percentage,
-                fixedAmount: fixedAmount !== undefined ? Number(fixedAmount) : previous.platformFee.fixedAmount
-            }
+            platformFee: Number(platformFee)
         };
 
         await savePlatformSettings(updated);
@@ -157,9 +149,9 @@ export const updatePlatformFee = async (req: Request, res: Response) => {
             actionType: AdminActionType.MARKETPLACE_SETTINGS_UPDATED,
             targetType: "Settings",
             targetId: "platformFee",
-            description: `Admin updated platform fee settings`,
-            previousValue: previous.platformFee,
-            newValue: updated.platformFee
+            description: `Admin updated platform fee to ₹${platformFee}`,
+            previousValue: { platformFee: previous.platformFee },
+            newValue: { platformFee: updated.platformFee }
         });
 
         return res.status(200).json({

@@ -78,6 +78,7 @@ model Shop {
   enablePackingFee       Boolean    @default(false)
   packingFeeApproved     Boolean    @default(false)
   commissionPercentage   Float      @default(10.0)
+  commissionNotes        String?    @db.Text
   customerDeliveryShare  Int        @default(75)
   sellerDeliveryShare    Int        @default(25)
   createdAt              DateTime   @default(now())

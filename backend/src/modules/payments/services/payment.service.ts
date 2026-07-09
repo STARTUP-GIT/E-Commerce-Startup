@@ -238,8 +238,21 @@ export const calculateTotals = async (params: {
         shippingTotal = 0;
     }
 
-    // 5. Future Platform Fee (Default 0, architecture ready)
-    const platformFeeTotal = 0;
+    // 5. Platform Fee (Fixed Amount from Settings, default 10)
+    let platformFeeTotal = 10;
+    try {
+        const settingsRow = await prisma.platformSetting.findUnique({ where: { id: 1 } });
+        if (settingsRow) {
+            const data = settingsRow.data as any;
+            if (data && typeof data.platformFee === 'number') {
+                platformFeeTotal = data.platformFee;
+            } else if (data && data.platformFee && typeof data.platformFee.fixedAmount === 'number') {
+                platformFeeTotal = data.platformFee.fixedAmount;
+            }
+        }
+    } catch (e) {
+        console.error("Error reading platform fee from settings, using default:", e);
+    }
 
     // 6. GST Calculation (18% on discounted subtotal + packing + shipping + platform fee)
     const subtotalAfterDiscount = Math.max(0, productSubtotal - discountTotal);

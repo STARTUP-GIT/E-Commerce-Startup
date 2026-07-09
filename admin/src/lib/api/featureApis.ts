@@ -69,7 +69,7 @@ export const settingsApi = {
     const response = await axiosInstance.patch('/api/admin/settings/gst', payload);
     return response.data;
   },
-  updatePlatformFee: async (payload: { platformFeePercentage: number }) => {
+  updatePlatformFee: async (payload: { platformFee: number }) => {
     const response = await axiosInstance.patch('/api/admin/settings/platform-fee', payload);
     return response.data;
   },
