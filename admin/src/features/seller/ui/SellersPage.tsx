@@ -14,6 +14,7 @@ import { Search, ShieldOff, ShieldCheck, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ReasonModal } from '@/shared/components/ReasonModal';
+import { useRouter } from 'next/navigation';
 
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'outline' | 'secondary' | 'default'> = {
   ACTIVE: 'success',
@@ -27,6 +28,7 @@ export function SellersPage() {
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
+  const router = useRouter();
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
     title: string;
@@ -140,7 +142,18 @@ export function SellersPage() {
               </TableHeader>
               <TableBody>
                 {sellers.map((seller: any) => (
-                  <TableRow key={seller.id}>
+                  <TableRow
+                    key={seller.id}
+                    className="cursor-pointer hover:bg-white/[0.02] focus:bg-white/[0.02] focus:outline-none transition-colors"
+                    onClick={() => router.push(`/sellers/${seller.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        router.push(`/sellers/${seller.id}`);
+                      }
+                    }}
+                    tabIndex={0}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-bold text-white/60 shrink-0">
@@ -162,8 +175,7 @@ export function SellersPage() {
                     </TableCell>
                     <TableCell className="text-xs text-white/40">
                       {seller.createdAt ? new Date(seller.createdAt).toLocaleDateString() : '—'}
-                    </TableCell>
-                    <TableCell>
+                    </TableCell>                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
                         {seller.status === 'ACTIVE' && (
                         <Button
@@ -171,7 +183,8 @@ export function SellersPage() {
                           variant="ghost"
                           className="h-7 px-2 text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
                           isLoading={banMutation.isPending}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setModalConfig({
                               isOpen: true,
                               title: 'Ban Seller Account',
@@ -192,7 +205,7 @@ export function SellersPage() {
                             variant="ghost"
                             className="h-7 px-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
                             isLoading={unbanMutation.isPending}
-                            onClick={() => unbanMutation.mutate(seller.id)}
+                            onClick={(e) => { e.stopPropagation(); unbanMutation.mutate(seller.id); }}
                             title="Unban"
                           >
                             <ShieldCheck className="h-3.5 w-3.5" />
@@ -200,6 +213,7 @@ export function SellersPage() {
                         )}
                         <Link
                           href={`/sellers/${seller.id}`}
+                          onClick={(e) => e.stopPropagation()}
                           className="h-7 px-2 text-white/40 hover:text-white/80 transition-colors flex items-center"
                           title="View details"
                         >

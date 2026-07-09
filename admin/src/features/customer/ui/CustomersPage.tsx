@@ -13,12 +13,14 @@ import { useUIStore } from '@/lib/store/uiStore';
 import { Search, ShieldOff, ShieldCheck, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { ReasonModal } from '@/shared/components/ReasonModal';
+import { useRouter } from 'next/navigation';
 
 export function CustomersPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
+  const router = useRouter();
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
     title: string;
@@ -102,7 +104,18 @@ export function CustomersPage() {
               </TableHeader>
               <TableBody>
                 {customers.map((customer: any) => (
-                  <TableRow key={customer.id}>
+                  <TableRow
+                    key={customer.id}
+                    className="cursor-pointer hover:bg-white/[0.02] focus:bg-white/[0.02] focus:outline-none transition-colors"
+                    onClick={() => router.push(`/customers/${customer.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        router.push(`/customers/${customer.id}`);
+                      }
+                    }}
+                    tabIndex={0}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-bold text-white/60 shrink-0">
@@ -120,14 +133,15 @@ export function CustomersPage() {
                     <TableCell className="text-xs text-white/40">
                       {customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : '—'}
                     </TableCell>
-                    <TableCell>
+                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
                         {customer.isBanned ? (
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={unbanMutation.isPending} onClick={() => unbanMutation.mutate(customer.id)}>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={unbanMutation.isPending} onClick={(e) => { e.stopPropagation(); unbanMutation.mutate(customer.id); }}>
                             <ShieldCheck className="h-3.5 w-3.5" />
                           </Button>
                         ) : (
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-400 hover:bg-orange-500/10" isLoading={banMutation.isPending} onClick={() => {
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-400 hover:bg-orange-500/10" isLoading={banMutation.isPending} onClick={(e) => {
+                            e.stopPropagation();
                             setModalConfig({
                               isOpen: true,
                               title: 'Ban Customer Account',
@@ -140,7 +154,7 @@ export function CustomersPage() {
                             <ShieldOff className="h-3.5 w-3.5" />
                           </Button>
                         )}
-                        <Link href={`/customers/${customer.id}`} className="h-7 px-2 text-white/40 hover:text-white/80 transition-colors flex items-center">
+                        <Link href={`/customers/${customer.id}`} onClick={(e) => e.stopPropagation()} className="h-7 px-2 text-white/40 hover:text-white/80 transition-colors flex items-center">
                           <ExternalLink className="h-3.5 w-3.5" />
                         </Link>
                       </div>

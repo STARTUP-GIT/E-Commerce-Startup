@@ -13,12 +13,14 @@ import { useUIStore } from '@/lib/store/uiStore';
 import { Search, CheckCircle, XCircle, ExternalLink, Package, ShieldOff, Pause } from 'lucide-react';
 import Link from 'next/link';
 import { ReasonModal } from '@/shared/components/ReasonModal';
+import { useRouter } from 'next/navigation';
 
 export function ShopsPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
+  const router = useRouter();
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
     title: string;
@@ -129,7 +131,18 @@ export function ShopsPage() {
               </TableHeader>
               <TableBody>
                 {shops.map((shop: any) => (
-                  <TableRow key={shop.id}>
+                  <TableRow
+                    key={shop.id}
+                    className="cursor-pointer hover:bg-white/[0.02] focus:bg-white/[0.02] focus:outline-none transition-colors"
+                    onClick={() => router.push(`/shops/${shop.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        router.push(`/shops/${shop.id}`);
+                      }
+                    }}
+                    tabIndex={0}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
@@ -150,14 +163,15 @@ export function ShopsPage() {
                     <TableCell>
                       <Badge variant={STATUS_BADGE[shop.status] ?? 'outline'} className="text-[8px]">{shop.status}</Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
                         {shop.status === 'PENDING' && (
                           <>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={approveShop.isPending} onClick={() => approveShop.mutate(shop.id)}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={approveShop.isPending} onClick={(e) => { e.stopPropagation(); approveShop.mutate(shop.id); }}>
                               <CheckCircle className="h-3.5 w-3.5" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={rejectShop.isPending} onClick={() => {
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={rejectShop.isPending} onClick={(e) => {
+                              e.stopPropagation();
                               setModalConfig({
                                 isOpen: true,
                                 title: 'Reject Shop',
@@ -173,7 +187,8 @@ export function ShopsPage() {
                         )}
                         {shop.status === 'APPROVED' && (
                           <>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-400 hover:bg-orange-500/10" isLoading={suspendShop.isPending} onClick={() => {
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-400 hover:bg-orange-500/10" isLoading={suspendShop.isPending} onClick={(e) => {
+                              e.stopPropagation();
                               setModalConfig({
                                 isOpen: true,
                                 title: 'Suspend Shop',
@@ -185,7 +200,8 @@ export function ShopsPage() {
                             }}>
                               <Pause className="h-3.5 w-3.5" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={disableShop.isPending} onClick={() => {
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={disableShop.isPending} onClick={(e) => {
+                              e.stopPropagation();
                               setModalConfig({
                                 isOpen: true,
                                 title: 'Disable Shop',
@@ -201,10 +217,11 @@ export function ShopsPage() {
                         )}
                         {shop.packingPermission === 'PENDING' && (
                           <>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={approvePacking.isPending} onClick={() => approvePacking.mutate(shop.id)}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={approvePacking.isPending} onClick={(e) => { e.stopPropagation(); approvePacking.mutate(shop.id); }}>
                               <Package className="h-3.5 w-3.5" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={rejectPacking.isPending} onClick={() => {
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={rejectPacking.isPending} onClick={(e) => {
+                              e.stopPropagation();
                               setModalConfig({
                                 isOpen: true,
                                 title: 'Reject Packing Permission',
@@ -218,7 +235,7 @@ export function ShopsPage() {
                             </Button>
                           </>
                         )}
-                        <Link href={`/shops/${shop.id}`} className="h-7 px-2 text-white/40 hover:text-white/80 transition-colors flex items-center">
+                        <Link href={`/shops/${shop.id}`} onClick={(e) => e.stopPropagation()} className="h-7 px-2 text-white/40 hover:text-white/80 transition-colors flex items-center">
                           <ExternalLink className="h-3.5 w-3.5" />
                         </Link>
                       </div>
