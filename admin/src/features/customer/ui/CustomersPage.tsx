@@ -12,12 +12,28 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { useUIStore } from '@/lib/store/uiStore';
 import { Search, ShieldOff, ShieldCheck, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
+import { ReasonModal } from '@/shared/components/ReasonModal';
 
 export function CustomersPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    action: string;
+    target: string;
+    onConfirm: (reason: string) => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    action: '',
+    target: '',
+    onConfirm: () => {},
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ['customers', { search, page }],
@@ -29,7 +45,7 @@ export function CustomersPage() {
   const total = data?.total ?? 0;
 
   const banMutation = useMutation({
-    mutationFn: (id: string) => customerApi.banCustomer(id),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => customerApi.banCustomer(id, reason),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['customers'] }); showToast('Customer banned.', 'info'); },
     onError: (e: any) => showToast(e.message, 'error'),
   });
@@ -111,7 +127,16 @@ export function CustomersPage() {
                             <ShieldCheck className="h-3.5 w-3.5" />
                           </Button>
                         ) : (
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-400 hover:bg-orange-500/10" isLoading={banMutation.isPending} onClick={() => banMutation.mutate(customer.id)}>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-400 hover:bg-orange-500/10" isLoading={banMutation.isPending} onClick={() => {
+                            setModalConfig({
+                              isOpen: true,
+                              title: 'Ban Customer Account',
+                              description: `Are you sure you want to ban the customer account for "${customer.firstName} ${customer.lastName}"? Banning this customer will immediately disable their login access and cancel any of their active non-shipped orders.`,
+                              action: 'Ban',
+                              target: `${customer.firstName} ${customer.lastName}`,
+                              onConfirm: (reason) => banMutation.mutate({ id: customer.id, reason }),
+                            });
+                          }}>
                             <ShieldOff className="h-3.5 w-3.5" />
                           </Button>
                         )}
@@ -135,6 +160,20 @@ export function CustomersPage() {
           <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={customers.length < 20}>Next</Button>
         </div>
       )}
+
+      <ReasonModal
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig((prev) => ({ ...prev, isOpen: false }))}
+        title={modalConfig.title}
+        description={modalConfig.description}
+        action={modalConfig.action}
+        target={modalConfig.target}
+        onConfirm={(reason) => {
+          modalConfig.onConfirm(reason);
+          setModalConfig((prev) => ({ ...prev, isOpen: false }));
+        }}
+        isLoading={banMutation.isPending}
+      />
     </div>
   );
 }

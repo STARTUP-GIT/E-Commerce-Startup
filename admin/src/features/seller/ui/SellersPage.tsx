@@ -13,6 +13,7 @@ import { useUIStore } from '@/lib/store/uiStore';
 import { Search, ShieldOff, ShieldCheck, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { ReasonModal } from '@/shared/components/ReasonModal';
 
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'outline' | 'secondary' | 'default'> = {
   ACTIVE: 'success',
@@ -26,6 +27,21 @@ export function SellersPage() {
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    action: string;
+    target: string;
+    onConfirm: (reason: string) => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    action: '',
+    target: '',
+    onConfirm: () => {},
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ['sellers', { search, status: statusFilter, page }],
@@ -37,7 +53,7 @@ export function SellersPage() {
   const total = data?.total ?? 0;
 
   const banMutation = useMutation({
-    mutationFn: (id: string) => sellerApi.banSeller(id),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => sellerApi.banSeller(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sellers'] });
       showToast('Seller banned.', 'info');
@@ -155,7 +171,16 @@ export function SellersPage() {
                           variant="ghost"
                           className="h-7 px-2 text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
                           isLoading={banMutation.isPending}
-                          onClick={() => banMutation.mutate(seller.id)}
+                          onClick={() => {
+                            setModalConfig({
+                              isOpen: true,
+                              title: 'Ban Seller Account',
+                              description: `Are you sure you want to ban the seller account for "${seller.firstName} ${seller.lastName}"? Banning this seller will also disable all shops and products linked to them.`,
+                              action: 'Ban',
+                              target: `${seller.firstName} ${seller.lastName}`,
+                              onConfirm: (reason) => banMutation.mutate({ id: seller.id, reason }),
+                            });
+                          }}
                           title="Ban"
                         >
                           <ShieldOff className="h-3.5 w-3.5" />
@@ -202,6 +227,20 @@ export function SellersPage() {
           </Button>
         </div>
       )}
+
+      <ReasonModal
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig((prev) => ({ ...prev, isOpen: false }))}
+        title={modalConfig.title}
+        description={modalConfig.description}
+        action={modalConfig.action}
+        target={modalConfig.target}
+        onConfirm={(reason) => {
+          modalConfig.onConfirm(reason);
+          setModalConfig((prev) => ({ ...prev, isOpen: false }));
+        }}
+        isLoading={banMutation.isPending}
+      />
     </div>
   );
 }

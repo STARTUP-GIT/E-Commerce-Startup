@@ -83,7 +83,14 @@ export const banSeller = async (req: Request, res: Response) => {
     try {
         const sellerId = String(req.params.id);
         const adminId = req.adminId!;
-        const { reason } = req.body;
+        const { reason } = req.body ?? {};
+
+        if (!reason || typeof reason !== "string" || !reason.trim()) {
+            return res.status(400).json({ success: false, message: "Reason is required." });
+        }
+        if (reason.trim().length < 5 || reason.trim().length > 500) {
+            return res.status(400).json({ success: false, message: "Reason must be between 5 and 500 characters." });
+        }
 
         const seller = await prisma.seller.findUnique({
             where: { id: sellerId }
@@ -99,7 +106,7 @@ export const banSeller = async (req: Request, res: Response) => {
                 isBanned: true,
                 status: "BANNED",
                 bannedAt: new Date(),
-                banReason: reason || "Violations of platform policy"
+                banReason: reason
             }
         });
 
@@ -108,7 +115,7 @@ export const banSeller = async (req: Request, res: Response) => {
             where: { sellerId },
             data: { 
                 status: "DISABLED",
-                rejectionReason: `Banned due to seller ban: ${reason || 'Violations of platform policy'}`
+                rejectionReason: `Banned due to seller ban: ${reason}`
             }
         });
 
@@ -188,6 +195,14 @@ export const deleteSeller = async (req: Request, res: Response) => {
     try {
         const sellerId = String(req.params.id);
         const adminId = req.adminId!;
+        const { reason } = req.body ?? {};
+
+        if (!reason || typeof reason !== "string" || !reason.trim()) {
+            return res.status(400).json({ success: false, message: "Reason is required." });
+        }
+        if (reason.trim().length < 5 || reason.trim().length > 500) {
+            return res.status(400).json({ success: false, message: "Reason must be between 5 and 500 characters." });
+        }
 
         const seller = await prisma.seller.findUnique({
             where: { id: sellerId }
@@ -216,7 +231,7 @@ export const deleteSeller = async (req: Request, res: Response) => {
             actionType: AdminActionType.SELLER_BANNED,
             targetType: "Seller",
             targetId: sellerId,
-            description: `Seller ${seller.username} soft-deleted/deactivated by admin`,
+            description: `Seller ${seller.username} soft-deleted/deactivated by admin. Reason: ${reason}`,
             previousValue: { isDeactivated: seller.isDeactivated },
             newValue: { isDeactivated: true }
         });
@@ -309,7 +324,14 @@ export const suspendSeller = async (req: Request, res: Response) => {
     try {
         const sellerId = String(req.params.id);
         const adminId = req.adminId!;
-        const { reason } = req.body;
+        const { reason } = req.body ?? {};
+
+        if (!reason || typeof reason !== "string" || !reason.trim()) {
+            return res.status(400).json({ success: false, message: "Reason is required." });
+        }
+        if (reason.trim().length < 5 || reason.trim().length > 500) {
+            return res.status(400).json({ success: false, message: "Reason must be between 5 and 500 characters." });
+        }
 
         const seller = await prisma.seller.findUnique({ where: { id: sellerId } });
         if (!seller) return res.status(404).json({ message: "Seller not found" });
@@ -329,7 +351,7 @@ export const suspendSeller = async (req: Request, res: Response) => {
             actionType: AdminActionType.SELLER_BANNED,
             targetType: "Seller",
             targetId: sellerId,
-            description: `Seller ${seller.username} suspended by admin. Reason: ${reason || 'None provided'}`,
+            description: `Seller ${seller.username} suspended by admin. Reason: ${reason}`,
             previousValue: { status: seller.status },
             newValue: { status: "SUSPENDED" }
         });
@@ -429,6 +451,14 @@ export const deactivateSeller = async (req: Request, res: Response) => {
     try {
         const sellerId = String(req.params.id);
         const adminId = req.adminId!;
+        const { reason } = req.body ?? {};
+
+        if (!reason || typeof reason !== "string" || !reason.trim()) {
+            return res.status(400).json({ success: false, message: "Reason is required." });
+        }
+        if (reason.trim().length < 5 || reason.trim().length > 500) {
+            return res.status(400).json({ success: false, message: "Reason must be between 5 and 500 characters." });
+        }
 
         const seller = await prisma.seller.findUnique({ where: { id: sellerId } });
         if (!seller) return res.status(404).json({ message: "Seller not found" });
@@ -452,7 +482,7 @@ export const deactivateSeller = async (req: Request, res: Response) => {
             actionType: AdminActionType.SELLER_BANNED,
             targetType: "Seller",
             targetId: sellerId,
-            description: `Seller ${seller.username} deactivated by admin`,
+            description: `Seller ${seller.username} deactivated by admin. Reason: ${reason}`,
             previousValue: { isDeactivated: seller.isDeactivated },
             newValue: { isDeactivated: true }
         });

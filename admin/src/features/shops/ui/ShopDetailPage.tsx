@@ -14,6 +14,7 @@ import {
   Trash2, ArrowLeft, RotateCcw, AlertTriangle, ToggleLeft, ToggleRight, Box
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
+import { ReasonModal } from '@/shared/components/ReasonModal';
 
 export function ShopDetailPage() {
   const { id } = useParams();
@@ -22,7 +23,23 @@ export function ShopDetailPage() {
   const { showToast } = useUIStore();
   const showConfirm = useConfirmStore((state) => state.showConfirm);
 
+  const customerId = String(id); // Wait, shopId or customerId? Let's keep it as is.
   const shopId = String(id);
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    action: string;
+    target: string;
+    onConfirm: (reason: string) => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    action: '',
+    target: '',
+    onConfirm: () => {},
+  });
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['shop-detail', shopId],
@@ -116,7 +133,7 @@ export function ShopDetailPage() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: () => shopApi.rejectShop(shopId),
+    mutationFn: (reason: string) => shopApi.rejectShop(shopId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shop-detail', shopId] });
       showToast('Shop rejected.', 'info');
@@ -125,7 +142,7 @@ export function ShopDetailPage() {
   });
 
   const suspendMutation = useMutation({
-    mutationFn: () => shopApi.suspendShop(shopId),
+    mutationFn: (reason: string) => shopApi.suspendShop(shopId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shop-detail', shopId] });
       showToast('Shop suspended.', 'info');
@@ -134,7 +151,7 @@ export function ShopDetailPage() {
   });
 
   const disableMutation = useMutation({
-    mutationFn: () => shopApi.disableShop(shopId),
+    mutationFn: (reason: string) => shopApi.disableShop(shopId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shop-detail', shopId] });
       showToast('Shop disabled.', 'info');
@@ -143,7 +160,7 @@ export function ShopDetailPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => shopApi.deleteShop(shopId),
+    mutationFn: (reason: string) => shopApi.deleteShop(shopId, reason),
     onSuccess: () => {
       showToast('Shop permanently deleted.', 'info');
       router.push('/shops');
@@ -207,7 +224,16 @@ export function ShopDetailPage() {
               <Button size="sm" variant="default" className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-9 text-xs" isLoading={approveMutation.isPending} onClick={() => approveMutation.mutate()}>
                 <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Approve
               </Button>
-              <Button size="sm" variant="destructive" className="h-9 text-xs" isLoading={rejectMutation.isPending} onClick={() => rejectMutation.mutate()}>
+              <Button size="sm" variant="destructive" className="h-9 text-xs" isLoading={rejectMutation.isPending} onClick={() => {
+                setModalConfig({
+                  isOpen: true,
+                  title: 'Reject Shop Registration',
+                  description: `Are you sure you want to reject the shop registration for "${shop.name}"?`,
+                  action: 'Reject',
+                  target: shop.name,
+                  onConfirm: (reason) => rejectMutation.mutate(reason),
+                });
+              }}>
                 <XCircle className="h-3.5 w-3.5 mr-1.5" /> Reject
               </Button>
             </>
@@ -216,10 +242,28 @@ export function ShopDetailPage() {
           {/* Suspend / Disable for Approved */}
           {shop.status === 'APPROVED' && (
             <>
-              <Button size="sm" variant="secondary" className="h-9 text-xs border border-orange-500/20 text-orange-400 hover:bg-orange-500/10" isLoading={suspendMutation.isPending} onClick={() => suspendMutation.mutate()}>
+              <Button size="sm" variant="secondary" className="h-9 text-xs border border-orange-500/20 text-orange-400 hover:bg-orange-500/10" isLoading={suspendMutation.isPending} onClick={() => {
+                setModalConfig({
+                  isOpen: true,
+                  title: 'Suspend Shop storefront',
+                  description: `Are you sure you want to suspend "${shop.name}"? They will not be able to receive new orders.`,
+                  action: 'Suspend',
+                  target: shop.name,
+                  onConfirm: (reason) => suspendMutation.mutate(reason),
+                });
+              }}>
                 <AlertTriangle className="h-3.5 w-3.5 mr-1.5" /> Suspend
               </Button>
-              <Button size="sm" variant="destructive" className="h-9 text-xs" isLoading={disableMutation.isPending} onClick={() => disableMutation.mutate()}>
+              <Button size="sm" variant="destructive" className="h-9 text-xs" isLoading={disableMutation.isPending} onClick={() => {
+                setModalConfig({
+                  isOpen: true,
+                  title: 'Disable Shop storefront',
+                  description: `Are you sure you want to permanently disable "${shop.name}"? This action disables storefront access and catalog listings.`,
+                  action: 'Disable',
+                  target: shop.name,
+                  onConfirm: (reason) => disableMutation.mutate(reason),
+                });
+              }}>
                 <ShieldOff className="h-3.5 w-3.5 mr-1.5" /> Disable
               </Button>
             </>
@@ -239,11 +283,13 @@ export function ShopDetailPage() {
             className="h-9 text-xs bg-red-950/20 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/30 text-red-400"
             isLoading={deleteMutation.isPending}
             onClick={() => {
-              showConfirm({
+              setModalConfig({
+                isOpen: true,
                 title: 'Delete Shop permanently',
-                message: 'CRITICAL: This will permanently delete the shop profile and default pickup settings. This cannot be undone.',
-                confirmText: 'Delete Shop',
-                onConfirm: () => deleteMutation.mutate(),
+                description: 'CRITICAL: This will permanently delete the shop profile and default pickup settings. This cannot be undone.',
+                action: 'Delete',
+                target: shop.name,
+                onConfirm: (reason) => deleteMutation.mutate(reason),
               });
             }}
           >
@@ -467,6 +513,19 @@ export function ShopDetailPage() {
           </Card>
         </div>
       </div>
+      <ReasonModal
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig((prev) => ({ ...prev, isOpen: false }))}
+        title={modalConfig.title}
+        description={modalConfig.description}
+        action={modalConfig.action}
+        target={modalConfig.target}
+        onConfirm={(reason) => {
+          modalConfig.onConfirm(reason);
+          setModalConfig((prev) => ({ ...prev, isOpen: false }));
+        }}
+        isLoading={rejectMutation.isPending || suspendMutation.isPending || disableMutation.isPending || deleteMutation.isPending}
+      />
     </div>
   );
 }

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { formatPrice } from '@/shared/utils/format';
+import { ReasonModal } from '@/shared/components/ReasonModal';
 
 export function CustomerDetailPage() {
   const { id } = useParams();
@@ -25,6 +26,21 @@ export function CustomerDetailPage() {
   const showConfirm = useConfirmStore((state) => state.showConfirm);
 
   const customerId = String(id);
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    action: string;
+    target: string;
+    onConfirm: (reason: string) => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    action: '',
+    target: '',
+    onConfirm: () => {},
+  });
 
   // Queries
   const { data: customerData, isLoading: isLoadingCustomer, isError } = useQuery({
@@ -69,7 +85,7 @@ export function CustomerDetailPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => customerApi.deleteCustomer(customerId),
+    mutationFn: (reason: string) => customerApi.deleteCustomer(customerId, reason),
     onSuccess: () => {
       showToast('Customer account soft-deleted successfully.', 'info');
       router.push('/customers');
@@ -151,11 +167,13 @@ export function CustomerDetailPage() {
               className="h-9 text-xs"
               isLoading={banMutation.isPending}
               onClick={() => {
-                showConfirm({
+                setModalConfig({
+                  isOpen: true,
                   title: 'Ban Customer Account',
-                  message: 'CRITICAL: Banning this customer will immediately disable their login access and cancel any of their active non-shipped orders.',
-                  confirmText: 'Ban Customer',
-                  onConfirm: () => banMutation.mutate('Policy violation detected'),
+                  description: 'CRITICAL: Banning this customer will immediately disable their login access and cancel any of their active non-shipped orders.',
+                  action: 'Ban',
+                  target: `${customer.firstName} ${customer.lastName}`,
+                  onConfirm: (reason) => banMutation.mutate(reason),
                 });
               }}
             >
@@ -169,11 +187,13 @@ export function CustomerDetailPage() {
             className="h-9 text-xs bg-red-950/20 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/30 text-red-400"
             isLoading={deleteMutation.isPending}
             onClick={() => {
-              showConfirm({
+              setModalConfig({
+                isOpen: true,
                 title: 'Delete Customer Profile',
-                message: 'WARNING: This will soft-delete this customer profile permanently. This action cannot be easily undone.',
-                confirmText: 'Delete Customer',
-                onConfirm: () => deleteMutation.mutate(),
+                description: 'WARNING: This will soft-delete this customer profile permanently. This action cannot be easily undone.',
+                action: 'Delete',
+                target: `${customer.firstName} ${customer.lastName}`,
+                onConfirm: (reason) => deleteMutation.mutate(reason),
               });
             }}
           >
@@ -359,6 +379,19 @@ export function CustomerDetailPage() {
           </CardContent>
         </Card>
       </div>
+      <ReasonModal
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig((prev) => ({ ...prev, isOpen: false }))}
+        title={modalConfig.title}
+        description={modalConfig.description}
+        action={modalConfig.action}
+        target={modalConfig.target}
+        onConfirm={(reason) => {
+          modalConfig.onConfirm(reason);
+          setModalConfig((prev) => ({ ...prev, isOpen: false }));
+        }}
+        isLoading={banMutation.isPending || deleteMutation.isPending}
+      />
     </div>
   );
 }

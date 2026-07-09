@@ -74,7 +74,14 @@ export const banCustomer = async (req: Request, res: Response) => {
     try {
         const customerId = String(req.params.id);
         const adminId = req.adminId!;
-        const { reason } = req.body;
+        const { reason } = req.body ?? {};
+
+        if (!reason || typeof reason !== "string" || !reason.trim()) {
+            return res.status(400).json({ success: false, message: "Reason is required." });
+        }
+        if (reason.trim().length < 5 || reason.trim().length > 500) {
+            return res.status(400).json({ success: false, message: "Reason must be between 5 and 500 characters." });
+        }
 
         const customer = await prisma.customer.findUnique({ where: { id: customerId } });
 
@@ -87,7 +94,7 @@ export const banCustomer = async (req: Request, res: Response) => {
             data: {
                 isBanned: true,
                 bannedAt: new Date(),
-                banReason: reason || "Violations of platform terms of service"
+                banReason: reason
             }
         });
 
@@ -145,6 +152,14 @@ export const deleteCustomer = async (req: Request, res: Response) => {
     try {
         const customerId = String(req.params.id);
         const adminId = req.adminId!;
+        const { reason } = req.body ?? {};
+
+        if (!reason || typeof reason !== "string" || !reason.trim()) {
+            return res.status(400).json({ success: false, message: "Reason is required." });
+        }
+        if (reason.trim().length < 5 || reason.trim().length > 500) {
+            return res.status(400).json({ success: false, message: "Reason must be between 5 and 500 characters." });
+        }
 
         const customer = await prisma.customer.findUnique({ where: { id: customerId } });
 
@@ -162,7 +177,7 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             actionType: AdminActionType.CUSTOMER_BANNED,
             targetType: "Customer",
             targetId: customerId,
-            description: `Customer ${customer.username} soft-deleted by admin`,
+            description: `Customer ${customer.username} soft-deleted by admin. Reason: ${reason}`,
             previousValue: { isDeactivated: customer.isDeactivated },
             newValue: { isDeactivated: true }
         });

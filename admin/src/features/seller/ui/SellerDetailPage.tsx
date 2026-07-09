@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { sellerApi } from '../api/sellerApi';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/shared/components/Card';
@@ -14,6 +14,7 @@ import {
   ShieldOff, ShieldAlert as ShieldIcon, Trash2, ArrowLeft, RotateCcw, AlertTriangle, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
+import { ReasonModal } from '@/shared/components/ReasonModal';
 
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'outline' | 'secondary' | 'default'> = {
   ACTIVE: 'success',
@@ -29,6 +30,21 @@ export function SellerDetailPage() {
   const showConfirm = useConfirmStore((state) => state.showConfirm);
 
   const sellerId = String(id);
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    action: string;
+    target: string;
+    onConfirm: (reason: string) => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    action: '',
+    target: '',
+    onConfirm: () => {},
+  });
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['seller-detail', sellerId],
@@ -85,7 +101,7 @@ export function SellerDetailPage() {
   });
 
   const deactivateMutation = useMutation({
-    mutationFn: () => sellerApi.deactivateSeller(sellerId),
+    mutationFn: (reason: string) => sellerApi.deactivateSeller(sellerId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['seller-detail', sellerId] });
       showToast('Seller deactivated.', 'info');
@@ -94,7 +110,7 @@ export function SellerDetailPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => sellerApi.deleteSeller(sellerId),
+    mutationFn: (reason: string) => sellerApi.deleteSeller(sellerId, reason),
     onSuccess: () => {
       showToast('Seller soft-deleted successfully.', 'info');
       router.push('/sellers');
@@ -168,11 +184,13 @@ export function SellerDetailPage() {
                 className="h-9 text-xs"
                 isLoading={banMutation.isPending}
                 onClick={() => {
-                  showConfirm({
-                    title: 'Ban Seller',
-                    message: 'CRITICAL: Banning this seller will also disable all shops and products linked to them.',
-                    confirmText: 'Ban Seller',
-                    onConfirm: () => banMutation.mutate('Violations of platform standards'),
+                  setModalConfig({
+                    isOpen: true,
+                    title: 'Ban Seller Account',
+                    description: 'CRITICAL: Banning this seller will also disable all shops and products linked to them.',
+                    action: 'Ban',
+                    target: `${seller.firstName} ${seller.lastName}`,
+                    onConfirm: (reason: string) => banMutation.mutate(reason),
                   });
                 }}
               >
@@ -209,11 +227,13 @@ export function SellerDetailPage() {
               className="h-9 text-xs text-white/50 border-white/5 hover:bg-white/[0.04]"
               isLoading={deactivateMutation.isPending}
               onClick={() => {
-                showConfirm({
-                  title: 'Disable Seller',
-                  message: 'Disabling will disable their shop but will not ban the seller. Proceed?',
-                  confirmText: 'Disable',
-                  onConfirm: () => deactivateMutation.mutate(),
+                setModalConfig({
+                  isOpen: true,
+                  title: 'Disable Seller Account',
+                  description: 'Disabling will disable their shop but will not ban the seller. Proceed?',
+                  action: 'Disable',
+                  target: `${seller.firstName} ${seller.lastName}`,
+                  onConfirm: (reason: string) => deactivateMutation.mutate(reason),
                 });
               }}
             >
@@ -240,11 +260,13 @@ export function SellerDetailPage() {
             className="h-9 text-xs bg-red-950/20 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/30 text-red-400"
             isLoading={deleteMutation.isPending}
             onClick={() => {
-              showConfirm({
+              setModalConfig({
+                isOpen: true,
                 title: 'Delete Seller Account',
-                message: 'WARNING: This will soft-delete/deactivate this seller profile permanently.',
-                confirmText: 'Delete Seller',
-                onConfirm: () => deleteMutation.mutate(),
+                description: 'WARNING: This will soft-delete/deactivate this seller profile permanently.',
+                action: 'Delete',
+                target: `${seller.firstName} ${seller.lastName}`,
+                onConfirm: (reason: string) => deleteMutation.mutate(reason),
               });
             }}
           >
@@ -444,6 +466,19 @@ export function SellerDetailPage() {
 
         </div>
       </div>
+      <ReasonModal
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig((prev) => ({ ...prev, isOpen: false }))}
+        title={modalConfig.title}
+        description={modalConfig.description}
+        action={modalConfig.action}
+        target={modalConfig.target}
+        onConfirm={(reason) => {
+          modalConfig.onConfirm(reason);
+          setModalConfig((prev) => ({ ...prev, isOpen: false }));
+        }}
+        isLoading={banMutation.isPending || deactivateMutation.isPending || deleteMutation.isPending}
+      />
     </div>
   );
 }

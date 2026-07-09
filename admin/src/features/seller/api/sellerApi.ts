@@ -17,8 +17,8 @@ export const sellerApi = {
     const response = await axiosInstance.patch(`/api/admin/sellers/sellers/${id}/unban`);
     return response.data;
   },
-  deleteSeller: async (id: string) => {
-    const response = await axiosInstance.delete(`/api/admin/sellers/sellers/${id}`);
+  deleteSeller: async (id: string, reason?: string) => {
+    const response = await axiosInstance.delete(`/api/admin/sellers/sellers/${id}`, { data: { reason } });
     return response.data;
   },
   getSellerShop: async (id: string) => {
@@ -49,8 +49,8 @@ export const sellerApi = {
     const response = await axiosInstance.patch(`/api/admin/sellers/sellers/${id}/activate`);
     return response.data;
   },
-  deactivateSeller: async (id: string) => {
-    const response = await axiosInstance.patch(`/api/admin/sellers/sellers/${id}/deactivate`);
+  deactivateSeller: async (id: string, reason?: string) => {
+    const response = await axiosInstance.patch(`/api/admin/sellers/sellers/${id}/deactivate`, { reason });
     return response.data;
   },
 };

@@ -17,8 +17,8 @@ export const customerApi = {
     const response = await axiosInstance.patch(`/api/admin/customers/customers/${id}/unban`);
     return response.data;
   },
-  deleteCustomer: async (id: string) => {
-    const response = await axiosInstance.delete(`/api/admin/customers/customers/${id}`);
+  deleteCustomer: async (id: string, reason?: string) => {
+    const response = await axiosInstance.delete(`/api/admin/customers/customers/${id}`, { data: { reason } });
     return response.data;
   },
   getCustomerOrders: async (id: string) => {

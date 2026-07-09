@@ -77,6 +77,14 @@ export const deleteShop = async (req: Request, res: Response) => {
     try {
         const shopId = String(req.params.id);
         const adminId = req.adminId!;
+        const { reason } = req.body ?? {};
+
+        if (!reason || typeof reason !== "string" || !reason.trim()) {
+            return res.status(400).json({ success: false, message: "Reason is required." });
+        }
+        if (reason.trim().length < 5 || reason.trim().length > 500) {
+            return res.status(400).json({ success: false, message: "Reason must be between 5 and 500 characters." });
+        }
 
         const shop = await prisma.shop.findUnique({
             where: { id: shopId }
@@ -95,7 +103,7 @@ export const deleteShop = async (req: Request, res: Response) => {
             actionType: AdminActionType.SELLER_BANNED,
             targetType: "Shop",
             targetId: shopId,
-            description: `Shop '${shop.name}' permanently deleted by admin.`,
+            description: `Shop '${shop.name}' permanently deleted by admin. Reason: ${reason}`,
             previousValue: { name: shop.name },
             newValue: null
         });
@@ -149,6 +157,14 @@ export const rejectPackingPermission = async (req: Request, res: Response) => {
     try {
         const shopId = String(req.params.id);
         const adminId = req.adminId!;
+        const { reason } = req.body ?? {};
+
+        if (!reason || typeof reason !== "string" || !reason.trim()) {
+            return res.status(400).json({ success: false, message: "Reason is required." });
+        }
+        if (reason.trim().length < 5 || reason.trim().length > 500) {
+            return res.status(400).json({ success: false, message: "Reason must be between 5 and 500 characters." });
+        }
 
         const shop = await prisma.shop.findUnique({
             where: { id: shopId }
@@ -171,7 +187,7 @@ export const rejectPackingPermission = async (req: Request, res: Response) => {
             actionType: AdminActionType.MARKETPLACE_SETTINGS_UPDATED,
             targetType: "Shop",
             targetId: shopId,
-            description: `Packing fee permission rejected/disabled for shop: ${shop.name}`,
+            description: `Packing fee permission rejected/disabled for shop: ${shop.name}. Reason: ${reason}`,
             previousValue: { packingFeeApproved: shop.packingFeeApproved, enablePackingFee: shop.enablePackingFee },
             newValue: { packingFeeApproved: false, enablePackingFee: false }
         });
@@ -266,7 +282,14 @@ export const rejectShop = async (req: Request, res: Response) => {
     try {
         const shopId = String(req.params.id);
         const adminId = req.adminId!;
-        const { reason } = req.body;
+        const { reason } = req.body ?? {};
+
+        if (!reason || typeof reason !== "string" || !reason.trim()) {
+            return res.status(400).json({ success: false, message: "Reason is required." });
+        }
+        if (reason.trim().length < 5 || reason.trim().length > 500) {
+            return res.status(400).json({ success: false, message: "Reason must be between 5 and 500 characters." });
+        }
 
         const shop = await prisma.shop.findUnique({
             where: { id: shopId },
@@ -305,7 +328,14 @@ export const suspendShop = async (req: Request, res: Response) => {
     try {
         const shopId = String(req.params.id);
         const adminId = req.adminId!;
-        const { reason } = req.body;
+        const { reason } = req.body ?? {};
+
+        if (!reason || typeof reason !== "string" || !reason.trim()) {
+            return res.status(400).json({ success: false, message: "Reason is required." });
+        }
+        if (reason.trim().length < 5 || reason.trim().length > 500) {
+            return res.status(400).json({ success: false, message: "Reason must be between 5 and 500 characters." });
+        }
 
         const shop = await prisma.shop.findUnique({ where: { id: shopId } });
         if (!shop) return res.status(404).json({ message: "Shop not found" });
@@ -341,7 +371,14 @@ export const disableShop = async (req: Request, res: Response) => {
     try {
         const shopId = String(req.params.id);
         const adminId = req.adminId!;
-        const { reason } = req.body;
+        const { reason } = req.body ?? {};
+
+        if (!reason || typeof reason !== "string" || !reason.trim()) {
+            return res.status(400).json({ success: false, message: "Reason is required." });
+        }
+        if (reason.trim().length < 5 || reason.trim().length > 500) {
+            return res.status(400).json({ success: false, message: "Reason must be between 5 and 500 characters." });
+        }
 
         const shop = await prisma.shop.findUnique({ where: { id: shopId } });
         if (!shop) return res.status(404).json({ message: "Shop not found" });

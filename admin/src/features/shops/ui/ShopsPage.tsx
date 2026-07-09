@@ -12,12 +12,28 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { useUIStore } from '@/lib/store/uiStore';
 import { Search, CheckCircle, XCircle, ExternalLink, Package, ShieldOff, Pause } from 'lucide-react';
 import Link from 'next/link';
+import { ReasonModal } from '@/shared/components/ReasonModal';
 
 export function ShopsPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    action: string;
+    target: string;
+    onConfirm: (reason: string) => void;
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    action: '',
+    target: '',
+    onConfirm: () => {},
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ['shops', { search, page }],
@@ -35,7 +51,7 @@ export function ShopsPage() {
   });
 
   const rejectPacking = useMutation({
-    mutationFn: (id: string) => shopApi.rejectPackingPermission(id),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => shopApi.rejectPackingPermission(id, reason),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shops'] }); showToast('Packing permission rejected.', 'info'); },
     onError: (e: any) => showToast(e.message, 'error'),
   });
@@ -47,19 +63,19 @@ export function ShopsPage() {
   });
 
   const rejectShop = useMutation({
-    mutationFn: (id: string) => shopApi.rejectShop(id),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => shopApi.rejectShop(id, reason),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shops'] }); showToast('Shop rejected.', 'info'); },
     onError: (e: any) => showToast(e.message, 'error'),
   });
 
   const suspendShop = useMutation({
-    mutationFn: (id: string) => shopApi.suspendShop(id),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => shopApi.suspendShop(id, reason),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shops'] }); showToast('Shop suspended.', 'info'); },
     onError: (e: any) => showToast(e.message, 'error'),
   });
 
   const disableShop = useMutation({
-    mutationFn: (id: string) => shopApi.disableShop(id),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => shopApi.disableShop(id, reason),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['shops'] }); showToast('Shop disabled.', 'info'); },
     onError: (e: any) => showToast(e.message, 'error'),
   });
@@ -141,17 +157,44 @@ export function ShopsPage() {
                             <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={approveShop.isPending} onClick={() => approveShop.mutate(shop.id)}>
                               <CheckCircle className="h-3.5 w-3.5" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={rejectShop.isPending} onClick={() => rejectShop.mutate(shop.id)}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={rejectShop.isPending} onClick={() => {
+                              setModalConfig({
+                                isOpen: true,
+                                title: 'Reject Shop',
+                                description: `Are you sure you want to reject the shop registration for "${shop.name}"?`,
+                                action: 'Reject',
+                                target: shop.name,
+                                onConfirm: (reason) => rejectShop.mutate({ id: shop.id, reason }),
+                              });
+                            }}>
                               <XCircle className="h-3.5 w-3.5" />
                             </Button>
                           </>
                         )}
                         {shop.status === 'APPROVED' && (
                           <>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-400 hover:bg-orange-500/10" isLoading={suspendShop.isPending} onClick={() => suspendShop.mutate(shop.id)}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-400 hover:bg-orange-500/10" isLoading={suspendShop.isPending} onClick={() => {
+                              setModalConfig({
+                                isOpen: true,
+                                title: 'Suspend Shop',
+                                description: `Are you sure you want to suspend "${shop.name}"? They will not be able to receive new orders.`,
+                                action: 'Suspend',
+                                target: shop.name,
+                                onConfirm: (reason) => suspendShop.mutate({ id: shop.id, reason }),
+                              });
+                            }}>
                               <Pause className="h-3.5 w-3.5" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={disableShop.isPending} onClick={() => disableShop.mutate(shop.id)}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={disableShop.isPending} onClick={() => {
+                              setModalConfig({
+                                isOpen: true,
+                                title: 'Disable Shop',
+                                description: `Are you sure you want to disable "${shop.name}"? This action disables storefront access.`,
+                                action: 'Disable',
+                                target: shop.name,
+                                onConfirm: (reason) => disableShop.mutate({ id: shop.id, reason }),
+                              });
+                            }}>
                               <ShieldOff className="h-3.5 w-3.5" />
                             </Button>
                           </>
@@ -161,7 +204,16 @@ export function ShopsPage() {
                             <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={approvePacking.isPending} onClick={() => approvePacking.mutate(shop.id)}>
                               <Package className="h-3.5 w-3.5" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={rejectPacking.isPending} onClick={() => rejectPacking.mutate(shop.id)}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={rejectPacking.isPending} onClick={() => {
+                              setModalConfig({
+                                isOpen: true,
+                                title: 'Reject Packing Permission',
+                                description: `Are you sure you want to reject packing fee permissions for "${shop.name}"?`,
+                                action: 'Reject',
+                                target: shop.name,
+                                onConfirm: (reason) => rejectPacking.mutate({ id: shop.id, reason }),
+                              });
+                            }}>
                               <XCircle className="h-3.5 w-3.5" />
                             </Button>
                           </>
