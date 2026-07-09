@@ -10,7 +10,7 @@ import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
-import { Search, CheckCircle, XCircle, ExternalLink, Package, ShieldOff, Pause } from 'lucide-react';
+import { Search, CheckCircle, XCircle, ExternalLink, Package, ShieldOff, Pause, Play, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { ReasonModal } from '@/shared/components/ReasonModal';
 import { useRouter } from 'next/navigation';
@@ -197,7 +197,7 @@ export function ShopsPage() {
                                 target: shop.name,
                                 onConfirm: (reason) => suspendShop.mutate({ id: shop.id, reason }),
                               });
-                            }}>
+                            }} title="Suspend">
                               <Pause className="h-3.5 w-3.5" />
                             </Button>
                             <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={disableShop.isPending} onClick={(e) => {
@@ -210,8 +210,48 @@ export function ShopsPage() {
                                 target: shop.name,
                                 onConfirm: (reason) => disableShop.mutate({ id: shop.id, reason }),
                               });
-                            }}>
+                            }} title="Disable">
                               <ShieldOff className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                        {shop.status === 'SUSPENDED' && (
+                          <>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={approveShop.isPending} onClick={(e) => { e.stopPropagation(); approveShop.mutate(shop.id); }} title="Unsuspend">
+                              <Play className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={disableShop.isPending} onClick={(e) => {
+                              e.stopPropagation();
+                              setModalConfig({
+                                isOpen: true,
+                                title: 'Disable Shop',
+                                description: `Are you sure you want to disable "${shop.name}"? This action disables storefront access.`,
+                                action: 'Disable',
+                                target: shop.name,
+                                onConfirm: (reason) => disableShop.mutate({ id: shop.id, reason }),
+                              });
+                            }} title="Disable">
+                              <ShieldOff className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                        {shop.status === 'DISABLED' && (
+                          <>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-400 hover:bg-orange-500/10" isLoading={suspendShop.isPending} onClick={(e) => {
+                              e.stopPropagation();
+                              setModalConfig({
+                                isOpen: true,
+                                title: 'Suspend Shop',
+                                description: `Are you sure you want to suspend "${shop.name}"? They will not be able to receive new orders.`,
+                                action: 'Suspend',
+                                target: shop.name,
+                                onConfirm: (reason) => suspendShop.mutate({ id: shop.id, reason }),
+                              });
+                            }} title="Suspend">
+                              <Pause className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={approveShop.isPending} onClick={(e) => { e.stopPropagation(); approveShop.mutate(shop.id); }} title="Enable">
+                              <ShieldCheck className="h-3.5 w-3.5" />
                             </Button>
                           </>
                         )}
