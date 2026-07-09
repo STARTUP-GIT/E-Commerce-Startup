@@ -27,8 +27,6 @@ export interface ShopInfo {
   defaultPickupAddress?: ShopAddress;
   commissionPercentage?: number;
   commissionNotes?: string;
-  customerDeliveryShare?: number;
-  sellerDeliveryShare?: number;
   packingFeeApproved?: boolean;
 }
 

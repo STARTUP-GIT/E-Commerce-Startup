@@ -25,10 +25,6 @@ export const deliveryApi = {
     const response = await axiosInstance.get('/api/admin/deliveries/live');
     return response.data;
   },
-  changeDeliveryShare: async (payload: { customerDeliveryShare: number; sellerDeliveryShare: number }) => {
-    const response = await axiosInstance.patch('/api/admin/delivery-share', payload);
-    return response.data;
-  },
   changeDeliveryProvider: async (payload: { defaultProvider: string }) => {
     const response = await axiosInstance.patch('/api/admin/delivery-provider', payload);
     return response.data;

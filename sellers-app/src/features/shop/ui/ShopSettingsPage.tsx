@@ -217,7 +217,7 @@ export function ShopSettingsPage() {
             <CardTitle className="text-sm font-bold text-white/90">Platform Configuration</CardTitle>
             <CardDescription>Read-only marketplace settings that affect your shop.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-3 text-sm">
+          <CardContent className="grid gap-3 md:grid-cols-2 text-sm">
             <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
               <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Commission</p>
               <p className="mt-1 font-semibold text-white">{shop?.commissionPercentage ?? 10}%</p>
@@ -226,10 +226,6 @@ export function ShopSettingsPage() {
                   Notes: {shop.commissionNotes}
                 </p>
               )}
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Customer / Seller Delivery</p>
-              <p className="mt-1 font-semibold text-white">{shop?.customerDeliveryShare ?? 75}% / {shop?.sellerDeliveryShare ?? 25}%</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
               <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Packing Fee Approval</p>
@@ -320,7 +316,7 @@ export function ShopSettingsPage() {
             <CardTitle className="text-xs font-bold text-white/90">Platform Configuration (Read-Only)</CardTitle>
             <CardDescription className="text-xs text-white/50">Marketplace parameters set by administration for your store</CardDescription>
           </CardHeader>
-          <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+          <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
               <p className="text-[9px] font-bold text-white/35 uppercase tracking-wider mb-1">Platform Commission</p>
               <p className="text-sm font-bold text-white/90">{(shop as any)?.commissionPercentage ?? 10}%</p>
@@ -329,12 +325,6 @@ export function ShopSettingsPage() {
                   Notes: {(shop as any).commissionNotes}
                 </p>
               )}
-            </div>
-            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
-              <p className="text-[9px] font-bold text-white/35 uppercase tracking-wider mb-1">Delivery Split (Customer / Seller)</p>
-              <p className="text-sm font-bold text-white/90">
-                {(shop as any)?.customerDeliveryShare ?? 75}% / {(shop as any)?.sellerDeliveryShare ?? 25}%
-              </p>
             </div>
             <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
               <p className="text-[9px] font-bold text-white/35 uppercase tracking-wider mb-1">Packing Fee Authorization</p>

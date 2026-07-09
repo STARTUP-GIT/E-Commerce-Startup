@@ -11,7 +11,7 @@ import { useUIStore } from '@/lib/store/uiStore';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 import { 
   Store, User, MapPin, ShieldAlert, CheckCircle2, XCircle, ShieldOff, 
-  Trash2, ArrowLeft, RotateCcw, AlertTriangle, ToggleLeft, ToggleRight, Box
+  Trash2, ArrowLeft, RotateCcw, AlertTriangle, Box
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { ReasonModal } from '@/shared/components/ReasonModal';
@@ -51,18 +51,12 @@ export function ShopDetailPage() {
 
   const [configComm, setConfigComm] = useState('10.0');
   const [configCommNotes, setConfigCommNotes] = useState('');
-  const [configCustShare, setConfigCustShare] = useState('75');
-  const [configSellerShare, setConfigSellerShare] = useState('25');
-  const [configPackingApproved, setConfigPackingApproved] = useState(false);
 
   // Set initial states once shop is loaded
   useEffect(() => {
     if (shop) {
       setConfigComm(String(shop.commissionPercentage ?? '10.0'));
       setConfigCommNotes(shop.commissionNotes ?? '');
-      setConfigCustShare(String(shop.customerDeliveryShare ?? '75'));
-      setConfigSellerShare(String(shop.sellerDeliveryShare ?? '25'));
-      setConfigPackingApproved(Boolean(shop.packingFeeApproved));
     }
   }, [shop]);
 
@@ -91,36 +85,7 @@ export function ShopDetailPage() {
     }
   };
 
-  const updateConfigMutation = useMutation({
-    mutationFn: (payload: { customerDeliveryShare: number; sellerDeliveryShare: number; packingFeeApproved: boolean }) =>
-      shopApi.updateShopConfig(shopId, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shop-detail', shopId] });
-      showToast('Shop configurations updated.', 'success');
-    },
-    onError: (e: any) => showToast(e.message, 'error'),
-  });
 
-  const handleConfigSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cust = parseInt(configCustShare);
-    const sell = parseInt(configSellerShare);
-
-    if (isNaN(cust) || cust < 0 || cust > 100 || isNaN(sell) || sell < 0 || sell > 100) {
-      showToast('Delivery shares must be between 0 and 100.', 'error');
-      return;
-    }
-    if (cust + sell !== 100) {
-      showToast('Customer split and Seller split must equal 100%.', 'error');
-      return;
-    }
-
-    updateConfigMutation.mutate({
-      customerDeliveryShare: cust,
-      sellerDeliveryShare: sell,
-      packingFeeApproved: configPackingApproved,
-    });
-  };
 
   // Mutations
   const approveMutation = useMutation({
@@ -444,73 +409,6 @@ export function ShopDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Shop Configurations */}
-          <Card className="border border-white/5 bg-white/[0.01]">
-            <CardHeader className="border-b border-white/5">
-              <CardTitle className="text-xs font-bold text-white/95">Platform Configurations</CardTitle>
-              <CardDescription>Adjust shop-specific payouts & packaging terms</CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 pt-5">
-              <form onSubmit={handleConfigSubmit} className="space-y-4 text-xs">
-                {/* Delivery Fee split inputs */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-white/50 block font-medium font-bold">Customer Share (%)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={configCustShare}
-                      onChange={(e) => setConfigCustShare(e.target.value)}
-                      className="w-full h-9 px-3 rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-purple-500 transition-all font-semibold"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-white/50 block font-medium font-bold">Seller Share (%)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={configSellerShare}
-                      onChange={(e) => setConfigSellerShare(e.target.value)}
-                      className="w-full h-9 px-3 rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-purple-500 transition-all font-semibold"
-                    />
-                  </div>
-                </div>
-
-                {/* Packing fee approved flag */}
-                {shop.enablePackingFee && (
-                  <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.02] mt-2">
-                    <div>
-                      <span className="text-white/90 block font-medium font-bold">Approve Packing Fee</span>
-                      <span className="text-[10px] text-white/40 block mt-0.5 font-semibold">Allows shop to charge custom packing fees</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setConfigPackingApproved(!configPackingApproved)}
-                      className="text-white/60 hover:text-white transition-all focus:outline-none"
-                    >
-                      {configPackingApproved ? (
-                        <ToggleRight className="h-7 w-7 text-purple-500" />
-                      ) : (
-                        <ToggleLeft className="h-7 w-7" />
-                      )}
-                    </button>
-                  </div>
-                )}
-
-                {/* Submit button */}
-                <Button
-                  type="submit"
-                  size="sm"
-                  className="w-full h-9 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white mt-4"
-                  isLoading={updateConfigMutation.isPending}
-                >
-                  Save Configurations
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
         </div>
       </div>
       <ReasonModal

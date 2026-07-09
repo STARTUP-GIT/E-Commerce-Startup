@@ -41,7 +41,7 @@ export const shopApi = {
     const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/disable`, { reason });
     return response.data;
   },
-  updateShopConfig: async (id: string, payload: { commissionPercentage?: number; commissionNotes?: string; customerDeliveryShare?: number; sellerDeliveryShare?: number; enablePackingFee?: boolean; packingFeeApproved?: boolean }) => {
+  updateShopConfig: async (id: string, payload: { commissionPercentage?: number; commissionNotes?: string }) => {
     const response = await axiosInstance.put(`/api/admin/shops/shops/${id}/config`, payload);
     return response.data;
   },
