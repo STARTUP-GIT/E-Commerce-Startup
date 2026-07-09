@@ -162,6 +162,7 @@ function App() {
             <Route path="/shop-setup" element={<NoShopRequiredRoute />} />
             <Route path="/profile" element={<SellerProfilePage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
 
             <Route element={<ShopRequiredRoute />}>
             <Route path="/products" element={<ProductListPage />} />
@@ -173,8 +174,7 @@ function App() {
             <Route path="/payouts" element={<PayoutsPage />} />
             <Route path="/reviews" element={<ReviewsPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/shop-settings" element={<ShopSettingsPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/shop" element={<ShopSettingsPage />} />
             <Route
               path="*"
               element={<Navigate to="/dashboard" replace />}

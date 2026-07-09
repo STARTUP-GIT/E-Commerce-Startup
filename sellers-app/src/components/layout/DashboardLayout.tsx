@@ -52,7 +52,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { name: 'Payouts', path: '/payouts', icon: CreditCard },
     { name: 'Reviews', path: '/reviews', icon: Star },
     { name: 'Seller Profile', path: '/profile', icon: UserCircle },
-    { name: 'Shop & Bank', path: '/shop-settings', icon: Store },
+    { name: 'Shop & Bank', path: '/shop', icon: Store },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
@@ -136,7 +136,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 shop?.status === 'APPROVED' || 
                 item.path === '/dashboard' || 
                 item.path === '/profile' || 
-                item.path === '/shop-settings' || 
+                item.path === '/shop' || 
                 item.path === '/settings' || 
                 item.path === '/notifications';
 

@@ -261,7 +261,7 @@ export function DashboardPage() {
                   <Button
                     variant="outline"
                     className="w-full justify-start text-[11px] h-10 border-white/5 hover:bg-white/[0.02]"
-                    onClick={() => navigate('/shop-settings')}
+                    onClick={() => navigate('/shop')}
                   >
                     <Store className="mr-2.5 h-4 w-4 text-emerald-400" />
                     <span>Link settlement bank</span>

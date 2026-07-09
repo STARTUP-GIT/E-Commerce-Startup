@@ -527,7 +527,7 @@ export function SellerProfilePage() {
                 <Button
                   className="w-full"
                   variant="outline"
-                  onClick={() => navigate('/shop-settings')}
+                  onClick={() => navigate('/shop')}
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   View Shop
