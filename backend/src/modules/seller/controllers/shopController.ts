@@ -240,12 +240,23 @@ export const createShop = async (req: Request,res: Response) => {
             address: result.address
         });
 
-    } catch (error) {
-
-        console.error(
-            "CREATE SHOP ERROR:",
-            error
-        );
+    } catch (error: any) {
+        const bodyToLog = { ...req.body };
+        const secretKeys = ['password', 'token', 'secret', 'key', 'credential', 'auth'];
+        for (const k of Object.keys(bodyToLog)) {
+            if (secretKeys.some(s => k.toLowerCase().includes(s))) {
+                bodyToLog[k] = '[REDACTED]';
+            }
+        }
+        console.error("CREATE SHOP ERROR:", {
+            route: req.originalUrl,
+            controller: "createShop",
+            prismaCode: error?.code,
+            message: error?.message,
+            stack: error?.stack,
+            requestBody: bodyToLog,
+            sellerId: req.sellerId
+        });
 
         return res.status(500).json({
             message: "Internal Server Error"

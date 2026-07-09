@@ -74,8 +74,16 @@ export const getSellerProfile = async (req: Request, res: Response) => {
             shop: shopData,
             profileCompletion,
         });
-    } catch (error) {
-        console.error("GET SELLER PROFILE ERROR:", error);
+    } catch (error: any) {
+        console.error("GET SELLER PROFILE ERROR:", {
+            route: req.originalUrl,
+            controller: "getSellerProfile",
+            prismaCode: error?.code,
+            message: error?.message,
+            stack: error?.stack,
+            requestBody: req.body,
+            sellerId: req.sellerId
+        });
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };

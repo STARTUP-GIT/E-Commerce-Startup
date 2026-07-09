@@ -401,30 +401,43 @@ export const logout = async (req: Request, res: Response) => {
 };
 
 export const getProfile = async (req: Request, res: Response) => { 
-    const sellerId = req.sellerId!;
+    try {
+        const sellerId = req.sellerId!;
         const seller = await prisma.seller.findUnique({
-        where: {
-            id: sellerId
-        },include: {
-            addresses: true
+            where: {
+                id: sellerId
+            },
+            include: {
+                addresses: true
+            }
+        });
+        if (!seller) {
+            return res.status(404).json({ message: 'seller not found' });
         }
-
-    });
-    if (!seller) {
-        return res.status(404).json({ message: 'seller not found' });
+        return res.status(200).json({
+            message: "Profile fetched successfully",
+            user: {
+                id: seller.id,
+                email: seller.email,
+                username: seller.username,
+                firstName: seller.firstName,
+                lastName: seller.lastName,
+                addresses: seller.addresses
+            }
+        });
+    } catch (error: any) {
+        console.error("GET PROFILE ERROR:", {
+            route: req.originalUrl,
+            controller: "getProfile",
+            prismaCode: error?.code,
+            message: error?.message,
+            stack: error?.stack,
+            requestBody: req.body,
+            sellerId: req.sellerId
+        });
+        return res.status(500).json({ message: "Internal Server Error" });
     }
-    return res.status(200).json({
-        message: "Profile fetched successfully",
-        user: {
-            id: seller.id,
-            email: seller.email,
-            username: seller.username,
-            firstName: seller.firstName,
-            lastName: seller.lastName,
-            addresses: seller.addresses
-        }
-    });
-}
+};
 
 export const updateProfile = async (req: Request,res: Response ) => {
     try {
