@@ -20,6 +20,7 @@ export interface SellerOrder {
   shippingAmount: number;
   taxAmount: number;
   packingFee: number;
+  deliveryMode?: 'PLATFORM' | 'SELF';
   items: OrderItem[];
   seller?: {
     id: string;

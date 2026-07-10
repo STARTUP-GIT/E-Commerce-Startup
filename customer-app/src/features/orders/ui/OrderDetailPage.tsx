@@ -9,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/sha
 import { Button } from '@/shared/components/Button';
 import { Badge } from '@/shared/components/Badge';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { Calendar, MapPin, ClipboardList, Download, XOctagon, CheckCircle2, Store, Package } from 'lucide-react';
+import { Calendar, MapPin, ClipboardList, Download, XOctagon, CheckCircle2, Store, Package, Truck } from 'lucide-react';
 import Link from 'next/link';
 
 import { useConfirmStore } from '@/lib/store/confirmStore';
@@ -129,6 +129,12 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
                     ) : (
                       <span className="font-bold truncate">
                         {sellerOrder.seller?.firstName} {sellerOrder.seller?.lastName}
+                      </span>
+                    )}
+                    {sellerOrder.deliveryMode && (
+                      <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 font-semibold shrink-0">
+                        • <Truck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground/60" />
+                        <span>{sellerOrder.deliveryMode === 'SELF' ? 'Delivered by Seller' : 'Delivered by Aura'}</span>
                       </span>
                     )}
                   </div>

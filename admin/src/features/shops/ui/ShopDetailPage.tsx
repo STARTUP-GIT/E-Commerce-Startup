@@ -359,6 +359,12 @@ export function ShopDetailPage() {
                   {shop.enablePackingFee ? 'Enabled' : 'Disabled'}
                 </Badge>
               </div>
+              <div className="flex justify-between">
+                <span className="text-white/40">Delivery Mode:</span>
+                <span className="text-white/90 font-bold">
+                  {shop.deliveryMode === 'SELF' ? 'Self Delivery' : 'Platform Delivery'}
+                </span>
+              </div>
               {shop.rejectionReason && (
                 <div className="p-3 border border-red-500/20 bg-red-500/5 rounded-xl space-y-1">
                   <span className="text-[10px] font-bold text-red-400 block uppercase">Rejection Reason</span>

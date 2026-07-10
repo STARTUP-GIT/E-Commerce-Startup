@@ -81,6 +81,7 @@ model Shop {
   commissionNotes        String?    @db.Text
   customerDeliveryShare  Int        @default(75)
   sellerDeliveryShare    Int        @default(25)
+  deliveryMode           DeliveryMode @default(PLATFORM)
   createdAt              DateTime   @default(now())
   updatedAt              DateTime   @updatedAt
 

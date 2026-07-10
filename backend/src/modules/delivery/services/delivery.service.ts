@@ -40,6 +40,10 @@ export class DeliveryService {
     const sellerOrder = await prisma.sellerOrder.findUnique({ where: { id: sellerOrderId }, include: { order: true, seller: true, pickupSellerAddress: true } });
     if (!sellerOrder) throw new Error("Seller order not found");
 
+    if (sellerOrder.deliveryMode === "SELF") {
+      throw new Error("Cannot create platform delivery booking for self delivery orders.");
+    }
+
     // ensure order is ready for pickup
     if (sellerOrder.status !== "READY_FOR_PICKUP" && sellerOrder.status !== "PACKED") {
       throw new Error("Seller order not ready for pickup");

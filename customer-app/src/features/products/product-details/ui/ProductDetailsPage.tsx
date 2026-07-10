@@ -10,7 +10,7 @@ import { Button } from '@/shared/components/Button';
 import { Badge } from '@/shared/components/Badge';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Card, CardContent } from '@/shared/components/Card';
-import { ShoppingCart, Heart, Star, Store, Package, Check, ArrowLeft, Send, Zap } from 'lucide-react';
+import { ShoppingCart, Heart, Star, Store, Package, Check, ArrowLeft, Send, Zap, Truck } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -182,13 +182,19 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
               </div>
 
               {product.seller?.shop && (
-                <Link
-                  href={`/shops/${product.seller.shop.slug || product.seller.shop.id}`}
-                  className="flex items-center gap-1.5 text-[11px] sm:text-xs text-primary font-semibold hover:underline"
-                >
-                  <Store className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                  <span className="truncate max-w-[180px] sm:max-w-none">Visit Shop: {product.seller.shop.name}</span>
-                </Link>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <Link
+                    href={`/shops/${product.seller.shop.slug || product.seller.shop.id}`}
+                    className="flex items-center gap-1.5 text-[11px] sm:text-xs text-primary font-semibold hover:underline"
+                  >
+                    <Store className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    <span className="truncate max-w-[180px] sm:max-w-none">Visit Shop: {product.seller.shop.name}</span>
+                  </Link>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 font-semibold">
+                    • <Truck className="h-3.5 w-3.5" />
+                    <span>{product.seller.shop.deliveryMode === 'SELF' ? 'Delivered by Seller' : 'Delivered by Aura'}</span>
+                  </span>
+                </div>
               )}
             </div>
           </div>

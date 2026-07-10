@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Store,
   ShieldCheck,
+  Truck,
 } from 'lucide-react';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 import { useQuery } from '@tanstack/react-query';
@@ -57,6 +58,7 @@ export function ShopSettingsPage() {
 
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [deliveryMode, setDeliveryMode] = useState<'PLATFORM' | 'SELF'>('PLATFORM');
 
   // Fetch active states & configurations from backend
   const { data: locationsConfig, isLoading: isLoadingConfig } = useQuery({
@@ -87,6 +89,7 @@ export function ShopSettingsPage() {
       setEditPostalCode(shop.defaultPickupAddress?.postalCode || '');
       setSelectedState(shop.defaultPickupAddress?.state || '');
       setSelectedDistrict(shop.defaultPickupAddress?.city || '');
+      setDeliveryMode(shop.deliveryMode || 'PLATFORM');
     }
   }, [shop]);
 
@@ -160,6 +163,7 @@ export function ShopSettingsPage() {
         state: selectedState,
         postalCode: editPostalCode.trim(),
         country: 'India',
+        deliveryMode,
       });
       setEditSuccess(true);
     } catch (err: any) {
@@ -518,6 +522,53 @@ export function ShopSettingsPage() {
                       <Input value="India" disabled readOnly />
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <div className="border-t border-white/5 pt-3 mt-4">
+                <h4 className="text-xs font-bold text-white/80 mb-3 flex items-center gap-1.5">
+                  <Truck className="h-4 w-4 text-purple-400" />
+                  <span>Delivery Mode</span>
+                </h4>
+                <p className="text-[11px] text-white/45 mb-3">Choose how your shop fulfills customer orders.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                    deliveryMode === 'PLATFORM' 
+                      ? 'border-purple-500/30 bg-purple-500/5 text-white' 
+                      : 'border-white/5 bg-white/[0.01] hover:bg-white/[0.03] text-white/70'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="deliveryMode"
+                      value="PLATFORM"
+                      checked={deliveryMode === 'PLATFORM'}
+                      onChange={() => setDeliveryMode('PLATFORM')}
+                      className="mt-1 accent-purple-500"
+                    />
+                    <div>
+                      <span className="text-xs font-bold block">Platform Delivery</span>
+                      <span className="text-[10px] opacity-70 block mt-0.5">Aura assigns delivery partners.</span>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                    deliveryMode === 'SELF' 
+                      ? 'border-purple-500/30 bg-purple-500/5 text-white' 
+                      : 'border-white/5 bg-white/[0.01] hover:bg-white/[0.03] text-white/70'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="deliveryMode"
+                      value="SELF"
+                      checked={deliveryMode === 'SELF'}
+                      onChange={() => setDeliveryMode('SELF')}
+                      className="mt-1 accent-purple-500"
+                    />
+                    <div>
+                      <span className="text-xs font-bold block">Self Delivery</span>
+                      <span className="text-[10px] opacity-70 block mt-0.5">I deliver orders myself.</span>
+                    </div>
+                  </label>
                 </div>
               </div>
 

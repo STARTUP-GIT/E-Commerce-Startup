@@ -37,6 +37,7 @@ export interface DetailedProduct extends Product {
       id: string;
       name: string;
       slug: string;
+      deliveryMode?: 'PLATFORM' | 'SELF';
     };
   };
 }

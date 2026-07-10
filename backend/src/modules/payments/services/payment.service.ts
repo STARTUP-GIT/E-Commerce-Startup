@@ -467,7 +467,8 @@ export const verifyPayment = async (paymentData: {
                     packingFee: sellerPackingFee,
                     platformFee: null,
                     platformCommission,
-                    sellerEarnings
+                    sellerEarnings,
+                    deliveryMode: shop.deliveryMode
                 }
             });
 

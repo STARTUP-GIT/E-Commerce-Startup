@@ -28,6 +28,7 @@ export interface ShopInfo {
   commissionPercentage?: number;
   commissionNotes?: string;
   packingFeeApproved?: boolean;
+  deliveryMode?: 'PLATFORM' | 'SELF';
 }
 
 export interface BankAccountDetails {
@@ -57,6 +58,7 @@ export interface ShopSetupPayload {
   contactName?: string;
   gstRegistered?: boolean;
   gstNumber?: string;
+  deliveryMode?: 'PLATFORM' | 'SELF';
 }
 
 export const shopApi = {
