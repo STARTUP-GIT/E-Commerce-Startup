@@ -17,6 +17,12 @@ export interface SellerOrder {
   sellerId: string;
   status: 'PENDING' | 'ACCEPTED' | 'PROCESSING' | 'PACKED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   totalPrice: number;
+  subtotal: number;
+  packingFee: number;
+  shippingAmount: number;
+  taxAmount: number;
+  platformCommission: number;
+  sellerEarnings: number;
   createdAt: string;
   acceptedAt?: string;
   packedAt?: string;

@@ -18,6 +18,8 @@ export interface CheckoutSummary {
   }[];
   subtotal: number;
   shippingTotal: number;
+  packingFeeTotal: number;
+  platformFeeTotal: number;
   discountTotal: number;
   taxTotal: number;
   grandTotal: number;

@@ -29,6 +29,12 @@ export interface ShopInfo {
   commissionNotes?: string;
   packingFeeApproved?: boolean;
   enablePackingFee?: boolean;
+  packingFeeEnabled?: boolean;
+  packingFeeAmount?: number;
+  packingFeeApprovalStatus?: string;
+  packingFeeRequestedAt?: string;
+  packingFeeApprovedAt?: string;
+  packingFeeRejectedReason?: string;
   packingFeeRequests?: any[];
   deliveryMode?: 'PLATFORM' | 'SELF';
 }
@@ -117,8 +123,8 @@ export const shopApi = {
     return response.data;
   },
 
-  togglePackingFee: async (enablePackingFee: boolean): Promise<{ message: string; shop: ShopInfo }> => {
-    const response = await axiosInstance.patch('/seller/api/shop/packing-fee/toggle', { enablePackingFee });
+  togglePackingFee: async (payload: { packingFeeEnabled: boolean; packingFeeAmount?: number }): Promise<{ message: string; shop: ShopInfo }> => {
+    const response = await axiosInstance.patch('/seller/api/shop/packing-fee/toggle', payload);
     return response.data;
   },
 

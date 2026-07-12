@@ -159,36 +159,18 @@ export const calculateTotals = async (params: {
         sellerSubtotals.set(seller.id, currentSellerSubtotal + itemTotal);
     }
 
-    // 2. Validate and calculate Packing Fees
+    // 2. Determine and calculate Packing Fees dynamically from database Shop configuration
     let packingFeeTotal = 0;
     const validatedPackingFeesBySeller = new Map<string, number>();
 
-    for (const pf of packingFees) {
-        const { sellerId, amount } = pf;
-        const sellerSubtotal = sellerSubtotals.get(sellerId);
-        if (!sellerSubtotal) continue;
-
+    for (const sellerId of sellerSubtotals.keys()) {
         const shop = sellerShopMap.get(sellerId);
-        if (!shop) continue;
-
-        if (!shop.enablePackingFee || !shop.packingFeeApproved) {
-            throw new Error(`Shop '${shop.name}' is not approved to charge packing fees.`);
+        let amount = 0;
+        if (shop && shop.packingFeeApprovalStatus === "APPROVED" && shop.packingFeeEnabled) {
+            amount = Number(shop.packingFeeAmount) || 0;
         }
-
-        // Limit validation: packing fee <= Math.min(5% of productTotal, 100 INR)
-        const allowedPackingFee = Math.min((sellerSubtotal * 5) / 100, 100);
-        if (amount > allowedPackingFee) {
-            throw new Error(`Packing fee for '${shop.name}' exceeds the maximum allowed limit.`);
-        }
-
         validatedPackingFeesBySeller.set(sellerId, amount);
         packingFeeTotal += amount;
-    }
-
-    for (const sellerId of sellerSubtotals.keys()) {
-        if (!validatedPackingFeesBySeller.has(sellerId)) {
-            validatedPackingFeesBySeller.set(sellerId, 0);
-        }
     }
 
     // 3. Shipping charges

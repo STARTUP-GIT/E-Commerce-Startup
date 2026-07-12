@@ -77,6 +77,12 @@ model Shop {
   reviewedAt             DateTime?
   enablePackingFee       Boolean    @default(false)
   packingFeeApproved     Boolean    @default(false)
+  packingFeeEnabled        Boolean                  @default(false)
+  packingFeeAmount         Decimal                  @default(0.00) @db.Decimal(10, 2)
+  packingFeeApprovalStatus PackingFeeApprovalStatus @default(NOT_APPROVED)
+  packingFeeRequestedAt    DateTime?
+  packingFeeApprovedAt     DateTime?
+  packingFeeRejectedReason String?                  @db.Text
   commissionPercentage   Float      @default(10.0)
   commissionNotes        String?    @db.Text
   customerDeliveryShare  Int        @default(75)

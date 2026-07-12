@@ -233,6 +233,8 @@ export const checkout = async (req: Request, res: Response) => {
                 items: itemsSummary,
                 subtotal: totals.productSubtotal,
                 shippingTotal: totals.shippingTotal,
+                packingFeeTotal: totals.packingFeeTotal,
+                platformFeeTotal: totals.platformFeeTotal,
                 discountTotal: totals.discountTotal,
                 taxTotal: totals.gstAmount,
                 grandTotal: totals.grandTotal,

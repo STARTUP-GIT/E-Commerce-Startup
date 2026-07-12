@@ -309,14 +309,38 @@ export function OrderDetailPage() {
                 </Table>
 
                 {/* Totals panel */}
-                <div className="p-5 border-t border-white/5 flex flex-col items-end space-y-1.5 bg-white/[0.01]">
-                  <div className="flex gap-8 justify-between text-xs text-white/50">
-                    <span>Subtotal:</span>
-                    <span>{productService.formatPrice(order.totalPrice)}</span>
+                <div className="p-5 border-t border-white/5 flex flex-col items-end space-y-2 bg-white/[0.01] text-xs">
+                  <div className="flex justify-between w-64 text-white/50">
+                    <span>Product Subtotal:</span>
+                    <span>{productService.formatPrice(order.subtotal)}</span>
                   </div>
-                  <div className="flex gap-8 justify-between text-sm font-bold text-white/95 border-t border-white/5 pt-1.5 mt-1.5">
-                    <span>Order Total:</span>
-                    <span>{productService.formatPrice(order.totalPrice)}</span>
+                  {Number(order.packingFee) > 0 && (
+                    <div className="flex justify-between w-64 text-white/50">
+                      <span>Packing Fee:</span>
+                      <span className="text-emerald-400 font-medium">+{productService.formatPrice(order.packingFee)}</span>
+                    </div>
+                  )}
+                  {Number(order.shippingAmount) > 0 && (
+                    <div className="flex justify-between w-64 text-white/50">
+                      <span>Shipping Amount:</span>
+                      <span>+{productService.formatPrice(order.shippingAmount)}</span>
+                    </div>
+                  )}
+                  {Number(order.taxAmount) > 0 && (
+                    <div className="flex justify-between w-64 text-white/50">
+                      <span>Taxes & GST:</span>
+                      <span>+{productService.formatPrice(order.taxAmount)}</span>
+                    </div>
+                  )}
+                  {Number(order.platformCommission) > 0 && (
+                    <div className="flex justify-between w-64 text-white/50 border-t border-white/5 pt-1 mt-1">
+                      <span>Platform Commission (Deducted):</span>
+                      <span className="text-rose-400 font-medium">-{productService.formatPrice(order.platformCommission)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between w-64 text-sm font-bold text-white/95 border-t border-white/10 pt-2 mt-2">
+                    <span>Seller Earnings:</span>
+                    <span className="text-purple-400">{productService.formatPrice(order.sellerEarnings)}</span>
                   </div>
                 </div>
               </CardContent>

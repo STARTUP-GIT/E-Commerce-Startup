@@ -1,0 +1,6 @@
+enum PackingFeeApprovalStatus {
+  NOT_APPROVED
+  PENDING
+  APPROVED
+  REJECTED
+}

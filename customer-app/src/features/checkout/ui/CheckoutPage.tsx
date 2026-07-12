@@ -141,6 +141,8 @@ export function CheckoutPage() {
 
   const subtotal = summary?.subtotal || 0;
   const shippingTotal = summary?.shippingTotal || 0;
+  const packingFeeTotal = summary?.packingFeeTotal || 0;
+  const platformFeeTotal = summary?.platformFeeTotal || 0;
   const discountTotal = summary?.discountTotal || 0;
   const taxTotal = summary?.taxTotal || 0;
   const grandTotal = summary?.grandTotal || 0;
@@ -308,6 +310,22 @@ export function CheckoutPage() {
                     {shippingTotal > 0 ? productListService.formatPrice(shippingTotal) : 'Free'}
                   </span>
                 </div>
+                {packingFeeTotal > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Packing Fee</span>
+                    <span className="font-semibold text-foreground">
+                      {productListService.formatPrice(packingFeeTotal)}
+                    </span>
+                  </div>
+                )}
+                {platformFeeTotal > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Platform Fee</span>
+                    <span className="font-semibold text-foreground">
+                      {productListService.formatPrice(platformFeeTotal)}
+                    </span>
+                  </div>
+                )}
                 {discountTotal > 0 && (
                   <div className="flex justify-between text-emerald-500 font-semibold">
                     <span>Coupon Discount</span>
@@ -315,7 +333,7 @@ export function CheckoutPage() {
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">GST (18%)</span>
+                  <span className="text-muted-foreground">Taxes</span>
                   <span className="font-semibold text-foreground">
                     {productListService.formatPrice(taxTotal)}
                   </span>

@@ -63,6 +63,13 @@ export function DashboardPage() {
       color: 'text-rose-400',
     },
     {
+      name: 'Packing Fee Collected',
+      value: productService.formatPrice(metrics?.packingFeeCollectedLifetime ?? 0),
+      icon: IndianRupee,
+      desc: `Today: ${productService.formatPrice(metrics?.packingFeeCollectedToday ?? 0)} | This Month: ${productService.formatPrice(metrics?.packingFeeCollectedThisMonth ?? 0)}`,
+      color: 'text-teal-400',
+    },
+    {
       name: 'Delivered Revenue',
       value: productService.formatPrice(metrics?.revenue ?? 0),
       icon: IndianRupee,

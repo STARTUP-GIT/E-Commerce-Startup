@@ -49,9 +49,14 @@ export const getOrders = async ( req: Request,res: Response) => {
             }
         });
 
+        const mappedOrders = orders.map(o => ({
+            ...o,
+            totalPrice: Number(o.subtotal) + Number(o.shippingAmount) + Number(o.taxAmount) + Number(o.packingFee)
+        }));
+
         return res.status(200).json({
-            count: orders.length,
-            orders
+            count: mappedOrders.length,
+            orders: mappedOrders
         });
 
     } catch (error) {
@@ -122,8 +127,13 @@ export const seeOrders = async (
             });
         }
 
+        const mappedOrder = {
+            ...order,
+            totalPrice: Number(order.subtotal) + Number(order.shippingAmount) + Number(order.taxAmount) + Number(order.packingFee)
+        };
+
         return res.status(200).json({
-            order
+            order: mappedOrder
         });
 
     } catch (error) {

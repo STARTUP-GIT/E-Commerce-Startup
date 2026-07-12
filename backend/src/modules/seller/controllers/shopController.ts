@@ -894,14 +894,27 @@ export const requestPackingFeeApproval = async (req: Request, res: Response) => 
             });
         }
 
-        // Create new request
-        const request = await prisma.packingFeeRequest.create({
-            data: {
-                shopId: shop.id,
-                status: "PENDING",
-                reason: reason.trim(),
-                supportingNotes: supportingNotes ? supportingNotes.trim() : null
-            }
+        // Create new request and update shop in a transaction
+        const request = await prisma.$transaction(async (tx) => {
+            const req = await tx.packingFeeRequest.create({
+                data: {
+                    shopId: shop.id,
+                    status: "PENDING",
+                    reason: reason.trim(),
+                    supportingNotes: supportingNotes ? supportingNotes.trim() : null
+                }
+            });
+
+            await tx.shop.update({
+                where: { id: shop.id },
+                data: {
+                    packingFeeApprovalStatus: "PENDING",
+                    packingFeeRequestedAt: new Date(),
+                    packingFeeRejectedReason: null
+                }
+            });
+
+            return req;
         });
 
         return res.status(201).json({
@@ -919,13 +932,7 @@ export const requestPackingFeeApproval = async (req: Request, res: Response) => 
 export const togglePackingFee = async (req: Request, res: Response) => {
     try {
         const sellerId = req.sellerId!;
-        const { enablePackingFee } = req.body;
-
-        if (enablePackingFee === undefined) {
-            return res.status(400).json({
-                message: "enablePackingFee status is required"
-            });
-        }
+        const { enablePackingFee, packingFeeEnabled, packingFeeAmount } = req.body;
 
         const shop = await prisma.shop.findUnique({
             where: { sellerId }
@@ -938,17 +945,35 @@ export const togglePackingFee = async (req: Request, res: Response) => {
         }
 
         // Check if shop is approved to charge packing fees
-        if (!shop.packingFeeApproved) {
+        if (shop.packingFeeApprovalStatus !== "APPROVED") {
             return res.status(403).json({
                 message: "Only approved shops can configure packing fees."
             });
         }
 
+        const isEnabled = packingFeeEnabled !== undefined ? !!packingFeeEnabled : (enablePackingFee !== undefined ? !!enablePackingFee : undefined);
+        const amount = packingFeeAmount !== undefined ? Number(packingFeeAmount) : undefined;
+
+        if (isEnabled && amount !== undefined) {
+            if (amount < 0 || amount > 500) {
+                return res.status(400).json({
+                    message: "Packing fee amount must be between ₹0 and ₹500."
+                });
+            }
+        }
+
+        const updateData: any = {};
+        if (isEnabled !== undefined) {
+            updateData.packingFeeEnabled = isEnabled;
+            updateData.enablePackingFee = isEnabled; // backward compatibility
+        }
+        if (amount !== undefined) {
+            updateData.packingFeeAmount = amount;
+        }
+
         const updatedShop = await prisma.shop.update({
             where: { id: shop.id },
-            data: {
-                enablePackingFee: !!enablePackingFee
-            }
+            data: updateData
         });
 
         return res.status(200).json({
@@ -957,7 +982,10 @@ export const togglePackingFee = async (req: Request, res: Response) => {
                 id: updatedShop.id,
                 name: updatedShop.name,
                 enablePackingFee: updatedShop.enablePackingFee,
-                packingFeeApproved: updatedShop.packingFeeApproved
+                packingFeeApproved: updatedShop.packingFeeApproved,
+                packingFeeEnabled: updatedShop.packingFeeEnabled,
+                packingFeeAmount: Number(updatedShop.packingFeeAmount),
+                packingFeeApprovalStatus: updatedShop.packingFeeApprovalStatus
             }
         });
     } catch (error: any) {

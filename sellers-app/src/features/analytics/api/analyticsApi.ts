@@ -21,6 +21,9 @@ export interface DashboardMetrics {
   netEarnings: number;
   todaysOrders: number;
   completedOrders: number;
+  packingFeeCollectedToday?: number;
+  packingFeeCollectedThisMonth?: number;
+  packingFeeCollectedLifetime?: number;
 }
 
 export interface SalesSummary {

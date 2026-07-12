@@ -293,6 +293,22 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
                   {order.shippingTotal > 0 ? productListService.formatPrice(order.shippingTotal) : 'Free'}
                 </span>
               </div>
+              {Number(order.packingFeeTotal) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Packing Fee</span>
+                  <span className="font-semibold text-foreground">
+                    {productListService.formatPrice(order.packingFeeTotal)}
+                  </span>
+                </div>
+              )}
+              {Number(order.platformFeeTotal) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Platform Fee</span>
+                  <span className="font-semibold text-foreground">
+                    {productListService.formatPrice(order.platformFeeTotal)}
+                  </span>
+                </div>
+              )}
               {Number(order.discountTotal) > 0 && (
                 <div className="flex justify-between text-emerald-500 font-semibold">
                   <span>Coupon Discount</span>

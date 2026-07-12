@@ -354,10 +354,16 @@ export function ShopDetailPage() {
                 <span className="text-white/80 select-all">{shop.supportEmail || '—'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-white/40">Packing Fees:</span>
-                <Badge variant={shop.enablePackingFee ? 'success' : 'secondary'} className="text-[8px]">
-                  {shop.enablePackingFee ? 'Enabled' : 'Disabled'}
+                <span className="text-white/40">Packing Fee Auth:</span>
+                <Badge variant={shop.packingFeeApprovalStatus === 'APPROVED' ? 'success' : shop.packingFeeApprovalStatus === 'PENDING' ? 'warning' : 'secondary'} className="text-[8px]">
+                  {shop.packingFeeApprovalStatus || 'NOT_APPROVED'}
                 </Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/40">Packing Fee Settings:</span>
+                <span className="text-white/90 font-bold">
+                  {shop.packingFeeEnabled ? `Enabled (₹${shop.packingFeeAmount})` : 'Disabled'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-white/40">Delivery Mode:</span>

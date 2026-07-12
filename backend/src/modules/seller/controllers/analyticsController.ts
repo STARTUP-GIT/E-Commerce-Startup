@@ -45,6 +45,7 @@ export const getDashboard = async (req: Request, res: Response) => {
                 subtotal: true,
                 platformCommission: true,
                 sellerEarnings: true,
+                packingFee: true,
                 createdAt: true
             }
         });
@@ -64,10 +65,15 @@ export const getDashboard = async (req: Request, res: Response) => {
         let todaysRevenue = 0;
         let monthlyRevenue = 0;
 
+        let packingFeeCollectedToday = 0;
+        let packingFeeCollectedThisMonth = 0;
+        let packingFeeCollectedLifetime = 0;
+
         for (const order of allSellerOrders) {
             const subtotal = Number(order.subtotal || 0);
             const commission = Number(order.platformCommission || 0);
             const earnings = Number(order.sellerEarnings || 0);
+            const packingFee = Number(order.packingFee || 0);
 
             // Gross active sales: non-cancelled and non-rejected orders
             if (order.status !== "CANCELLED" && order.status !== "REJECTED") {
@@ -88,12 +94,16 @@ export const getDashboard = async (req: Request, res: Response) => {
                 platformCommission += commission;
                 netEarnings += earnings;
 
+                packingFeeCollectedLifetime += packingFee;
+
                 // Monthly and today's earnings (net earnings) for chart & stats compatibility
                 if (order.createdAt >= startOfMonth) {
                     monthlyRevenue += earnings;
+                    packingFeeCollectedThisMonth += packingFee;
                 }
                 if (order.createdAt >= startOfToday) {
                     todaysRevenue += earnings;
+                    packingFeeCollectedToday += packingFee;
                 }
             } else if (order.status === "CANCELLED") {
                 cancelledOrdersCount++;
@@ -123,6 +133,11 @@ export const getDashboard = async (req: Request, res: Response) => {
             platformCommission,
             netEarnings,
             todaysOrders: todaysOrdersCount,
+
+            // Packing Fee Collected fields
+            packingFeeCollectedToday,
+            packingFeeCollectedThisMonth,
+            packingFeeCollectedLifetime,
 
             // Chart / legacy compatibility fields
             totalRevenue: netEarnings,

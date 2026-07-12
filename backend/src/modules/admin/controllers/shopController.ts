@@ -148,7 +148,12 @@ export const approvePackingPermission = async (req: Request, res: Response) => {
 
         const updatedShop = await prisma.shop.update({
             where: { id: shopId },
-            data: { packingFeeApproved: true }
+            data: {
+                packingFeeApproved: true,
+                packingFeeApprovalStatus: "APPROVED",
+                packingFeeApprovedAt: new Date(),
+                packingFeeRejectedReason: null
+            }
         });
 
         // Notify seller
@@ -228,7 +233,10 @@ export const rejectPackingPermission = async (req: Request, res: Response) => {
             where: { id: shopId },
             data: {
                 packingFeeApproved: false,
-                enablePackingFee: false
+                packingFeeEnabled: false,
+                enablePackingFee: false,
+                packingFeeApprovalStatus: "REJECTED",
+                packingFeeRejectedReason: reason.trim()
             }
         });
 
@@ -280,7 +288,13 @@ export const revokePackingPermission = async (req: Request, res: Response) => {
 
         const updatedShop = await prisma.shop.update({
             where: { id: shopId },
-            data: { packingFeeApproved: false }
+            data: {
+                packingFeeApproved: false,
+                packingFeeEnabled: false,
+                enablePackingFee: false,
+                packingFeeApprovalStatus: "NOT_APPROVED",
+                packingFeeRejectedReason: "Authorization revoked by administration."
+            }
         });
 
         await logAdminAction({

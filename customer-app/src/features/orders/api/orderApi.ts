@@ -51,6 +51,7 @@ export interface Order {
   taxTotal: number;
   discountTotal: number;
   packingFeeTotal: number;
+  platformFeeTotal: number;
   grandTotal: number;
   placedAt: string;
   sellerOrders: SellerOrder[];
