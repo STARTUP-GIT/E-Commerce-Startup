@@ -10,7 +10,6 @@ export function AuthCallbackPage() {
   useEffect(() => {
     // If auth loading is complete and user is authenticated, redirect to dashboard
     if (!isLoading && isAuthenticated) {
-      console.log('AuthCallbackPage: User is authenticated. Redirecting to dashboard...');
       navigate('/dashboard');
     }
   }, [isAuthenticated, isLoading, navigate]);

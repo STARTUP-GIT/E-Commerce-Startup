@@ -46,14 +46,6 @@ axiosInstance.interceptors.request.use(
 
 axiosInstance.interceptors.request.use(
   (config) => {
-    const finalUrl = `${config.baseURL || ''}${config.url || ''}`;
-    console.info('[customer-api:request]', {
-      method: config.method?.toUpperCase() || 'GET',
-      url: finalUrl,
-      headers: config.headers,
-      body: config.data,
-    });
-
     if (config.method?.toLowerCase() === 'get') {
       const store = useLocationStore.getState();
       if (store.selectedDistrict && store.selectedState) {
@@ -74,11 +66,6 @@ axiosInstance.interceptors.request.use(
 // Unwrap backend error messages for cleaner DX
 axiosInstance.interceptors.response.use(
   (response) => {
-    console.info('[customer-api:response]', {
-      method: response.config.method?.toUpperCase() || 'GET',
-      url: `${response.config.baseURL || ''}${response.config.url || ''}`,
-      status: response.status,
-    });
     return response;
   },
   (error) => {

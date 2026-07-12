@@ -1,4 +1,5 @@
 import { prisma } from "../config/prisma.js";
+import { logger } from "../config/logger.js";
 
 export const deleteDeactivatedCustomers = async () => {
 
@@ -19,7 +20,5 @@ export const deleteDeactivatedCustomers = async () => {
         });
     }
 
-    console.log(
-        `Deleted ${customers.length} deactivated customers`
-    );
+    logger.info(`Deleted ${customers.length} deactivated customers`);
 };

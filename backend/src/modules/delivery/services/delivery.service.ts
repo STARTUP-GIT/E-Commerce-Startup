@@ -61,7 +61,6 @@ export class DeliveryService {
     const estimate: any = await Provider.estimatePrice(pickupAddress, deliveryAddress);
     const amount = Number(estimate?.amount ?? estimate?.price ?? 0);
     const bestProvider = await this.getBestProvider(pickupAddressSnapshot, deliveryAddressSnapshot);
-    console.info(`[DELIVERY] Selected provider ${bestProvider.name} for seller order ${sellerOrderId}`);
 
     // Fetch shop settings for individual delivery split
     const shop = await prisma.shop.findUnique({ where: { sellerId: sellerOrder.sellerId } });

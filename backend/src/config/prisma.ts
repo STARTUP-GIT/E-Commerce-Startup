@@ -5,7 +5,6 @@ if (!databaseUrl) {
     console.error("FATAL: DATABASE_URL environment variable is missing.");
     process.exit(1);
 }
-console.log(`DATABASE_URL HOST = ${new URL(databaseUrl).hostname}`);
 
 export const prisma = new PrismaClient();
 

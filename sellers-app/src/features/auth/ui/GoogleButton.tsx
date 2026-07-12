@@ -11,7 +11,6 @@ export function GoogleButton({ label = 'Continue with Google', onError }: Google
 
   const handleLogin = async () => {
     setLoading(true);
-    console.log('Google OAuth: starting signInWithOAuth redirect');
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

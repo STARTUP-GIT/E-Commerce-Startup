@@ -31,16 +31,14 @@ const adminFrontendUrl = resolveUrl(process.env.ADMIN_FRONTEND_URL || process.en
 
 class EmailService {
   private static log(level: 'info' | 'warn' | 'error', event: string, payload?: Record<string, unknown>) {
-    const timestamp = new Date().toISOString();
     const prefix = `[EMAIL]`;
     const message = payload ? `${prefix} ${event} ${JSON.stringify(payload)}` : `${prefix} ${event}`;
     if (level === 'error') {
       console.error(message);
     } else if (level === 'warn') {
       console.warn(message);
-    } else {
-      console.log(message);
     }
+    // info-level email events are suppressed in production to keep server logs clean
   }
 
   private static async sendWithRetry(to: string, subject: string, html: string, isRetry = false): Promise<EmailSendResult> {

@@ -55,14 +55,23 @@ export function ShopSettingsPage() {
     e.preventDefault();
     setRequestError(null);
 
-    if (!requestReason) {
-      setRequestError('Please select a reason for the request.');
+    const trimmedReason = requestReason.trim();
+    if (!trimmedReason) {
+      setRequestError('Please provide a reason for the request.');
+      return;
+    }
+    if (trimmedReason.length < 10) {
+      setRequestError('Reason must be at least 10 characters.');
+      return;
+    }
+    if (trimmedReason.length > 500) {
+      setRequestError('Reason cannot exceed 500 characters.');
       return;
     }
 
     try {
       await requestPackingFeeApproval({
-        reason: requestReason,
+        reason: trimmedReason,
         supportingNotes: supportingNotes.trim() || undefined,
       });
       setIsRequestModalOpen(false);
@@ -417,6 +426,9 @@ export function ShopSettingsPage() {
                         type="button"
                         onClick={() => {
                           setRequestError(null);
+                          const latestReq = (shop as any)?.packingFeeRequests?.[0];
+                          setRequestReason(latestReq?.reason || '');
+                          setSupportingNotes(latestReq?.supportingNotes || '');
                           setIsRequestModalOpen(true);
                         }}
                         className="w-full text-[10px] h-7 font-bold py-0"
@@ -446,6 +458,8 @@ export function ShopSettingsPage() {
                       type="button"
                       onClick={() => {
                         setRequestError(null);
+                        setRequestReason('');
+                        setSupportingNotes('');
                         setIsRequestModalOpen(true);
                       }}
                       className="w-full text-[10px] h-7 font-bold py-0"
@@ -956,35 +970,44 @@ export function ShopSettingsPage() {
               <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider block">
                 Reason for Request *
               </label>
-              <select
-                className="w-full px-3 py-2 text-xs rounded-xl border border-white/10 bg-zinc-900 text-white focus:outline-none focus:border-purple-500/50 transition-all font-medium"
+              <textarea
+                rows={3}
                 value={requestReason}
-                onChange={(e) => setRequestReason(e.target.value)}
+                onChange={(e) => {
+                  setRequestReason(e.target.value);
+                  if (requestError) setRequestError(null);
+                }}
+                placeholder="Describe why your products require special packaging (e.g. fragile, premium, customized, oversized)..."
                 required
-              >
-                <option value="" disabled>Select a reason...</option>
-                <option value="Fragile items">Fragile items (requires bubble wrap, special padding)</option>
-                <option value="Premium packaging">Premium packaging (custom boxes, branded cards)</option>
-                <option value="Large products">Large products (oversized crates, custom pallets)</option>
-                <option value="Eco-friendly packaging">Eco-friendly packaging (biodegradable, sustainable materials)</option>
-                <option value="Heavy products">Heavy products (reinforced packaging, wooden blocks)</option>
-              </select>
+                className="w-full px-3 py-2 text-xs rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-purple-500/50 transition-all font-medium resize-none placeholder-white/20"
+              />
+              <div className="text-[10px] text-white/30 text-right font-semibold">{requestReason.trim().length}/500</div>
             </div>
 
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider block">
-                Supporting Notes (Optional)
+                Optional Notes
               </label>
               <textarea
-                rows={4}
+                rows={3}
                 value={supportingNotes}
                 onChange={(e) => setSupportingNotes(e.target.value)}
-                placeholder="Explain why your shop needs packing fees (materials used, packaging process, etc.)..."
-                className="w-full px-3 py-2 text-xs rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-purple-500/50 transition-all font-medium resize-none"
+                placeholder="Any additional context — packaging materials used, process details, product categories, etc."
+                className="w-full px-3 py-2 text-xs rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-purple-500/50 transition-all font-medium resize-none placeholder-white/20"
               />
             </div>
 
-            <div className="flex gap-3 pt-2">
+            {/* Informational Note */}
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 space-y-1.5">
+              <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Note</p>
+              <ul className="text-[10px] text-white/50 leading-relaxed space-y-1.5 list-none">
+                <li>• Admin will review your request after inspecting your shop profile and currently listed products.</li>
+                <li>• Approval is granted only if your products genuinely require additional packaging (for example fragile, premium, customized, oversized, or special protective packaging).</li>
+                <li>• Submitting false or misleading requests may result in rejection.</li>
+              </ul>
+            </div>
+
+            <div className="flex gap-3 pt-1">
               <Button
                 type="button"
                 variant="secondary"
@@ -998,7 +1021,7 @@ export function ShopSettingsPage() {
                 isLoading={isRequestingPackingFee}
                 className="flex-1 text-xs h-9"
               >
-                Submit Request
+                Submit
               </Button>
             </div>
           </form>

@@ -15,11 +15,6 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const register = async (req: Request, res: Response) => {
     try {
-        console.log('[REGISTER] Incoming request body:', {
-            ...req.body,
-            password: req.body?.password ? '[REDACTED]' : undefined,
-        });
-
         const { username, email, password, firstName, lastName } = req.body;
 
         const missingFields: string[] = [];
@@ -70,8 +65,7 @@ export const register = async (req: Request, res: Response) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        console.log('[REGISTER] Creating customer...');
-        const newuser = await prisma.customer.create({
+                const newuser = await prisma.customer.create({
             data: {
                 firstName: firstName.trim(),
                 lastName: lastName?.trim() || null,
@@ -81,7 +75,6 @@ export const register = async (req: Request, res: Response) => {
                 authProvider: AuthProvider.EMAIL,
             }
         });
-        console.log('[REGISTER] Customer created:', { id: newuser.id, email: newuser.email });
 
         const customerFrontendUrl = (process.env.CUSTOMER_FRONTEND_URL || '').replace(/\/$/, '');
         try {

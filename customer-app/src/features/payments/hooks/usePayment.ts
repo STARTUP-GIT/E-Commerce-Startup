@@ -61,12 +61,6 @@ export function usePayment() {
         const currency = orderDetails.currency;
         const orderId = orderDetails.gatewayOrderId;
 
-        console.log('=== Razorpay Validation ===');
-        console.log('Razorpay Key:', razorpayKey);
-        console.log('Order ID:', orderId);
-        console.log('Amount (paise):', amountPaise);
-        console.log('Currency:', currency);
-
         if (!razorpayKey) {
           throw new Error(
             'RAZORPAY_UNDEFINED: key is undefined. Set NEXT_PUBLIC_RAZORPAY_KEY_ID in Vercel env.'
@@ -113,8 +107,6 @@ export function usePayment() {
             color: '#7c3aed',
           },
         };
-
-        console.log('Razorpay Options:', options);
 
         const rzp = new (window as any).Razorpay(options);
         rzp.on('payment.failed', function (resp: any) {

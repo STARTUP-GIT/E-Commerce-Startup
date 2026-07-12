@@ -14,10 +14,6 @@ class StorageController {
    */
   async uploadImage(req: Request, res: Response) {
     try {
-      console.log("[Storage] Content-Type:", req.headers["content-type"]);
-      console.log("[Storage] Body keys:", req.body ? Object.keys(req.body) : []);
-      console.log("[Storage] File present:", !!req.file);
-
       if (!req.file) {
         return res.status(400).json({
           success: false,
@@ -26,11 +22,8 @@ class StorageController {
       }
 
       const folder = req.body.folder as UploadFolder;
-      console.log("[Storage] Folder:", folder);
-      console.log("[Storage] File path:", req.file.path, "MIME:", req.file.mimetype, "Size:", req.file.size);
 
       const uploaded = await storageService.uploadImage(req.file, folder);
-      console.log("[Storage] Cloudinary success, publicId:", uploaded.publicId);
 
       return res.status(200).json({
         success: true,

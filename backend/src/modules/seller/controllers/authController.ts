@@ -727,7 +727,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
         });
 
         if (!emailResult.success) {
-            console.warn(`[FORGOT PASSWORD] OTP generated but email delivery failed for ${seller.email}: ${emailResult.error}`);
+            console.warn(`[FORGOT PASSWORD] OTP generated but email delivery failed: ${emailResult.error}`);
         }
 
         return res.status(200).json({
