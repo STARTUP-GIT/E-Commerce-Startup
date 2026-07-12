@@ -56,6 +56,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { name: 'Sellers', path: '/sellers', icon: Users },
     { name: 'Customers', path: '/customers', icon: UserCheck },
     { name: 'Shops', path: '/shops', icon: Store },
+    { name: 'Packing Fee Requests', path: '/packing-fee-requests', icon: CreditCard },
     { name: 'Products', path: '/products', icon: Box },
     { name: 'Marketplace Categories', path: '/categories', icon: Grid },
     { name: 'Orders', path: '/orders', icon: ShoppingBag },

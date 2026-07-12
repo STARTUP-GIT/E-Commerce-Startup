@@ -128,9 +128,40 @@ export const approvePackingPermission = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Shop not found" });
         }
 
+        const pendingRequest = await prisma.packingFeeRequest.findFirst({
+            where: {
+                shopId,
+                status: "PENDING"
+            }
+        });
+
+        if (pendingRequest) {
+            await prisma.packingFeeRequest.update({
+                where: { id: pendingRequest.id },
+                data: {
+                    status: "APPROVED",
+                    reviewedByAdminId: adminId,
+                    reviewedAt: new Date()
+                }
+            });
+        }
+
         const updatedShop = await prisma.shop.update({
             where: { id: shopId },
             data: { packingFeeApproved: true }
+        });
+
+        // Notify seller
+        await prisma.notification.create({
+            data: {
+                sellerId: shop.sellerId,
+                type: "PACKING_FEE_APPROVED",
+                channel: "IN_APP",
+                status: "PENDING",
+                title: "Packing Fee Authorization Approved",
+                body: `Your request to charge packing fees for shop '${shop.name}' has been approved. You can now configure this under shop settings.`,
+                sentAt: new Date()
+            }
         });
 
         await logAdminAction({
@@ -174,11 +205,43 @@ export const rejectPackingPermission = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Shop not found" });
         }
 
+        const pendingRequest = await prisma.packingFeeRequest.findFirst({
+            where: {
+                shopId,
+                status: "PENDING"
+            }
+        });
+
+        if (pendingRequest) {
+            await prisma.packingFeeRequest.update({
+                where: { id: pendingRequest.id },
+                data: {
+                    status: "REJECTED",
+                    rejectionReason: reason.trim(),
+                    reviewedByAdminId: adminId,
+                    reviewedAt: new Date()
+                }
+            });
+        }
+
         const updatedShop = await prisma.shop.update({
             where: { id: shopId },
             data: {
                 packingFeeApproved: false,
                 enablePackingFee: false
+            }
+        });
+
+        // Notify seller
+        await prisma.notification.create({
+            data: {
+                sellerId: shop.sellerId,
+                type: "PACKING_FEE_REJECTED",
+                channel: "IN_APP",
+                status: "PENDING",
+                title: "Packing Fee Authorization Rejected",
+                body: `Your request to charge packing fees for shop '${shop.name}' has been rejected. Reason: ${reason.trim()}`,
+                sentAt: new Date()
             }
         });
 
@@ -458,6 +521,28 @@ export const updateShopConfig = async (req: Request, res: Response) => {
         return res.status(200).json({ message: "Shop configurations updated successfully", shop: updatedShop });
     } catch (error: any) {
         console.error("UPDATE SHOP CONFIG ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const getPackingFeeRequests = async (req: Request, res: Response) => {
+    try {
+        const requests = await prisma.packingFeeRequest.findMany({
+            include: {
+                shop: {
+                    include: {
+                        seller: true
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: "desc"
+            }
+        });
+
+        return res.status(200).json({ requests });
+    } catch (error: any) {
+        console.error("GET PACKING FEE REQUESTS ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };

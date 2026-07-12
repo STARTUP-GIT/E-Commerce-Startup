@@ -1,0 +1,19 @@
+model PackingFeeRequest {
+  id                String                  @id @default(cuid())
+  shopId            String
+  status            PackingFeeRequestStatus @default(PENDING)
+  reason            String                  @db.Text
+  supportingNotes   String?                 @db.Text
+  rejectionReason   String?                 @db.Text
+  reviewedByAdminId String?                 @db.VarChar(30)
+  reviewedAt        DateTime?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  shop            Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  reviewedByAdmin Admin? @relation("PackingFeeRequestReviewedBy", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([shopId])
+  @@index([status])
+  @@map("packing_fee_requests")
+}

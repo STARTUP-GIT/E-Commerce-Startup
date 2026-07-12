@@ -26,6 +26,7 @@ import { useQuery } from '@tanstack/react-query';
 import { shopApi } from '../api/shopApi';
 import { SearchableDropdown } from '@/components/ui/SearchableDropdown';
 import { Skeleton } from '@/shared/components/Skeleton';
+import { Dialog } from '@/shared/components/Dialog';
 export function ShopSettingsPage() {
   const {
     shop,
@@ -42,6 +43,44 @@ export function ShopSettingsPage() {
   } = useShop();
 
   const showConfirm = useConfirmStore((state) => state.showConfirm);
+
+  // Packing Fee Authorization Request state
+  const { requestPackingFeeApproval, togglePackingFee, isRequestingPackingFee } = useShop();
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [requestReason, setRequestReason] = useState('');
+  const [supportingNotes, setSupportingNotes] = useState('');
+  const [requestError, setRequestError] = useState<string | null>(null);
+
+  const handleRequestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRequestError(null);
+
+    if (!requestReason) {
+      setRequestError('Please select a reason for the request.');
+      return;
+    }
+
+    try {
+      await requestPackingFeeApproval({
+        reason: requestReason,
+        supportingNotes: supportingNotes.trim() || undefined,
+      });
+      setIsRequestModalOpen(false);
+      setRequestReason('');
+      setSupportingNotes('');
+    } catch (err: any) {
+      setRequestError(err.message || 'Failed to submit request.');
+    }
+  };
+
+  const handleTogglePackingFee = async (checked: boolean) => {
+    try {
+      setErrorMsg(null);
+      await togglePackingFee(checked);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to update packing fee settings.');
+    }
+  };
 
 
   const [bankSuccess, setBankSuccess] = useState(false);
@@ -218,23 +257,156 @@ export function ShopSettingsPage() {
 
         <Card className="border border-white/10 bg-gradient-to-br from-purple-500/10 via-transparent to-emerald-500/10">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-bold text-white/90">Platform Configuration</CardTitle>
-            <CardDescription>Read-only marketplace settings that affect your shop.</CardDescription>
+            <CardTitle className="text-sm font-bold text-white/90">Platform Configuration (Read Only)</CardTitle>
+            <CardDescription className="text-xs text-white/50">Marketplace parameters configured by administrative team</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2 text-sm">
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Commission</p>
-              <p className="mt-1 font-semibold text-white">{shop?.commissionPercentage ?? 10}%</p>
-              {shop?.commissionNotes && (
-                <p className="text-[10px] text-white/45 mt-1 border-t border-white/5 pt-1 italic font-normal">
-                  Notes: {shop.commissionNotes}
+          <CardContent className="grid gap-4 md:grid-cols-2 text-xs">
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-3 flex flex-col justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Commission</p>
+                <p className="mt-1 text-sm font-semibold text-white">{(shop as any)?.commissionPercentage ?? 10}%</p>
+              </div>
+              {(shop as any)?.commissionNotes && (
+                <p className="text-[10px] text-white/45 mt-2 border-t border-white/5 pt-1 italic font-normal">
+                  Notes: {(shop as any).commissionNotes}
                 </p>
               )}
             </div>
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Packing Fee Approval</p>
-              <p className="mt-1 font-semibold text-white">{shop?.packingFeeApproved ? 'Approved' : 'Pending'}</p>
+
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-3 flex flex-col justify-between min-h-[110px]">
+              {(() => {
+                const latestRequest = (shop as any)?.packingFeeRequests?.[0];
+                const isApproved = shop?.packingFeeApproved;
+                const status = isApproved ? 'APPROVED' : latestRequest?.status || 'NOT_APPROVED';
+
+                if (status === 'APPROVED') {
+                  return (
+                    <div className="h-full flex flex-col justify-between gap-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Packing Fee Approval</p>
+                          <span className="text-xs font-semibold text-emerald-400 block mt-1">Approved</span>
+                        </div>
+                        <Badge variant="success" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px]">
+                          Authorized
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4 mt-1 border-t border-white/5 pt-2">
+                        <div className="space-y-0.5">
+                          <span className="text-[11px] font-semibold text-white/90 block">Enable Packing Fee</span>
+                          <span className="text-[9px] text-white/40 block leading-normal">
+                            Charge customer orders at checkout (up to 5%, max ₹100).
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={!!shop?.enablePackingFee}
+                            onChange={(e) => handleTogglePackingFee(e.target.checked)}
+                          />
+                          <div className="w-8 h-4 bg-white/10 rounded-full peer peer-focus:ring-0 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-none after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-600"></div>
+                        </label>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (status === 'PENDING') {
+                  return (
+                    <div className="h-full flex flex-col justify-between gap-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Packing Fee Approval</p>
+                          <span className="text-xs font-semibold text-amber-400 block mt-1">Pending Approval</span>
+                        </div>
+                        <Badge variant="secondary" className="bg-amber-500/25 text-amber-400 border-amber-500/30 text-[9px]">
+                          Under Review
+                        </Badge>
+                      </div>
+                      <p className="text-[10px] text-white/45 leading-normal mt-1">
+                        Your request is under review. You will be notified once processed.
+                      </p>
+                    </div>
+                  );
+                }
+
+                if (status === 'REJECTED') {
+                  return (
+                    <div className="h-full flex flex-col justify-between gap-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Packing Fee Approval</p>
+                          <span className="text-xs font-semibold text-red-400 block mt-1">Rejected</span>
+                        </div>
+                        <Badge variant="destructive" className="bg-red-500/20 text-red-400 border-red-500/30 text-[9px]">
+                          Rejected
+                        </Badge>
+                      </div>
+                      <div className="my-1.5 p-2 rounded-lg border border-red-500/10 bg-red-500/5 text-[10px] text-red-400">
+                        <span className="font-bold uppercase tracking-wider text-[8px] opacity-75 block">Reason:</span>
+                        <p className="leading-tight mt-0.5">{latestRequest?.rejectionReason || "No explanation provided."}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setRequestError(null);
+                          setIsRequestModalOpen(true);
+                        }}
+                        className="w-full text-[10px] h-7 font-bold py-0"
+                      >
+                        Request Again
+                      </Button>
+                    </div>
+                  );
+                }
+
+                // Default: NOT_APPROVED
+                return (
+                  <div className="h-full flex flex-col justify-between gap-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Packing Fee Approval</p>
+                        <span className="text-xs font-semibold text-white/70 block mt-1">Not Approved</span>
+                      </div>
+                      <Badge variant="secondary" className="bg-white/5 text-white/45 border-white/10 text-[9px]">
+                        Inactive
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] text-white/45 leading-normal mt-1 mb-2">
+                      You are currently not authorized to charge customers packing fees.
+                    </p>
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setRequestError(null);
+                        setIsRequestModalOpen(true);
+                      }}
+                      className="w-full text-[10px] h-7 font-bold py-0"
+                    >
+                      Request Approval
+                    </Button>
+                  </div>
+                );
+              })()}
             </div>
+
+            {shop?.deliveryMode && (
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-3 flex flex-col justify-between md:col-span-2">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Delivery Mode</p>
+                  <p className="mt-1 text-sm font-semibold text-white capitalize">
+                    {shop.deliveryMode === 'PLATFORM' ? 'Platform Delivery' : 'Self Delivery'}
+                  </p>
+                  <p className="text-[9px] text-white/40 mt-1">
+                    {shop.deliveryMode === 'PLATFORM'
+                      ? 'Aura administration manages and assigns delivery partners for your orders.'
+                      : 'Your shop is responsible for fulfilling and delivering customer orders independently.'}
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -314,30 +486,6 @@ export function ShopSettingsPage() {
           </Card>
         </div>
 
-        {/* Marketplace settings (Read-Only) */}
-        <Card className="border border-white/5 bg-zinc-950/20">
-          <CardHeader className="pb-3 border-b border-white/5">
-            <CardTitle className="text-xs font-bold text-white/90">Platform Configuration (Read-Only)</CardTitle>
-            <CardDescription className="text-xs text-white/50">Marketplace parameters set by administration for your store</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
-              <p className="text-[9px] font-bold text-white/35 uppercase tracking-wider mb-1">Platform Commission</p>
-              <p className="text-sm font-bold text-white/90">{(shop as any)?.commissionPercentage ?? 10}%</p>
-              {(shop as any)?.commissionNotes && (
-                <p className="text-[10px] text-white/40 mt-1 border-t border-white/5 pt-1 italic font-normal">
-                  Notes: {(shop as any).commissionNotes}
-                </p>
-              )}
-            </div>
-            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
-              <p className="text-[9px] font-bold text-white/35 uppercase tracking-wider mb-1">Packing Fee Authorization</p>
-              <p className="text-sm font-bold text-white/90">
-                {(shop as any)?.packingFeeApproved ? 'Approved' : 'Not Approved'}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Shop Status */}
         <Card className="border border-white/5">
@@ -723,6 +871,73 @@ export function ShopSettingsPage() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Request Approval Dialog */}
+        <Dialog
+          isOpen={isRequestModalOpen}
+          onClose={() => setIsRequestModalOpen(false)}
+          title="Request Packing Fee Approval"
+          description="Submit a request to Aura Administration to enable customer packing fees for your shop."
+        >
+          <form onSubmit={handleRequestSubmit} className="space-y-4 pt-2">
+            {requestError && (
+              <div className="flex items-center gap-2 p-3 rounded-lg border border-red-500/20 bg-red-500/10 text-xs text-red-400">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>{requestError}</span>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider block">
+                Reason for Request *
+              </label>
+              <select
+                className="w-full px-3 py-2 text-xs rounded-xl border border-white/10 bg-zinc-900 text-white focus:outline-none focus:border-purple-500/50 transition-all font-medium"
+                value={requestReason}
+                onChange={(e) => setRequestReason(e.target.value)}
+                required
+              >
+                <option value="" disabled>Select a reason...</option>
+                <option value="Fragile items">Fragile items (requires bubble wrap, special padding)</option>
+                <option value="Premium packaging">Premium packaging (custom boxes, branded cards)</option>
+                <option value="Large products">Large products (oversized crates, custom pallets)</option>
+                <option value="Eco-friendly packaging">Eco-friendly packaging (biodegradable, sustainable materials)</option>
+                <option value="Heavy products">Heavy products (reinforced packaging, wooden blocks)</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider block">
+                Supporting Notes (Optional)
+              </label>
+              <textarea
+                rows={4}
+                value={supportingNotes}
+                onChange={(e) => setSupportingNotes(e.target.value)}
+                placeholder="Explain why your shop needs packing fees (materials used, packaging process, etc.)..."
+                className="w-full px-3 py-2 text-xs rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-purple-500/50 transition-all font-medium resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsRequestModalOpen(false)}
+                className="flex-1 text-xs h-9 bg-white/5 text-white/80"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                isLoading={isRequestingPackingFee}
+                className="flex-1 text-xs h-9"
+              >
+                Submit Request
+              </Button>
+            </div>
+          </form>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

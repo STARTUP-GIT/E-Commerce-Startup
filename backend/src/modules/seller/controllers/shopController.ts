@@ -274,7 +274,13 @@ export const getShopInfo = async (req: Request , res:Response) =>   {
                 sellerId
             },
             include: {
-                defaultPickupAddress: true
+                defaultPickupAddress: true,
+                packingFeeRequests: {
+                    orderBy: {
+                        createdAt: "desc"
+                    },
+                    take: 1
+                }
             }
         });
 
@@ -847,6 +853,115 @@ export const updateShop = async (req: Request, res: Response) => {
 
     } catch (error) {
         console.error("UPDATE SHOP ERROR:", error);
+        return res.status(500).json({
+            message: "Internal Server Error"
+        });
+    }
+};
+
+export const requestPackingFeeApproval = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+        const { reason, supportingNotes } = req.body;
+
+        if (!reason || typeof reason !== "string" || !reason.trim()) {
+            return res.status(400).json({
+                message: "Reason is required"
+            });
+        }
+
+        const shop = await prisma.shop.findUnique({
+            where: { sellerId }
+        });
+
+        if (!shop) {
+            return res.status(404).json({
+                message: "Shop not found"
+            });
+        }
+
+        // Check if there is already a pending request
+        const pendingRequest = await prisma.packingFeeRequest.findFirst({
+            where: {
+                shopId: shop.id,
+                status: "PENDING"
+            }
+        });
+
+        if (pendingRequest) {
+            return res.status(400).json({
+                message: "You already have a pending packing fee request under review."
+            });
+        }
+
+        // Create new request
+        const request = await prisma.packingFeeRequest.create({
+            data: {
+                shopId: shop.id,
+                status: "PENDING",
+                reason: reason.trim(),
+                supportingNotes: supportingNotes ? supportingNotes.trim() : null
+            }
+        });
+
+        return res.status(201).json({
+            message: "Packing fee approval request submitted successfully",
+            request
+        });
+    } catch (error: any) {
+        console.error("REQUEST PACKING FEE APPROVAL ERROR:", error);
+        return res.status(500).json({
+            message: "Internal Server Error"
+        });
+    }
+};
+
+export const togglePackingFee = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+        const { enablePackingFee } = req.body;
+
+        if (enablePackingFee === undefined) {
+            return res.status(400).json({
+                message: "enablePackingFee status is required"
+            });
+        }
+
+        const shop = await prisma.shop.findUnique({
+            where: { sellerId }
+        });
+
+        if (!shop) {
+            return res.status(404).json({
+                message: "Shop not found"
+            });
+        }
+
+        // Check if shop is approved to charge packing fees
+        if (!shop.packingFeeApproved) {
+            return res.status(403).json({
+                message: "Only approved shops can configure packing fees."
+            });
+        }
+
+        const updatedShop = await prisma.shop.update({
+            where: { id: shop.id },
+            data: {
+                enablePackingFee: !!enablePackingFee
+            }
+        });
+
+        return res.status(200).json({
+            message: "Packing fee configuration updated successfully",
+            shop: {
+                id: updatedShop.id,
+                name: updatedShop.name,
+                enablePackingFee: updatedShop.enablePackingFee,
+                packingFeeApproved: updatedShop.packingFeeApproved
+            }
+        });
+    } catch (error: any) {
+        console.error("TOGGLE PACKING FEE ERROR:", error);
         return res.status(500).json({
             message: "Internal Server Error"
         });

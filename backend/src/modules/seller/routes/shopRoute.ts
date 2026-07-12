@@ -10,7 +10,9 @@ import {
     updateShopLogo,
     getActiveStates,
     getActiveDistricts,
-    updateShop
+    updateShop,
+    requestPackingFeeApproval,
+    togglePackingFee
 } from "../controllers/shopController.js";
 import { sellerAuth } from "../../../middleware/sellerAuth.js";
 
@@ -27,5 +29,7 @@ router.patch("/api/shop/banner", sellerAuth, updateShopBanner);
 router.patch("/api/shop/logo", sellerAuth, updateShopLogo);
 router.get("/api/locations/states", sellerAuth, getActiveStates);
 router.get("/api/locations/districts", sellerAuth, getActiveDistricts);
+router.post("/api/shop/packing-fee/request", sellerAuth, requestPackingFeeApproval);
+router.patch("/api/shop/packing-fee/toggle", sellerAuth, togglePackingFee);
 
 export default router;

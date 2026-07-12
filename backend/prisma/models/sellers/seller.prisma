@@ -88,6 +88,7 @@ model Shop {
   seller               Seller         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   defaultPickupAddress SellerAddress? @relation("ShopDefaultPickupAddress", fields: [defaultPickupAddressId], references: [id], onDelete: SetNull)
   reviewedByAdmin      Admin?         @relation("ShopReviewedBy", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+  packingFeeRequests   PackingFeeRequest[]
 
   @@index([slug])
   @@index([status])

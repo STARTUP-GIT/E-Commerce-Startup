@@ -10,13 +10,15 @@ import {
     rejectShop,
     suspendShop,
     disableShop,
-    updateShopConfig
+    updateShopConfig,
+    getPackingFeeRequests
 } from "../controllers/shopController.js";
 import { adminAuth } from "../../../middleware/adminAuth.js";
 
 const router = Router();
 
 router.get("/shops", adminAuth, getShops);
+router.get("/packing-fee/requests", adminAuth, getPackingFeeRequests);
 router.get("/shops/:id", adminAuth, getShop);
 router.delete("/shops/:id", adminAuth, deleteShop);
 router.patch("/shops/:id/approve-packing", adminAuth, approvePackingPermission);

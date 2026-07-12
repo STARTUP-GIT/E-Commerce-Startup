@@ -135,6 +135,8 @@ enum NotificationType {
   RETURN_REJECTED
   SHOP_APPROVED
   SHOP_REJECTED
+  PACKING_FEE_APPROVED
+  PACKING_FEE_REJECTED
   PRODUCT_APPROVED
   PRODUCT_REJECTED
   CUSTOM_ORDER_QUOTE
@@ -193,6 +195,12 @@ enum ShopStatus {
   REJECTED
   SUSPENDED
   DISABLED
+}
+
+enum PackingFeeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum SellerVerificationStatus {

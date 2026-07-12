@@ -27,6 +27,7 @@ model Admin {
   notifications           Notification[]
   createdCoupons          Coupon[]             @relation("CouponCreatedBy")
   assignedSupportTickets  SupportTicket[]      @relation("SupportTicketAssignedTo")
+  reviewedPackingFeeRequests PackingFeeRequest[] @relation("PackingFeeRequestReviewedBy")
   refreshTokens           AdminRefreshToken[]
 
   @@index([email])

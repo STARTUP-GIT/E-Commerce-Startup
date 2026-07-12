@@ -84,6 +84,21 @@ export function useShop() {
     },
   });
 
+  const requestPackingFeeApprovalMutation = useMutation({
+    mutationFn: shopApi.requestPackingFeeApproval,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shop'] });
+    },
+  });
+
+  const togglePackingFeeMutation = useMutation({
+    mutationFn: shopApi.togglePackingFee,
+    onSuccess: (data) => {
+      queryClient.setQueryData(['shop'], data.shop);
+      queryClient.invalidateQueries({ queryKey: ['shop'] });
+    },
+  });
+
   return {
     shop: shopQuery.data ?? null,
     hasShop: !!shopQuery.data,
@@ -115,5 +130,10 @@ export function useShop() {
     deleteShop: deleteShopMutation.mutateAsync,
     isDeletingShop: deleteShopMutation.isPending,
 
+    requestPackingFeeApproval: requestPackingFeeApprovalMutation.mutateAsync,
+    isRequestingPackingFee: requestPackingFeeApprovalMutation.isPending,
+
+    togglePackingFee: togglePackingFeeMutation.mutateAsync,
+    isTogglingPackingFee: togglePackingFeeMutation.isPending,
   };
 }

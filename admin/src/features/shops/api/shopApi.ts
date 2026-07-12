@@ -45,4 +45,8 @@ export const shopApi = {
     const response = await axiosInstance.put(`/api/admin/shops/shops/${id}/config`, payload);
     return response.data;
   },
+  getPackingFeeRequests: async () => {
+    const response = await axiosInstance.get('/api/admin/shops/packing-fee/requests');
+    return response.data;
+  },
 };
