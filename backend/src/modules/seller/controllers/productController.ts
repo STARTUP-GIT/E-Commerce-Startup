@@ -81,10 +81,16 @@ export const addProducts = async (req: Request, res: Response) => {
         const products =
             await prisma.product.findMany({
                 where: {
-                    sellerId
+                    sellerId,
+                    isDeleted: false
                 },
                 select: {
-                    name: true
+                    id: true,
+                    name: true,
+                    status: true,
+                    deletedAt: true,
+                    isDeleted: true,
+                    sellerId: true
                 }
             });
 
@@ -97,6 +103,14 @@ export const addProducts = async (req: Request, res: Response) => {
             );
 
         if (existingProduct) {
+            console.warn("DUPLICATE PRODUCT CREATION ATTEMPTED:", {
+                productId: existingProduct.id,
+                status: existingProduct.status,
+                deletedAt: existingProduct.deletedAt,
+                isDeleted: existingProduct.isDeleted,
+                shopId: shop.id,
+                sellerId: existingProduct.sellerId
+            });
             return res.status(400).json({
                 message:
                     "Product already exists"
