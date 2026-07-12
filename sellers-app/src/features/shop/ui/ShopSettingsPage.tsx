@@ -27,6 +27,7 @@ import { shopApi } from '../api/shopApi';
 import { SearchableDropdown } from '@/components/ui/SearchableDropdown';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Dialog } from '@/shared/components/Dialog';
+import { useUIStore } from '@/lib/store/uiStore';
 export function ShopSettingsPage() {
   const {
     shop,
@@ -46,6 +47,7 @@ export function ShopSettingsPage() {
 
   // Packing Fee Authorization Request state
   const { requestPackingFeeApproval, togglePackingFee, isRequestingPackingFee } = useShop();
+  const showToast = useUIStore((state) => state.showToast);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [requestReason, setRequestReason] = useState('');
   const [supportingNotes, setSupportingNotes] = useState('');
@@ -74,6 +76,7 @@ export function ShopSettingsPage() {
         reason: trimmedReason,
         supportingNotes: supportingNotes.trim() || undefined,
       });
+      showToast('Packing fee approval request submitted successfully.', 'success');
       setIsRequestModalOpen(false);
       setRequestReason('');
       setSupportingNotes('');
