@@ -28,10 +28,12 @@ export function AddressSelectorDialog() {
   const [customDistrict, setCustomDistrict] = useState('');
 
   // Fetch customer profile for saved addresses
+  const { data: session } = useSession();
   const { data: profile } = useQuery({
     queryKey: ['profile'],
     queryFn: profileApi.getProfile,
     retry: false,
+    enabled: !!session,
   });
 
   // Fetch operational states
@@ -133,7 +135,6 @@ export function AddressSelectorDialog() {
     handleClose();
   };
 
-  const { data: session } = useSession();
   const savedAddresses = profile?.user?.addresses || [];
 
   // Sort so the selected address is always at the top (first card)

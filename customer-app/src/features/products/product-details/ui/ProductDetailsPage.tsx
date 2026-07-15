@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/shared/components/Card';
 import { ShoppingCart, Heart, Star, Store, Package, Check, ArrowLeft, Send, Zap, Truck } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 import { useConfirmStore } from '@/lib/store/confirmStore';
 
@@ -21,7 +22,25 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
   const { addToCart, isAdding } = useCart();
   const { wishlist, addToWishlist } = useWishlist();
   const showAlert = useConfirmStore((state) => state.showAlert);
+  const showConfirm = useConfirmStore((state) => state.showConfirm);
   const router = useRouter();
+  const { data: session } = useSession();
+
+  const handleAuthenticatedAction = (action: () => void) => {
+    if (!session) {
+      showConfirm({
+        title: 'Sign In Required',
+        message: 'You need to be signed in to perform this action. Would you like to sign in now?',
+        confirmText: 'Sign In',
+        cancelText: 'Cancel',
+        onConfirm: () => {
+          router.push('/login');
+        },
+      });
+      return;
+    }
+    action();
+  };
 
   const [quantity, setQuantity] = useState(1);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
@@ -70,36 +89,42 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
   const isWishlisted = wishlist?.items?.some((item) => item.productId === product.id) || false;
 
   const handleAddToCart = () => {
-    addToCart(
-      {
-        productId: product.id,
-        quantity,
-        variantId: selectedVariantId || undefined,
-      },
-      {
-        onSuccess: () => {
-          showAlert({ title: 'Added to Cart', message: 'Item was successfully added to your cart!' });
+    handleAuthenticatedAction(() => {
+      addToCart(
+        {
+          productId: product.id,
+          quantity,
+          variantId: selectedVariantId || undefined,
         },
-      }
-    );
+        {
+          onSuccess: () => {
+            showAlert({ title: 'Added to Cart', message: 'Item was successfully added to your cart!' });
+          },
+        }
+      );
+    });
   };
 
   const handleBuyNow = () => {
-    router.push(
-      `/checkout?buyNow=true&productId=${product.id}&quantity=${quantity}${
-        selectedVariantId ? `&variantId=${selectedVariantId}` : ''
-      }`
-    );
+    handleAuthenticatedAction(() => {
+      router.push(
+        `/checkout?buyNow=true&productId=${product.id}&quantity=${quantity}${
+          selectedVariantId ? `&variantId=${selectedVariantId}` : ''
+        }`
+      );
+    });
   };
 
   const handleWishlistToggle = () => {
-    addToWishlist(product.id, {
-      onSuccess: () => {
-        showAlert({
-          title: 'Wishlist Update',
-          message: isWishlisted ? 'Removed from wishlist!' : 'Added to wishlist!',
-        });
-      },
+    handleAuthenticatedAction(() => {
+      addToWishlist(product.id, {
+        onSuccess: () => {
+          showAlert({
+            title: 'Wishlist Update',
+            message: isWishlisted ? 'Removed from wishlist!' : 'Added to wishlist!',
+          });
+        },
+      });
     });
   };
 
@@ -447,11 +472,13 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
 
                   <Button
                     onClick={() => {
-                      if (!newComment.trim()) {
-                        showAlert({ title: 'Validation Error', message: 'Please write a comment before submitting.' });
-                        return;
-                      }
-                      setReviewPosted(true);
+                      handleAuthenticatedAction(() => {
+                        if (!newComment.trim()) {
+                          showAlert({ title: 'Validation Error', message: 'Please write a comment before submitting.' });
+                          return;
+                        }
+                        setReviewPosted(true);
+                      });
                     }}
                     className="flex items-center gap-2 text-xs sm:text-sm cursor-pointer"
                   >

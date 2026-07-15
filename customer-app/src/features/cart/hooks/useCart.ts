@@ -1,12 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cartApi } from '../api/cartApi';
+import { useSession } from 'next-auth/react';
 
 export function useCart() {
   const queryClient = useQueryClient();
+  const { data: session } = useSession();
 
   const cartQuery = useQuery({
     queryKey: ['cart'],
     queryFn: () => cartApi.getCart(),
+    enabled: !!session,
   });
 
   const addToCartMutation = useMutation({

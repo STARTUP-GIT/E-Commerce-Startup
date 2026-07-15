@@ -1,12 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wishlistApi } from '../api/wishlistApi';
+import { useSession } from 'next-auth/react';
 
 export function useWishlist() {
   const queryClient = useQueryClient();
+  const { data: session } = useSession();
 
   const wishlistQuery = useQuery({
     queryKey: ['wishlist'],
     queryFn: () => wishlistApi.getWishlist(),
+    enabled: !!session,
   });
 
   const addToWishlistMutation = useMutation({

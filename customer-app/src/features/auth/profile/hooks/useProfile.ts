@@ -1,13 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { profileApi, EditProfilePayload, UpdateProfilePayload } from '../api/profileApi';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 
 export function useProfile() {
   const queryClient = useQueryClient();
+  const { data: session } = useSession();
 
   const profileQuery = useQuery({
     queryKey: ['profile'],
     queryFn: () => profileApi.getProfile(),
+    enabled: !!session,
   });
 
   const editProfileMutation = useMutation({
