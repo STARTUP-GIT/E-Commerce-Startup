@@ -11,7 +11,6 @@ export function useOrders(orderId?: string) {
         const res = await ordersApi.getOrders();
         return res.orders;
       } catch {
-        // Return empty array on 403 (inactive shop) or any other error
         return [];
       }
     },
@@ -36,6 +35,15 @@ export function useOrders(orderId?: string) {
     enabled: !!orderId,
   });
 
+  const allowedDeliveryMethodsQuery = useQuery({
+    queryKey: ['allowed-delivery-methods'],
+    queryFn: async () => {
+      const res = await ordersApi.getAllowedDeliveryMethods();
+      return res.deliveryMethods;
+    },
+    staleTime: 60 * 1000,
+  });
+
   // Mutations
   const acceptMutation = useMutation({
     mutationFn: ordersApi.acceptOrder,
@@ -55,6 +63,15 @@ export function useOrders(orderId?: string) {
 
   const readyTimeMutation = useMutation({
     mutationFn: ({ id, readyByAt }: { id: string; readyByAt: string }) => ordersApi.setReadyTime(id, readyByAt),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      if (orderId) queryClient.invalidateQueries({ queryKey: ['order-details', orderId] });
+    },
+  });
+
+  const assignDeliveryMethodMutation = useMutation({
+    mutationFn: ({ id, deliveryMethod }: { id: string; deliveryMethod: string }) =>
+      ordersApi.assignDeliveryMethod(id, deliveryMethod),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       if (orderId) queryClient.invalidateQueries({ queryKey: ['order-details', orderId] });
@@ -114,6 +131,8 @@ export function useOrders(orderId?: string) {
     timeline: timelineQuery.data ?? [],
     isLoadingTimeline: timelineQuery.isLoading,
 
+    allowedDeliveryMethods: allowedDeliveryMethodsQuery.data ?? [],
+
     acceptOrder: acceptMutation.mutateAsync,
     isAccepting: acceptMutation.isPending,
 
@@ -122,6 +141,9 @@ export function useOrders(orderId?: string) {
 
     setReadyTime: readyTimeMutation.mutateAsync,
     isSettingReadyTime: readyTimeMutation.isPending,
+
+    assignDeliveryMethod: assignDeliveryMethodMutation.mutateAsync,
+    isAssigningDeliveryMethod: assignDeliveryMethodMutation.isPending,
 
     uploadPackingProof: packingProofMutation.mutateAsync,
     isUploadingProof: packingProofMutation.isPending,

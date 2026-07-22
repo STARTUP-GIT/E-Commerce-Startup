@@ -34,12 +34,15 @@ export function OrderDetailPage() {
     order,
     isLoadingDetails,
     timeline,
+    allowedDeliveryMethods,
     acceptOrder,
     isAccepting,
     rejectOrder,
     isRejecting,
     setReadyTime: submitReadyTime,
     isSettingReadyTime,
+    assignDeliveryMethod,
+    isAssigningDeliveryMethod,
     uploadPackingProof,
     isUploadingProof,
     markPacked,
@@ -51,6 +54,9 @@ export function OrderDetailPage() {
     markCodCollected,
     isMarkingCodCollected,
   } = useOrders(orderId);
+
+  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState('');
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
 
   const handleMarkCodCollected = async () => {
     if (!order) return;
@@ -187,6 +193,17 @@ export function OrderDetailPage() {
       await markDelivered(order.id);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to mark order as delivered.');
+    }
+  };
+
+  const handleAssignDeliveryMethod = async () => {
+    if (!order || !selectedDeliveryMethod) return;
+    setDeliveryError(null);
+    try {
+      await assignDeliveryMethod({ id: order.id, deliveryMethod: selectedDeliveryMethod });
+      setSelectedDeliveryMethod('');
+    } catch (err: any) {
+      setDeliveryError(err.message || 'Failed to assign delivery method.');
     }
   };
 
@@ -408,6 +425,67 @@ export function OrderDetailPage() {
 
           {/* Sidebar Panel */}
           <div className="space-y-6">
+            {/* Delivery Method Assignment */}
+            {(order.status === 'PENDING' || order.status === 'ACCEPTED' || order.status === 'PROCESSING') && (
+              <Card className="border border-white/5">
+                <CardHeader className="border-b border-white/5 pb-4">
+                  <CardTitle className="text-xs font-bold text-white/90 flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-purple-400" />
+                    <span>Delivery Method</span>
+                  </CardTitle>
+                  <CardDescription>Assign a delivery method for this order</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-5 space-y-3">
+                  {order.selectedDeliveryMethod ? (
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-emerald-400" />
+                        <span className="text-xs font-bold text-emerald-400">
+                          {order.selectedDeliveryMethod === 'PORTAL_DELIVERY' ? 'Portal Delivery' : 'Seller Delivery'}
+                        </span>
+                      </div>
+                      {order.deliveryAssignedAt && (
+                        <p className="text-[10px] text-white/40 mt-1.5 ml-6">
+                          Assigned on {ordersService.formatDate(order.deliveryAssignedAt)}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <select
+                        value={selectedDeliveryMethod}
+                        onChange={(e) => setSelectedDeliveryMethod(e.target.value)}
+                        className="flex h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-white/80"
+                      >
+                        <option value="" disabled className="bg-[#0b0b0f] text-white">Select delivery method...</option>
+                        {allowedDeliveryMethods
+                          .filter((m) => m.enabled)
+                          .map((m) => (
+                            <option key={m.code} value={m.code} className="bg-[#0b0b0f] text-white">
+                              {m.name}
+                            </option>
+                          ))}
+                      </select>
+                      {deliveryError && (
+                        <p className="text-[10px] text-red-400 font-bold">{deliveryError}</p>
+                      )}
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        onClick={handleAssignDeliveryMethod}
+                        disabled={!selectedDeliveryMethod || isAssigningDeliveryMethod}
+                        isLoading={isAssigningDeliveryMethod}
+                      >
+                        <Truck className="mr-1.5 h-3.5 w-3.5" />
+                        <span>Assign Delivery Method</span>
+                      </Button>
+                      <p className="text-[9px] text-white/30 text-center">Choose before processing the order</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Customer & Address Details */}
             <Card className="border border-white/5">
               <CardHeader className="border-b border-white/5 pb-4">

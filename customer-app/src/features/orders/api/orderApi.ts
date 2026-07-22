@@ -21,6 +21,8 @@ export interface SellerOrder {
   taxAmount: number;
   packingFee: number;
   deliveryMode?: 'PLATFORM' | 'SELF';
+  selectedDeliveryMethod?: string;
+  deliveryAssignedAt?: string;
   items: OrderItem[];
   seller?: {
     id: string;

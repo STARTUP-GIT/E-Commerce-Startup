@@ -45,31 +45,6 @@ export const ensureDefaultDeliveryMethods = async () => {
     }
 };
 
-// Helper to count active products using a delivery method
-const getActiveProductCountForMethod = async (code: string): Promise<number> => {
-    try {
-        const upperCode = code.toUpperCase();
-        if (upperCode === "PORTAL_DELIVERY") {
-            return await prisma.product.count({
-                where: {
-                    isDeleted: false,
-                    deliveryMethod: { in: ["PORTAL_DELIVERY", "BOTH"] },
-                },
-            });
-        } else if (upperCode === "SELLER_DELIVERY" || upperCode === "SELF_DELIVERY") {
-            return await prisma.product.count({
-                where: {
-                    isDeleted: false,
-                    deliveryMethod: { in: ["SELF_DELIVERY", "BOTH"] },
-                },
-            });
-        }
-        return 0;
-    } catch {
-        return 0;
-    }
-};
-
 export const getDeliveryMethods = async (req: Request, res: Response) => {
     try {
         await ensureDefaultDeliveryMethods();
@@ -77,17 +52,7 @@ export const getDeliveryMethods = async (req: Request, res: Response) => {
             orderBy: { displayOrder: "asc" },
         });
 
-        const methodsWithCounts = await Promise.all(
-            methods.map(async (m) => {
-                const activeProductCount = await getActiveProductCountForMethod(m.code);
-                return {
-                    ...m,
-                    activeProductCount,
-                };
-            })
-        );
-
-        return res.status(200).json({ deliveryMethods: methodsWithCounts });
+        return res.status(200).json({ deliveryMethods: methods });
     } catch (error: any) {
         console.error("GET DELIVERY METHODS ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
@@ -153,14 +118,9 @@ export const updateDeliveryMethod = async (req: Request, res: Response) => {
             },
         });
 
-        const activeProductCount = await getActiveProductCountForMethod(updated.code);
-
         return res.status(200).json({
             message: "Delivery method updated successfully",
-            deliveryMethod: {
-                ...updated,
-                activeProductCount,
-            },
+            deliveryMethod: updated,
         });
     } catch (error: any) {
         console.error("UPDATE DELIVERY METHOD ERROR:", error);
@@ -196,15 +156,11 @@ export const toggleDeliveryMethodStatus = async (req: Request, res: Response) =>
             data: { enabled: newEnabled },
         });
 
-        const activeProductCount = await getActiveProductCountForMethod(updated.code);
         console.log('[PATCH] Prisma updated record:', updated);
 
         return res.status(200).json({
             message: `Delivery method ${newEnabled ? "enabled" : "disabled"} successfully`,
-            deliveryMethod: {
-                ...updated,
-                activeProductCount,
-            },
+            deliveryMethod: updated,
         });
     } catch (error: any) {
         console.error("TOGGLE DELIVERY METHOD STATUS ERROR:", error);
@@ -230,10 +186,13 @@ export const deleteDeliveryMethod = async (req: Request, res: Response) => {
             return res.status(400).json({ message: `Built-in delivery method '${method.name}' cannot be deleted.` });
         }
 
-        const activeProductCount = await getActiveProductCountForMethod(method.code);
-        if (activeProductCount > 0) {
+        const orderCount = await prisma.sellerOrder.count({
+            where: { selectedDeliveryMethod: method.code },
+        });
+
+        if (orderCount > 0) {
             return res.status(400).json({
-                message: `Cannot delete delivery method '${method.name}' because it is assigned to ${activeProductCount} active product(s). Disable it instead.`,
+                message: `Cannot delete delivery method '${method.name}' because it has been used in ${orderCount} order(s). Disable it instead.`,
             });
         }
 

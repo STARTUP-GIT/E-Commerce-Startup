@@ -18,6 +18,9 @@ export interface SellerOrder {
   status: 'PENDING' | 'ACCEPTED' | 'PROCESSING' | 'PACKED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   paymentMethod?: string;
   selectedDeliveryMethod?: string;
+  deliveryAssignedAt?: string;
+  deliveryAssignedBy?: string;
+  deliveryMode?: 'PLATFORM' | 'SELF';
   totalPrice: number;
   subtotal: number;
   packingFee: number;
@@ -50,6 +53,14 @@ export interface SellerOrder {
   timelineEvents?: any[];
 }
 
+export interface DeliveryMethod {
+  id: string;
+  name: string;
+  code: string;
+  description?: string;
+  enabled: boolean;
+}
+
 export const ordersApi = {
   getOrders: async (): Promise<{ count: number; orders: SellerOrder[] }> => {
     const response = await axiosInstance.get('/seller/api/orders');
@@ -73,6 +84,16 @@ export const ordersApi = {
 
   setReadyTime: async (orderId: string, readyByAt: string): Promise<{ message: string; order: SellerOrder }> => {
     const response = await axiosInstance.patch(`/seller/api/orders/${orderId}/ready-time`, { readyByAt });
+    return response.data;
+  },
+
+  assignDeliveryMethod: async (orderId: string, deliveryMethod: string): Promise<{ message: string; order: SellerOrder }> => {
+    const response = await axiosInstance.patch(`/seller/api/orders/${orderId}/delivery-method`, { deliveryMethod });
+    return response.data;
+  },
+
+  getAllowedDeliveryMethods: async (): Promise<{ deliveryMethods: DeliveryMethod[] }> => {
+    const response = await axiosInstance.get('/seller/api/orders/allowed-delivery-methods');
     return response.data;
   },
 

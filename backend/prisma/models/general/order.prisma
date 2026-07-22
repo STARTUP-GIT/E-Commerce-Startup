@@ -74,6 +74,8 @@ model SellerOrder {
   deliveryMode          DeliveryMode      @default(PLATFORM)
   paymentMethod         String?           @db.VarChar(50)
   selectedDeliveryMethod String?          @db.VarChar(50)
+  deliveryAssignedAt    DateTime?
+  deliveryAssignedBy    String?           @db.VarChar(50)
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
 

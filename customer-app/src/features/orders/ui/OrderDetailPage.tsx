@@ -131,7 +131,13 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
                         {sellerOrder.seller?.firstName} {sellerOrder.seller?.lastName}
                       </span>
                     )}
-                    {sellerOrder.deliveryMode && (
+                    {sellerOrder.selectedDeliveryMethod && (
+                      <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 font-semibold shrink-0">
+                        • <Truck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground/60" />
+                        <span>{sellerOrder.selectedDeliveryMethod === 'PORTAL_DELIVERY' ? 'Delivered by Aura Logistics' : 'Delivered by Seller'}</span>
+                      </span>
+                    )}
+                    {!sellerOrder.selectedDeliveryMethod && sellerOrder.deliveryMode && (
                       <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 font-semibold shrink-0">
                         • <Truck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground/60" />
                         <span>{sellerOrder.deliveryMode === 'SELF' ? 'Delivered by Seller' : 'Delivered by Aura'}</span>

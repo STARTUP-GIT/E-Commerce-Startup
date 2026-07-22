@@ -4,9 +4,6 @@ import { getObjectUrl, isValidS3Key, headObjectExists } from '../../../config/st
 import { SellerStatus } from "@prisma/client";
 import { SellerOrderStatus } from "@prisma/client";
 
-
-                    
-
 export const getOrders = async ( req: Request,res: Response) => {
 
     try {
@@ -786,4 +783,105 @@ export const markCodCollected = async (req: Request, res: Response) => {
     }
 };
 
+export const assignDeliveryMethod = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId;
+        const orderId = req.params.orderId;
+        const { deliveryMethod } = req.body;
 
+        if (!sellerId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        if (!orderId) {
+            return res.status(400).json({ message: "Order ID is required" });
+        }
+
+        if (!deliveryMethod || typeof deliveryMethod !== "string") {
+            return res.status(400).json({ message: "Delivery method is required" });
+        }
+
+        const normalizedMethod = deliveryMethod.trim().toUpperCase();
+
+        // Validate method exists and is enabled
+        const methodSetting = await prisma.deliveryMethodSetting.findFirst({
+            where: {
+                code: normalizedMethod,
+                enabled: true,
+            },
+        });
+
+        if (!methodSetting) {
+            return res.status(400).json({
+                message: `Delivery method '${normalizedMethod}' does not exist or is not enabled`,
+            });
+        }
+
+        // Also check alternate code for SELLER_DELIVERY / SELF_DELIVERY
+        const validCodes = [methodSetting.code.toUpperCase()];
+        if (methodSetting.code.toUpperCase() === "SELLER_DELIVERY") {
+            validCodes.push("SELF_DELIVERY");
+        } else if (methodSetting.code.toUpperCase() === "SELF_DELIVERY") {
+            validCodes.push("SELLER_DELIVERY");
+        }
+
+        const sellerOrder = await prisma.sellerOrder.findFirst({
+            where: { id: orderId as string, sellerId },
+        });
+
+        if (!sellerOrder) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        if (sellerOrder.selectedDeliveryMethod) {
+            return res.status(400).json({ message: "Delivery method has already been assigned to this order" });
+        }
+
+        const displayMethod = methodSetting.code.toUpperCase() === "SELLER_DELIVERY"
+            ? "SELF_DELIVERY"
+            : methodSetting.code.toUpperCase();
+
+        const updatedOrder = await prisma.sellerOrder.update({
+            where: { id: orderId as string },
+            data: {
+                selectedDeliveryMethod: displayMethod,
+                deliveryMode: displayMethod === "SELF_DELIVERY" ? "SELF" : "PLATFORM",
+                deliveryAssignedAt: new Date(),
+                deliveryAssignedBy: "SELLER",
+            },
+        });
+
+        await prisma.orderTimelineEvent.create({
+            data: {
+                entityType: "SELLER_ORDER",
+                sellerOrderId: orderId as string,
+                orderId: sellerOrder.orderId,
+                status: sellerOrder.status,
+                title: "Delivery Method Assigned",
+                description: `Delivery method set to ${displayMethod === "SELF_DELIVERY" ? "Seller Delivery" : "Portal Delivery"}.`,
+            },
+        });
+
+        return res.status(200).json({
+            message: "Delivery method assigned successfully",
+            order: updatedOrder,
+        });
+    } catch (error) {
+        console.error("ASSIGN DELIVERY METHOD ERROR:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+export const getAllowedDeliveryMethods = async (req: Request, res: Response) => {
+    try {
+        const methods = await prisma.deliveryMethodSetting.findMany({
+            where: { enabled: true },
+            orderBy: { displayOrder: "asc" },
+        });
+
+        return res.status(200).json({ deliveryMethods: methods });
+    } catch (error: any) {
+        console.error("GET ALLOWED DELIVERY METHODS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};

@@ -30,7 +30,14 @@ import adminLogRoute from './src/modules/admin/routes/logRoute.js';
 import adminCityRoute from './src/modules/admin/routes/cityRoute.js';
 import adminStateRoute from './src/modules/admin/routes/stateRoute.js';
 import adminCategoryRoute from './src/modules/admin/routes/categoryRoute.js';
+import adminPaymentMethodRoute from './src/modules/admin/routes/paymentMethodRoute.js';
+import adminDeliveryMethodRoute from './src/modules/admin/routes/deliveryMethodRoute.js';
 import adminDeliveryRoute from './src/modules/delivery/routes/adminDeliveryRoute.js';
+import { ensureDefaultPaymentMethods } from './src/modules/admin/controllers/paymentMethodController.js';
+import { ensureDefaultDeliveryMethods } from './src/modules/admin/controllers/deliveryMethodController.js';
+
+ensureDefaultPaymentMethods().catch(err => console.error("Auto-seed payment methods failed:", err));
+ensureDefaultDeliveryMethods().catch(err => console.error("Auto-seed delivery methods failed:", err));
 
 const app = express();
 configureMiddlewares(app);
@@ -54,6 +61,8 @@ app.use('/api/admin/logs', adminLogRoute);
 app.use('/api/admin/cities', adminCityRoute);
 app.use('/api/admin/states', adminStateRoute);
 app.use('/api/admin/categories', adminCategoryRoute);
+app.use('/api/admin/payment-methods', adminPaymentMethodRoute);
+app.use('/api/admin/delivery-methods', adminDeliveryMethodRoute);
 app.use('/api/admin', adminDeliveryRoute);
 
 configureErrorHandlers(app);
