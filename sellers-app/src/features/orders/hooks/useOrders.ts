@@ -18,9 +18,10 @@ export function useOrders(orderId?: string) {
   });
 
   const orderDetailsQuery = useQuery({
-    queryKey: ['order-details', orderId],
+    queryKey: ['seller-order', orderId],
     queryFn: async () => {
       const res = await ordersApi.getOrder(orderId!);
+      console.log('order fetched:', res.order);
       return res.order;
     },
     enabled: !!orderId,
@@ -49,7 +50,7 @@ export function useOrders(orderId?: string) {
     mutationFn: ordersApi.acceptOrder,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      if (orderId) queryClient.invalidateQueries({ queryKey: ['order-details', orderId] });
+      if (orderId) queryClient.invalidateQueries({ queryKey: ['seller-order', orderId] });
     },
   });
 
@@ -57,7 +58,7 @@ export function useOrders(orderId?: string) {
     mutationFn: ({ id, reason }: { id: string; reason: string }) => ordersApi.rejectOrder(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      if (orderId) queryClient.invalidateQueries({ queryKey: ['order-details', orderId] });
+      if (orderId) queryClient.invalidateQueries({ queryKey: ['seller-order', orderId] });
     },
   });
 
@@ -65,7 +66,7 @@ export function useOrders(orderId?: string) {
     mutationFn: ({ id, readyByAt }: { id: string; readyByAt: string }) => ordersApi.setReadyTime(id, readyByAt),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      if (orderId) queryClient.invalidateQueries({ queryKey: ['order-details', orderId] });
+      if (orderId) queryClient.invalidateQueries({ queryKey: ['seller-order', orderId] });
     },
   });
 
@@ -74,7 +75,7 @@ export function useOrders(orderId?: string) {
       ordersApi.assignDeliveryMethod(id, deliveryMethod),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      if (orderId) queryClient.invalidateQueries({ queryKey: ['order-details', orderId] });
+      if (orderId) queryClient.invalidateQueries({ queryKey: ['seller-order', orderId] });
     },
   });
 
@@ -83,7 +84,7 @@ export function useOrders(orderId?: string) {
       ordersApi.uploadPackingProof(id, imageUrls, notes),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      if (orderId) queryClient.invalidateQueries({ queryKey: ['order-details', orderId] });
+      if (orderId) queryClient.invalidateQueries({ queryKey: ['seller-order', orderId] });
     },
   });
 
@@ -91,7 +92,7 @@ export function useOrders(orderId?: string) {
     mutationFn: ordersApi.markPacked,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      if (orderId) queryClient.invalidateQueries({ queryKey: ['order-details', orderId] });
+      if (orderId) queryClient.invalidateQueries({ queryKey: ['seller-order', orderId] });
     },
   });
 
@@ -99,7 +100,7 @@ export function useOrders(orderId?: string) {
     mutationFn: ordersApi.markShipped,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      if (orderId) queryClient.invalidateQueries({ queryKey: ['order-details', orderId] });
+      if (orderId) queryClient.invalidateQueries({ queryKey: ['seller-order', orderId] });
     },
   });
 
@@ -107,7 +108,7 @@ export function useOrders(orderId?: string) {
     mutationFn: ordersApi.markDelivered,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      if (orderId) queryClient.invalidateQueries({ queryKey: ['order-details', orderId] });
+      if (orderId) queryClient.invalidateQueries({ queryKey: ['seller-order', orderId] });
     },
   });
 
@@ -115,7 +116,7 @@ export function useOrders(orderId?: string) {
     mutationFn: ordersApi.markCodCollected,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      if (orderId) queryClient.invalidateQueries({ queryKey: ['order-details', orderId] });
+      if (orderId) queryClient.invalidateQueries({ queryKey: ['seller-order', orderId] });
     },
   });
 
@@ -127,6 +128,8 @@ export function useOrders(orderId?: string) {
 
     order: orderDetailsQuery.data ?? null,
     isLoadingDetails: orderDetailsQuery.isLoading,
+    isErrorDetails: orderDetailsQuery.isError,
+    errorDetails: orderDetailsQuery.error,
 
     timeline: timelineQuery.data ?? [],
     isLoadingTimeline: timelineQuery.isLoading,

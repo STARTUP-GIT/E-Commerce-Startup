@@ -33,6 +33,8 @@ export function OrderDetailPage() {
   const {
     order,
     isLoadingDetails,
+    isErrorDetails,
+    errorDetails,
     timeline,
     allowedDeliveryMethods,
     acceptOrder,
@@ -54,6 +56,11 @@ export function OrderDetailPage() {
     markCodCollected,
     isMarkingCodCollected,
   } = useOrders(orderId);
+
+  console.log('order:', order);
+  console.log('isLoadingDetails:', isLoadingDetails);
+  console.log('isErrorDetails:', isErrorDetails);
+  console.log('errorDetails:', errorDetails);
 
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState('');
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
@@ -79,6 +86,7 @@ export function OrderDetailPage() {
   const [proofNote, setProofNote] = useState('');
   const [proofImages, setProofImages] = useState<string[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const showToast = useUIStore((state) => state.showToast);
 
   if (isLoadingDetails) {
     return (
@@ -86,6 +94,21 @@ export function OrderDetailPage() {
         <div className="space-y-4">
           <Skeleton className="h-10 w-48" />
           <Skeleton className="h-48 w-full" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (isErrorDetails) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-16 space-y-3">
+          <AlertTriangle className="mx-auto h-12 w-12 text-red-500/50" />
+          <h3 className="text-base font-bold text-white/80">Error Loading Order</h3>
+          <p className="text-xs text-white/40">{errorDetails?.message || 'An unexpected error occurred'}</p>
+          <Button variant="outline" size="sm" onClick={() => navigate('/orders')}>
+            Back to Orders
+          </Button>
         </div>
       </DashboardLayout>
     );
@@ -139,8 +162,6 @@ export function OrderDetailPage() {
       setErrorMsg(err.message || 'Failed to update preparation time.');
     }
   };
-
-  const showToast = useUIStore((state) => state.showToast);
 
   const handleProofImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -224,7 +245,7 @@ export function OrderDetailPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-bold tracking-tight text-white/95">
-                Order {order.order.orderNumber}
+                Order {order?.order?.orderNumber}
               </h1>
               <Badge variant={ordersService.getStatusColor(order.status)} className="text-[9px]">
                 {order.status}
@@ -293,9 +314,9 @@ export function OrderDetailPage() {
             )}
 
             {order.status === 'DELIVERED' &&
-              (order.paymentMethod === 'COD' || order.order.paymentMethod === 'COD') &&
-              order.order.payments?.[0]?.status !== 'PAID' &&
-              order.order.payments?.[0]?.status !== 'COMPLETED' && (
+              (order.paymentMethod === 'COD' || order?.order?.paymentMethod === 'COD') &&
+              order?.order?.payments?.[0]?.status !== 'PAID' &&
+              order?.order?.payments?.[0]?.status !== 'COMPLETED' && (
                 <Button
                   onClick={handleMarkCodCollected}
                   isLoading={isMarkingCodCollected}
@@ -330,11 +351,11 @@ export function OrderDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {order.items.map((item) => (
+                    {(order?.items ?? []).map((item) => (
                       <TableRow key={item.id}>
                         <TableCell>
                           <div className="h-10 w-10 border border-white/10 rounded-lg overflow-hidden bg-white/5 flex items-center justify-center">
-                            {item.product.imageUrl ? (
+                            {item?.product?.imageUrl ? (
                               <img src={item.product.imageUrl} alt={item.product.name} loading="lazy" className="h-full w-full object-cover" />
                             ) : (
                               <Package className="h-4.5 w-4.5 text-white/30" />
@@ -342,7 +363,7 @@ export function OrderDetailPage() {
                           </div>
                         </TableCell>
                         <TableCell className="font-semibold text-white/90 text-xs">
-                          {item.product.name}
+                          {item?.product?.name}
                         </TableCell>
                         <TableCell className="text-xs">
                           {productService.formatPrice(item.price)}
@@ -498,13 +519,13 @@ export function OrderDetailPage() {
                 <div>
                   <span className="text-[10px] text-white/45 uppercase font-bold block">Contact Email</span>
                   <span className="text-xs font-medium text-white/90 block mt-0.5">
-                    {order.order.customerEmail || 'No email shared'}
+                    {order?.order?.customerEmail || 'No email shared'}
                   </span>
                 </div>
                 <div>
                   <span className="text-[10px] text-white/45 uppercase font-bold block">Contact Phone</span>
                   <span className="text-xs font-medium text-white/90 block mt-0.5">
-                    {order.order.customerPhone || 'No phone shared'}
+                    {order?.order?.customerPhone || 'No phone shared'}
                   </span>
                 </div>
                 <div className="border-t border-white/5 pt-3.5">
@@ -512,7 +533,7 @@ export function OrderDetailPage() {
                     <MapPin className="h-3.5 w-3.5" />
                     <span>Shipping Address</span>
                   </span>
-                  {order.order.shippingAddress ? (
+                  {order?.order?.shippingAddress ? (
                     <div className="text-xs text-white/70 leading-relaxed font-medium">
                       <p className="font-bold text-white">{order.order.shippingAddress.fullName}</p>
                       <p>{order.order.shippingAddress.addressLine1}</p>
