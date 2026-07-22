@@ -173,16 +173,23 @@ export const toggleDeliveryMethodStatus = async (req: Request, res: Response) =>
         const id = req.params.id as string;
         const allowed = req.body.allowed !== undefined ? req.body.allowed : req.body.enabled;
 
+        console.log('[PATCH /api/admin/delivery-methods/:id] reached');
+        console.log('[PATCH] req.params:', req.params);
+        console.log('[PATCH] req.body:', req.body);
+        console.log('[PATCH] resolved allowed:', allowed);
+
         if (!id) {
             return res.status(400).json({ message: "Delivery Method ID is required" });
         }
 
         const method = await prisma.deliveryMethodSetting.findUnique({ where: { id } });
         if (!method) {
+            console.error('[PATCH] Delivery method not found in DB for id:', id);
             return res.status(404).json({ message: "Delivery method not found" });
         }
 
         const newEnabled = allowed !== undefined ? !!allowed : !method.enabled;
+        console.log('[PATCH] updating enabled to:', newEnabled);
 
         const updated = await prisma.deliveryMethodSetting.update({
             where: { id },
@@ -190,6 +197,7 @@ export const toggleDeliveryMethodStatus = async (req: Request, res: Response) =>
         });
 
         const activeProductCount = await getActiveProductCountForMethod(updated.code);
+        console.log('[PATCH] Prisma updated record:', updated);
 
         return res.status(200).json({
             message: `Delivery method ${newEnabled ? "enabled" : "disabled"} successfully`,

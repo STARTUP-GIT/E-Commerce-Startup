@@ -47,10 +47,12 @@ export function PaymentMethodsPage() {
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, allowed }: { id: string; allowed: boolean }) => {
-      console.log("Updating", id, allowed);
+      const payload = { allowed };
+      console.log('[PaymentMethods] Mutation started — id:', id, 'payload:', payload);
       return paymentMethodApi.toggleStatus(id, allowed);
     },
     onMutate: async ({ id, allowed }) => {
+      console.log('[PaymentMethods] onMutate — optimistic update id:', id, 'allowed:', allowed);
       await queryClient.cancelQueries({ queryKey: ['payment-methods'] });
 
       const previousData = queryClient.getQueryData<{ paymentMethods: PaymentMethodSetting[] }>(['payment-methods']);
@@ -66,13 +68,14 @@ export function PaymentMethodsPage() {
 
       return { previousData };
     },
-    onSuccess: () => {
-      console.log("Updated successfully");
+    onSuccess: (response) => {
+      console.log('[PaymentMethods] onSuccess — server response:', response);
       showToast('Payment method status updated.', 'success');
       setTogglingId(null);
     },
     onError: (err: any, variables, context) => {
-      console.error(err);
+      console.error('[PaymentMethods] onError — PATCH failed:', err?.message ?? err);
+      console.error('[PaymentMethods] variables were:', variables);
       showToast(err.message || 'Failed to update payment method status.', 'error');
       setTogglingId(null);
       if (context?.previousData) {
@@ -168,11 +171,14 @@ export function PaymentMethodsPage() {
                       variant={isAllowed ? 'outline' : 'default'}
                       className="flex-1 text-[10px] font-bold h-8 cursor-pointer"
                       isLoading={toggleMutation.isPending && togglingId === id}
-                      disabled={!id}
+                      disabled={!id || (toggleMutation.isPending && togglingId === id)}
                       onClick={() => {
+                        console.log('[PaymentMethods] Button clicked — id:', id, 'currentAllowed:', isAllowed);
                         if (id) {
                           setTogglingId(id);
                           toggleMutation.mutate({ id, allowed: !isAllowed });
+                        } else {
+                          console.warn('[PaymentMethods] Button click ignored — id is undefined (DB record not found for this method)');
                         }
                       }}
                     >

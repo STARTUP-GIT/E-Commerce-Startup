@@ -49,10 +49,12 @@ export function DeliveryMethodsPage() {
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, allowed }: { id: string; allowed: boolean }) => {
-      console.log("Updating", id, allowed);
+      const payload = { allowed };
+      console.log('[DeliveryMethods] Mutation started — id:', id, 'payload:', payload);
       return deliveryMethodApi.toggleStatus(id, allowed);
     },
     onMutate: async ({ id, allowed }) => {
+      console.log('[DeliveryMethods] onMutate — optimistic update id:', id, 'allowed:', allowed);
       await queryClient.cancelQueries({ queryKey: ['delivery-methods-admin'] });
 
       const previousData = queryClient.getQueryData<{ deliveryMethods: DeliveryMethodSetting[] }>(['delivery-methods-admin']);
@@ -68,13 +70,14 @@ export function DeliveryMethodsPage() {
 
       return { previousData };
     },
-    onSuccess: () => {
-      console.log("Updated successfully");
+    onSuccess: (response) => {
+      console.log('[DeliveryMethods] onSuccess — server response:', response);
       showToast('Delivery method status updated.', 'success');
       setTogglingId(null);
     },
     onError: (err: any, variables, context) => {
-      console.error(err);
+      console.error('[DeliveryMethods] onError — PATCH failed:', err?.message ?? err);
+      console.error('[DeliveryMethods] variables were:', variables);
       showToast(err.message || 'Failed to update delivery method status.', 'error');
       setTogglingId(null);
       if (context?.previousData) {
@@ -169,11 +172,14 @@ export function DeliveryMethodsPage() {
                       variant={isAllowed ? 'outline' : 'default'}
                       className="flex-1 text-[10px] font-bold h-8 cursor-pointer"
                       isLoading={toggleMutation.isPending && togglingId === id}
-                      disabled={!id}
+                      disabled={!id || (toggleMutation.isPending && togglingId === id)}
                       onClick={() => {
+                        console.log('[DeliveryMethods] Button clicked — id:', id, 'currentAllowed:', isAllowed);
                         if (id) {
                           setTogglingId(id);
                           toggleMutation.mutate({ id, allowed: !isAllowed });
+                        } else {
+                          console.warn('[DeliveryMethods] Button click ignored — id is undefined (DB record not found for this method)');
                         }
                       }}
                     >

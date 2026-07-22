@@ -125,21 +125,30 @@ export const togglePaymentMethodStatus = async (req: Request, res: Response) => 
         const id = req.params.id as string;
         const allowed = req.body.allowed !== undefined ? req.body.allowed : req.body.enabled;
 
+        console.log('[PATCH /api/admin/payment-methods/:id] reached');
+        console.log('[PATCH] req.params:', req.params);
+        console.log('[PATCH] req.body:', req.body);
+        console.log('[PATCH] resolved allowed:', allowed);
+
         if (!id) {
             return res.status(400).json({ message: "Payment Method ID is required" });
         }
 
         const method = await prisma.paymentMethodSetting.findUnique({ where: { id } });
         if (!method) {
+            console.error('[PATCH] Payment method not found in DB for id:', id);
             return res.status(404).json({ message: "Payment method not found" });
         }
 
         const newEnabled = allowed !== undefined ? !!allowed : !method.enabled;
+        console.log('[PATCH] updating enabled to:', newEnabled);
 
         const updated = await prisma.paymentMethodSetting.update({
             where: { id },
             data: { enabled: newEnabled },
         });
+
+        console.log('[PATCH] Prisma updated record:', updated);
 
         return res.status(200).json({ message: `Payment method ${newEnabled ? "enabled" : "disabled"} successfully`, paymentMethod: updated });
     } catch (error: any) {
