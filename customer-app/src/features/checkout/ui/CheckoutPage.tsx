@@ -254,26 +254,18 @@ export function CheckoutPage() {
               {selectedDeliveryMethod === 'SELF_DELIVERY' ? (
                 <div className="p-3.5 border border-border/80 bg-muted/20 rounded-xl space-y-2 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-foreground text-xs sm:text-sm">Seller Delivery</span>
+                    <span className="font-bold text-foreground text-xs sm:text-sm">• Seller Delivery</span>
                     <Badge variant="success" className="text-[10px]">Free Shipping (₹0)</Badge>
                   </div>
-                  <p className="text-muted-foreground text-[11px]">Seller delivers directly.</p>
-                </div>
-              ) : (selectedDeliveryMethod as string) === 'BOTH' ? (
-                <div className="p-3.5 border border-border/80 bg-muted/20 rounded-xl space-y-2 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-foreground text-xs sm:text-sm">Both</span>
-                    <Badge variant="outline" className="text-[10px]">Flexible Delivery</Badge>
-                  </div>
-                  <p className="text-muted-foreground text-[11px]">Portal Delivery or Seller Delivery options available.</p>
+                  <p className="text-muted-foreground text-[11px]">Delivered directly by seller</p>
                 </div>
               ) : (
                 <div className="p-3.5 border border-border/80 bg-muted/20 rounded-xl space-y-2 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-foreground text-xs sm:text-sm">Portal Delivery</span>
+                    <span className="font-bold text-foreground text-xs sm:text-sm">• Portal Delivery</span>
                     <Badge variant="outline" className="text-[10px]">Standard Charge</Badge>
                   </div>
-                  <p className="text-muted-foreground text-[11px]">Aura Marketplace logistics handles delivery.</p>
+                  <p className="text-muted-foreground text-[11px]">Delivered using Aura logistics</p>
                 </div>
               )}
 

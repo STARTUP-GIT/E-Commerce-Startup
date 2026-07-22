@@ -11,14 +11,14 @@ export const ensureDefaultPaymentMethods = async () => {
                     {
                         code: "RAZORPAY",
                         name: "Razorpay",
-                        description: "Online payments via Razorpay.",
+                        description: "Online payments through Razorpay",
                         enabled: true,
                         displayOrder: 1,
                     },
                     {
                         code: "COD",
-                        name: "Cash on Delivery",
-                        description: "Customer pays when order is delivered.",
+                        name: "Cash On Delivery",
+                        description: "Customer pays after receiving order",
                         enabled: true,
                         displayOrder: 2,
                     },
@@ -26,14 +26,14 @@ export const ensureDefaultPaymentMethods = async () => {
                 skipDuplicates: true,
             });
         } else {
-            // Update existing defaults if they exist with legacy names
+            // Update existing defaults if they exist with legacy names or descriptions
             await prisma.paymentMethodSetting.updateMany({
-                where: { code: "RAZORPAY", name: "Razorpay (Pay Online)" },
-                data: { name: "Razorpay", description: "Online payments via Razorpay." },
+                where: { code: "RAZORPAY" },
+                data: { name: "Razorpay", description: "Online payments through Razorpay" },
             });
             await prisma.paymentMethodSetting.updateMany({
-                where: { code: "COD", name: "Cash on Delivery (COD)" },
-                data: { name: "Cash on Delivery", description: "Customer pays when order is delivered." },
+                where: { code: "COD" },
+                data: { name: "Cash On Delivery", description: "Customer pays after receiving order" },
             });
         }
     } catch (error) {
@@ -159,6 +159,11 @@ export const deletePaymentMethod = async (req: Request, res: Response) => {
         const method = await prisma.paymentMethodSetting.findUnique({ where: { id } });
         if (!method) {
             return res.status(404).json({ message: "Payment method not found" });
+        }
+
+        const isBuiltIn = ["RAZORPAY", "COD"].includes(method.code.toUpperCase());
+        if (isBuiltIn) {
+            return res.status(400).json({ message: `Built-in payment method '${method.name}' cannot be deleted.` });
         }
 
         // Check if orders exist using this payment method

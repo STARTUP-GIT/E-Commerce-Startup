@@ -11,14 +11,14 @@ export const ensureDefaultDeliveryMethods = async () => {
                     {
                         code: "PORTAL_DELIVERY",
                         name: "Portal Delivery",
-                        description: "Aura Marketplace logistics handles delivery.",
+                        description: "Delivered using Aura logistics",
                         enabled: true,
                         displayOrder: 1,
                     },
                     {
                         code: "SELLER_DELIVERY",
                         name: "Seller Delivery",
-                        description: "Seller delivers directly.",
+                        description: "Delivered directly by seller",
                         enabled: true,
                         displayOrder: 2,
                     },
@@ -28,12 +28,16 @@ export const ensureDefaultDeliveryMethods = async () => {
         } else {
             // Update existing defaults if they exist with legacy descriptions
             await prisma.deliveryMethodSetting.updateMany({
-                where: { code: "PORTAL_DELIVERY", description: "Standard marketplace logistics delivery managed by platform carriers." },
-                data: { name: "Portal Delivery", description: "Aura Marketplace logistics handles delivery." },
+                where: { code: "PORTAL_DELIVERY" },
+                data: { name: "Portal Delivery", description: "Delivered using Aura logistics" },
             });
             await prisma.deliveryMethodSetting.updateMany({
-                where: { code: "SELLER_DELIVERY", description: "Direct seller self-fulfillment and local delivery." },
-                data: { name: "Seller Delivery", description: "Seller delivers directly." },
+                where: { code: "SELLER_DELIVERY" },
+                data: { name: "Seller Delivery", description: "Delivered directly by seller" },
+            });
+            await prisma.deliveryMethodSetting.updateMany({
+                where: { code: "SELF_DELIVERY" },
+                data: { name: "Seller Delivery", description: "Delivered directly by seller" },
             });
         }
     } catch (error) {
@@ -211,6 +215,11 @@ export const deleteDeliveryMethod = async (req: Request, res: Response) => {
         const method = await prisma.deliveryMethodSetting.findUnique({ where: { id } });
         if (!method) {
             return res.status(404).json({ message: "Delivery method not found" });
+        }
+
+        const isBuiltIn = ["PORTAL_DELIVERY", "SELLER_DELIVERY", "SELF_DELIVERY"].includes(method.code.toUpperCase());
+        if (isBuiltIn) {
+            return res.status(400).json({ message: `Built-in delivery method '${method.name}' cannot be deleted.` });
         }
 
         const activeProductCount = await getActiveProductCountForMethod(method.code);

@@ -447,9 +447,6 @@ export function ProductListPage() {
                   {isSellerEnabled && (
                     <option value="SELF_DELIVERY" className="bg-[#0b0b0f] text-white">Seller Delivery (Seller delivers directly)</option>
                   )}
-                  {isPortalEnabled && isSellerEnabled && (
-                    <option value="BOTH" className="bg-[#0b0b0f] text-white">Both (Customer chooses during checkout)</option>
-                  )}
                 </select>
               )}
               <p className="text-[9px] text-white/35 ml-1">
@@ -575,9 +572,6 @@ export function ProductListPage() {
                   )}
                   {isSellerEnabled && (
                     <option value="SELF_DELIVERY" className="bg-[#0b0b0f] text-white">Seller Delivery (Seller delivers directly)</option>
-                  )}
-                  {isPortalEnabled && isSellerEnabled && (
-                    <option value="BOTH" className="bg-[#0b0b0f] text-white">Both (Customer chooses during checkout)</option>
                   )}
                 </select>
               )}
