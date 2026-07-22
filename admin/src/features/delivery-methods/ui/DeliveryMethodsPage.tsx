@@ -6,16 +6,38 @@ import { deliveryMethodApi, DeliveryMethodSetting } from '../api/deliveryMethodA
 import { Card, CardContent } from '@/shared/components/Card';
 import { Badge } from '@/shared/components/Badge';
 import { Button } from '@/shared/components/Button';
-import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { useUIStore } from '@/lib/store/uiStore';
-import { Truck, Store, Plus, Trash2 } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { Truck, Store } from 'lucide-react';
+
+interface FixedSystemDeliveryMethod {
+  code: string;
+  altCodes?: string[];
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+}
+
+const SYSTEM_DELIVERY_METHODS: FixedSystemDeliveryMethod[] = [
+  {
+    code: 'PORTAL_DELIVERY',
+    name: 'Portal Delivery',
+    description: 'Delivered using Aura Logistics',
+    icon: <Truck className="h-5 w-5 text-white/40" />,
+  },
+  {
+    code: 'SELLER_DELIVERY',
+    altCodes: ['SELF_DELIVERY'],
+    name: 'Seller Delivery',
+    description: 'Seller delivers directly',
+    icon: <Store className="h-5 w-5 text-white/40" />,
+  },
+];
 
 export function DeliveryMethodsPage() {
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
-  const [showForm, setShowForm] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['delivery-methods-admin'],
@@ -23,22 +45,7 @@ export function DeliveryMethodsPage() {
     staleTime: 2 * 60 * 1000,
   });
 
-  const methods: DeliveryMethodSetting[] = data?.deliveryMethods || [];
-
-  const createForm = useForm({
-    defaultValues: { name: '', code: '', description: '' },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (v: any) => deliveryMethodApi.createDeliveryMethod(v),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['delivery-methods-admin'] });
-      showToast('Custom delivery method added successfully.', 'success');
-      createForm.reset();
-      setShowForm(false);
-    },
-    onError: (e: any) => showToast(e.message, 'error'),
-  });
+  const dbMethods: DeliveryMethodSetting[] = data?.deliveryMethods || [];
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
@@ -46,30 +53,31 @@ export function DeliveryMethodsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['delivery-methods-admin'] });
       showToast('Delivery method status updated.', 'success');
+      setTogglingId(null);
     },
-    onError: (e: any) => showToast(e.message, 'error'),
+    onError: (e: any) => {
+      showToast(e.message || 'Failed to update delivery method status.', 'error');
+      setTogglingId(null);
+    },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deliveryMethodApi.deleteDeliveryMethod(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['delivery-methods-admin'] });
-      showToast('Custom delivery method removed.', 'info');
-    },
-    onError: (e: any) => showToast(e.message, 'error'),
+  // Calculate Allowed vs Not Allowed counts for the two system methods
+  const resolvedMethods = SYSTEM_DELIVERY_METHODS.map((sysItem) => {
+    const validCodes = [sysItem.code, ...(sysItem.altCodes || [])].map((c) => c.toUpperCase());
+    const found = dbMethods.find((m) => validCodes.includes(m.code.toUpperCase()));
+    return {
+      sysItem,
+      id: found?.id,
+      isAllowed: found ? found.enabled : true,
+    };
   });
 
-  const getMethodIcon = (code: string) => {
-    const upperCode = code.toUpperCase();
-    if (upperCode === 'SELLER_DELIVERY' || upperCode === 'SELF_DELIVERY') {
-      return <Store className="h-5 w-5 text-white/40" />;
-    }
-    return <Truck className="h-5 w-5 text-white/40" />;
-  };
+  const allowedCount = resolvedMethods.filter((m) => m.isAllowed).length;
+  const notAllowedCount = resolvedMethods.length - allowedCount;
 
   return (
     <div className="space-y-6 animate-fade-up">
-      {/* Page Header */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white/95">Delivery Methods</h1>
@@ -77,92 +85,56 @@ export function DeliveryMethodsPage() {
             Globally allow or disallow delivery modes for sellers and customer checkout
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowForm(!showForm)}>
-          <Plus className="mr-2 h-3.5 w-3.5" /> Add Delivery Method
-        </Button>
       </div>
 
-      {/* Optional Custom Delivery Method Form (Hidden by default) */}
-      {showForm && (
-        <Card className="border border-white/10 bg-white/[0.02] backdrop-blur-md">
-          <CardContent className="pt-4">
-            <form
-              onSubmit={createForm.handleSubmit((v) =>
-                createMutation.mutate({
-                  ...v,
-                  code: v.code.toUpperCase().trim(),
-                })
-              )}
-              className="flex flex-col sm:flex-row gap-3 items-end"
-            >
-              <div className="space-y-1.5 flex-1 font-sans w-full">
-                <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">
-                  Delivery Method Name
-                </label>
-                <Input
-                  placeholder="e.g. Express Drone Delivery"
-                  {...createForm.register('name', { required: true })}
-                />
-              </div>
-              <div className="space-y-1.5 flex-1 font-sans w-full">
-                <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">
-                  System Identifier Code
-                </label>
-                <Input
-                  placeholder="e.g. DRONE_DELIVERY"
-                  {...createForm.register('code', { required: true })}
-                />
-              </div>
-              <Button type="submit" isLoading={createMutation.isPending} className="w-full sm:w-auto">
-                Add Method
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Delivery Method Cards */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 2 }).map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {methods.map((method) => {
-            const isAllowed = method.enabled;
-            const isCustom = ![
-              'PORTAL_DELIVERY',
-              'SELLER_DELIVERY',
-              'SELF_DELIVERY',
-            ].includes(method.code.toUpperCase());
+        <div className="space-y-4">
+          {/* Summary counters */}
+          <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
+              Delivery Methods Summary:
+            </span>
+            <Badge variant="success" className="text-[8px] px-1.5 py-0.5">
+              {allowedCount} Allowed
+            </Badge>
+            {notAllowedCount > 0 && (
+              <Badge variant="secondary" className="text-[8px] px-1.5 py-0.5">
+                {notAllowedCount} Not Allowed
+              </Badge>
+            )}
+          </div>
 
-            return (
+          {/* Grid layout matching District page */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {resolvedMethods.map(({ sysItem, id, isAllowed }) => (
               <Card
-                key={method.id}
-                className={`border glass-hover ${
-                  isAllowed ? 'border-white/8' : 'border-white/3 opacity-60'
+                key={sysItem.code}
+                className={`border glass-hover transition-all ${
+                  isAllowed ? 'border-white/8 bg-white/[0.01]' : 'border-white/3 opacity-60 bg-transparent'
                 }`}
               >
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                        {getMethodIcon(method.code)}
+                        {sysItem.icon}
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-white/90">{method.name}</p>
-                        <p className="text-[10px] text-white/40 mt-0.5">
-                          {method.description || (method.code.toUpperCase().includes('SELLER') ? 'Delivered directly by seller' : 'Delivered using Aura logistics')}
-                        </p>
+                        <p className="text-sm font-bold text-white/95">{sysItem.name}</p>
+                        <p className="text-[9px] text-white/40 mt-0.5">{sysItem.description}</p>
                       </div>
                     </div>
                     <Badge
                       variant={isAllowed ? 'success' : 'secondary'}
                       className="text-[8px] shrink-0 font-bold"
                     >
-                      {isAllowed ? 'ACTIVE' : 'INACTIVE'}
+                      {isAllowed ? 'ALLOWED' : 'NOT ALLOWED'}
                     </Badge>
                   </div>
 
@@ -171,33 +143,25 @@ export function DeliveryMethodsPage() {
                       size="sm"
                       variant={isAllowed ? 'outline' : 'default'}
                       className="flex-1 text-[10px] font-bold h-8 cursor-pointer"
-                      isLoading={toggleMutation.isPending}
-                      onClick={() =>
-                        toggleMutation.mutate({ id: method.id, enabled: !isAllowed })
-                      }
+                      isLoading={toggleMutation.isPending && togglingId === id}
+                      disabled={!id}
+                      onClick={() => {
+                        if (id) {
+                          setTogglingId(id);
+                          toggleMutation.mutate({ id, enabled: !isAllowed });
+                        }
+                      }}
                     >
                       {isAllowed ? 'Not Allowed' : 'Allow'}
                     </Button>
-
-                    {isCustom && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0 text-red-400 hover:bg-red-500/10 shrink-0 cursor-pointer"
-                        isLoading={deleteMutation.isPending}
-                        onClick={() => deleteMutation.mutate(method.id)}
-                        title="Delete custom delivery method"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
                   </div>
                 </CardContent>
               </Card>
-            );
-          })}
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
 }
+
