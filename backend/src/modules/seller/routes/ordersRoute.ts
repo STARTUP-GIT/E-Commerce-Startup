@@ -9,7 +9,8 @@ import {
     markPacked,
     markShipped,
     markDelivered,
-    getOrderTimeline
+    getOrderTimeline,
+    markCodCollected
 } from "../controllers/ordersController.js";
 import { sellerAuth } from "../../../middleware/sellerAuth.js";
 
@@ -24,6 +25,7 @@ router.post("/api/orders/:orderId/packing-proof", sellerAuth, uploadPackingProof
 router.patch("/api/orders/:orderId/packed", sellerAuth, markPacked);
 router.patch("/api/orders/:orderId/shipped", sellerAuth, markShipped);
 router.patch("/api/orders/:orderId/delivered", sellerAuth, markDelivered);
+router.patch("/api/orders/:orderId/mark-cod-collected", sellerAuth, markCodCollected);
 router.get("/api/orders/:orderId/timeline", sellerAuth, getOrderTimeline);
 
 export default router;

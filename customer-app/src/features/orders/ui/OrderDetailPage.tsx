@@ -281,6 +281,25 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
               <CardTitle className="text-xs sm:text-sm">Summary Breakdown</CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3 text-[10px] sm:text-xs">
+              <div className="flex justify-between items-center pb-2 border-b border-border">
+                <span className="text-muted-foreground">Payment Method</span>
+                <Badge variant="outline" className="text-[9px] font-bold">
+                  {(order as any).paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online Payment (Razorpay)'}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-border">
+                <span className="text-muted-foreground">Payment Status</span>
+                <Badge
+                  variant={
+                    (order as any).payments?.[0]?.status === 'PAID' || (order as any).payments?.[0]?.status === 'COMPLETED'
+                      ? 'success'
+                      : 'secondary'
+                  }
+                  className="text-[9px] font-bold"
+                >
+                  {(order as any).payments?.[0]?.status || ((order as any).paymentMethod === 'COD' ? 'PENDING_COD' : 'PENDING')}
+                </Badge>
+              </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-semibold text-foreground">

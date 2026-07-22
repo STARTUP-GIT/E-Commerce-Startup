@@ -56,6 +56,7 @@ import adminSettingsRoute from './modules/admin/routes/settingsRoute.js';
 import adminLogRoute from './modules/admin/routes/logRoute.js';
 import adminCityRoute from './modules/admin/routes/cityRoute.js';
 import adminStateRoute from './modules/admin/routes/stateRoute.js';
+import adminPaymentMethodRoute from './modules/admin/routes/paymentMethodRoute.js';
 
 // Delivery module routes
 import deliveryRoute from './modules/delivery/routes/deliveryRoute.js';
@@ -186,6 +187,7 @@ app.use('/api/admin/settings', adminSettingsRoute);
 app.use('/api/admin/logs', adminLogRoute);
 app.use('/api/admin/cities', adminCityRoute);
 app.use('/api/admin/states', adminStateRoute);
+app.use('/api/admin/payment-methods', adminPaymentMethodRoute);
 
 // Delivery routes
 app.use('/', deliveryRoute);

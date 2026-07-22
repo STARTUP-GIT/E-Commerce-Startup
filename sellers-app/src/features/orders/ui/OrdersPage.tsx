@@ -95,6 +95,8 @@ export function OrdersPage() {
                   <TableRow>
                     <TableHead>Order #</TableHead>
                     <TableHead>Purchased Date</TableHead>
+                    <TableHead>Payment Method</TableHead>
+                    <TableHead>Delivery Method</TableHead>
                     <TableHead>Items</TableHead>
                     <TableHead>Grand Total</TableHead>
                     <TableHead>Fulfillment Status</TableHead>
@@ -113,6 +115,16 @@ export function OrdersPage() {
                       </TableCell>
                       <TableCell className="text-xs text-white/50">
                         {ordersService.formatDate(ord.createdAt)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[8px] font-bold">
+                          {ord.paymentMethod === 'COD' || ord.order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Razorpay'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-[8px] font-semibold">
+                          {ord.selectedDeliveryMethod === 'SELF_DELIVERY' ? 'Seller Delivery' : 'Portal Delivery'}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-white/70">
                         {ord.items.length} {ord.items.length === 1 ? 'item' : 'items'}:{' '}

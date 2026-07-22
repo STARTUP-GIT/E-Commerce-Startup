@@ -5,11 +5,13 @@ import { AdminActionType } from "@prisma/client";
 
 export const getOrders = async (req: Request, res: Response) => {
     try {
-        const { status, customerId, page = 1, limit = 10 } = req.query;
+        const { status, customerId, paymentMethod, deliveryMethod, page = 1, limit = 10 } = req.query;
 
         const whereClause: any = {};
         if (status) whereClause.status = String(status);
         if (customerId) whereClause.customerId = String(customerId);
+        if (paymentMethod) whereClause.paymentMethod = String(paymentMethod);
+        if (deliveryMethod) whereClause.selectedDeliveryMethod = String(deliveryMethod);
 
         const skip = (Number(page) - 1) * Number(limit);
         const take = Number(limit);

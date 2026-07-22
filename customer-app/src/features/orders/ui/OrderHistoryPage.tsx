@@ -56,6 +56,19 @@ export function OrderHistoryPage() {
                       <Badge variant={orderService.getStatusBadgeVariant(order.status)} className="text-[9px] sm:text-xs">
                         {orderService.formatStatus(order.status)}
                       </Badge>
+                      <Badge variant="outline" className="text-[9px] sm:text-xs font-bold">
+                        {(order as any).paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online / Razorpay'}
+                      </Badge>
+                      <Badge
+                        variant={
+                          (order as any).payments?.[0]?.status === 'PAID' || (order as any).payments?.[0]?.status === 'COMPLETED'
+                            ? 'success'
+                            : 'secondary'
+                        }
+                        className="text-[9px] sm:text-xs font-bold"
+                      >
+                        Payment: {(order as any).payments?.[0]?.status || ((order as any).paymentMethod === 'COD' ? 'PENDING_COD' : 'PENDING')}
+                      </Badge>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-1 text-[10px] sm:text-xs text-muted-foreground">

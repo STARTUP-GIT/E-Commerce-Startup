@@ -61,6 +61,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { name: 'Marketplace Categories', path: '/categories', icon: Grid },
     { name: 'Orders', path: '/orders', icon: ShoppingBag },
     { name: 'Payments', path: '/payments', icon: CreditCard },
+    { name: 'Payment Methods', path: '/payment-methods', icon: CreditCard },
     { name: 'Delivery', path: '/delivery', icon: Truck },
     { name: 'Districts (Cities)', path: '/karnataka/districts', icon: MapPin },
     { name: 'States', path: '/states', icon: MapPin },

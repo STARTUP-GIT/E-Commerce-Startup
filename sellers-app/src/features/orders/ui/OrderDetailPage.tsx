@@ -48,7 +48,18 @@ export function OrderDetailPage() {
     isMarkingShipped,
     markDelivered,
     isMarkingDelivered,
+    markCodCollected,
+    isMarkingCodCollected,
   } = useOrders(orderId);
+
+  const handleMarkCodCollected = async () => {
+    setErrorMsg(null);
+    try {
+      await markCodCollected(order.id);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to mark COD as collected.');
+    }
+  };
 
   const { upload: uploadProofImage, isUploading, progress: uploadProgress } = useFileUpload({ folder: 'packing-proof' });
 
@@ -258,6 +269,21 @@ export function OrderDetailPage() {
                 <span>Mark as Delivered</span>
               </Button>
             )}
+
+            {order.status === 'DELIVERED' &&
+              (order.paymentMethod === 'COD' || order.order.paymentMethod === 'COD') &&
+              order.order.payments?.[0]?.status !== 'PAID' &&
+              order.order.payments?.[0]?.status !== 'COMPLETED' && (
+                <Button
+                  onClick={handleMarkCodCollected}
+                  isLoading={isMarkingCodCollected}
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-500 font-bold"
+                >
+                  <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
+                  <span>Mark COD Collected</span>
+                </Button>
+              )}
           </div>
         </div>
 

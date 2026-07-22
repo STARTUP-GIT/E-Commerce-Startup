@@ -16,6 +16,8 @@ export interface SellerOrder {
   orderId: string;
   sellerId: string;
   status: 'PENDING' | 'ACCEPTED' | 'PROCESSING' | 'PACKED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+  paymentMethod?: string;
+  selectedDeliveryMethod?: string;
   totalPrice: number;
   subtotal: number;
   packingFee: number;
@@ -35,6 +37,8 @@ export interface SellerOrder {
     shippingAddress: any;
     customerEmail?: string;
     customerPhone?: string;
+    paymentMethod?: string;
+    payments?: any[];
   };
   items: OrderItem[];
   packingProof?: {
@@ -96,6 +100,11 @@ export const ordersApi = {
 
   markDelivered: async (orderId: string): Promise<{ message: string; order: SellerOrder }> => {
     const response = await axiosInstance.patch(`/seller/api/orders/${orderId}/delivered`);
+    return response.data;
+  },
+
+  markCodCollected: async (orderId: string): Promise<{ message: string; paymentStatus: string }> => {
+    const response = await axiosInstance.patch(`/seller/api/orders/${orderId}/mark-cod-collected`);
     return response.data;
   },
 

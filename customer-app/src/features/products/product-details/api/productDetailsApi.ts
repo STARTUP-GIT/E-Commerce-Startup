@@ -22,6 +22,7 @@ export interface ProductAttribute {
 }
 
 export interface DetailedProduct extends Product {
+  deliveryMethod?: 'PORTAL_DELIVERY' | 'SELF_DELIVERY' | 'BOTH';
   images: ProductImage[];
   variants: ProductVariant[];
   attributes: ProductAttribute[];

@@ -735,4 +735,55 @@ export const getOrderTimeline = async (req: Request, res: Response) => {
     }
 };
 
+export const markCodCollected = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId;
+        const orderId = req.params.orderId;
+
+        if (!sellerId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        if (!orderId) {
+            return res.status(400).json({ message: "Order ID is required" });
+        }
+
+        const sellerOrder = await prisma.sellerOrder.findFirst({
+            where: { id: orderId as string, sellerId },
+            include: { order: { include: { payments: true } } }
+        });
+
+        if (!sellerOrder) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        if (sellerOrder.status !== "DELIVERED") {
+            return res.status(400).json({ message: "Order must be in DELIVERED status to mark COD as collected" });
+        }
+
+        // Update Payment record for this order
+        const payment = await prisma.payment.findFirst({
+            where: { orderId: sellerOrder.orderId }
+        });
+
+        if (payment) {
+            await prisma.payment.update({
+                where: { id: payment.id },
+                data: {
+                    status: "PAID",
+                    paidAt: new Date()
+                }
+            });
+        }
+
+        return res.status(200).json({
+            message: "COD payment marked as collected successfully",
+            paymentStatus: "PAID"
+        });
+    } catch (error) {
+        console.error("MARK COD COLLECTED ERROR:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
 

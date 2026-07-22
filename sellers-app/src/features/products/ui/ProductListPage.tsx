@@ -102,6 +102,7 @@ export function ProductListPage() {
         productprice: data.productprice,
         imageUrl: data.imageKey,
         categoryId: data.categoryId || undefined,
+        deliveryMethod: data.deliveryMethod,
       });
       setIsCreateOpen(false);
       resetCreate();
@@ -120,6 +121,7 @@ export function ProductListPage() {
           productprice: data.productprice,
           imageUrl: data.imageKey,
           categoryId: data.categoryId || '',
+          deliveryMethod: data.deliveryMethod,
         },
       });
       setIsEditOpen(false);
@@ -289,6 +291,7 @@ export function ProductListPage() {
                               setValueEdit('productquantity', prod.stockQuantity);
                               setValueEdit('imageKey', prod.imageUrl);
                               setValueEdit('categoryId', prod.categoryId || '');
+                              setValueEdit('deliveryMethod', prod.deliveryMethod || 'PORTAL_DELIVERY');
                               setIsEditOpen(true);
                             }}
                           >
@@ -380,6 +383,21 @@ export function ProductListPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-white/60 ml-1 block">Delivery Method</label>
+              <select
+                {...registerCreate('deliveryMethod')}
+                className="flex h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-white/80"
+              >
+                <option value="PORTAL_DELIVERY" className="bg-[#0b0b0f] text-white">Portal Delivery (Marketplace logistics delivers)</option>
+                <option value="SELF_DELIVERY" className="bg-[#0b0b0f] text-white">Seller Delivery (Seller delivers directly)</option>
+                <option value="BOTH" className="bg-[#0b0b0f] text-white">Both (Customer chooses during checkout)</option>
+              </select>
+              <p className="text-[9px] text-white/35 ml-1">
+                Portal Delivery requires admin coverage. Seller Delivery does not depend on admin coverage.
+              </p>
             </div>
 
             {/* Image Upload Form Panel */}
@@ -481,6 +499,18 @@ export function ProductListPage() {
                     {cat.name}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-white/60 ml-1 block">Delivery Method</label>
+              <select
+                {...registerEdit('deliveryMethod')}
+                className="flex h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-white/80"
+              >
+                <option value="PORTAL_DELIVERY" className="bg-[#0b0b0f] text-white">Portal Delivery (Marketplace logistics delivers)</option>
+                <option value="SELF_DELIVERY" className="bg-[#0b0b0f] text-white">Seller Delivery (Seller delivers directly)</option>
+                <option value="BOTH" className="bg-[#0b0b0f] text-white">Both (Customer chooses during checkout)</option>
               </select>
             </div>
 

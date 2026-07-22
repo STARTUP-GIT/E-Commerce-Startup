@@ -194,7 +194,7 @@ export const removeCoupon = async (req: Request, res: Response) => {
 export const checkout = async (req: Request, res: Response) => {
     try {
         const customerId = req.customerId;
-        const { couponCode, buyNow } = req.body;
+        const { couponCode, buyNow, selectedDeliveryMethod } = req.body;
 
         if (!customerId) {
             return res.status(401).json({
@@ -212,7 +212,8 @@ export const checkout = async (req: Request, res: Response) => {
             customerId,
             couponCode,
             shippingAddressId: address?.id,
-            buyNow
+            buyNow,
+            selectedDeliveryMethod
         });
 
         const itemsSummary = totals.cart.items.map((item: any) => {
@@ -251,6 +252,58 @@ export const checkout = async (req: Request, res: Response) => {
 
     } catch (error: any) {
         console.error("CHECKOUT ERROR:", error);
+        return res.status(400).json({
+            message: error.message || "Internal Server Error"
+        });
+    }
+};
+
+export const getEnabledPaymentMethods = async (req: Request, res: Response) => {
+    try {
+        const { ensureDefaultPaymentMethods } = await import("../../admin/controllers/paymentMethodController.js");
+        await ensureDefaultPaymentMethods();
+        const methods = await prisma.paymentMethodSetting.findMany({
+            where: { enabled: true },
+            orderBy: { displayOrder: "asc" }
+        });
+        return res.status(200).json({ paymentMethods: methods });
+    } catch (error: any) {
+        console.error("GET ENABLED PAYMENT METHODS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const checkoutCod = async (req: Request, res: Response) => {
+    try {
+        const customerId = req.customerId;
+        const { shippingAddressId, billingAddressId, couponCode, packingFees, buyNow, selectedDeliveryMethod } = req.body;
+
+        if (!customerId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        if (!shippingAddressId) {
+            return res.status(400).json({ message: "shippingAddressId is required" });
+        }
+
+        const { processCodPayment } = await import("../../payments/services/payment.service.js");
+
+        const order = await processCodPayment({
+            customerId,
+            shippingAddressId,
+            billingAddressId,
+            couponCode,
+            packingFees,
+            buyNow,
+            selectedDeliveryMethod
+        });
+
+        return res.status(200).json({
+            message: "COD Order created successfully",
+            order
+        });
+    } catch (error: any) {
+        console.error("CHECKOUT COD ERROR:", error);
         return res.status(400).json({
             message: error.message || "Internal Server Error"
         });

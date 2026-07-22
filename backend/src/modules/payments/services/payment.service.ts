@@ -10,8 +10,9 @@ export const calculateTotals = async (params: {
     packingFees?: { sellerId: string; amount: number }[];
     shippingAddressId?: string;
     buyNow?: { productId: string; productVariantId?: string; quantity: number };
+    selectedDeliveryMethod?: string;
 }) => {
-    const { customerId, couponCode, packingFees = [], shippingAddressId, buyNow } = params;
+    const { customerId, couponCode, packingFees = [], shippingAddressId, buyNow, selectedDeliveryMethod } = params;
 
     let cart: any = null;
     if (buyNow) {
@@ -173,9 +174,12 @@ export const calculateTotals = async (params: {
         packingFeeTotal += amount;
     }
 
-    // 3. Shipping charges
+    // 3. Shipping charges (0 if SELF_DELIVERY is selected)
     const uniqueSellersCount = sellerSubtotals.size;
-    let shippingTotal = uniqueSellersCount > 0 ? 10 + (uniqueSellersCount - 1) * 5 : 0;
+    let shippingTotal = 0;
+    if (selectedDeliveryMethod !== "SELF_DELIVERY") {
+        shippingTotal = uniqueSellersCount > 0 ? 10 + (uniqueSellersCount - 1) * 5 : 0;
+    }
 
     // 4. Coupon discount
     let discountTotal = 0;
@@ -405,6 +409,8 @@ export const verifyPayment = async (paymentData: {
                 billingAddressId: billingAddressId || null,
                 couponId: appliedCoupon?.id || null,
                 status: "CONFIRMED",
+                paymentMethod: "RAZORPAY",
+                selectedDeliveryMethod: "PORTAL_DELIVERY",
                 subtotal: productSubtotal,
                 shippingTotal,
                 taxTotal: gstAmount,
@@ -443,6 +449,8 @@ export const verifyPayment = async (paymentData: {
                     sellerId,
                     pickupSellerAddressId,
                     status: "PENDING",
+                    paymentMethod: "RAZORPAY",
+                    selectedDeliveryMethod: "PORTAL_DELIVERY",
                     subtotal: sellerSubtotal,
                     shippingAmount: shippingTotal / sellerSubtotals.size, // Distribute shipping charges equally
                     taxAmount: sellerTax,
@@ -650,4 +658,236 @@ export const refundPayment = async (paymentData: {
     }
 
     throw new Error("Unsupported payment gateway");
+};
+
+export const processCodPayment = async (paymentData: {
+    customerId: string;
+    shippingAddressId: string;
+    billingAddressId?: string;
+    couponCode?: string;
+    packingFees?: { sellerId: string; amount: number }[];
+    buyNow?: { productId: string; productVariantId?: string; quantity: number };
+    selectedDeliveryMethod?: string;
+}) => {
+    const {
+        customerId,
+        shippingAddressId,
+        billingAddressId,
+        couponCode,
+        packingFees,
+        buyNow,
+        selectedDeliveryMethod = "PORTAL_DELIVERY"
+    } = paymentData;
+
+    // Check if COD is enabled globally
+    const codSetting = await prisma.paymentMethodSetting.findUnique({
+        where: { code: "COD" }
+    });
+
+    if (codSetting && !codSetting.enabled) {
+        throw new Error("Cash on Delivery is currently disabled by administrator.");
+    }
+
+    const totals = await calculateTotals({ customerId, couponCode, packingFees, shippingAddressId, buyNow, selectedDeliveryMethod });
+    const {
+        cart,
+        productSubtotal,
+        discountTotal,
+        packingFeeTotal,
+        shippingTotal,
+        platformFeeTotal,
+        gstPercentage,
+        gstAmount,
+        grandTotal,
+        appliedCoupon,
+        sellerSubtotals,
+        validatedPackingFeesBySeller
+    } = totals;
+
+    const finalOrder = await prisma.$transaction(async (tx) => {
+        const orderNumber = `ORD_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+
+        const order = await tx.order.create({
+            data: {
+                orderNumber,
+                customerId,
+                shippingAddressId,
+                billingAddressId: billingAddressId || null,
+                couponId: appliedCoupon?.id || null,
+                status: "PENDING_CONFIRMATION",
+                paymentMethod: "COD",
+                selectedDeliveryMethod,
+                subtotal: productSubtotal,
+                shippingTotal,
+                taxTotal: gstAmount,
+                discountTotal,
+                packingFeeTotal,
+                platformFeeTotal: platformFeeTotal > 0 ? platformFeeTotal : null,
+                grandTotal,
+                currency: "INR",
+                placedAt: new Date()
+            }
+        });
+
+        for (const [sellerId, sellerSubtotal] of sellerSubtotals.entries()) {
+            const sellerPackingFee = validatedPackingFeesBySeller.get(sellerId) || 0;
+            const sellerTaxable = sellerSubtotal + sellerPackingFee;
+            const sellerTax = (sellerTaxable * gstPercentage) / 100;
+
+            const seller = cart.items.find((item: any) => item.product.sellerId === sellerId)!.product.seller;
+            const pickupSellerAddressId = seller.addresses?.[0]?.id;
+
+            if (!pickupSellerAddressId) {
+                throw new Error(`Seller does not have a registered pickup address.`);
+            }
+
+            const shop = seller.shop;
+            const commissionPercent = shop && shop.commissionPercentage !== null && shop.commissionPercentage !== undefined 
+                ? Number(shop.commissionPercentage) 
+                : 10.0;
+            const platformCommission = sellerSubtotal * (commissionPercent / 100);
+            const sellerEarnings = sellerSubtotal - platformCommission + sellerPackingFee;
+
+            const sellerOrder = await tx.sellerOrder.create({
+                data: {
+                    orderId: order.id,
+                    sellerId,
+                    pickupSellerAddressId,
+                    status: "PENDING",
+                    paymentMethod: "COD",
+                    selectedDeliveryMethod,
+                    subtotal: sellerSubtotal,
+                    shippingAmount: shippingTotal / sellerSubtotals.size,
+                    taxAmount: sellerTax,
+                    packingFee: sellerPackingFee,
+                    platformFee: null,
+                    platformCommission,
+                    sellerEarnings,
+                    deliveryMode: selectedDeliveryMethod === "SELF_DELIVERY" ? "SELF" : shop.deliveryMode
+                }
+            });
+
+            const sellerItems = cart.items.filter((item: any) => item.product.sellerId === sellerId);
+            for (const item of sellerItems) {
+                const price = item.productVariant ? Number(item.productVariant.price) : Number(item.product.price);
+                const total = price * item.quantity;
+
+                await tx.orderItem.create({
+                    data: {
+                        sellerOrderId: sellerOrder.id,
+                        productId: item.productId,
+                        productVariantId: item.productVariantId || null,
+                        productName: item.product.name,
+                        productSku: item.productVariant?.sku || item.product.sku || "GENERIC",
+                        quantity: item.quantity,
+                        unitPrice: price,
+                        totalPrice: total
+                    }
+                });
+
+                if (item.productVariantId) {
+                    const updated = await tx.productVariant.updateMany({
+                        where: { id: item.productVariantId, stockQuantity: { gte: item.quantity } },
+                        data: { stockQuantity: { decrement: item.quantity } }
+                    });
+                    if (updated.count === 0) {
+                        throw new Error(`Insufficient stock for product variant '${item.productVariant?.name || 'GENERIC'}'`);
+                    }
+                } else {
+                    const updated = await tx.product.updateMany({
+                        where: { id: item.productId, stockQuantity: { gte: item.quantity } },
+                        data: { stockQuantity: { decrement: item.quantity } }
+                    });
+                    if (updated.count === 0) {
+                        throw new Error(`Insufficient stock for product '${item.product.name}'`);
+                    }
+                }
+            }
+
+            await tx.orderTimelineEvent.create({
+                data: {
+                    entityType: "SELLER_ORDER",
+                    sellerOrderId: sellerOrder.id,
+                    orderId: order.id,
+                    status: "PENDING",
+                    title: "COD Order Placed",
+                    description: "Cash on delivery order placed successfully."
+                }
+            });
+        }
+
+        const invoiceNumber = `INV-${Date.now()}`;
+        await tx.payment.create({
+            data: {
+                orderId: order.id,
+                customerId,
+                amount: grandTotal,
+                currency: "INR",
+                status: "PENDING_COD",
+                method: "COD",
+                gatewayPaymentId: `COD_${Date.now()}`,
+                gatewayOrderId: orderNumber,
+                packingFee: packingFeeTotal,
+                shippingCharge: shippingTotal,
+                gstPercentage,
+                gstAmount,
+                platformFee: platformFeeTotal > 0 ? platformFeeTotal : null,
+                invoiceNumber
+            }
+        });
+
+        if (appliedCoupon) {
+            await tx.coupon.update({
+                where: { id: appliedCoupon.id },
+                data: { usageCount: { increment: 1 } }
+            });
+            await tx.couponUsage.create({
+                data: {
+                    couponId: appliedCoupon.id,
+                    customerId,
+                    orderId: order.id,
+                    discountApplied: discountTotal,
+                    usedAt: new Date()
+                }
+            });
+        }
+
+        if (!buyNow) {
+            await tx.cartItem.deleteMany({
+                where: { cartId: cart.id }
+            });
+        }
+
+        await tx.orderTimelineEvent.create({
+            data: {
+                entityType: "ORDER",
+                orderId: order.id,
+                status: "PENDING_CONFIRMATION",
+                title: "COD Order Placed",
+                description: "Order placed using Cash on Delivery. Payment pending confirmation upon delivery."
+            }
+        });
+
+        return { ...order, invoiceNumber };
+    });
+
+    sendPaymentNotification({
+        recipientId: customerId,
+        recipientType: "CUSTOMER",
+        type: "ORDER_PLACED",
+        title: "Order Placed (COD)",
+        body: `Your Cash on Delivery order of INR ${grandTotal.toFixed(2)} was placed. Order Number: ${finalOrder.orderNumber}`
+    }).catch(err => console.error("Customer notify error:", err));
+
+    for (const sellerId of sellerSubtotals.keys()) {
+        sendPaymentNotification({
+            recipientId: sellerId,
+            recipientType: "SELLER",
+            type: "ORDER_PLACED",
+            title: "New COD Order Placed",
+            body: `A new Cash on Delivery order (${finalOrder.orderNumber}) has been placed.`
+        }).catch(err => console.error("Seller notify error:", err));
+    }
+
+    return finalOrder;
 };

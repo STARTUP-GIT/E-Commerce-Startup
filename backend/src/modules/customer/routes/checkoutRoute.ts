@@ -5,12 +5,16 @@ import {
     removeCoupon,
     calculateShipping,
     calculateTaxes,
-    validateCheckout
+    validateCheckout,
+    getEnabledPaymentMethods,
+    checkoutCod
 } from "../controllers/checkoutController.js";
 import { customerAuth } from "../../../middleware/customerAuth.js";
 
 const router = express.Router();
 
+router.get("/api/checkout/payment-methods", getEnabledPaymentMethods);
+router.post("/api/checkout/cod", customerAuth, checkoutCod);
 router.post("/api/checkout", customerAuth, checkout);
 router.post("/api/checkout/apply-coupon", customerAuth, applyCoupon);
 router.post("/api/checkout/remove-coupon", customerAuth, removeCoupon);

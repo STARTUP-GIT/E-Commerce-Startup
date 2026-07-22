@@ -18,6 +18,8 @@ import { profileApi } from '@/features/auth/profile/api/profileApi';
 import { useLocationStore } from '@/lib/store/locationStore';
 import { useSearchParams } from 'next/navigation';
 
+import { checkoutApi } from '../api/checkoutApi';
+
 export function CheckoutPage() {
   const { data: session } = useSession();
   const { profile, isLoading: profileLoading } = useProfile();
@@ -29,6 +31,9 @@ export function CheckoutPage() {
     quantity: parseInt(searchParams.get('quantity') || '1', 10)
   } : undefined;
 
+  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState<'PORTAL_DELIVERY' | 'SELF_DELIVERY'>('PORTAL_DELIVERY');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
+
   const {
     summary,
     isLoading: checkoutLoading,
@@ -37,12 +42,30 @@ export function CheckoutPage() {
     isApplyingCoupon,
     removeCoupon,
     couponCode,
-  } = useCheckout(buyNowParams);
+  } = useCheckout(buyNowParams, selectedDeliveryMethod);
 
-  const { processPayment, isProcessing: paymentLoading, error: paymentError } = usePayment();
+  const { processPayment, processCodPayment, isProcessing: paymentLoading, error: paymentError } = usePayment();
 
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [couponInput, setCouponInput] = useState('');
+
+  // Fetch enabled payment methods
+  const { data: paymentMethodsData } = useQuery({
+    queryKey: ['enabled-payment-methods'],
+    queryFn: checkoutApi.getPaymentMethods,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const enabledMethods = paymentMethodsData?.paymentMethods || [];
+
+  React.useEffect(() => {
+    if (enabledMethods.length > 0 && !selectedPaymentMethod) {
+      const defaultMethod = enabledMethods[0]?.code;
+      if (defaultMethod) {
+        setSelectedPaymentMethod(defaultMethod);
+      }
+    }
+  }, [enabledMethods, selectedPaymentMethod]);
 
   const { data: locationsConfig } = useQuery({
     queryKey: ['locations-config'],
@@ -63,24 +86,17 @@ export function CheckoutPage() {
 
   const setComingSoon = useLocationStore((state) => state.setComingSoon);
 
-  React.useEffect(() => {
-    if (activeAddress && locationsConfig?.allStates && addrDistrictsData?.allDistricts) {
-      const stateObj = locationsConfig.allStates.find(
-        (st: any) => st.name.toLowerCase() === activeAddress.state.toLowerCase()
-      );
-      if (stateObj && !stateObj.isEnabled) {
-        setComingSoon(true, stateObj.name);
-        return;
-      }
+  const stateObj = locationsConfig?.allStates?.find(
+    (st: any) => st.name.toLowerCase() === activeAddress?.state?.toLowerCase()
+  );
+  const districtObj = addrDistrictsData?.allDistricts?.find(
+    (d: any) => d.name.toLowerCase() === activeAddress?.city?.toLowerCase()
+  );
 
-      const districtObj = addrDistrictsData.allDistricts.find(
-        (d: any) => d.name.toLowerCase() === activeAddress.city.toLowerCase()
-      );
-      if (districtObj && !districtObj.isEnabled) {
-        setComingSoon(true, activeAddress.state, districtObj.name);
-      }
-    }
-  }, [activeAddress, locationsConfig, addrDistrictsData, setComingSoon]);
+  const isPortalCovered = !(
+    (stateObj && !stateObj.isEnabled) ||
+    (districtObj && !districtObj.isEnabled)
+  );
 
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,35 +110,28 @@ export function CheckoutPage() {
 
   const handlePlaceOrder = () => {
     const addr = activeAddress;
-    if (!addr) {
+    if (!addr) return;
+
+    if (selectedDeliveryMethod === 'PORTAL_DELIVERY' && !isPortalCovered) {
       return;
     }
 
-    if (locationsConfig?.allStates && addrDistrictsData?.allDistricts) {
-      const stateObj = locationsConfig.allStates.find(
-        (st: any) => st.name.toLowerCase() === addr.state.toLowerCase()
-      );
-      if (stateObj && !stateObj.isEnabled) {
-        setComingSoon(true, stateObj.name);
-        return;
-      }
-
-      const districtObj = addrDistrictsData.allDistricts.find(
-        (d: any) => d.name.toLowerCase() === addr.city.toLowerCase()
-      );
-      if (districtObj && !districtObj.isEnabled) {
-        setComingSoon(true, addr.state, districtObj.name);
-        return;
-      }
+    if (selectedPaymentMethod === 'COD') {
+      processCodPayment({
+        shippingAddressId: addr.id,
+        couponCode: couponCode || undefined,
+        buyNow: buyNowParams,
+        selectedDeliveryMethod,
+      });
+    } else {
+      processPayment({
+        shippingAddressId: addr.id,
+        couponCode: couponCode || undefined,
+        userEmail: session?.user?.email || '',
+        userName: session?.user?.name || 'Customer',
+        buyNow: buyNowParams,
+      });
     }
-
-    processPayment({
-      shippingAddressId: addr.id,
-      couponCode: couponCode || undefined,
-      userEmail: session?.user?.email || '',
-      userName: session?.user?.name || 'Customer',
-      buyNow: buyNowParams,
-    });
   };
 
   if (profileLoading || checkoutLoading) {
@@ -209,6 +218,106 @@ export function CheckoutPage() {
                     <Button size="sm">Add Address in Profile</Button>
                   </Link>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Delivery Method Options */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-primary" />
+                Delivery Method
+              </CardTitle>
+              <CardDescription>Choose how you would like your items delivered.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div
+                onClick={() => setSelectedDeliveryMethod('PORTAL_DELIVERY')}
+                className={`p-3.5 border rounded-xl cursor-pointer transition-all ${
+                  selectedDeliveryMethod === 'PORTAL_DELIVERY'
+                    ? 'border-primary bg-primary/[0.03]'
+                    : 'border-border bg-zinc-950/20 hover:border-zinc-700'
+                }`}
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="font-semibold text-xs sm:text-sm block">Portal Logistics Delivery</span>
+                    <span className="text-[11px] text-muted-foreground">Managed & tracked directly by Aura Marketplace logistics.</span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">Standard Charge</Badge>
+                </div>
+              </div>
+
+              <div
+                onClick={() => setSelectedDeliveryMethod('SELF_DELIVERY')}
+                className={`p-3.5 border rounded-xl cursor-pointer transition-all ${
+                  selectedDeliveryMethod === 'SELF_DELIVERY'
+                    ? 'border-primary bg-primary/[0.03]'
+                    : 'border-border bg-zinc-950/20 hover:border-zinc-700'
+                }`}
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="font-semibold text-xs sm:text-sm block">Seller Direct Delivery</span>
+                    <span className="text-[11px] text-muted-foreground">Seller will deliver items directly to your address.</span>
+                  </div>
+                  <Badge variant="success" className="text-[10px]">Free Shipping (₹0)</Badge>
+                </div>
+              </div>
+
+              {/* Portal Coverage Warning */}
+              {selectedDeliveryMethod === 'PORTAL_DELIVERY' && activeAddress && !isPortalCovered && (
+                <div className="p-3 text-xs font-medium text-amber-400 bg-amber-500/10 rounded-xl border border-amber-500/20 flex items-start gap-2 mt-2">
+                  <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
+                  <div>
+                    <span className="font-bold block">Portal Delivery Unavailable</span>
+                    <span>Portal Delivery is unavailable in {activeAddress.city}, {activeAddress.state}. Please select Seller Direct Delivery to proceed.</span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Payment Method Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-primary" />
+                Payment Mode
+              </CardTitle>
+              <CardDescription>Select your preferred payment method.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {enabledMethods.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Loading available payment methods...</p>
+              ) : (
+                enabledMethods.map((pm) => {
+                  const isSelected = selectedPaymentMethod === pm.code;
+                  return (
+                    <div
+                      key={pm.id}
+                      onClick={() => setSelectedPaymentMethod(pm.code)}
+                      className={`p-3.5 border rounded-xl cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-primary bg-primary/[0.03]'
+                          : 'border-border bg-zinc-950/20 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="font-semibold text-xs sm:text-sm block">{pm.name}</span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {pm.code === 'COD'
+                              ? 'Pay with cash upon package delivery'
+                              : pm.description || 'Fast & secure online gateway'}
+                          </span>
+                        </div>
+                        {isSelected && <Badge variant="default" className="text-[10px]">Selected</Badge>}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </CardContent>
           </Card>
@@ -358,11 +467,16 @@ export function CheckoutPage() {
               <Button
                 onClick={handlePlaceOrder}
                 isLoading={paymentLoading}
-                disabled={items.length === 0 || !activeAddress || (validation && !validation.isValid)}
+                disabled={
+                  items.length === 0 ||
+                  !activeAddress ||
+                  (validation && !validation.isValid) ||
+                  (selectedDeliveryMethod === 'PORTAL_DELIVERY' && !isPortalCovered)
+                }
                 className="w-full flex items-center justify-center gap-2 py-6 text-sm font-bold cursor-pointer"
               >
                 <CreditCard className="h-4.5 w-4.5" />
-                Pay Securely
+                {selectedPaymentMethod === 'COD' ? 'Place Order (Cash on Delivery)' : 'Pay Securely (Razorpay)'}
               </Button>
             </CardFooter>
           </Card>

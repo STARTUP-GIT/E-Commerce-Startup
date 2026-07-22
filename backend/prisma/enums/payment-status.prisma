@@ -1,5 +1,7 @@
 enum PaymentStatus {
   PENDING
+  PENDING_COD
+  PAID
   PROCESSING
   AUTHORIZED
   CAPTURED

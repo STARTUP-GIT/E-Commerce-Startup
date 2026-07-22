@@ -32,8 +32,8 @@ export interface CheckoutSummary {
 }
 
 export const checkoutApi = {
-  getSummary: async (couponCode?: string, buyNow?: BuyNowParams): Promise<{ checkoutSummary: CheckoutSummary }> => {
-    const response = await axiosInstance.post('/api/checkout', { couponCode, buyNow });
+  getSummary: async (couponCode?: string, buyNow?: BuyNowParams, selectedDeliveryMethod?: string): Promise<{ checkoutSummary: CheckoutSummary }> => {
+    const response = await axiosInstance.post('/api/checkout', { couponCode, buyNow, selectedDeliveryMethod });
     return response.data;
   },
   validateCheckout: async (buyNow?: BuyNowParams): Promise<{ isValid: boolean; message?: string }> => {
@@ -47,6 +47,20 @@ export const checkoutApi = {
   },
   removeCoupon: async (couponCode: string, buyNow?: BuyNowParams): Promise<{ message: string }> => {
     const response = await axiosInstance.post('/api/checkout/remove-coupon', { couponCode, buyNow });
+    return response.data;
+  },
+  getPaymentMethods: async (): Promise<{ paymentMethods: Array<{ id: string; name: string; code: string; description?: string; enabled: boolean; displayOrder: number }> }> => {
+    const response = await axiosInstance.get('/api/checkout/payment-methods');
+    return response.data;
+  },
+  checkoutCod: async (payload: {
+    shippingAddressId: string;
+    billingAddressId?: string;
+    couponCode?: string;
+    buyNow?: BuyNowParams;
+    selectedDeliveryMethod?: string;
+  }): Promise<{ message: string; order: any }> => {
+    const response = await axiosInstance.post('/api/checkout/cod', payload);
     return response.data;
   },
 };

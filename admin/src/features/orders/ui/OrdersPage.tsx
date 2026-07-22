@@ -21,18 +21,20 @@ const ORDER_STATUS_COLORS: Record<string, any> = {
 export function OrdersPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
+  const [deliveryMethodFilter, setDeliveryMethodFilter] = useState('');
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', { search, status: statusFilter, page }],
-    queryFn: () => orderApi.getOrders({ search, status: statusFilter || undefined, page, limit: 20 }),
+    queryKey: ['orders', { search, status: statusFilter, paymentMethod: paymentMethodFilter, deliveryMethod: deliveryMethodFilter, page }],
+    queryFn: () => orderApi.getOrders({ search, status: statusFilter || undefined, paymentMethod: paymentMethodFilter || undefined, deliveryMethod: deliveryMethodFilter || undefined, page, limit: 20 }),
     staleTime: 30 * 1000,
   });
 
   const orders = data?.orders ?? data?.data ?? [];
   const total = data?.total ?? 0;
 
-  const statuses = ['', 'PLACED', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'];
+  const statuses = ['', 'PENDING_CONFIRMATION', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'];
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -46,20 +48,43 @@ export function OrdersPage() {
         </div>
       </div>
 
-      <Card className="border border-white/5 p-4">
+      <Card className="border border-white/5 p-4 space-y-3">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-white/25 pointer-events-none" />
             <Input placeholder="Search orders..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-10" />
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {statuses.map((s) => (
-              <button key={s || 'all'} onClick={() => { setStatusFilter(s); setPage(1); }}
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide border transition-all cursor-pointer ${statusFilter === s ? 'bg-white/15 border-white/25 text-white' : 'border-white/10 text-white/40 hover:text-white/70 hover:border-white/20'}`}>
-                {s || 'All'}
-              </button>
-            ))}
-          </div>
+          
+          {/* Payment Method Filter */}
+          <select
+            value={paymentMethodFilter}
+            onChange={(e) => { setPaymentMethodFilter(e.target.value); setPage(1); }}
+            className="h-10 px-3 rounded-lg border border-white/10 bg-[#0c0c10] text-xs font-semibold text-white/80 focus:outline-none focus:border-white/30"
+          >
+            <option value="">All Payment Methods</option>
+            <option value="COD">Cash on Delivery (COD)</option>
+            <option value="RAZORPAY">Razorpay</option>
+          </select>
+
+          {/* Delivery Method Filter */}
+          <select
+            value={deliveryMethodFilter}
+            onChange={(e) => { setDeliveryMethodFilter(e.target.value); setPage(1); }}
+            className="h-10 px-3 rounded-lg border border-white/10 bg-[#0c0c10] text-xs font-semibold text-white/80 focus:outline-none focus:border-white/30"
+          >
+            <option value="">All Delivery Methods</option>
+            <option value="PORTAL_DELIVERY">Portal Delivery</option>
+            <option value="SELF_DELIVERY">Seller Delivery</option>
+          </select>
+        </div>
+
+        <div className="flex gap-2 flex-wrap pt-1">
+          {statuses.map((s) => (
+            <button key={s || 'all'} onClick={() => { setStatusFilter(s); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide border transition-all cursor-pointer ${statusFilter === s ? 'bg-white/15 border-white/25 text-white' : 'border-white/10 text-white/40 hover:text-white/70 hover:border-white/20'}`}>
+              {s ? s.replace('_', ' ') : 'All Statuses'}
+            </button>
+          ))}
         </div>
       </Card>
 
@@ -78,6 +103,8 @@ export function OrdersPage() {
                 <TableRow>
                   <TableHead>Order #</TableHead>
                   <TableHead>Customer</TableHead>
+                  <TableHead>Payment Method</TableHead>
+                  <TableHead>Delivery Method</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Date</TableHead>
@@ -89,7 +116,17 @@ export function OrdersPage() {
                   <TableRow key={order.id}>
                     <TableCell className="font-bold text-white/90 text-xs">{order.orderNumber ?? order.id?.slice(0, 8)}</TableCell>
                     <TableCell className="text-xs text-white/60">{order.customer?.firstName ?? order.customerId}</TableCell>
-                    <TableCell className="text-xs font-semibold text-white/80">{formatPrice(order.totalAmount ?? order.amount ?? 0)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-[9px] font-bold">
+                        {order.paymentMethod === 'COD' ? 'Cash on Delivery' : order.paymentMethod || 'Razorpay'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-[9px] font-semibold">
+                        {order.selectedDeliveryMethod === 'SELF_DELIVERY' ? 'Seller Delivery' : 'Portal Delivery'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs font-semibold text-white/80">{formatPrice(order.grandTotal ?? order.totalAmount ?? order.amount ?? 0)}</TableCell>
                     <TableCell>
                       <Badge variant={ORDER_STATUS_COLORS[order.status] ?? 'outline'} className="text-[8px]">{order.status}</Badge>
                     </TableCell>

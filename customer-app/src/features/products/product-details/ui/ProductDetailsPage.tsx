@@ -217,7 +217,13 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
                   </Link>
                   <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 font-semibold">
                     • <Truck className="h-3.5 w-3.5" />
-                    <span>{product.seller.shop.deliveryMode === 'SELF' ? 'Delivered by Seller' : 'Delivered by Aura'}</span>
+                    <span>
+                      {product.deliveryMethod === 'SELF_DELIVERY'
+                        ? 'Seller Direct Delivery'
+                        : product.deliveryMethod === 'BOTH'
+                        ? 'Portal & Seller Delivery Available'
+                        : 'Portal Logistics Delivery'}
+                    </span>
                   </span>
                 </div>
               )}

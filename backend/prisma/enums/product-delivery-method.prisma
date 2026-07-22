@@ -1,0 +1,5 @@
+enum ProductDeliveryMethod {
+  SELF_DELIVERY
+  PORTAL_DELIVERY
+  BOTH
+}

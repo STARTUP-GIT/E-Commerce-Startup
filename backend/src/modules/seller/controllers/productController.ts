@@ -9,6 +9,7 @@ interface Products {
     productprice: number
     imageUrl: string;
     categoryId?: string;
+    deliveryMethod?: "PORTAL_DELIVERY" | "SELF_DELIVERY" | "BOTH";
 }
 
 export const addProducts = async (req: Request, res: Response) => {
@@ -19,7 +20,8 @@ export const addProducts = async (req: Request, res: Response) => {
             productquantity,
             productprice,
             imageUrl,
-            categoryId
+            categoryId,
+            deliveryMethod
         }: Products = req.body;
 
         const sellerId = req.sellerId;
@@ -124,15 +126,19 @@ export const addProducts = async (req: Request, res: Response) => {
             }
         }
 
+        const validDeliveryMethod = (deliveryMethod && ["PORTAL_DELIVERY", "SELF_DELIVERY", "BOTH"].includes(deliveryMethod))
+            ? deliveryMethod
+            : "PORTAL_DELIVERY";
+
         const productadded =
             await prisma.product.create({
                 data: {
                     name: productname.trim(),
-                    stockQuantity:
-                        productquantity,
+                    stockQuantity: productquantity,
                     price: productprice,
                     imageUrl: imageUrl.trim(),
                     categoryId: categoryId || null,
+                    deliveryMethod: validDeliveryMethod as any,
                     sellerId: sellerId
                 }
             });
@@ -219,18 +225,20 @@ export const EditProduct = async (req: Request, res: Response) => {
             productquantity,
             productprice,
             imageUrl,
-            categoryId
+            categoryId,
+            deliveryMethod
         } = req.body;
 
         if (
             productquantity === undefined &&
             productprice === undefined &&
             imageUrl === undefined &&
-            categoryId === undefined
+            categoryId === undefined &&
+            deliveryMethod === undefined
         ) {
             return res.status(400).json({
                 message:
-                    "Provide quantity, price, image or category to update"
+                    "Provide quantity, price, image, category or delivery method to update"
             });
         }
 
@@ -300,6 +308,10 @@ export const EditProduct = async (req: Request, res: Response) => {
 
                     ...(categoryId !== undefined && {
                         categoryId: categoryId || null
+                    }),
+
+                    ...(deliveryMethod !== undefined && ["PORTAL_DELIVERY", "SELF_DELIVERY", "BOTH"].includes(deliveryMethod) && {
+                        deliveryMethod: deliveryMethod as any
                     })
                 }
             });

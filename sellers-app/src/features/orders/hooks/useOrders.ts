@@ -94,6 +94,14 @@ export function useOrders(orderId?: string) {
     },
   });
 
+  const markCodCollectedMutation = useMutation({
+    mutationFn: ordersApi.markCodCollected,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      if (orderId) queryClient.invalidateQueries({ queryKey: ['order-details', orderId] });
+    },
+  });
+
   return {
     orders: ordersQuery.data ?? [],
     isLoading: ordersQuery.isLoading,
@@ -126,5 +134,8 @@ export function useOrders(orderId?: string) {
 
     markDelivered: markDeliveredMutation.mutateAsync,
     isMarkingDelivered: markDeliveredMutation.isPending,
+
+    markCodCollected: markCodCollectedMutation.mutateAsync,
+    isMarkingCodCollected: markCodCollectedMutation.isPending,
   };
 }

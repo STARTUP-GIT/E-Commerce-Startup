@@ -18,6 +18,8 @@ model Order {
   platformFeeTotal   Decimal?    @db.Decimal(12, 2)
   grandTotal         Decimal     @db.Decimal(12, 2)
   currency           String      @default("INR") @db.VarChar(3)
+  paymentMethod      String?     @db.VarChar(50)
+  selectedDeliveryMethod String? @db.VarChar(50)
   notes              String?     @db.Text
   placedAt           DateTime?
   completedAt        DateTime?
@@ -70,6 +72,8 @@ model SellerOrder {
   shippedAt             DateTime?
   deliveredAt           DateTime?
   deliveryMode          DeliveryMode      @default(PLATFORM)
+  paymentMethod         String?           @db.VarChar(50)
+  selectedDeliveryMethod String?          @db.VarChar(50)
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
 

@@ -3,6 +3,8 @@ import { paymentApi, CreatePaymentPayload, VerifyPaymentPayload, BuyNowParams } 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { checkoutApi } from '@/features/checkout/api/checkoutApi';
+
 export function usePayment() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +34,23 @@ export function usePayment() {
     },
     onError: (err: any) => {
       setError(err?.message || 'Payment verification failed');
+    },
+  });
+
+  const codMutation = useMutation({
+    mutationFn: (payload: {
+      shippingAddressId: string;
+      billingAddressId?: string;
+      couponCode?: string;
+      buyNow?: BuyNowParams;
+      selectedDeliveryMethod?: string;
+    }) => checkoutApi.checkoutCod(payload),
+    onSuccess: (data: any) => {
+      const orderNumber = data.order?.orderNumber || '';
+      router.push(`/orders/success?orderNumber=${orderNumber}`);
+    },
+    onError: (err: any) => {
+      setError(err?.message || 'COD checkout failed');
     },
   });
 
@@ -126,10 +145,25 @@ export function usePayment() {
     }
   };
 
+  const processCodPayment = async (params: {
+    shippingAddressId: string;
+    couponCode?: string;
+    buyNow?: BuyNowParams;
+    selectedDeliveryMethod?: string;
+  }) => {
+    setError(null);
+    try {
+      await codMutation.mutateAsync(params);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to place Cash on Delivery order.');
+    }
+  };
+
   return {
     processPayment,
-    isProcessing: createPaymentMutation.isPending || verifyPaymentMutation.isPending,
+    processCodPayment,
+    isProcessing: createPaymentMutation.isPending || verifyPaymentMutation.isPending || codMutation.isPending,
     error,
-    isSuccess: verifyPaymentMutation.isSuccess,
+    isSuccess: verifyPaymentMutation.isSuccess || codMutation.isSuccess,
   };
 }
