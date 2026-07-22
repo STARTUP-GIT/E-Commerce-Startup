@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
-import PDFDocument from "pdfkit";
+import { generateInvoicePdf } from "../utils/generateInvoicePdf.js";
 
 export const getOrders = async (req: Request, res: Response) => {
     try {
@@ -312,8 +312,21 @@ export const downloadInvoice = async (req: Request, res: Response) => {
                     select: {
                         firstName: true,
                         lastName: true,
-                        email: true
+                        email: true,
+                        phone: true
                     }
+                },
+                payments: {
+                    select: {
+                        amount: true,
+                        status: true,
+                        method: true,
+                        gatewayPaymentId: true,
+                        invoiceNumber: true,
+                        paidAt: true
+                    },
+                    orderBy: { createdAt: "desc" },
+                    take: 1
                 },
                 sellerOrders: {
                     include: {
@@ -321,10 +334,44 @@ export const downloadInvoice = async (req: Request, res: Response) => {
                             select: {
                                 firstName: true,
                                 lastName: true,
-                                shop: true
+                                phone: true,
+                                shop: {
+                                    select: {
+                                        name: true,
+                                        logoUrl: true,
+                                        businessName: true,
+                                        supportEmail: true,
+                                        supportPhone: true
+                                    }
+                                }
                             }
                         },
-                        items: true
+                        items: {
+                            include: {
+                                product: {
+                                    select: {
+                                        category: {
+                                            select: { name: true }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        delivery: {
+                            select: {
+                                deliveryNumber: true,
+                                status: true,
+                                estimatedDeliveryAt: true,
+                                deliveryPartner: {
+                                    select: {
+                                        firstName: true,
+                                        lastName: true,
+                                        vehicleType: true,
+                                        vehicleNumber: true
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -336,89 +383,13 @@ export const downloadInvoice = async (req: Request, res: Response) => {
             });
         }
 
-        const doc = new PDFDocument({ size: "A4", margin: 50 });
+        const doc = generateInvoicePdf(order as any);
         const fileName = `invoice-${order.orderNumber}.pdf`;
 
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
 
         doc.pipe(res);
-
-        // Header
-        doc.fontSize(20).text("INVOICE", { align: "center" });
-        doc.moveDown();
-        doc.fontSize(10).text(`Invoice #: ${order.orderNumber}`);
-        doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`);
-        doc.text(`Status: ${order.status}`);
-        doc.moveDown();
-
-        // Customer info
-        doc.fontSize(12).text("Bill To:");
-        doc.fontSize(10);
-        const customerName = `${order.customer.firstName || ""} ${order.customer.lastName || ""}`.trim();
-        if (customerName) doc.text(customerName);
-        if (order.customer.email) doc.text(order.customer.email);
-        const billing = order.billingAddress || order.shippingAddress;
-        if (billing) {
-            if (billing.addressLine1) doc.text(billing.addressLine1);
-            if (billing.city || billing.state || billing.postalCode) {
-                doc.text(`${billing.city || ""}, ${billing.state || ""} ${billing.postalCode || ""}`.trim());
-            }
-            if (billing.country) doc.text(billing.country);
-        }
-        doc.moveDown();
-
-        // Items table per vendor
-        for (const so of order.sellerOrders) {
-            const vendorName = so.seller.shop?.name || `${so.seller.firstName} ${so.seller.lastName}`;
-            doc.fontSize(11).text(`Vendor: ${vendorName}`);
-            doc.fontSize(9);
-
-            const tableTop = doc.y;
-            const colName = 50;
-            const colSku = 250;
-            const colQty = 330;
-            const colPrice = 380;
-            const colTotal = 440;
-
-            doc.text("Item", colName, tableTop, { width: 200 });
-            doc.text("SKU", colSku, tableTop, { width: 80 });
-            doc.text("Qty", colQty, tableTop, { width: 50 });
-            doc.text("Price", colPrice, tableTop, { width: 60 });
-            doc.text("Total", colTotal, tableTop, { width: 60 });
-
-            doc.moveTo(colName, tableTop + 12).lineTo(510, tableTop + 12).stroke();
-
-            let y = tableTop + 18;
-            for (const item of so.items) {
-                doc.text(item.productName, colName, y, { width: 200 });
-                doc.text(item.productSku, colSku, y, { width: 80 });
-                doc.text(String(item.quantity), colQty, y, { width: 50 });
-                doc.text(`₹${Number(item.unitPrice).toFixed(2)}`, colPrice, y, { width: 60 });
-                doc.text(`₹${Number(item.totalPrice).toFixed(2)}`, colTotal, y, { width: 60 });
-                y += 14;
-            }
-
-            doc.moveTo(colName, y).lineTo(510, y).stroke();
-            y += 6;
-            doc.text(`Subtotal: ₹${Number(so.subtotal).toFixed(2)}`, colName, y);
-            y += 12;
-            doc.text(`Shipping: ₹${Number(so.shippingAmount).toFixed(2)}`, colName, y);
-            y += 12;
-            doc.text(`Tax: ₹${Number(so.taxAmount).toFixed(2)}`, colName, y);
-            doc.moveDown(2);
-        }
-
-        // Totals
-        doc.fontSize(11);
-        doc.text(`Subtotal: ₹${Number(order.subtotal).toFixed(2)}`, { align: "right" });
-        doc.text(`Shipping: ₹${Number(order.shippingTotal).toFixed(2)}`, { align: "right" });
-        if (Number(order.discountTotal) > 0) {
-            doc.text(`Discount: -₹${Number(order.discountTotal).toFixed(2)}`, { align: "right" });
-        }
-        doc.text(`Tax: ₹${Number(order.taxTotal).toFixed(2)}`, { align: "right" });
-        doc.fontSize(13).text(`Grand Total: ₹${Number(order.grandTotal).toFixed(2)}`, { align: "right" });
-
         doc.end();
 
     } catch (error) {
