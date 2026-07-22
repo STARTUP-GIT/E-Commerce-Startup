@@ -237,7 +237,7 @@ function drawRoundedRect(
 export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
     const doc = new PDFDocument({
         size: "A4",
-        margin: MARGIN,
+        margin: 0,
         info: {
             Title: `Invoice ${order.orderNumber}`,
             Author: "Aura Marketplace",
