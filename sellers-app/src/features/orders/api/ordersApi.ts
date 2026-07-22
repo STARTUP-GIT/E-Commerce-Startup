@@ -42,6 +42,9 @@ export interface SellerOrder {
     customerPhone?: string;
     paymentMethod?: string;
     payments?: any[];
+    codCollected?: boolean;
+    codCollectedAt?: string | null;
+    codCollectedBy?: string | null;
   };
   items: OrderItem[];
   packingProof?: {
