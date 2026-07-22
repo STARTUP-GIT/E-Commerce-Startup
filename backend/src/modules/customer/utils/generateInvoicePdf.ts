@@ -238,7 +238,6 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
     const doc = new PDFDocument({
         size: "A4",
         margin: MARGIN,
-        bufferPages: true,
         info: {
             Title: `Invoice ${order.orderNumber}`,
             Author: "Aura Marketplace",
@@ -247,13 +246,9 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
 
     let y = MARGIN;
 
-    // ── Helper: page break check ──────────────────────────────────────────
-    function ensureSpace(needed: number) {
-        if (y + needed > PAGE_H - MARGIN) {
-            drawFooter(doc, false);
-            doc.addPage();
-            y = MARGIN;
-        }
+    // ── Helper: page break check (disabled — single-page output) ─────────
+    function ensureSpace(_needed: number) {
+        // no-op: all content is drawn on a single page
     }
 
     // ── 1. HEADER BAR ─────────────────────────────────────────────────────
