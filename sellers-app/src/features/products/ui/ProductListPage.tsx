@@ -35,6 +35,44 @@ export function ProductListPage() {
   const { products, isLoading, isError, refetch, createProduct, updateProduct, deleteProduct } = useProducts();
   const { upload: uploadProductImage, isUploading, progress: uploadProgress,  publicUrl } = useFileUpload({ folder: 'products' });
 
+  // Forms declared at top of component body
+  const {
+    register: registerCreate,
+    handleSubmit: handleSubmitCreate,
+    setValue: setValueCreate,
+    watch: watchCreate,
+    reset: resetCreate,
+    formState: { errors: errorsCreate },
+  } = useForm<CreateProductInput>({
+    resolver: zodResolver(createProductSchema),
+    defaultValues: {
+      productname: '',
+      productquantity: 1,
+      productprice: 0,
+      imageKey: '',
+      categoryId: '',
+      deliveryMethod: 'PORTAL_DELIVERY',
+    },
+  });
+
+  const {
+    register: registerEdit,
+    handleSubmit: handleSubmitEdit,
+    setValue: setValueEdit,
+    watch: watchEdit,
+    reset: resetEdit,
+    formState: { errors: errorsEdit },
+  } = useForm<EditProductInput>({
+    resolver: zodResolver(editProductSchema),
+    defaultValues: {
+      productquantity: 1,
+      productprice: 0,
+      imageKey: '',
+      categoryId: '',
+      deliveryMethod: 'PORTAL_DELIVERY',
+    },
+  });
+
   const [searchQuery, setSearchQuery] = useState('');
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
 
@@ -69,6 +107,7 @@ export function ProductListPage() {
       .then(setCategories)
       .catch((e) => console.error('Failed to load allowed categories:', e));
   }, []);
+
   const [stockFilter, setStockFilter] = useState<'ALL' | 'LOW' | 'OUT'>('ALL');
 
   // Dialog States
@@ -77,29 +116,6 @@ export function ProductListPage() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const showConfirm = useConfirmStore((state) => state.showConfirm);
-
-  // Forms
-  const {
-    register: registerCreate,
-    handleSubmit: handleSubmitCreate,
-    setValue: setValueCreate,
-    watch: watchCreate,
-    reset: resetCreate,
-    formState: { errors: errorsCreate },
-  } = useForm<CreateProductInput>({
-    resolver: zodResolver(createProductSchema),
-  });
-
-  const {
-    register: registerEdit,
-    handleSubmit: handleSubmitEdit,
-    setValue: setValueEdit,
-    watch: watchEdit,
-    reset: resetEdit,
-    formState: { errors: errorsEdit },
-  } = useForm<EditProductInput>({
-    resolver: zodResolver(editProductSchema),
-  });
 
   const watchCreateImg = watchCreate('imageKey');
   const watchEditImg = watchEdit('imageKey');

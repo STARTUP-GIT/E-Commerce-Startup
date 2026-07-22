@@ -36,7 +36,7 @@ export const productApi = {
     productprice: number;
     imageUrl: string;
     categoryId?: string;
-    deliveryMethod?: 'PORTAL_DELIVERY' | 'SELF_DELIVERY' | 'BOTH';
+    deliveryMethod: 'PORTAL_DELIVERY' | 'SELF_DELIVERY' | 'BOTH';
   }): Promise<{ message: string; product: Product }> => {
     const response = await axiosInstance.post('/seller/api/products', payload);
     return response.data;

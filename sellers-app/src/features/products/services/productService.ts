@@ -6,7 +6,7 @@ export const createProductSchema = z.object({
   productprice: z.number().positive('Price must be greater than 0'),
   imageKey: z.string().min(1, 'Please upload a product image'),
   categoryId: z.string().optional(),
-  deliveryMethod: z.enum(['PORTAL_DELIVERY', 'SELF_DELIVERY', 'BOTH']).default('PORTAL_DELIVERY'),
+  deliveryMethod: z.enum(['PORTAL_DELIVERY', 'SELF_DELIVERY', 'BOTH']),
 });
 
 export const editProductSchema = z.object({
@@ -14,7 +14,7 @@ export const editProductSchema = z.object({
   productprice: z.number().positive('Price must be greater than 0'),
   imageKey: z.string().min(1, 'Please upload a product image'),
   categoryId: z.string().optional(),
-  deliveryMethod: z.enum(['PORTAL_DELIVERY', 'SELF_DELIVERY', 'BOTH']).default('PORTAL_DELIVERY'),
+  deliveryMethod: z.enum(['PORTAL_DELIVERY', 'SELF_DELIVERY', 'BOTH']),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;

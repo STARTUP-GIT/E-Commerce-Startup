@@ -53,6 +53,7 @@ export function OrderDetailPage() {
   } = useOrders(orderId);
 
   const handleMarkCodCollected = async () => {
+    if (!order) return;
     setErrorMsg(null);
     try {
       await markCodCollected(order.id);
@@ -100,6 +101,7 @@ export function OrderDetailPage() {
 
   // Handle Actions
   const handleAccept = async () => {
+    if (!order) return;
     setErrorMsg(null);
     try {
       await acceptOrder(order.id);
@@ -109,7 +111,7 @@ export function OrderDetailPage() {
   };
 
   const handleReject = async () => {
-    if (!rejectReason.trim()) return;
+    if (!order || !rejectReason.trim()) return;
     setErrorMsg(null);
     try {
       await rejectOrder({ id: order.id, reason: rejectReason });
@@ -121,7 +123,7 @@ export function OrderDetailPage() {
   };
 
   const handleReadyTimeSubmit = async () => {
-    if (!readyTime) return;
+    if (!order || !readyTime) return;
     setErrorMsg(null);
     try {
       await submitReadyTime({ id: order.id, readyByAt: new Date(readyTime).toISOString() });
@@ -146,7 +148,7 @@ export function OrderDetailPage() {
   };
 
   const handleProofSubmit = async () => {
-    if (proofImages.length === 0) return;
+    if (!order || proofImages.length === 0) return;
     setErrorMsg(null);
     try {
       await uploadPackingProof({ id: order.id, imageUrls: proofImages, notes: proofNote });
@@ -159,6 +161,7 @@ export function OrderDetailPage() {
   };
 
   const handleMarkPacked = async () => {
+    if (!order) return;
     setErrorMsg(null);
     try {
       await markPacked(order.id);
@@ -168,6 +171,7 @@ export function OrderDetailPage() {
   };
 
   const handleMarkShipped = async () => {
+    if (!order) return;
     setErrorMsg(null);
     try {
       await markShipped(order.id);
@@ -177,6 +181,7 @@ export function OrderDetailPage() {
   };
 
   const handleMarkDelivered = async () => {
+    if (!order) return;
     setErrorMsg(null);
     try {
       await markDelivered(order.id);
