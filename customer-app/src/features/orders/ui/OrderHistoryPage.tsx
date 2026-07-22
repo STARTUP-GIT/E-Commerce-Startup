@@ -8,11 +8,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/sha
 import { Button } from '@/shared/components/Button';
 import { Badge } from '@/shared/components/Badge';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { ClipboardList, Calendar, IndianRupee, ArrowRight, Package } from 'lucide-react';
+import { ClipboardList, Calendar, IndianRupee, ArrowRight, Package, Download } from 'lucide-react';
 import Link from 'next/link';
 
 export function OrderHistoryPage() {
-  const { orders, isOrdersLoading, downloadInvoice } = useOrder();
+  const { orders, isOrdersLoading, downloadInvoice, isDownloadingInvoice } = useOrder();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
@@ -99,8 +99,16 @@ export function OrderHistoryPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => downloadInvoice(order.id)}
+                      isLoading={isDownloadingInvoice}
+                      disabled={order.status === 'PENDING' || order.status === 'CANCELLED'}
+                      title={
+                        order.status === 'PENDING' || order.status === 'CANCELLED'
+                          ? 'Invoice not available yet'
+                          : undefined
+                      }
                       className="text-[10px] sm:text-xs cursor-pointer border-border h-8 sm:h-9"
                     >
+                      <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
                       Invoice
                     </Button>
                     <Link href={`/orders/${order.id}`}>
