@@ -3,8 +3,10 @@ import axiosInstance from '@/lib/axios/axiosInstance';
 export interface OrderItem {
   id: string;
   productId: string;
+  productName?: string;
   quantity: number;
-  price: number;
+  unitPrice: number;
+  totalPrice: number;
   product: {
     name: string;
     imageUrl?: string;

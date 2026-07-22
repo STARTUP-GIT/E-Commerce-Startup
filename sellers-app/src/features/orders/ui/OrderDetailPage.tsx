@@ -374,11 +374,11 @@ export function OrderDetailPage() {
                           {item?.product?.name}
                         </TableCell>
                         <TableCell className="text-xs">
-                          {productService.formatPrice(item.price)}
+                          {productService.formatPrice(Number(item.unitPrice))}
                         </TableCell>
                         <TableCell className="text-xs text-white/70">{item.quantity}</TableCell>
                         <TableCell className="text-right text-xs font-bold text-white/90">
-                          {productService.formatPrice(item.price * item.quantity)}
+                          {productService.formatPrice(Number(item.totalPrice))}
                         </TableCell>
                       </TableRow>
                     ))}
