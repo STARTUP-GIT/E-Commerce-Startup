@@ -38,8 +38,8 @@ export const paymentMethodApi = {
     const response = await axiosInstance.put(`/api/admin/payment-methods/${id}`, payload);
     return response.data;
   },
-  toggleStatus: async (id: string, enabled: boolean) => {
-    const response = await axiosInstance.patch(`/api/admin/payment-methods/${id}/status`, { enabled });
+  toggleStatus: async (id: string, allowed: boolean) => {
+    const response = await axiosInstance.patch(`/api/admin/payment-methods/${id}`, { allowed });
     return response.data;
   },
   deletePaymentMethod: async (id: string) => {

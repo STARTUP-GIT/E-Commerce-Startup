@@ -123,7 +123,7 @@ export const updatePaymentMethod = async (req: Request, res: Response) => {
 export const togglePaymentMethodStatus = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const { enabled } = req.body;
+        const allowed = req.body.allowed !== undefined ? req.body.allowed : req.body.enabled;
 
         if (!id) {
             return res.status(400).json({ message: "Payment Method ID is required" });
@@ -134,7 +134,7 @@ export const togglePaymentMethodStatus = async (req: Request, res: Response) => 
             return res.status(404).json({ message: "Payment method not found" });
         }
 
-        const newEnabled = enabled !== undefined ? !!enabled : !method.enabled;
+        const newEnabled = allowed !== undefined ? !!allowed : !method.enabled;
 
         const updated = await prisma.paymentMethodSetting.update({
             where: { id },

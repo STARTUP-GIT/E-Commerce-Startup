@@ -171,7 +171,7 @@ export const updateDeliveryMethod = async (req: Request, res: Response) => {
 export const toggleDeliveryMethodStatus = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const { enabled } = req.body;
+        const allowed = req.body.allowed !== undefined ? req.body.allowed : req.body.enabled;
 
         if (!id) {
             return res.status(400).json({ message: "Delivery Method ID is required" });
@@ -182,7 +182,7 @@ export const toggleDeliveryMethodStatus = async (req: Request, res: Response) =>
             return res.status(404).json({ message: "Delivery method not found" });
         }
 
-        const newEnabled = enabled !== undefined ? !!enabled : !method.enabled;
+        const newEnabled = allowed !== undefined ? !!allowed : !method.enabled;
 
         const updated = await prisma.deliveryMethodSetting.update({
             where: { id },

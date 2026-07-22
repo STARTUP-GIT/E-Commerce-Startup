@@ -46,16 +46,41 @@ export function PaymentMethodsPage() {
   const dbMethods: PaymentMethodSetting[] = data?.paymentMethods ?? [];
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
-      paymentMethodApi.toggleStatus(id, enabled),
+    mutationFn: ({ id, allowed }: { id: string; allowed: boolean }) => {
+      console.log("Updating", id, allowed);
+      return paymentMethodApi.toggleStatus(id, allowed);
+    },
+    onMutate: async ({ id, allowed }) => {
+      await queryClient.cancelQueries({ queryKey: ['payment-methods'] });
+
+      const previousData = queryClient.getQueryData<{ paymentMethods: PaymentMethodSetting[] }>(['payment-methods']);
+
+      if (previousData?.paymentMethods) {
+        queryClient.setQueryData(['payment-methods'], {
+          ...previousData,
+          paymentMethods: previousData.paymentMethods.map((m) =>
+            m.id === id ? { ...m, enabled: allowed } : m
+          ),
+        });
+      }
+
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payment-methods'] });
+      console.log("Updated successfully");
       showToast('Payment method status updated.', 'success');
       setTogglingId(null);
     },
-    onError: (e: any) => {
-      showToast(e.message || 'Failed to update payment method status.', 'error');
+    onError: (err: any, variables, context) => {
+      console.error(err);
+      showToast(err.message || 'Failed to update payment method status.', 'error');
       setTogglingId(null);
+      if (context?.previousData) {
+        queryClient.setQueryData(['payment-methods'], context.previousData);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['payment-methods'] });
     },
   });
 
@@ -147,7 +172,7 @@ export function PaymentMethodsPage() {
                       onClick={() => {
                         if (id) {
                           setTogglingId(id);
-                          toggleMutation.mutate({ id, enabled: !isAllowed });
+                          toggleMutation.mutate({ id, allowed: !isAllowed });
                         }
                       }}
                     >

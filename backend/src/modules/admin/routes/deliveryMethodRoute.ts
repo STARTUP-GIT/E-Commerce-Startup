@@ -14,6 +14,7 @@ router.get("/", adminAuth, getDeliveryMethods);
 router.post("/", adminAuth, createDeliveryMethod);
 router.put("/:id", adminAuth, updateDeliveryMethod);
 router.patch("/:id/status", adminAuth, toggleDeliveryMethodStatus);
+router.patch("/:id", adminAuth, toggleDeliveryMethodStatus);
 router.delete("/:id", adminAuth, deleteDeliveryMethod);
 
 export default router;

@@ -39,8 +39,8 @@ export const deliveryMethodApi = {
     const response = await axiosInstance.put(`/api/admin/delivery-methods/${id}`, payload);
     return response.data;
   },
-  toggleStatus: async (id: string, enabled: boolean) => {
-    const response = await axiosInstance.patch(`/api/admin/delivery-methods/${id}/status`, { enabled });
+  toggleStatus: async (id: string, allowed: boolean) => {
+    const response = await axiosInstance.patch(`/api/admin/delivery-methods/${id}`, { allowed });
     return response.data;
   },
   deleteDeliveryMethod: async (id: string) => {

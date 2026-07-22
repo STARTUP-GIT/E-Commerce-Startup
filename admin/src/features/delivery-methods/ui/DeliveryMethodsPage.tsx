@@ -48,16 +48,41 @@ export function DeliveryMethodsPage() {
   const dbMethods: DeliveryMethodSetting[] = data?.deliveryMethods || [];
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
-      deliveryMethodApi.toggleStatus(id, enabled),
+    mutationFn: ({ id, allowed }: { id: string; allowed: boolean }) => {
+      console.log("Updating", id, allowed);
+      return deliveryMethodApi.toggleStatus(id, allowed);
+    },
+    onMutate: async ({ id, allowed }) => {
+      await queryClient.cancelQueries({ queryKey: ['delivery-methods-admin'] });
+
+      const previousData = queryClient.getQueryData<{ deliveryMethods: DeliveryMethodSetting[] }>(['delivery-methods-admin']);
+
+      if (previousData?.deliveryMethods) {
+        queryClient.setQueryData(['delivery-methods-admin'], {
+          ...previousData,
+          deliveryMethods: previousData.deliveryMethods.map((m) =>
+            m.id === id ? { ...m, enabled: allowed } : m
+          ),
+        });
+      }
+
+      return { previousData };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['delivery-methods-admin'] });
+      console.log("Updated successfully");
       showToast('Delivery method status updated.', 'success');
       setTogglingId(null);
     },
-    onError: (e: any) => {
-      showToast(e.message || 'Failed to update delivery method status.', 'error');
+    onError: (err: any, variables, context) => {
+      console.error(err);
+      showToast(err.message || 'Failed to update delivery method status.', 'error');
       setTogglingId(null);
+      if (context?.previousData) {
+        queryClient.setQueryData(['delivery-methods-admin'], context.previousData);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['delivery-methods-admin'] });
     },
   });
 
@@ -148,7 +173,7 @@ export function DeliveryMethodsPage() {
                       onClick={() => {
                         if (id) {
                           setTogglingId(id);
-                          toggleMutation.mutate({ id, enabled: !isAllowed });
+                          toggleMutation.mutate({ id, allowed: !isAllowed });
                         }
                       }}
                     >
