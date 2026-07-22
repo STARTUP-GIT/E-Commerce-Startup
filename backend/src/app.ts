@@ -58,6 +58,12 @@ import adminCityRoute from './modules/admin/routes/cityRoute.js';
 import adminStateRoute from './modules/admin/routes/stateRoute.js';
 import adminPaymentMethodRoute from './modules/admin/routes/paymentMethodRoute.js';
 import adminDeliveryMethodRoute from './modules/admin/routes/deliveryMethodRoute.js';
+import { ensureDefaultPaymentMethods } from './modules/admin/controllers/paymentMethodController.js';
+import { ensureDefaultDeliveryMethods } from './modules/admin/controllers/deliveryMethodController.js';
+
+// Trigger default seeders asynchronously on startup
+ensureDefaultPaymentMethods().catch(err => console.error("Auto-seed payment methods failed:", err));
+ensureDefaultDeliveryMethods().catch(err => console.error("Auto-seed delivery methods failed:", err));
 
 // Delivery module routes
 import deliveryRoute from './modules/delivery/routes/deliveryRoute.js';

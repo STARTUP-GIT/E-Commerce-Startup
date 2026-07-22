@@ -10,20 +10,30 @@ export const ensureDefaultPaymentMethods = async () => {
                 data: [
                     {
                         code: "RAZORPAY",
-                        name: "Razorpay (Pay Online)",
-                        description: "Accept payments via Cards, UPI, NetBanking, and Wallets through Razorpay gateway.",
+                        name: "Razorpay",
+                        description: "Online payments via Razorpay.",
                         enabled: true,
                         displayOrder: 1,
                     },
                     {
                         code: "COD",
-                        name: "Cash on Delivery (COD)",
-                        description: "Allow customers to pay in cash upon order delivery.",
+                        name: "Cash on Delivery",
+                        description: "Customer pays when order is delivered.",
                         enabled: true,
                         displayOrder: 2,
                     },
                 ],
                 skipDuplicates: true,
+            });
+        } else {
+            // Update existing defaults if they exist with legacy names
+            await prisma.paymentMethodSetting.updateMany({
+                where: { code: "RAZORPAY", name: "Razorpay (Pay Online)" },
+                data: { name: "Razorpay", description: "Online payments via Razorpay." },
+            });
+            await prisma.paymentMethodSetting.updateMany({
+                where: { code: "COD", name: "Cash on Delivery (COD)" },
+                data: { name: "Cash on Delivery", description: "Customer pays when order is delivered." },
             });
         }
     } catch (error) {

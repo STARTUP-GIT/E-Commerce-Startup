@@ -241,47 +241,39 @@ export function CheckoutPage() {
             </CardContent>
           </Card>
 
-          {/* Delivery Method Options (Read-Only Information Card) */}
+          {/* Delivered By Options (Read-Only Information Card) */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold">
                 <Truck className="h-4 w-4 text-primary" />
-                <span>Delivery Method</span>
+                <span>Delivered By</span>
               </CardTitle>
-              <CardDescription className="text-xs">Fulfillment method configured by the seller.</CardDescription>
+              <CardDescription className="text-xs">Fulfillment method configured by seller.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {selectedDeliveryMethod === 'SELF_DELIVERY' ? (
                 <div className="p-3.5 border border-border/80 bg-muted/20 rounded-xl space-y-2 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-foreground text-xs sm:text-sm">🚗 Seller Delivery</span>
+                    <span className="font-bold text-foreground text-xs sm:text-sm">Seller Delivery</span>
                     <Badge variant="success" className="text-[10px]">Free Shipping (₹0)</Badge>
                   </div>
-                  <p className="text-muted-foreground text-[11px]">Delivered directly by the Seller.</p>
-                  <div className="pt-2 border-t border-border/50 text-[11px] flex justify-between text-muted-foreground">
-                    <span>Estimated Delivery:</span>
-                    <span className="font-semibold text-foreground">Contact Seller</span>
-                  </div>
+                  <p className="text-muted-foreground text-[11px]">Seller delivers directly.</p>
                 </div>
               ) : (selectedDeliveryMethod as string) === 'BOTH' ? (
                 <div className="p-3.5 border border-border/80 bg-muted/20 rounded-xl space-y-2 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-foreground text-xs sm:text-sm">Portal Delivery & Seller Delivery</span>
+                    <span className="font-bold text-foreground text-xs sm:text-sm">Both</span>
                     <Badge variant="outline" className="text-[10px]">Flexible Delivery</Badge>
                   </div>
-                  <p className="text-muted-foreground text-[11px]">The seller will decide the most suitable delivery option for your location.</p>
+                  <p className="text-muted-foreground text-[11px]">Portal Delivery or Seller Delivery options available.</p>
                 </div>
               ) : (
                 <div className="p-3.5 border border-border/80 bg-muted/20 rounded-xl space-y-2 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-foreground text-xs sm:text-sm">🚚 Portal Delivery</span>
+                    <span className="font-bold text-foreground text-xs sm:text-sm">Portal Delivery</span>
                     <Badge variant="outline" className="text-[10px]">Standard Charge</Badge>
                   </div>
-                  <p className="text-muted-foreground text-[11px]">Delivered by Aura Logistics.</p>
-                  <div className="pt-2 border-t border-border/50 text-[11px] flex justify-between text-muted-foreground">
-                    <span>Estimated Delivery:</span>
-                    <span className="font-semibold text-foreground">2-4 Days</span>
-                  </div>
+                  <p className="text-muted-foreground text-[11px]">Aura Marketplace logistics handles delivery.</p>
                 </div>
               )}
 

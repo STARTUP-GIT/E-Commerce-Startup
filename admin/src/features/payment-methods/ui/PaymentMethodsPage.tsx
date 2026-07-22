@@ -8,8 +8,9 @@ import { Badge } from '@/shared/components/Badge';
 import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
+import { Dialog } from '@/shared/components/Dialog';
 import { useUIStore } from '@/lib/store/uiStore';
-import { CreditCard, Plus, Trash2, CheckCircle, XCircle, ArrowUp, ArrowDown } from 'lucide-react';
+import { CreditCard, Plus, Trash2, Edit2, ArrowUp, ArrowDown, AlertTriangle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 export function PaymentMethodsPage() {
@@ -17,6 +18,12 @@ export function PaymentMethodsPage() {
   const { showToast } = useUIStore();
   const [showForm, setShowForm] = useState(false);
   const [editingMethod, setEditingMethod] = useState<PaymentMethodSetting | null>(null);
+
+  // Edit form states
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editDisplayOrder, setEditDisplayOrder] = useState(0);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['payment-methods'],
@@ -46,7 +53,7 @@ export function PaymentMethodsPage() {
       paymentMethodApi.toggleStatus(id, enabled),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['payment-methods'] });
-      showToast(`Payment method ${variables.enabled ? 'allowed' : 'disabled'}.`, 'success');
+      showToast(`Payment method status updated.`, 'success');
     },
     onError: (e: any) => showToast(e.message, 'error'),
   });
@@ -56,10 +63,10 @@ export function PaymentMethodsPage() {
       paymentMethodApi.updatePaymentMethod(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-methods'] });
-      showToast('Payment method updated.', 'success');
+      showToast('Payment method updated successfully.', 'success');
       setEditingMethod(null);
     },
-    onError: (e: any) => showToast(e.message, 'error'),
+    onError: (e: any) => setEditError(e.message || 'Failed to update payment method'),
   });
 
   const deleteMutation = useMutation({
@@ -76,6 +83,28 @@ export function PaymentMethodsPage() {
     updateMutation.mutate({ id: method.id, payload: { displayOrder: newOrder } });
   };
 
+  const openEditModal = (method: PaymentMethodSetting) => {
+    setEditingMethod(method);
+    setEditName(method.name);
+    setEditDescription(method.description || '');
+    setEditDisplayOrder(method.displayOrder);
+    setEditError(null);
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditError(null);
+    if (!editingMethod || !editName.trim()) return;
+    updateMutation.mutate({
+      id: editingMethod.id,
+      payload: {
+        name: editName.trim(),
+        description: editDescription.trim() || undefined,
+        displayOrder: editDisplayOrder,
+      },
+    });
+  };
+
   return (
     <div className="space-y-6 animate-fade-up">
       {/* Page Header */}
@@ -83,7 +112,7 @@ export function PaymentMethodsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white/95">Payment Methods</h1>
           <p className="text-xs text-white/45 mt-1">
-            Globally enable, disable, and order payment options for customer checkout.
+            Globally allow, disallow, and order payment options for customer checkout.
           </p>
         </div>
         <Button size="sm" onClick={() => setShowForm(!showForm)}>
@@ -224,7 +253,17 @@ export function PaymentMethodsPage() {
                       isLoading={toggleMutation.isPending}
                       onClick={() => toggleMutation.mutate({ id: method.id, enabled: !isAllowed })}
                     >
-                      {isAllowed ? 'Disable' : 'Allow'}
+                      {isAllowed ? 'Not Allowed' : 'Allowed'}
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 w-8 p-0 text-white/70 hover:bg-white/10 shrink-0 cursor-pointer"
+                      onClick={() => openEditModal(method)}
+                      title="Edit payment method"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
                     </Button>
 
                     <Button
@@ -244,6 +283,52 @@ export function PaymentMethodsPage() {
           })}
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog
+        isOpen={!!editingMethod}
+        onClose={() => setEditingMethod(null)}
+        title="Edit Payment Method"
+        description={`Update settings for ${editingMethod?.name}`}
+      >
+        {editError && (
+          <div className="p-3 rounded-xl border border-red-500/20 bg-red-500/10 text-xs text-red-400 mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>{editError}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleEditSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-white/30">System Code (Read Only)</label>
+            <Input value={editingMethod?.code || ''} disabled className="opacity-60 bg-white/[0.02]" />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-white/60">Payment Method Name</label>
+            <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-white/60">Description</label>
+            <textarea
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              rows={3}
+              className="flex w-full rounded-xl border border-white/10 bg-[#0c0c10] px-3 py-2 text-xs text-white/80 focus:outline-none focus:border-white/30 resize-none"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-white/60">Display Order Index</label>
+            <Input type="number" value={editDisplayOrder} onChange={(e) => setEditDisplayOrder(parseInt(e.target.value) || 0)} />
+          </div>
+
+          <Button type="submit" className="w-full font-bold" isLoading={updateMutation.isPending}>
+            Update Payment Method
+          </Button>
+        </form>
+      </Dialog>
     </div>
   );
 }

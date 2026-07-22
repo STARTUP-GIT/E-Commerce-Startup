@@ -9,7 +9,7 @@ import { Badge } from '@/shared/components/Badge';
 import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Dialog } from '@/shared/components/Dialog';
-import { Truck, Plus, CheckCircle, XCircle, AlertTriangle, ArrowUpDown, Trash2, Edit2, ShieldAlert } from 'lucide-react';
+import { Truck, Plus, CheckCircle, XCircle, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Edit2, ShieldAlert } from 'lucide-react';
 
 export function DeliveryMethodsPage() {
   const queryClient = useQueryClient();
@@ -84,6 +84,11 @@ export function DeliveryMethodsPage() {
     setDescription('');
     setDisplayOrder(0);
     setFormError(null);
+  };
+
+  const handleReorder = (method: DeliveryMethodSetting, delta: number) => {
+    const newOrder = Math.max(0, method.displayOrder + delta);
+    updateMutation.mutate({ id: method.id, payload: { displayOrder: newOrder } });
   };
 
   const handleToggleClick = (method: DeliveryMethodSetting) => {
@@ -211,22 +216,30 @@ export function DeliveryMethodsPage() {
 
                   <div className="flex items-center justify-between text-xs text-white/50 pt-3 border-t border-white/5 mt-3">
                     <div className="flex items-center gap-2 text-[10px]">
-                      <ArrowUpDown className="h-3 w-3 text-white/40" />
-                      <span>Display Order: <strong className="text-white/80">#{method.displayOrder}</strong></span>
+                      <span className="font-semibold text-white/70">Display Order:</span>
+                      <span className="font-mono bg-white/5 px-2 py-0.5 rounded text-white font-bold">
+                        #{method.displayOrder}
+                      </span>
+                      <div className="flex gap-1 ml-1">
+                        <button
+                          onClick={() => handleReorder(method, -1)}
+                          className="p-1 rounded hover:bg-white/10 text-white/60 hover:text-white transition-all cursor-pointer"
+                          title="Move up"
+                        >
+                          <ArrowUp className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => handleReorder(method, 1)}
+                          className="p-1 rounded hover:bg-white/10 text-white/60 hover:text-white transition-all cursor-pointer"
+                          title="Move down"
+                        >
+                          <ArrowDown className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
                   <div className="flex gap-2 mt-4">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openEditModal(method)}
-                      className="text-[10px] h-8 border-white/10 px-2.5"
-                    >
-                      <Edit2 className="h-3 w-3 mr-1" />
-                      Edit
-                    </Button>
-
                     <Button
                       size="sm"
                       variant={isAllowed ? 'outline' : 'default'}
@@ -234,7 +247,17 @@ export function DeliveryMethodsPage() {
                       isLoading={toggleMutation.isPending}
                       onClick={() => handleToggleClick(method)}
                     >
-                      {isAllowed ? 'Disable' : 'Allow'}
+                      {isAllowed ? 'Not Allowed' : 'Allowed'}
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 w-8 p-0 text-white/70 hover:bg-white/10 shrink-0 cursor-pointer"
+                      onClick={() => openEditModal(method)}
+                      title="Edit delivery method"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
                     </Button>
 
                     <Button

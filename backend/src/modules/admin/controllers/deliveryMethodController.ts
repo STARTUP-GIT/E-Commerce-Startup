@@ -11,19 +11,29 @@ export const ensureDefaultDeliveryMethods = async () => {
                     {
                         code: "PORTAL_DELIVERY",
                         name: "Portal Delivery",
-                        description: "Standard marketplace logistics delivery managed by platform carriers.",
+                        description: "Aura Marketplace logistics handles delivery.",
                         enabled: true,
                         displayOrder: 1,
                     },
                     {
                         code: "SELLER_DELIVERY",
                         name: "Seller Delivery",
-                        description: "Direct seller self-fulfillment and local delivery.",
+                        description: "Seller delivers directly.",
                         enabled: true,
                         displayOrder: 2,
                     },
                 ],
                 skipDuplicates: true,
+            });
+        } else {
+            // Update existing defaults if they exist with legacy descriptions
+            await prisma.deliveryMethodSetting.updateMany({
+                where: { code: "PORTAL_DELIVERY", description: "Standard marketplace logistics delivery managed by platform carriers." },
+                data: { name: "Portal Delivery", description: "Aura Marketplace logistics handles delivery." },
+            });
+            await prisma.deliveryMethodSetting.updateMany({
+                where: { code: "SELLER_DELIVERY", description: "Direct seller self-fulfillment and local delivery." },
+                data: { name: "Seller Delivery", description: "Seller delivers directly." },
             });
         }
     } catch (error) {

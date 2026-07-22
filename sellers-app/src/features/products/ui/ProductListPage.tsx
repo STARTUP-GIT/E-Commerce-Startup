@@ -90,9 +90,9 @@ export function ProductListPage() {
     staleTime: 60 * 1000,
   });
 
-  const enabledMethods = enabledDeliveryMethodsData || [];
-  const isPortalEnabled = enabledMethods.length === 0 || enabledMethods.some((m) => m.code === 'PORTAL_DELIVERY');
-  const isSellerEnabled = enabledMethods.length === 0 || enabledMethods.some((m) => m.code === 'SELLER_DELIVERY' || m.code === 'SELF_DELIVERY');
+  const enabledMethods = enabledDeliveryMethodsData;
+  const isPortalEnabled = enabledMethods ? enabledMethods.some((m) => m.code === 'PORTAL_DELIVERY') : true;
+  const isSellerEnabled = enabledMethods ? enabledMethods.some((m) => m.code === 'SELLER_DELIVERY' || m.code === 'SELF_DELIVERY') : true;
 
   useEffect(() => {
     if (!isPortalEnabled && isSellerEnabled) {
