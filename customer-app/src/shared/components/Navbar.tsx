@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { useUIStore } from '@/lib/store/uiStore';
@@ -58,6 +59,17 @@ export function Navbar() {
   const setCartOpen = useUIStore((state) => state.setCartOpen);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  const getDropdownStyle = (): React.CSSProperties => {
+    if (!triggerRef.current) return { right: 8, top: 56 };
+    const rect = triggerRef.current.getBoundingClientRect();
+    return {
+      position: 'fixed' as const,
+      top: rect.bottom + 8,
+      right: window.innerWidth - rect.right,
+    };
+  };
 
   const {
     selectedState,
@@ -203,6 +215,7 @@ export function Navbar() {
                 {/* User Dropdown */}
                 <div className="relative ml-1 pl-2 border-l border-white/[0.08]">
                   <button
+                    ref={(el) => { triggerRef.current = el; }}
                     onClick={() => setMenuOpen(!menuOpen)}
                     className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.07] transition-all cursor-pointer"
                   >
@@ -217,10 +230,11 @@ export function Navbar() {
                     </span>
                   </button>
 
-                  {menuOpen && (
+                  {menuOpen && typeof window !== 'undefined' && createPortal(
                     <>
-                      <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
-                      <div className="absolute right-0 top-full mt-2 w-52 glass-card z-40 p-1.5 animate-in fade-in slide-in-from-top-1 duration-100">
+                      <div className="fixed inset-0 z-[9998]" onClick={() => setMenuOpen(false)} />
+                      <div className="fixed z-[9999] w-52 glass-card p-1.5 animate-in fade-in slide-in-from-top-1 duration-100"
+                        style={getDropdownStyle()}>
                         <div className="px-3 py-2.5 border-b border-white/[0.07] mb-1">
                           <p className="text-xs font-bold text-white truncate">{session.user?.name}</p>
                           <p className="text-[10px] text-white/40 truncate mt-0.5">{session.user?.email}</p>
@@ -244,7 +258,8 @@ export function Navbar() {
                           </button>
                         </div>
                       </div>
-                    </>
+                    </>,
+                    document.body
                   )}
                 </div>
               </>
