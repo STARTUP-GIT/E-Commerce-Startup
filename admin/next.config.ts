@@ -21,6 +21,12 @@ const nextConfig: NextConfig = {
         source: "/admin/api/auth/:path*",
         destination: `${adminBackendUrl.replace(/\/$/, "")}/admin/api/auth/:path*`,
       },
+      // ── Local Route Handler: sets admin_session cookie with correct attributes ──
+      // Must come BEFORE the /api/admin/:path* catch-all.
+      {
+        source: "/api/admin/auth/login",
+        destination: "/api/admin/auth/login",
+      },
       {
         source: "/api/admin/:path*",
         destination: `${adminBackendUrl.replace(/\/$/, "")}/api/admin/:path*`,

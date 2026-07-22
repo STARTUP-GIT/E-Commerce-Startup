@@ -37,10 +37,17 @@ export function PaymentMethodsPage() {
   const { showToast } = useUIStore();
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error: queryError } = useQuery({
     queryKey: ['payment-methods'],
-    queryFn: paymentMethodApi.getPaymentMethods,
-    staleTime: 2 * 60 * 1000,
+    queryFn: async () => {
+      console.log('[PaymentMethods] Fetching from GET /api/admin/payment-methods ...');
+      const result = await paymentMethodApi.getPaymentMethods();
+      console.log('[PaymentMethods] GET response:', result);
+      return result;
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    retry: 1,
   });
 
   const dbMethods: PaymentMethodSetting[] = data?.paymentMethods ?? [];
@@ -114,6 +121,14 @@ export function PaymentMethodsPage() {
         </div>
       </div>
 
+      {/* Auth / fetch error */}
+      {isError && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-400 font-medium">
+          Failed to load payment methods — {(queryError as any)?.message || 'check admin session / backend'}.
+          Ensure you are logged in and the backend is reachable.
+        </div>
+      )}
+
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 2 }).map((_, i) => (
@@ -165,6 +180,12 @@ export function PaymentMethodsPage() {
                     </Badge>
                   </div>
 
+                  {!id && (
+                    <p className="text-[9px] text-amber-400/70 mt-2">
+                      DB record missing — login may have failed or session expired.
+                    </p>
+                  )}
+
                   <div className="flex gap-2 mt-4">
                     <Button
                       size="sm"
@@ -174,11 +195,12 @@ export function PaymentMethodsPage() {
                       disabled={!id || (toggleMutation.isPending && togglingId === id)}
                       onClick={() => {
                         console.log('[PaymentMethods] Button clicked — id:', id, 'currentAllowed:', isAllowed);
+                        console.log('[PaymentMethods] Sending PATCH /api/admin/payment-methods/' + id);
                         if (id) {
                           setTogglingId(id);
                           toggleMutation.mutate({ id, allowed: !isAllowed });
                         } else {
-                          console.warn('[PaymentMethods] Button click ignored — id is undefined (DB record not found for this method)');
+                          console.error('[PaymentMethods] BLOCKED — id is undefined. GET /api/admin/payment-methods failed or returned empty.');
                         }
                       }}
                     >
