@@ -747,14 +747,7 @@ export const updateShop = async (req: Request, res: Response) => {
             state,
             postalCode,
             country,
-            deliveryMode
         } = req.body;
-
-        if (deliveryMode && deliveryMode !== "PLATFORM" && deliveryMode !== "SELF") {
-            return res.status(400).json({
-                message: "Invalid delivery mode. Must be 'PLATFORM' or 'SELF'."
-            });
-        }
 
         const shop = await prisma.shop.findUnique({
             where: { sellerId },
@@ -824,7 +817,6 @@ export const updateShop = async (req: Request, res: Response) => {
                     name: shopName ?? undefined,
                     description: description ?? undefined,
                     supportPhone: phone ?? undefined,
-                    deliveryMode: deliveryMode ?? undefined,
                 }
             });
 
