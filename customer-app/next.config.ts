@@ -54,6 +54,21 @@ const nextConfig: NextConfig = {
         source: '/api/auth/:path*',
         destination: '/api/auth/:path*',
       },
+      // ── Our own Route Handlers that set customer_session cookie ──────────
+      // These MUST come before the /api/:path* catch-all or they'd be
+      // proxied to the backend instead of handled by Next.js.
+      {
+        source: '/api/customer/login',
+        destination: '/api/customer/login',
+      },
+      {
+        source: '/api/customer/google',
+        destination: '/api/customer/google',
+      },
+      {
+        source: '/api/customer/logout',
+        destination: '/api/customer/logout',
+      },
       {
         // Everything else under /api/** → backend
         source: '/api/:path*',

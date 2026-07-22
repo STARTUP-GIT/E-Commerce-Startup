@@ -1,37 +1,31 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
-import { cookies } from 'next/headers';
-import axiosInstance from '../axios/axiosInstance';
 
-const setSessionCookie = async (cookieHeader: string[] | undefined) => {
-  if (!cookieHeader) return;
-  const sessionCookieStr = cookieHeader.find((c) => c.startsWith('customer_session='));
-  if (!sessionCookieStr) return;
+/**
+ * WHY WE DO NOT CALL cookies().set() HERE
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Next.js App Router only allows cookies().set() inside:
+ *   - Route Handlers  (app/api/.../route.ts)
+ *   - Server Actions  ('use server' functions)
+ *
+ * NextAuth's authorize() and signIn() callbacks are neither. Calling
+ * cookies().set() there is silently dropped — Next.js has already locked the
+ * response headers by the time these callbacks run.
+ *
+ * THE CORRECT PATTERN:
+ *   1. The client calls /api/customer/login (our Route Handler).
+ *   2. That handler calls the backend, reads Set-Cookie, and sets
+ *      customer_session on the browser response (this WORKS).
+ *   3. The client then calls signIn('credentials', …) to get the NextAuth
+ *      JWT session token (__Secure-next-auth.session-token).
+ *
+ * authorize() here only validates credentials via the backend to decide
+ * whether NextAuth should issue its own JWT — it does NOT set any cookies.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 
-  const parts = sessionCookieStr.split(';');
-  const [nameValue, ...directives] = parts;
-  const value = nameValue.split('=')[1];
-
-  const options: any = {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
-  };
-
-  directives.forEach((d) => {
-    const trimmed = d.trim().toLowerCase();
-    if (trimmed.startsWith('max-age=')) {
-      options.maxAge = parseInt(trimmed.split('=')[1], 10);
-    } else if (trimmed.startsWith('expires=')) {
-      options.expires = new Date(trimmed.split('=')[1]);
-    }
-  });
-
-  const cookieStore = await cookies();
-  cookieStore.set('customer_session', value, options);
-};
+const BACKEND_URL = process.env.BACKEND_API_URL?.replace(/\/$/, '');
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -40,101 +34,98 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         identifier: { label: 'Email or Username', type: 'text' },
         password: { label: 'Password', type: 'password' },
+        // Google mock path — used by the client after calling /api/customer/google
         isGoogleMock: { label: 'isGoogleMock', type: 'text' },
-        email: { label: 'Email', type: 'text' },
-        firstName: { label: 'firstName', type: 'text' },
-        lastName: { label: 'lastName', type: 'text' },
-        avatarUrl: { label: 'avatarUrl', type: 'text' },
-        googleId: { label: 'googleId', type: 'text' },
+        email:        { label: 'Email',       type: 'text' },
+        name:         { label: 'Name',        type: 'text' },
+        avatarUrl:    { label: 'avatarUrl',   type: 'text' },
+        userId:       { label: 'userId',      type: 'text' },
       },
       async authorize(credentials) {
+        // ── Google mock path ──────────────────────────────────────────────────
+        // The client already called /api/customer/google (Route Handler) which
+        // set customer_session. Here we just create the NextAuth JWT token.
         if (credentials?.isGoogleMock === 'true') {
-          try {
-            const response = await axiosInstance.post('/api/auth/google', {
-              email: credentials.email,
-              firstName: credentials.firstName,
-              lastName: credentials.lastName,
-              avatarUrl: credentials.avatarUrl,
-              googleId: credentials.googleId,
-            });
-
-            const data = response.data;
-            if (data?.user) {
-              const setCookieHeader = response.headers['set-cookie'];
-              await setSessionCookie(setCookieHeader);
-
-              return {
-                id: data.user.id,
-                email: data.user.email,
-                name: `${data.user.firstName} ${data.user.lastName || ''}`.trim(),
-                username: data.user.username,
-              };
-            }
-            return null;
-          } catch (error: any) {
-            const msg = error.response?.data?.message || error.message || 'Google Auth Failed';
-            throw new Error(msg);
-          }
+          if (!credentials.email || !credentials.userId) return null;
+          return {
+            id:    credentials.userId,
+            email: credentials.email,
+            name:  credentials.name  || '',
+          };
         }
 
+        // ── Credentials path ──────────────────────────────────────────────────
+        // The client already called /api/customer/login (Route Handler) which
+        // set customer_session. Here we re-validate with the backend just to
+        // confirm the credentials are correct before NextAuth issues its JWT.
         const identifier = credentials?.identifier;
         if (!identifier || !credentials?.password) return null;
+
         try {
-          const response = await axiosInstance.post('/api/auth/login', {
-            identifier,
-            password: credentials.password,
+          if (!BACKEND_URL) throw new Error('BACKEND_API_URL not configured');
+
+          const res = await fetch(`${BACKEND_URL}/users/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              identifier,
+              password: credentials.password,
+            }),
           });
 
-          const data = response.data;
-          if (data?.user) {
-            // Retrieve set-cookie headers from backend response and set on client
-            const setCookieHeader = response.headers['set-cookie'];
-            await setSessionCookie(setCookieHeader);
+          const data = await res.json();
 
-            return {
-              id: data.user.id,
-              email: data.user.email,
-              name: `${data.user.firstName} ${data.user.lastName || ''}`.trim(),
-              username: data.user.username,
-            };
+          if (!res.ok || !data?.user) {
+            throw new Error(data?.message || 'Invalid credentials');
           }
-          return null;
-        } catch (error: any) {
-          throw new Error(error.response?.data?.message || error.message || 'Invalid credentials');
+
+          // Return user object → NextAuth puts this in the JWT token
+          return {
+            id:    data.user.id,
+            email: data.user.email,
+            name:  `${data.user.firstName} ${data.user.lastName || ''}`.trim(),
+          };
+        } catch (err: any) {
+          throw new Error(err?.message || 'Login failed');
         }
       },
     }),
+
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID as string, 
+      clientId:     process.env.GOOGLE_CLIENT_ID     as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     }),
   ],
+
   callbacks: {
     async signIn({ user, account }) {
+      // Google OAuth path: the browser already has customer_session set by
+      // /api/customer/google (Route Handler). Here we just update the user
+      // object so NextAuth can issue its own JWT.
       if (account?.provider === 'google') {
         try {
           const idToken = account.id_token;
-          if (!idToken) return false;
+          if (!idToken || !BACKEND_URL) return false;
 
-          const response = await axiosInstance.post('/api/auth/google', {
-            idToken,
+          const res = await fetch(`${BACKEND_URL}/users/api/auth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken }),
           });
 
-          const data = response.data;
-          if (data?.user) {
-            const setCookieHeader = response.headers['set-cookie'];
-            await setSessionCookie(setCookieHeader);
+          const data = await res.json();
 
-            user.id = data.user.id;
-            user.email = data.user.email;
-            user.name = `${data.user.firstName} ${data.user.lastName || ''}`.trim();
-            return true;
-          }
-          return false;
-        } catch (error: any) {
-          console.error('Google Auth Error:', error);
-          const msg = error?.message || '';
-          if (msg.includes('Seller') || msg.includes('seller')) {
+          if (!res.ok || !data?.user) return false;
+
+          // Patch user object so jwt() callback gets the right values
+          user.id    = data.user.id;
+          user.email = data.user.email;
+          user.name  = `${data.user.firstName} ${data.user.lastName || ''}`.trim();
+          return true;
+        } catch (err: any) {
+          console.error('[NextAuth] Google signIn error:', err?.message);
+          const msg = err?.message || '';
+          if (msg.toLowerCase().includes('seller')) {
             return '/login?error=SellerAccountExists';
           }
           return '/login?error=GoogleAuthFailed';
@@ -142,40 +133,49 @@ export const authOptions: NextAuthOptions = {
       }
       return true;
     },
+
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
+        token.id    = user.id;
         token.email = user.email;
-        token.name = user.name;
+        token.name  = user.name;
       }
       return token;
     },
+
     async session({ session, token }) {
       if (token && session.user) {
         (session.user as any).id = token.id;
-        session.user.email = token.email;
-        session.user.name = token.name;
+        session.user.email       = token.email;
+        session.user.name        = token.name;
       }
       return session;
     },
   },
+
   events: {
     async signOut() {
+      // Call backend logout to clear server-side session if any.
+      // customer_session cookie clearing is handled by /api/customer/logout
+      // (to be called by the client on sign-out).
       try {
-        const cookieStore = await cookies();
-        cookieStore.delete('customer_session');
-        await axiosInstance.post('/api/auth/logout');
-      } catch (error) {
-        console.error('Logout error on backend:', error);
+        if (BACKEND_URL) {
+          await fetch(`${BACKEND_URL}/users/api/auth/logout`, { method: 'POST' });
+        }
+      } catch (err) {
+        console.error('[NextAuth] Logout error:', err);
       }
     },
   },
+
   pages: {
     signIn: '/login',
-    error: '/login',
+    error:  '/login',
   },
+
   session: {
     strategy: 'jwt',
   },
+
   secret: process.env.NEXTAUTH_SECRET || 'supersecretnextauthsecret',
 };

@@ -21,8 +21,10 @@ if (isServer && !serverBackendUrl) {
   throw new Error('BACKEND_API_URL is required for server-side API calls.');
 }
 
+// Server-side: backend mounts all customer routes at /users (see app.ts lines 149-163).
+// Client-side: empty baseURL → Next.js rewrites proxy to /users/api/* on the backend.
 const axiosInstance = axios.create({
-  baseURL: isServer ? `${serverBackendUrl!.replace(/\/$/, '')}/customer` : '',
+  baseURL: isServer ? `${serverBackendUrl!.replace(/\/$/, '')}/users` : '',
   withCredentials: true,
 });
 
