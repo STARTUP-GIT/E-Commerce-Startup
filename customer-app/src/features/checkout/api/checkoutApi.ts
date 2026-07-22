@@ -53,6 +53,10 @@ export const checkoutApi = {
     const response = await axiosInstance.get('/api/checkout/payment-methods');
     return response.data;
   },
+  getDeliveryMethods: async (): Promise<{ deliveryMethods: Array<{ id: string; name: string; code: string; description?: string; enabled: boolean; displayOrder: number }> }> => {
+    const response = await axiosInstance.get('/api/checkout/delivery-methods');
+    return response.data;
+  },
   checkoutCod: async (payload: {
     shippingAddressId: string;
     billingAddressId?: string;

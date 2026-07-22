@@ -28,12 +28,41 @@ import { productApi } from '../api/productApi';
 
 import { useConfirmStore } from '@/lib/store/confirmStore';
 
+import { useQuery } from '@tanstack/react-query';
+import axiosInstance from '@/lib/axios/axiosInstance';
+
 export function ProductListPage() {
   const { products, isLoading, isError, refetch, createProduct, updateProduct, deleteProduct } = useProducts();
   const { upload: uploadProductImage, isUploading, progress: uploadProgress,  publicUrl } = useFileUpload({ folder: 'products' });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+
+  // Fetch globally enabled delivery methods
+  const { data: enabledDeliveryMethodsData } = useQuery({
+    queryKey: ['enabled-delivery-methods-seller'],
+    queryFn: async () => {
+      try {
+        const res = await axiosInstance.get('/api/checkout/delivery-methods');
+        return (res.data.deliveryMethods || []) as Array<{ id: string; name: string; code: string; enabled: boolean }>;
+      } catch {
+        return [{ id: '1', name: 'Portal Delivery', code: 'PORTAL_DELIVERY', enabled: true }, { id: '2', name: 'Seller Delivery', code: 'SELLER_DELIVERY', enabled: true }];
+      }
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const enabledMethods = enabledDeliveryMethodsData || [];
+  const isPortalEnabled = enabledMethods.length === 0 || enabledMethods.some((m) => m.code === 'PORTAL_DELIVERY');
+  const isSellerEnabled = enabledMethods.length === 0 || enabledMethods.some((m) => m.code === 'SELLER_DELIVERY' || m.code === 'SELF_DELIVERY');
+
+  useEffect(() => {
+    if (!isPortalEnabled && isSellerEnabled) {
+      setValueCreate('deliveryMethod', 'SELF_DELIVERY');
+    } else if (isPortalEnabled && !isSellerEnabled) {
+      setValueCreate('deliveryMethod', 'PORTAL_DELIVERY');
+    }
+  }, [isPortalEnabled, isSellerEnabled, setValueCreate]);
 
   useEffect(() => {
     productApi.getAllowedCategories()
@@ -387,16 +416,28 @@ export function ProductListPage() {
 
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-white/60 ml-1 block">Delivery Method</label>
-              <select
-                {...registerCreate('deliveryMethod')}
-                className="flex h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-white/80"
-              >
-                <option value="PORTAL_DELIVERY" className="bg-[#0b0b0f] text-white">Portal Delivery (Marketplace logistics delivers)</option>
-                <option value="SELF_DELIVERY" className="bg-[#0b0b0f] text-white">Seller Delivery (Seller delivers directly)</option>
-                <option value="BOTH" className="bg-[#0b0b0f] text-white">Both (Customer chooses during checkout)</option>
-              </select>
+              {!isPortalEnabled && !isSellerEnabled ? (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 font-semibold">
+                  No delivery methods are currently enabled globally by Admin. Products cannot be published.
+                </div>
+              ) : (
+                <select
+                  {...registerCreate('deliveryMethod')}
+                  className="flex h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-white/80"
+                >
+                  {isPortalEnabled && (
+                    <option value="PORTAL_DELIVERY" className="bg-[#0b0b0f] text-white">Portal Delivery (Marketplace logistics delivers)</option>
+                  )}
+                  {isSellerEnabled && (
+                    <option value="SELF_DELIVERY" className="bg-[#0b0b0f] text-white">Seller Delivery (Seller delivers directly)</option>
+                  )}
+                  {isPortalEnabled && isSellerEnabled && (
+                    <option value="BOTH" className="bg-[#0b0b0f] text-white">Both (Customer chooses during checkout)</option>
+                  )}
+                </select>
+              )}
               <p className="text-[9px] text-white/35 ml-1">
-                Portal Delivery requires admin coverage. Seller Delivery does not depend on admin coverage.
+                Only globally allowed delivery methods are displayed.
               </p>
             </div>
 
@@ -504,14 +545,26 @@ export function ProductListPage() {
 
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-white/60 ml-1 block">Delivery Method</label>
-              <select
-                {...registerEdit('deliveryMethod')}
-                className="flex h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-white/80"
-              >
-                <option value="PORTAL_DELIVERY" className="bg-[#0b0b0f] text-white">Portal Delivery (Marketplace logistics delivers)</option>
-                <option value="SELF_DELIVERY" className="bg-[#0b0b0f] text-white">Seller Delivery (Seller delivers directly)</option>
-                <option value="BOTH" className="bg-[#0b0b0f] text-white">Both (Customer chooses during checkout)</option>
-              </select>
+              {!isPortalEnabled && !isSellerEnabled ? (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 font-semibold">
+                  No delivery methods are currently enabled globally by Admin.
+                </div>
+              ) : (
+                <select
+                  {...registerEdit('deliveryMethod')}
+                  className="flex h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-white/80"
+                >
+                  {isPortalEnabled && (
+                    <option value="PORTAL_DELIVERY" className="bg-[#0b0b0f] text-white">Portal Delivery (Marketplace logistics delivers)</option>
+                  )}
+                  {isSellerEnabled && (
+                    <option value="SELF_DELIVERY" className="bg-[#0b0b0f] text-white">Seller Delivery (Seller delivers directly)</option>
+                  )}
+                  {isPortalEnabled && isSellerEnabled && (
+                    <option value="BOTH" className="bg-[#0b0b0f] text-white">Both (Customer chooses during checkout)</option>
+                  )}
+                </select>
+              )}
             </div>
 
             {/* Image Upload Form Panel */}

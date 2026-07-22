@@ -273,6 +273,21 @@ export const getEnabledPaymentMethods = async (req: Request, res: Response) => {
     }
 };
 
+export const getEnabledDeliveryMethods = async (req: Request, res: Response) => {
+    try {
+        const { ensureDefaultDeliveryMethods } = await import("../../admin/controllers/deliveryMethodController.js");
+        await ensureDefaultDeliveryMethods();
+        const methods = await prisma.deliveryMethodSetting.findMany({
+            where: { enabled: true },
+            orderBy: { displayOrder: "asc" }
+        });
+        return res.status(200).json({ deliveryMethods: methods });
+    } catch (error: any) {
+        console.error("GET ENABLED DELIVERY METHODS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
 export const checkoutCod = async (req: Request, res: Response) => {
     try {
         const customerId = req.customerId;

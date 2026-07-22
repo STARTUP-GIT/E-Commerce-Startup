@@ -56,7 +56,26 @@ export function CheckoutPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Fetch enabled delivery methods
+  const { data: deliveryMethodsData } = useQuery({
+    queryKey: ['enabled-delivery-methods-checkout'],
+    queryFn: checkoutApi.getDeliveryMethods,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const enabledMethods = paymentMethodsData?.paymentMethods || [];
+
+  const enabledDeliveryMethods = deliveryMethodsData?.deliveryMethods || [];
+  const isPortalDeliveryGloballyEnabled = enabledDeliveryMethods.length === 0 || enabledDeliveryMethods.some((m) => m.code === 'PORTAL_DELIVERY');
+  const isSellerDeliveryGloballyEnabled = enabledDeliveryMethods.length === 0 || enabledDeliveryMethods.some((m) => m.code === 'SELLER_DELIVERY' || m.code === 'SELF_DELIVERY');
+
+  React.useEffect(() => {
+    if (!isPortalDeliveryGloballyEnabled && isSellerDeliveryGloballyEnabled) {
+      setSelectedDeliveryMethod('SELF_DELIVERY');
+    } else if (isPortalDeliveryGloballyEnabled && !isSellerDeliveryGloballyEnabled) {
+      setSelectedDeliveryMethod('PORTAL_DELIVERY');
+    }
+  }, [isPortalDeliveryGloballyEnabled, isSellerDeliveryGloballyEnabled]);
 
   React.useEffect(() => {
     if (enabledMethods.length > 0 && !selectedPaymentMethod) {
@@ -232,47 +251,59 @@ export function CheckoutPage() {
               <CardDescription>Choose how you would like your items delivered.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div
-                onClick={() => setSelectedDeliveryMethod('PORTAL_DELIVERY')}
-                className={`p-3.5 border rounded-xl cursor-pointer transition-all ${
-                  selectedDeliveryMethod === 'PORTAL_DELIVERY'
-                    ? 'border-primary bg-primary/[0.03]'
-                    : 'border-border bg-zinc-950/20 hover:border-zinc-700'
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-semibold text-xs sm:text-sm block">Portal Logistics Delivery</span>
-                    <span className="text-[11px] text-muted-foreground">Managed & tracked directly by Aura Marketplace logistics.</span>
-                  </div>
-                  <Badge variant="outline" className="text-[10px]">Standard Charge</Badge>
+              {!isPortalDeliveryGloballyEnabled && !isSellerDeliveryGloballyEnabled ? (
+                <div className="p-3 text-xs font-semibold text-destructive bg-destructive/10 rounded-xl border border-destructive/20">
+                  No delivery methods are currently enabled globally by Admin.
                 </div>
-              </div>
+              ) : (
+                <>
+                  {isPortalDeliveryGloballyEnabled && (
+                    <div
+                      onClick={() => setSelectedDeliveryMethod('PORTAL_DELIVERY')}
+                      className={`p-3.5 border rounded-xl cursor-pointer transition-all ${
+                        selectedDeliveryMethod === 'PORTAL_DELIVERY'
+                          ? 'border-primary bg-primary/[0.03]'
+                          : 'border-border bg-zinc-950/20 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="font-semibold text-xs sm:text-sm block">Portal Logistics Delivery</span>
+                          <span className="text-[11px] text-muted-foreground">Managed & tracked directly by Aura Marketplace logistics.</span>
+                        </div>
+                        <Badge variant="outline" className="text-[10px]">Standard Charge</Badge>
+                      </div>
+                    </div>
+                  )}
 
-              <div
-                onClick={() => setSelectedDeliveryMethod('SELF_DELIVERY')}
-                className={`p-3.5 border rounded-xl cursor-pointer transition-all ${
-                  selectedDeliveryMethod === 'SELF_DELIVERY'
-                    ? 'border-primary bg-primary/[0.03]'
-                    : 'border-border bg-zinc-950/20 hover:border-zinc-700'
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-semibold text-xs sm:text-sm block">Seller Direct Delivery</span>
-                    <span className="text-[11px] text-muted-foreground">Seller will deliver items directly to your address.</span>
-                  </div>
-                  <Badge variant="success" className="text-[10px]">Free Shipping (₹0)</Badge>
-                </div>
-              </div>
+                  {isSellerDeliveryGloballyEnabled && (
+                    <div
+                      onClick={() => setSelectedDeliveryMethod('SELF_DELIVERY')}
+                      className={`p-3.5 border rounded-xl cursor-pointer transition-all ${
+                        selectedDeliveryMethod === 'SELF_DELIVERY'
+                          ? 'border-primary bg-primary/[0.03]'
+                          : 'border-border bg-zinc-950/20 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="font-semibold text-xs sm:text-sm block">Seller Direct Delivery</span>
+                          <span className="text-[11px] text-muted-foreground">Seller will deliver items directly to your address.</span>
+                        </div>
+                        <Badge variant="success" className="text-[10px]">Free Shipping (₹0)</Badge>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
 
               {/* Portal Coverage Warning */}
-              {selectedDeliveryMethod === 'PORTAL_DELIVERY' && activeAddress && !isPortalCovered && (
+              {selectedDeliveryMethod === 'PORTAL_DELIVERY' && isPortalDeliveryGloballyEnabled && activeAddress && !isPortalCovered && (
                 <div className="p-3 text-xs font-medium text-amber-400 bg-amber-500/10 rounded-xl border border-amber-500/20 flex items-start gap-2 mt-2">
                   <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
                   <div>
                     <span className="font-bold block">Portal Delivery Unavailable</span>
-                    <span>Portal Delivery is unavailable in {activeAddress.city}, {activeAddress.state}. Please select Seller Direct Delivery to proceed.</span>
+                    <span>Portal Delivery is unavailable in {activeAddress.city}, {activeAddress.state}. {isSellerDeliveryGloballyEnabled ? 'Please select Seller Direct Delivery to proceed.' : ''}</span>
                   </div>
                 </div>
               )}
