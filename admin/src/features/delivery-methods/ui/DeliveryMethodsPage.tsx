@@ -158,9 +158,10 @@ export function DeliveryMethodsPage() {
 
       {/* Content */}
       {isLoading ? (
-        <div className="grid md:grid-cols-2 gap-4">
-          <Skeleton className="h-44 w-full rounded-xl" />
-          <Skeleton className="h-44 w-full rounded-xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-40" />
+          ))}
         </div>
       ) : deliveryMethods.length === 0 ? (
         <div className="text-center py-16 bg-white/[0.01] border border-white/5 rounded-xl space-y-3">
@@ -168,90 +169,84 @@ export function DeliveryMethodsPage() {
           <p className="text-sm font-semibold text-white/40">No delivery methods registered yet.</p>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {deliveryMethods.map((method) => {
-            const isEnabled = method.enabled;
+            const isAllowed = method.enabled;
             const activeCount = method.activeProductCount || 0;
 
             return (
               <Card
                 key={method.id}
-                className={`border transition-all duration-200 ${
-                  isEnabled ? 'border-white/10 bg-white/[0.02]' : 'border-red-500/20 bg-red-500/[0.01] opacity-75'
+                className={`border glass-hover ${
+                  isAllowed ? 'border-white/8' : 'border-white/3 opacity-60'
                 }`}
               >
-                <CardHeader className="pb-3 border-b border-white/5 flex flex-row items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <CardTitle className="text-base font-bold text-white/95">{method.name}</CardTitle>
-                      <Badge variant="outline" className="text-[9px] font-mono font-bold uppercase tracking-wider">
-                        {method.code}
-                      </Badge>
-                      {activeCount > 0 && (
-                        <Badge variant="secondary" className="text-[9px] font-semibold text-purple-300">
-                          {activeCount} active product{activeCount > 1 ? 's' : ''}
-                        </Badge>
-                      )}
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                        <Truck className="h-5 w-5 text-white/40" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-bold text-white/90">{method.name}</p>
+                          <Badge variant="outline" className="text-[8px] font-mono uppercase px-1 py-0">
+                            {method.code}
+                          </Badge>
+                          {activeCount > 0 && (
+                            <Badge variant="secondary" className="text-[8px] font-semibold text-purple-300">
+                              {activeCount} active product{activeCount > 1 ? 's' : ''}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-white/40 mt-0.5 line-clamp-2">
+                          {method.description || 'No description provided.'}
+                        </p>
+                      </div>
                     </div>
-                    {method.description && (
-                      <CardDescription className="text-xs text-white/45 mt-1.5 leading-relaxed">
-                        {method.description}
-                      </CardDescription>
-                    )}
+                    <Badge variant={isAllowed ? 'success' : 'secondary'} className="text-[8px] shrink-0 font-bold">
+                      {isAllowed ? 'ACTIVE' : 'INACTIVE'}
+                    </Badge>
                   </div>
 
-                  <Badge variant={isEnabled ? 'success' : 'destructive'} className="text-[9px] font-extrabold uppercase shrink-0">
-                    {isEnabled ? 'Allowed' : 'Not Allowed'}
-                  </Badge>
-                </CardHeader>
-
-                <CardContent className="pt-4 flex items-center justify-between gap-4 text-xs">
-                  <div className="flex items-center gap-2 text-white/40">
-                    <ArrowUpDown className="h-3.5 w-3.5" />
-                    <span>Display Order: <strong className="text-white/80">{method.displayOrder}</strong></span>
+                  <div className="flex items-center justify-between text-xs text-white/50 pt-3 border-t border-white/5 mt-3">
+                    <div className="flex items-center gap-2 text-[10px]">
+                      <ArrowUpDown className="h-3 w-3 text-white/40" />
+                      <span>Display Order: <strong className="text-white/80">#{method.displayOrder}</strong></span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex gap-2 mt-4">
                     <Button
-                      variant="outline"
                       size="sm"
+                      variant="outline"
                       onClick={() => openEditModal(method)}
-                      className="h-8 text-[11px] border-white/10"
+                      className="text-[10px] h-8 border-white/10 px-2.5"
                     >
                       <Edit2 className="h-3 w-3 mr-1" />
                       Edit
                     </Button>
 
                     <Button
-                      variant={isEnabled ? 'destructive' : 'default'}
                       size="sm"
-                      onClick={() => handleToggleClick(method)}
+                      variant={isAllowed ? 'outline' : 'default'}
+                      className="flex-1 text-[10px] font-bold h-8 cursor-pointer"
                       isLoading={toggleMutation.isPending}
-                      className="h-8 text-[11px] font-bold"
+                      onClick={() => handleToggleClick(method)}
                     >
-                      {isEnabled ? (
-                        <>
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Disable
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Enable
-                        </>
-                      )}
+                      {isAllowed ? 'Disable' : 'Allow'}
                     </Button>
 
-                    {activeCount === 0 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteMutation.mutate(method.id)}
-                        className="h-8 w-8 text-white/30 hover:text-red-400 hover:bg-red-500/10"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-red-400 hover:bg-red-500/10 shrink-0 cursor-pointer"
+                      isLoading={deleteMutation.isPending}
+                      onClick={() => deleteMutation.mutate(method.id)}
+                      title="Delete delivery method"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

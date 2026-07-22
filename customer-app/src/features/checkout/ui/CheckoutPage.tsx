@@ -11,7 +11,7 @@ import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Badge } from '@/shared/components/Badge';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { MapPin, Ticket, ShieldCheck, ShieldAlert, CreditCard, ChevronRight } from 'lucide-react';
+import { MapPin, Ticket, ShieldCheck, ShieldAlert, CreditCard, ChevronRight, Truck } from 'lucide-react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { profileApi } from '@/features/auth/profile/api/profileApi';
@@ -241,60 +241,48 @@ export function CheckoutPage() {
             </CardContent>
           </Card>
 
-          {/* Delivery Method Options */}
+          {/* Delivery Method Options (Read-Only Information Card) */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-primary" />
-                Delivery Method
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                <Truck className="h-4 w-4 text-primary" />
+                <span>Delivery Method</span>
               </CardTitle>
-              <CardDescription>Choose how you would like your items delivered.</CardDescription>
+              <CardDescription className="text-xs">Fulfillment method configured by the seller.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {!isPortalDeliveryGloballyEnabled && !isSellerDeliveryGloballyEnabled ? (
-                <div className="p-3 text-xs font-semibold text-destructive bg-destructive/10 rounded-xl border border-destructive/20">
-                  No delivery methods are currently enabled globally by Admin.
+              {selectedDeliveryMethod === 'SELF_DELIVERY' ? (
+                <div className="p-3.5 border border-border/80 bg-muted/20 rounded-xl space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-foreground text-xs sm:text-sm">🚗 Seller Delivery</span>
+                    <Badge variant="success" className="text-[10px]">Free Shipping (₹0)</Badge>
+                  </div>
+                  <p className="text-muted-foreground text-[11px]">Delivered directly by the Seller.</p>
+                  <div className="pt-2 border-t border-border/50 text-[11px] flex justify-between text-muted-foreground">
+                    <span>Estimated Delivery:</span>
+                    <span className="font-semibold text-foreground">Contact Seller</span>
+                  </div>
+                </div>
+              ) : (selectedDeliveryMethod as string) === 'BOTH' ? (
+                <div className="p-3.5 border border-border/80 bg-muted/20 rounded-xl space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-foreground text-xs sm:text-sm">Portal Delivery & Seller Delivery</span>
+                    <Badge variant="outline" className="text-[10px]">Flexible Delivery</Badge>
+                  </div>
+                  <p className="text-muted-foreground text-[11px]">The seller will decide the most suitable delivery option for your location.</p>
                 </div>
               ) : (
-                <>
-                  {isPortalDeliveryGloballyEnabled && (
-                    <div
-                      onClick={() => setSelectedDeliveryMethod('PORTAL_DELIVERY')}
-                      className={`p-3.5 border rounded-xl cursor-pointer transition-all ${
-                        selectedDeliveryMethod === 'PORTAL_DELIVERY'
-                          ? 'border-primary bg-primary/[0.03]'
-                          : 'border-border bg-zinc-950/20 hover:border-zinc-700'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <span className="font-semibold text-xs sm:text-sm block">Portal Logistics Delivery</span>
-                          <span className="text-[11px] text-muted-foreground">Managed & tracked directly by Aura Marketplace logistics.</span>
-                        </div>
-                        <Badge variant="outline" className="text-[10px]">Standard Charge</Badge>
-                      </div>
-                    </div>
-                  )}
-
-                  {isSellerDeliveryGloballyEnabled && (
-                    <div
-                      onClick={() => setSelectedDeliveryMethod('SELF_DELIVERY')}
-                      className={`p-3.5 border rounded-xl cursor-pointer transition-all ${
-                        selectedDeliveryMethod === 'SELF_DELIVERY'
-                          ? 'border-primary bg-primary/[0.03]'
-                          : 'border-border bg-zinc-950/20 hover:border-zinc-700'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <span className="font-semibold text-xs sm:text-sm block">Seller Direct Delivery</span>
-                          <span className="text-[11px] text-muted-foreground">Seller will deliver items directly to your address.</span>
-                        </div>
-                        <Badge variant="success" className="text-[10px]">Free Shipping (₹0)</Badge>
-                      </div>
-                    </div>
-                  )}
-                </>
+                <div className="p-3.5 border border-border/80 bg-muted/20 rounded-xl space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-foreground text-xs sm:text-sm">🚚 Portal Delivery</span>
+                    <Badge variant="outline" className="text-[10px]">Standard Charge</Badge>
+                  </div>
+                  <p className="text-muted-foreground text-[11px]">Delivered by Aura Logistics.</p>
+                  <div className="pt-2 border-t border-border/50 text-[11px] flex justify-between text-muted-foreground">
+                    <span>Estimated Delivery:</span>
+                    <span className="font-semibold text-foreground">2-4 Days</span>
+                  </div>
+                </div>
               )}
 
               {/* Portal Coverage Warning */}
@@ -303,7 +291,7 @@ export function CheckoutPage() {
                   <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
                   <div>
                     <span className="font-bold block">Portal Delivery Unavailable</span>
-                    <span>Portal Delivery is unavailable in {activeAddress.city}, {activeAddress.state}. {isSellerDeliveryGloballyEnabled ? 'Please select Seller Direct Delivery to proceed.' : ''}</span>
+                    <span>Portal Delivery is unavailable in {activeAddress.city}, {activeAddress.state}.</span>
                   </div>
                 </div>
               )}

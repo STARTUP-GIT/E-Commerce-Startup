@@ -322,6 +322,7 @@ export const verifyPayment = async (paymentData: {
     couponCode?: string;
     packingFees?: { sellerId: string; amount: number }[];
     buyNow?: { productId: string; productVariantId?: string; quantity: number };
+    selectedDeliveryMethod?: string;
     // Gateway payload
     razorpayOrderId?: string;
     razorpayPaymentId?: string;
@@ -335,6 +336,7 @@ export const verifyPayment = async (paymentData: {
         couponCode,
         packingFees,
         buyNow,
+        selectedDeliveryMethod,
         razorpayOrderId,
         razorpayPaymentId,
         razorpaySignature,
@@ -410,7 +412,7 @@ export const verifyPayment = async (paymentData: {
                 couponId: appliedCoupon?.id || null,
                 status: "CONFIRMED",
                 paymentMethod: "RAZORPAY",
-                selectedDeliveryMethod: "PORTAL_DELIVERY",
+                selectedDeliveryMethod: selectedDeliveryMethod || "PORTAL_DELIVERY",
                 subtotal: productSubtotal,
                 shippingTotal,
                 taxTotal: gstAmount,
@@ -450,7 +452,7 @@ export const verifyPayment = async (paymentData: {
                     pickupSellerAddressId,
                     status: "PENDING",
                     paymentMethod: "RAZORPAY",
-                    selectedDeliveryMethod: "PORTAL_DELIVERY",
+                    selectedDeliveryMethod: selectedDeliveryMethod || "PORTAL_DELIVERY",
                     subtotal: sellerSubtotal,
                     shippingAmount: shippingTotal / sellerSubtotals.size, // Distribute shipping charges equally
                     taxAmount: sellerTax,

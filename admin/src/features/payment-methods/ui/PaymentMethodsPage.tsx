@@ -152,59 +152,47 @@ export function PaymentMethodsPage() {
 
       {/* Payment Method Cards */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-44" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-40" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {methods.map((method) => {
             const isAllowed = method.enabled;
             return (
               <Card
                 key={method.id}
-                className={`border transition-all ${
-                  isAllowed ? 'border-white/10 glass-hover' : 'border-white/5 bg-white/[0.01] opacity-75'
+                className={`border glass-hover ${
+                  isAllowed ? 'border-white/8' : 'border-white/3 opacity-60'
                 }`}
               >
-                <CardContent className="p-5 space-y-4">
-                  {/* Top Bar: Icon + Name + Badge */}
-                  <div className="flex items-start justify-between gap-3">
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div
-                        className={`h-11 w-11 rounded-xl flex items-center justify-center border ${
-                          isAllowed
-                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                            : 'bg-white/5 border-white/10 text-white/40'
-                        }`}
-                      >
-                        <CreditCard className="h-5 w-5" />
+                      <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                        <CreditCard className="h-5 w-5 text-white/40" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-base font-bold text-white/90">{method.name}</h3>
-                          <Badge variant="outline" className="text-[9px] font-mono uppercase px-1.5 py-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-bold text-white/90">{method.name}</p>
+                          <Badge variant="outline" className="text-[8px] font-mono uppercase px-1 py-0">
                             {method.code}
                           </Badge>
                         </div>
-                        <p className="text-xs text-white/45 mt-0.5 line-clamp-2">
+                        <p className="text-[10px] text-white/40 mt-0.5 line-clamp-2">
                           {method.description || 'No description provided.'}
                         </p>
                       </div>
                     </div>
-
-                    <Badge
-                      variant={isAllowed ? 'success' : 'secondary'}
-                      className="text-[9px] shrink-0 font-bold"
-                    >
-                      {isAllowed ? 'Allowed' : 'Not Allowed'}
+                    <Badge variant={isAllowed ? 'success' : 'secondary'} className="text-[8px] shrink-0 font-bold">
+                      {isAllowed ? 'ACTIVE' : 'INACTIVE'}
                     </Badge>
                   </div>
 
-                  {/* Details Bar: Display order */}
-                  <div className="flex items-center justify-between text-xs text-white/50 pt-2 border-t border-white/5">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between text-xs text-white/50 pt-3 border-t border-white/5 mt-3">
+                    <div className="flex items-center gap-2 text-[10px]">
                       <span className="font-semibold text-white/70">Display Order:</span>
                       <span className="font-mono bg-white/5 px-2 py-0.5 rounded text-white font-bold">
                         #{method.displayOrder}
@@ -228,35 +216,26 @@ export function PaymentMethodsPage() {
                     </div>
                   </div>
 
-                  {/* Actions: Allow / Disable toggle button */}
-                  <div className="flex items-center gap-2 pt-1">
+                  <div className="flex gap-2 mt-4">
                     <Button
                       size="sm"
-                      variant={isAllowed ? 'destructive' : 'default'}
-                      className="flex-1 text-xs font-bold gap-2 cursor-pointer"
+                      variant={isAllowed ? 'outline' : 'default'}
+                      className="flex-1 text-[10px] font-bold h-8 cursor-pointer"
                       isLoading={toggleMutation.isPending}
                       onClick={() => toggleMutation.mutate({ id: method.id, enabled: !isAllowed })}
                     >
-                      {isAllowed ? (
-                        <>
-                          <XCircle className="h-3.5 w-3.5" /> Disable Method
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-3.5 w-3.5" /> Allow Payment Method
-                        </>
-                      )}
+                      {isAllowed ? 'Disable' : 'Allow'}
                     </Button>
 
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-9 w-9 p-0 text-red-400 hover:bg-red-500/10 shrink-0 cursor-pointer"
+                      className="h-8 w-8 p-0 text-red-400 hover:bg-red-500/10 shrink-0 cursor-pointer"
                       isLoading={deleteMutation.isPending}
                       onClick={() => deleteMutation.mutate(method.id)}
                       title="Delete payment method"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </CardContent>
