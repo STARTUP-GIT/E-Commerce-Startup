@@ -315,8 +315,7 @@ export function OrderDetailPage() {
 
             {order.status === 'DELIVERED' &&
               (order.paymentMethod === 'COD' || order?.order?.paymentMethod === 'COD') &&
-              order?.order?.payments?.[0]?.status !== 'PAID' &&
-              order?.order?.payments?.[0]?.status !== 'COMPLETED' && (
+              !(order?.order?.codCollected || order?.order?.payments?.[0]?.status === 'PAID' || order?.order?.payments?.[0]?.status === 'COMPLETED') && (
                 <Button
                   onClick={handleMarkCodCollected}
                   isLoading={isMarkingCodCollected}
@@ -326,6 +325,15 @@ export function OrderDetailPage() {
                   <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
                   <span>Mark COD Collected</span>
                 </Button>
+              )}
+
+            {order.status === 'DELIVERED' &&
+              (order.paymentMethod === 'COD' || order?.order?.paymentMethod === 'COD') &&
+              (order?.order?.codCollected || order?.order?.payments?.[0]?.status === 'PAID' || order?.order?.payments?.[0]?.status === 'COMPLETED') && (
+                <Badge variant="success" className="text-[10px] px-3 py-1">
+                  <CheckCircle className="mr-1 h-3 w-3" />
+                  COD Collected
+                </Badge>
               )}
           </div>
         </div>

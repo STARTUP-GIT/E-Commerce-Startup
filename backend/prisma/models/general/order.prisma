@@ -25,6 +25,9 @@ model Order {
   completedAt        DateTime?
   cancelledAt        DateTime?
   cancellationReason String?     @db.Text
+  codCollected       Boolean     @default(false)
+  codCollectedAt     DateTime?
+  codCollectedBy     String?     @db.VarChar(50)
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 

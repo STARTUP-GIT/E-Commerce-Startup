@@ -16,6 +16,7 @@ export const getOrders = async (req: Request, res: Response) => {
                 customerId
             },
             include: {
+                payments: true,
                 sellerOrders: {
                     include: {
                         items: true

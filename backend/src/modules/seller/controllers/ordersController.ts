@@ -32,7 +32,11 @@ export const getOrders = async ( req: Request,res: Response) => {
                 sellerId
             },
             include: {
-                order: true,
+                order: {
+                    include: {
+                        payments: true
+                    }
+                },
                 items: {
                     include: {
                         product: true
@@ -96,7 +100,11 @@ export const seeOrders = async (
                 sellerId
             },
             include: {
-                order: true,
+                order: {
+                    include: {
+                        payments: true
+                    }
+                },
 
                 items: {
                     include: {
@@ -758,24 +766,61 @@ export const markCodCollected = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Order must be in DELIVERED status to mark COD as collected" });
         }
 
-        // Update Payment record for this order
+        const paymentMethod = sellerOrder.paymentMethod || sellerOrder.order.paymentMethod;
+        if (paymentMethod !== "COD") {
+            return res.status(400).json({ message: "Order payment method is not Cash on Delivery" });
+        }
+
+        if (sellerOrder.order.codCollected) {
+            return res.status(400).json({ message: "COD has already been collected for this order" });
+        }
+
         const payment = await prisma.payment.findFirst({
             where: { orderId: sellerOrder.orderId }
         });
 
-        if (payment) {
-            await prisma.payment.update({
+        if (!payment) {
+            return res.status(400).json({ message: "No payment record found for this order" });
+        }
+
+        const now = new Date();
+
+        const updatedOrder = await prisma.$transaction(async (tx) => {
+            await tx.payment.update({
                 where: { id: payment.id },
                 data: {
                     status: "PAID",
-                    paidAt: new Date()
+                    paidAt: now
                 }
             });
-        }
+
+            const order = await tx.order.update({
+                where: { id: sellerOrder.orderId },
+                data: {
+                    codCollected: true,
+                    codCollectedAt: now,
+                    codCollectedBy: sellerId
+                }
+            });
+
+            await tx.orderTimelineEvent.create({
+                data: {
+                    entityType: "SELLER_ORDER",
+                    sellerOrderId: sellerOrder.id,
+                    orderId: sellerOrder.orderId,
+                    status: sellerOrder.status,
+                    title: "COD Payment Collected",
+                    description: `Cash on delivery payment of ₹${sellerOrder.order.grandTotal} collected by seller.`
+                }
+            });
+
+            return order;
+        });
 
         return res.status(200).json({
             message: "COD payment marked as collected successfully",
-            paymentStatus: "PAID"
+            paymentStatus: "PAID",
+            order: updatedOrder
         });
     } catch (error) {
         console.error("MARK COD COLLECTED ERROR:", error);
