@@ -40,17 +40,19 @@ export function useOrder(orderId?: string) {
 
   const downloadInvoiceMutation = useMutation({
     mutationFn: (id: string) => orderApi.downloadInvoice(id),
-    onSuccess: (data) => {
-      if (data?.invoiceUrl) {
-        const anchor = document.createElement('a');
-        anchor.href = data.invoiceUrl;
-        anchor.target = '_blank';
-        anchor.rel = 'noopener noreferrer';
-        anchor.click();
-        anchor.remove();
-      } else {
-        showAlert({ title: 'Invoice Downloaded', message: 'The invoice has been generated successfully.' });
-      }
+    onSuccess: (blob) => {
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'invoice.pdf';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+      showAlert({ title: 'Invoice Downloaded', message: 'The invoice has been downloaded successfully.' });
+    },
+    onError: (error: Error) => {
+      showAlert({ title: 'Download Failed', message: error.message || 'Failed to download invoice. Please try again.' });
     },
   });
 

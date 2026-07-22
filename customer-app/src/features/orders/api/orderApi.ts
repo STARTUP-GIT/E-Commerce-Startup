@@ -86,8 +86,10 @@ export const orderApi = {
     const response = await axiosInstance.patch(`/api/orders/seller-order/${sellerOrderId}/confirm`);
     return response.data;
   },
-  downloadInvoice: async (orderId: string): Promise<any> => {
-    const response = await axiosInstance.get(`/api/orders/${orderId}/invoice`);
+  downloadInvoice: async (orderId: string): Promise<Blob> => {
+    const response = await axiosInstance.get(`/api/orders/${orderId}/invoice`, {
+      responseType: 'blob',
+    });
     return response.data;
   },
 };

@@ -8,8 +8,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/shared/components/Card';
 import { Button } from '@/shared/components/Button';
 import { Badge } from '@/shared/components/Badge';
-import { Input } from '@/shared/components/Input';
 import { Dialog } from '@/shared/components/Dialog';
+import { DateTimePicker } from '@/shared/components/DateTimePicker';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { useUIStore } from '@/lib/store/uiStore';
@@ -81,7 +81,7 @@ export function OrderDetailPage() {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [readyOpen, setReadyOpen] = useState(false);
-  const [readyTime, setReadyTime] = useState('');
+  const [readyTime, setReadyTime] = useState<Date | null>(null);
   const [proofOpen, setProofOpen] = useState(false);
   const [proofNote, setProofNote] = useState('');
   const [proofImages, setProofImages] = useState<string[]>([]);
@@ -155,9 +155,9 @@ export function OrderDetailPage() {
     if (!order || !readyTime) return;
     setErrorMsg(null);
     try {
-      await submitReadyTime({ id: order.id, readyByAt: new Date(readyTime).toISOString() });
+      await submitReadyTime({ id: order.id, readyByAt: readyTime.toISOString() });
       setReadyOpen(false);
-      setReadyTime('');
+      setReadyTime(null);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to update preparation time.');
     }
@@ -633,20 +633,13 @@ export function OrderDetailPage() {
           isOpen={readyOpen}
           onClose={() => {
             setReadyOpen(false);
-            setReadyTime('');
+            setReadyTime(null);
           }}
           title="Est. Prep & Readiness Time"
           description="Confirm when this order will be packaged and ready for carrier pickup"
         >
           <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-white/60">Estimated Target Date & Time</label>
-              <Input
-                type="datetime-local"
-                value={readyTime}
-                onChange={(e) => setReadyTime(e.target.value)}
-              />
-            </div>
+            <DateTimePicker value={readyTime} onChange={setReadyTime} />
             <Button
               className="w-full"
               onClick={handleReadyTimeSubmit}
