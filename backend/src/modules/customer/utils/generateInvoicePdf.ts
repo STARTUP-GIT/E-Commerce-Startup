@@ -153,7 +153,7 @@ const CONTENT_W = PAGE_W - MARGIN * 2;
 // ---------------------------------------------------------------------------
 
 function currency(n: number): string {
-    return `\u20B9${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `Rs. ${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function safe(v: string | null | undefined, fallback = ""): string {
@@ -406,16 +406,15 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
     // Table column config
     const cols = [
         { header: "#",         x: MARGIN,       w: 18,  align: "center" as const },
-        { header: "Product",   x: MARGIN + 18,  w: 158, align: "left"   as const },
-        { header: "Category",  x: MARGIN + 176, w: 58,  align: "left"   as const },
-        { header: "Qty",       x: MARGIN + 234, w: 28,  align: "center" as const },
-        { header: "Unit Price",x: MARGIN + 262, w: 62,  align: "right"  as const },
-        { header: "Discount",  x: MARGIN + 324, w: 52,  align: "right"  as const },
-        { header: "Tax",       x: MARGIN + 376, w: 44,  align: "right"  as const },
-        { header: "Subtotal",  x: MARGIN + 420, w: 75,  align: "right"  as const },
+        { header: "Product",   x: MARGIN + 18,  w: 155, align: "left"   as const },
+        { header: "Category",  x: MARGIN + 173, w: 62,  align: "left"   as const },
+        { header: "Qty",       x: MARGIN + 235, w: 28,  align: "center" as const },
+        { header: "Unit Price",x: MARGIN + 263, w: 62,  align: "right"  as const },
+        { header: "Discount",  x: MARGIN + 325, w: 50,  align: "right"  as const },
+        { header: "Tax",       x: MARGIN + 375, w: 45,  align: "right"  as const },
+        { header: "Subtotal",  x: MARGIN + 420, w: 70,  align: "right"  as const },
     ];
     const tableW = CONTENT_W;
-    const rowH = 18;
     const headerRowH = 22;
 
     // Table header background
@@ -430,7 +429,11 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
 
     // Table rows
     allItems.forEach((entry, idx) => {
-        const rowH_actual = entry.item.productName.length > 35 ? 30 : rowH;
+        const hasSku = Boolean(entry.item.productSku);
+        const rowH_actual = hasSku || entry.item.productName.length > 35 ? 26 : 20;
+        const textY = y + (hasSku ? 4 : 6);
+        const centerTextY = y + Math.floor((rowH_actual - 8) / 2);
+
         ensureSpace(rowH_actual + 4);
 
         const bgColor = idx % 2 === 1 ? COLORS.rowAlt : COLORS.bg;
@@ -439,43 +442,45 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
         doc.font(FONT.regular).fontSize(7.5).fillColor(COLORS.text);
 
         // Row number
-        doc.text(String(idx + 1), cols[0].x, y + 5, { width: cols[0].w, align: "center" });
+        doc.text(String(idx + 1), cols[0].x, centerTextY, { width: cols[0].w, align: "center" });
 
         // Product name + variant
         const prodLabel = entry.item.variantName
             ? `${entry.item.productName} (${entry.item.variantName})`
             : entry.item.productName;
-        doc.text(prodLabel, cols[1].x, y + 5, { width: cols[1].w, align: "left", lineBreak: false });
+        doc.text(prodLabel, cols[1].x, textY, { width: cols[1].w, align: "left", lineBreak: false });
 
         // SKU below product name
-        doc.font(FONT.regular).fontSize(6).fillColor(COLORS.muted);
-        doc.text(`SKU: ${entry.item.productSku}`, cols[1].x, y + 14, { width: cols[1].w });
-        doc.font(FONT.regular).fontSize(7.5).fillColor(COLORS.text);
+        if (hasSku) {
+            doc.font(FONT.regular).fontSize(6).fillColor(COLORS.muted);
+            doc.text(`SKU: ${entry.item.productSku}`, cols[1].x, textY + 10, { width: cols[1].w, lineBreak: false });
+            doc.font(FONT.regular).fontSize(7.5).fillColor(COLORS.text);
+        }
 
         // Category
         const catName = safe(entry.item.product?.category?.name, "—");
-        doc.text(catName, cols[2].x, y + 5, { width: cols[2].w, align: "left" });
+        doc.text(catName, cols[2].x, centerTextY, { width: cols[2].w, align: "left" });
 
         // Qty
-        doc.text(String(entry.item.quantity), cols[3].x, y + 5, { width: cols[3].w, align: "center" });
+        doc.text(String(entry.item.quantity), cols[3].x, centerTextY, { width: cols[3].w, align: "center" });
 
         // Unit Price
-        doc.text(currency(entry.item.unitPrice), cols[4].x, y + 5, { width: cols[4].w, align: "right" });
+        doc.text(currency(entry.item.unitPrice), cols[4].x, centerTextY, { width: cols[4].w, align: "right" });
 
         // Discount
         const discountVal = Number(entry.item.discountAmount) || 0;
-        doc.text(discountVal > 0 ? `-${currency(discountVal)}` : "—", cols[5].x, y + 5, {
+        doc.text(discountVal > 0 ? `-${currency(discountVal)}` : "—", cols[5].x, centerTextY, {
             width: cols[5].w,
             align: "right",
         });
 
         // Tax
         const taxVal = Number(entry.item.taxAmount) || 0;
-        doc.text(taxVal > 0 ? currency(taxVal) : "—", cols[6].x, y + 5, { width: cols[6].w, align: "right" });
+        doc.text(taxVal > 0 ? currency(taxVal) : "—", cols[6].x, centerTextY, { width: cols[6].w, align: "right" });
 
         // Subtotal
         doc.font(FONT.bold).fontSize(7.5);
-        doc.text(currency(entry.item.totalPrice), cols[7].x, y + 5, { width: cols[7].w, align: "right" });
+        doc.text(currency(entry.item.totalPrice), cols[7].x, centerTextY, { width: cols[7].w, align: "right" });
         doc.font(FONT.regular);
 
         // Row border
@@ -616,22 +621,23 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
 
         doc.font(FONT.italic).fontSize(6.5).fillColor(COLORS.muted);
         doc.text("This is a computer generated invoice. No signature required.", MARGIN, footerY, {
-            width: CONTENT_W / 3,
+            width: 220,
+            lineBreak: false,
         });
 
         doc.font(FONT.regular).fontSize(6.5);
-        doc.text("Privacy Policy  |  Terms of Service", MARGIN + CONTENT_W / 3, footerY, {
-            width: CONTENT_W / 3,
+        doc.text("Privacy Policy  |  Terms of Service", MARGIN + (CONTENT_W - 160) / 2, footerY, {
+            width: 160,
             align: "center",
         });
 
-        doc.text("auramarketplace.com", MARGIN + (CONTENT_W / 3) * 2, footerY, {
-            width: CONTENT_W / 3,
+        doc.text("auramarketplace.com", MARGIN + CONTENT_W - 120, footerY, {
+            width: 120,
             align: "right",
         });
 
         doc.font(FONT.regular).fontSize(6).fillColor(COLORS.muted);
-        doc.text("Aura Marketplace Pvt. Ltd.", MARGIN, footerY + 12, { width: CONTENT_W / 3 });
+        doc.text("Aura Marketplace Pvt. Ltd.", MARGIN, footerY + 11, { width: 220 });
     }
 }
 
