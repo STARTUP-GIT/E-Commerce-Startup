@@ -125,7 +125,7 @@ const COLORS = {
     bg: "#FFFFFF",
     text: "#09090B",
     muted: "#64748B",
-    border: "#94A3B8",
+    border: "#CBD5E1",
     cardBg: "#FAFAFA",
     headerBg: "#18181B",
     headerText: "#FFFFFF",
