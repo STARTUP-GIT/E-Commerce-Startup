@@ -367,7 +367,7 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
 
     // ── 3. ORDER INFORMATION BAR ─────────────────────────────────────────
     ensureSpace(52);
-    const infoBarH = 40;
+    const infoBarH = 44;
     drawRoundedRect(doc, MARGIN, y, CONTENT_W, infoBarH, 4, COLORS.cardBg, COLORS.border);
 
     const infoItems = [
@@ -381,9 +381,9 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
     infoItems.forEach((item, i) => {
         const ix = MARGIN + i * infoColW + 12;
         doc.font(FONT.regular).fontSize(6.5).fillColor(COLORS.muted);
-        doc.text(item.label.toUpperCase(), ix, y + 10, { width: infoColW - 24 });
+        doc.text(item.label.toUpperCase(), ix, y + 9, { width: infoColW - 20, lineBreak: false });
         doc.font(FONT.bold).fontSize(8).fillColor(COLORS.text);
-        doc.text(item.value, ix, y + 22, { width: infoColW - 24 });
+        doc.text(item.value, ix, y + 21, { width: infoColW - 20, lineBreak: false, ellipsis: true });
     });
 
     y += infoBarH + 16;
@@ -405,14 +405,14 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
 
     // Table column config
     const cols = [
-        { header: "#", x: MARGIN, w: 20, align: "center" as const },
-        { header: "Product", x: MARGIN + 20, w: 165, align: "left" as const },
-        { header: "Category", x: MARGIN + 185, w: 60, align: "left" as const },
-        { header: "Qty", x: MARGIN + 245, w: 30, align: "center" as const },
-        { header: "Unit Price", x: MARGIN + 275, w: 60, align: "right" as const },
-        { header: "Discount", x: MARGIN + 335, w: 50, align: "right" as const },
-        { header: "Tax", x: MARGIN + 385, w: 45, align: "right" as const },
-        { header: "Subtotal", x: MARGIN + 430, w: 65, align: "right" as const },
+        { header: "#",         x: MARGIN,       w: 18,  align: "center" as const },
+        { header: "Product",   x: MARGIN + 18,  w: 158, align: "left"   as const },
+        { header: "Category",  x: MARGIN + 176, w: 58,  align: "left"   as const },
+        { header: "Qty",       x: MARGIN + 234, w: 28,  align: "center" as const },
+        { header: "Unit Price",x: MARGIN + 262, w: 62,  align: "right"  as const },
+        { header: "Discount",  x: MARGIN + 324, w: 52,  align: "right"  as const },
+        { header: "Tax",       x: MARGIN + 376, w: 44,  align: "right"  as const },
+        { header: "Subtotal",  x: MARGIN + 420, w: 75,  align: "right"  as const },
     ];
     const tableW = CONTENT_W;
     const rowH = 18;
