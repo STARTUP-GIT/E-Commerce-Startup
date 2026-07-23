@@ -124,14 +124,14 @@ interface InvoiceOrder {
 const COLORS = {
     bg: "#FFFFFF",
     text: "#09090B",
-    muted: "#71717A",
-    border: "#E4E4E7",
+    muted: "#64748B",
+    border: "#94A3B8",
     cardBg: "#FAFAFA",
     headerBg: "#18181B",
     headerText: "#FFFFFF",
     primary: "#7C3AED",
     accent: "#F4F4F5",
-    rowAlt: "#F9FAFB",
+    rowAlt: "#F8FAFC",
     success: "#16A34A",
     warning: "#CA8A04",
     danger: "#DC2626",
@@ -223,6 +223,7 @@ function drawRoundedRect(
     }
     if (stroke) {
         doc.strokeColor(stroke);
+        doc.lineWidth(0.75);
         doc.stroke();
     } else if (!fill) {
         doc.fill("transparent");
@@ -484,7 +485,7 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
         doc.font(FONT.regular);
 
         // Row border
-        doc.save().moveTo(MARGIN, y + rowH_actual).lineTo(MARGIN + tableW, y + rowH_actual).lineWidth(0.3).strokeColor(COLORS.border).stroke().restore();
+        doc.save().moveTo(MARGIN, y + rowH_actual).lineTo(MARGIN + tableW, y + rowH_actual).lineWidth(0.5).strokeColor(COLORS.border).stroke().restore();
 
         y += rowH_actual;
     });
