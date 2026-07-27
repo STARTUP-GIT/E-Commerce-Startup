@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useUIStore } from '@/lib/store/uiStore';
 import { ShoppingBag, ShoppingCart, Bell, User, LayoutDashboard, LogOut, Store, Menu, X, MapPin } from 'lucide-react';
@@ -60,6 +61,22 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const pathname = usePathname();
+
+  // Close dropdown on route change
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  // Close dropdown on Escape key
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [menuOpen]);
 
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
