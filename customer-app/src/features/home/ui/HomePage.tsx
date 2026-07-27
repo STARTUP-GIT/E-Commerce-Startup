@@ -34,31 +34,33 @@ function ShopCard({ shop, index }: { shop: any; index: number }) {
       style={{ animation: `card-appear 0.45s ease both`, animationDelay: `${index * 70}ms` }}
     >
       <div className="glass-card overflow-hidden glass-hover h-full flex flex-col">
-        {/* Banner */}
-        <div
-          className="relative overflow-hidden flex-shrink-0"
-          style={{ height: '180px', background: banner, backgroundSize: 'cover', backgroundPosition: 'center' }}
-        >
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.15) 50%, transparent 100%)' }} />
-          {shop.defaultPickupAddress && (
-            <span className="absolute bottom-4 left-4 flex items-center gap-1.5 text-xs font-semibold text-white/80" style={{ zIndex: 2 }}>
-              <MapPin style={{ width: 13, height: 13 }} />
-              {shop.defaultPickupAddress.city}, {shop.defaultPickupAddress.state}
-            </span>
-          )}
-        </div>
+        {/* Banner + Avatar bridge */}
+        <div className="relative flex-shrink-0">
+          <div
+            className="relative overflow-hidden"
+            style={{ height: '180px', background: banner, backgroundSize: 'cover', backgroundPosition: 'center' }}
+          >
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.15) 50%, transparent 100%)' }} />
+            {shop.defaultPickupAddress && (
+              <span
+                className="absolute top-3 left-3 flex items-center gap-1.5 text-xs font-semibold text-white/90"
+                style={{ zIndex: 2, background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderRadius: '8px', padding: '5px 10px' }}
+              >
+                <MapPin style={{ width: 12, height: 12 }} />
+                {shop.defaultPickupAddress.city}, {shop.defaultPickupAddress.state}
+              </span>
+            )}
+          </div>
 
-        {/* Body */}
-        <div className="flex flex-col flex-1 p-6" style={{ paddingTop: '3rem', position: 'relative', zIndex: 1 }}>
-          {/* Logo avatar */}
           <div
             className="absolute glass flex items-center justify-center overflow-hidden"
             style={{
-              top: '-28px', left: '24px',
+              bottom: 0, left: '24px', transform: 'translateY(50%)',
               width: '56px', height: '56px',
               borderRadius: '14px',
               border: '3px solid #000',
               background: 'rgba(255,255,255,0.08)',
+              zIndex: 2,
             }}
           >
             {shop.logoUrl
@@ -66,11 +68,14 @@ function ShopCard({ shop, index }: { shop: any; index: number }) {
               : <Store style={{ width: 22, height: 22, color: 'rgba(255,255,255,0.5)' }} />
             }
           </div>
+        </div>
 
+        {/* Content */}
+        <div className="flex flex-col flex-1 px-6 pb-6 pt-8" style={{ zIndex: 1 }}>
           <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#fff', lineHeight: 1.2 }} className="group-hover:opacity-70 transition-opacity line-clamp-1">
             {shop.name}
           </h4>
-          <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.42)', marginTop: '6px', lineHeight: 1.6 }} className="line-clamp-2 flex-1">
+          <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.42)', marginTop: '8px', lineHeight: 1.6 }} className="line-clamp-2 flex-1">
             {shop.description || 'Premium local craft maker.'}
           </p>
           <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'flex-end' }}>
@@ -356,9 +361,14 @@ export function HomePage() {
         {shopsLoading ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="glass-card overflow-hidden">
-                <Skeleton style={{ height: '180px', borderRadius: '0' }} />
-                <div style={{ padding: '24px', paddingTop: '40px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div key={i} className="glass-card overflow-hidden flex flex-col">
+                <div className="relative flex-shrink-0">
+                  <Skeleton style={{ height: '180px', borderRadius: '0' }} />
+                  <div style={{ position: 'absolute', bottom: 0, left: '24px', transform: 'translateY(50%)', zIndex: 2 }}>
+                    <Skeleton style={{ width: '56px', height: '56px', borderRadius: '14px' }} />
+                  </div>
+                </div>
+                <div style={{ padding: '24px', paddingTop: '36px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <Skeleton style={{ height: '20px', width: '55%' }} />
                   <Skeleton style={{ height: '14px', width: '90%' }} />
                   <Skeleton style={{ height: '14px', width: '75%' }} />

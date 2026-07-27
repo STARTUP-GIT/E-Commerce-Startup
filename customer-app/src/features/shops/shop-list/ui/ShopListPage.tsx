@@ -13,17 +13,19 @@ import { useConfirmStore } from '@/lib/store/confirmStore';
 
 function ShopCardSkeleton() {
   return (
-    <div className="glass-card overflow-hidden animate-pulse">
-      {/* Banner */}
-      <Skeleton className="h-24 sm:h-28 w-full rounded-none rounded-t-[0.875rem]" />
-      <div className="p-4 sm:p-5 pt-8 sm:pt-10 relative">
-        {/* Avatar */}
-        <div className="absolute -top-6 sm:-top-7 left-4 sm:left-5 h-11 w-11 sm:h-14 sm:w-14 rounded-xl skeleton-glass ring-4 ring-[#080810]" />
-        <div className="space-y-2 sm:space-y-2.5 mt-1">
+    <div className="glass-card overflow-hidden animate-pulse flex flex-col">
+      <div className="relative flex-shrink-0">
+        <Skeleton className="h-24 sm:h-28 w-full rounded-none rounded-t-[0.875rem]" />
+        <div
+          className="absolute bottom-0 left-4 sm:left-5 h-11 w-11 sm:h-14 sm:w-14 rounded-xl skeleton-glass ring-4 ring-[#080810]"
+          style={{ transform: 'translateY(50%)' }}
+        />
+      </div>
+      <div className="p-4 sm:p-5 pt-7 sm:pt-9 flex flex-col flex-1">
+        <div className="space-y-2 sm:space-y-2.5">
           <Skeleton className="h-4 sm:h-5 w-2/3" />
           <Skeleton className="h-3 sm:h-3.5 w-full" />
           <Skeleton className="h-3 sm:h-3.5 w-5/6" />
-          <Skeleton className="h-2.5 sm:h-3 w-1/3 mt-2 sm:mt-3" />
         </div>
       </div>
     </div>
@@ -48,34 +50,44 @@ function ShopCard({ shop, index }: ShopCardProps) {
       className="block group card-stagger"
       style={{ animationDelay: `${index * 60}ms` }}
     >
-      <div className="glass-card overflow-hidden h-full glass-hover">
-        {/* Banner */}
-        <div
-          className="h-24 sm:h-28 bg-cover bg-center relative overflow-hidden"
-          style={{ background: bgBanner }}
-        >
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+      <div className="glass-card overflow-hidden h-full glass-hover flex flex-col">
+        {/* Banner + Avatar bridge */}
+        <div className="relative flex-shrink-0">
+          <div
+            className="relative overflow-hidden h-24 sm:h-28 bg-cover bg-center"
+            style={{ background: bgBanner }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-          {shop.distance !== undefined && shop.distance !== Infinity && (
-            <span className="absolute top-2 sm:top-3 right-2 sm:right-3 flex items-center gap-1 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full glass text-[8px] sm:text-[10px] font-bold text-white/90">
-              <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-400" />
-              {shopListService.formatDistance(shop.distance)}
-            </span>
-          )}
-        </div>
+            {shop.defaultPickupAddress && (
+              <span className="absolute top-2 sm:top-3 left-2 sm:left-3 flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full glass text-[8px] sm:text-[10px] font-bold text-white/90">
+                <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                {shop.defaultPickupAddress.city}, {shop.defaultPickupAddress.state}
+              </span>
+            )}
 
-        {/* Content */}
-        <div className="p-4 sm:p-5 relative pt-8 sm:pt-10 flex flex-col h-[calc(100%-96px)] sm:h-[calc(100%-112px)] justify-between">
-          {/* Logo avatar */}
-          <div className="absolute -top-6 sm:-top-7 left-4 sm:left-5 h-11 w-11 sm:h-14 sm:w-14 rounded-xl ring-4 ring-[#080810] bg-gradient-to-br from-purple-900/80 to-indigo-900/80 glass flex items-center justify-center overflow-hidden">
+            {shop.distance !== undefined && shop.distance !== Infinity && (
+              <span className="absolute top-2 sm:top-3 right-2 sm:right-3 flex items-center gap-1 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full glass text-[8px] sm:text-[10px] font-bold text-white/90">
+                <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-400" />
+                {shopListService.formatDistance(shop.distance)}
+              </span>
+            )}
+          </div>
+
+          <div
+            className="absolute bottom-0 left-4 sm:left-5 h-11 w-11 sm:h-14 sm:w-14 rounded-xl ring-4 ring-[#080810] bg-gradient-to-br from-purple-900/80 to-indigo-900/80 glass flex items-center justify-center overflow-hidden"
+            style={{ transform: 'translateY(50%)', zIndex: 2 }}
+          >
             {shop.logoUrl ? (
               <img src={shop.logoUrl} alt={shop.name} className="h-full w-full object-cover" />
             ) : (
               <Store className="h-5 w-5 sm:h-6 sm:w-6 text-white/60" />
             )}
           </div>
+        </div>
 
+        {/* Content */}
+        <div className="p-4 sm:p-5 pt-7 sm:pt-9 flex flex-col flex-1">
           <div className="space-y-1 sm:space-y-1.5">
             <h4 className="text-xs sm:text-sm font-bold text-white/90 group-hover:text-purple-300 transition-colors line-clamp-1">
               {shop.name}
@@ -84,15 +96,6 @@ function ShopCard({ shop, index }: ShopCardProps) {
               {shop.description || 'No description provided.'}
             </p>
           </div>
-
-          {shop.defaultPickupAddress && (
-            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-white/35 font-medium mt-3 sm:mt-4">
-              <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-              <span className="truncate">
-                {shop.defaultPickupAddress.city}, {shop.defaultPickupAddress.state}
-              </span>
-            </div>
-          )}
         </div>
       </div>
     </Link>
