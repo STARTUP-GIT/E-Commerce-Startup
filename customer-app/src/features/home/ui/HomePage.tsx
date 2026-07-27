@@ -41,7 +41,7 @@ function ShopCard({ shop, index }: { shop: any; index: number }) {
         >
           <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.15) 50%, transparent 100%)' }} />
           {shop.defaultPickupAddress && (
-            <span className="absolute bottom-4 left-4 flex items-center gap-1.5 text-xs font-semibold text-white/80">
+            <span className="absolute bottom-4 left-4 flex items-center gap-1.5 text-xs font-semibold text-white/80" style={{ zIndex: 2 }}>
               <MapPin style={{ width: 13, height: 13 }} />
               {shop.defaultPickupAddress.city}, {shop.defaultPickupAddress.state}
             </span>
@@ -49,7 +49,7 @@ function ShopCard({ shop, index }: { shop: any; index: number }) {
         </div>
 
         {/* Body */}
-        <div className="flex flex-col flex-1 p-6" style={{ paddingTop: '3rem', position: 'relative' }}>
+        <div className="flex flex-col flex-1 p-6" style={{ paddingTop: '3rem', position: 'relative', zIndex: 1 }}>
           {/* Logo avatar */}
           <div
             className="absolute glass flex items-center justify-center overflow-hidden"
