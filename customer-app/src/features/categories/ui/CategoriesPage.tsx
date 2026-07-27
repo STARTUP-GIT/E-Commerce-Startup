@@ -18,7 +18,7 @@ export function CategoriesPage() {
 
   return (
     <div className="min-h-screen bg-[#080808]">
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24">
+      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24">
         <div className="text-center mb-10 sm:mb-14 lg:mb-20">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.06] border border-white/[0.10] mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse" />
@@ -34,9 +34,9 @@ export function CategoriesPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
+          <div className="flex flex-wrap justify-center gap-3">
             {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="aspect-square rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden">
+              <div key={i} className="w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(25%-9px)] lg:w-[calc(20%-9.6px)] xl:w-[calc(16.667%-10px)] aspect-square rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden">
                 <Skeleton className="w-full h-full !rounded-none" />
               </div>
             ))}
@@ -47,12 +47,12 @@ export function CategoriesPage() {
             <p className="text-white/40 text-sm font-medium">No categories available yet.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
+          <div className="flex flex-wrap justify-center gap-3">
             {categories.map((cat: any, i: number) => (
               <Link
                 key={cat.id}
                 href={`/products?category=${cat.id}`}
-                className="group block"
+                className="group block w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(25%-9px)] lg:w-[calc(20%-9.6px)] xl:w-[calc(16.667%-10px)]"
                 style={{ animation: `card-appear 0.4s ease both`, animationDelay: `${i * 50}ms` }}
               >
                 <div className="relative aspect-square rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden flex flex-col items-center justify-center p-4 sm:p-6 group-hover:bg-white/[0.06] group-hover:border-white/[0.15] group-hover:scale-[1.02] group-active:scale-[0.98] transition-all duration-200">
