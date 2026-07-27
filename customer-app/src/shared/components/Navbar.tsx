@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios/axiosInstance';
 import { shopListApi } from '@/features/shops/shop-list/api/shopListApi';
 import { useLocationStore } from '@/lib/store/locationStore';
+import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
 
 // ─── Shop Names Marquee ───────────────────────────────────────────────────────
 
@@ -60,7 +61,6 @@ export function Navbar() {
   const setCartOpen = useUIStore((state) => state.setCartOpen);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const pathname = usePathname();
 
   // Close dropdown on route change
@@ -78,44 +78,12 @@ export function Navbar() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [menuOpen]);
 
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
-
-  const computeDropdownStyle = () => {
-    if (!triggerRef.current) {
-      setDropdownStyle({ position: 'fixed', right: 8, top: 74 });
-      return;
-    }
-    const rect = triggerRef.current.getBoundingClientRect();
-    const navbarHeight = 64;
-    const gap = 10;
-
-    let top = Math.max(rect.bottom + gap, navbarHeight + 8);
-
-    const dropdownHeight = 220;
-    if (top + dropdownHeight > window.innerHeight - 8) {
-      top = Math.max(navbarHeight + 8, rect.top - dropdownHeight - gap);
-    }
-
-    let right = window.innerWidth - rect.right;
-    const dropdownWidth = 208;
-    if (right + dropdownWidth > window.innerWidth - 8) {
-      right = window.innerWidth - dropdownWidth - 8;
-    }
-    if (right < 8) right = 8;
-
-    setDropdownStyle({ position: 'fixed', top, right });
-  };
-
-  useEffect(() => {
-    if (menuOpen) computeDropdownStyle();
-  }, [menuOpen]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onResize = () => computeDropdownStyle();
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [menuOpen]);
+  const { refs, floatingStyles } = useFloating({
+    open: menuOpen,
+    placement: 'bottom-end',
+    middleware: [offset(8), flip(), shift({ padding: 8 })],
+    whileElementsMounted: autoUpdate,
+  });
 
   const {
     selectedState,
@@ -261,7 +229,7 @@ export function Navbar() {
                 {/* User Dropdown */}
                 <div className="relative ml-1 pl-2 border-l border-white/[0.08]">
                   <button
-                    ref={(el) => { triggerRef.current = el; }}
+                    ref={refs.setReference}
                     onClick={() => setMenuOpen(!menuOpen)}
                     className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.07] transition-all cursor-pointer"
                   >
@@ -279,8 +247,8 @@ export function Navbar() {
                   {menuOpen && typeof window !== 'undefined' && createPortal(
                     <>
                       <div className="fixed inset-0 z-[9998]" onClick={() => setMenuOpen(false)} />
-                      <div className="fixed z-[9999] w-52 glass-card p-1.5 animate-in fade-in slide-in-from-top-1 duration-100"
-                        style={dropdownStyle}>
+                      <div ref={refs.setFloating} className="z-[9999] w-52 glass-card p-1.5 animate-in fade-in slide-in-from-top-1 duration-100"
+                        style={floatingStyles}>
                         <div className="px-3 py-2.5 border-b border-white/[0.07] mb-1">
                           <p className="text-xs font-bold text-white truncate">{session.user?.name}</p>
                           <p className="text-[10px] text-white/40 truncate mt-0.5">{session.user?.email}</p>
