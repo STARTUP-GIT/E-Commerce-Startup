@@ -61,15 +61,44 @@ export function Navbar() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
-  const getDropdownStyle = (): React.CSSProperties => {
-    if (!triggerRef.current) return { right: 8, top: 56 };
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+
+  const computeDropdownStyle = () => {
+    if (!triggerRef.current) {
+      setDropdownStyle({ position: 'fixed', right: 8, top: 74 });
+      return;
+    }
     const rect = triggerRef.current.getBoundingClientRect();
-    return {
-      position: 'fixed' as const,
-      top: rect.bottom + 8,
-      right: window.innerWidth - rect.right,
-    };
+    const navbarHeight = 64;
+    const gap = 10;
+
+    let top = Math.max(rect.bottom + gap, navbarHeight + 8);
+
+    const dropdownHeight = 220;
+    if (top + dropdownHeight > window.innerHeight - 8) {
+      top = Math.max(navbarHeight + 8, rect.top - dropdownHeight - gap);
+    }
+
+    let right = window.innerWidth - rect.right;
+    const dropdownWidth = 208;
+    if (right + dropdownWidth > window.innerWidth - 8) {
+      right = window.innerWidth - dropdownWidth - 8;
+    }
+    if (right < 8) right = 8;
+
+    setDropdownStyle({ position: 'fixed', top, right });
   };
+
+  useEffect(() => {
+    if (menuOpen) computeDropdownStyle();
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onResize = () => computeDropdownStyle();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [menuOpen]);
 
   const {
     selectedState,
@@ -234,7 +263,7 @@ export function Navbar() {
                     <>
                       <div className="fixed inset-0 z-[9998]" onClick={() => setMenuOpen(false)} />
                       <div className="fixed z-[9999] w-52 glass-card p-1.5 animate-in fade-in slide-in-from-top-1 duration-100"
-                        style={getDropdownStyle()}>
+                        style={dropdownStyle}>
                         <div className="px-3 py-2.5 border-b border-white/[0.07] mb-1">
                           <p className="text-xs font-bold text-white truncate">{session.user?.name}</p>
                           <p className="text-[10px] text-white/40 truncate mt-0.5">{session.user?.email}</p>
