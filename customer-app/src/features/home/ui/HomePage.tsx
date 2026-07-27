@@ -292,7 +292,7 @@ export function HomePage() {
       {/* ══════════════════════════════════════════
           CATEGORIES
           ══════════════════════════════════════════ */}
-      <section style={{ maxWidth: '1280px', margin: '0 auto', padding: '100px 24px' }}>
+      <section style={{ maxWidth: '1400px', margin: '0 auto', padding: '100px 24px' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '48px' }}>
           <div>
@@ -307,9 +307,9 @@ export function HomePage() {
           </Link>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px' }}>
+        <div className="flex flex-wrap justify-center" style={{ gap: '12px' }}>
           {homeCategories.slice(0, 12).map((cat: any, i: number) => (
-            <Link key={cat.id} href={`/products?category=${cat.id}`} className="group block">
+            <Link key={cat.id} href={`/products?category=${cat.id}`} className="group block w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(25%-9px)] lg:w-[calc(20%-9.6px)] xl:w-[calc(16.667%-10px)]">
               <div
                 className="glass-card glass-hover"
                 style={{ padding: '28px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '16px' }}
