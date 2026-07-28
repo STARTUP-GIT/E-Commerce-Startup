@@ -161,18 +161,31 @@ export const login = async (req: Request, res: Response) => {
             });
         }
 
-        console.log("[SELLER LOGIN] JWT_SECRET_KEY loaded:", !!process.env.JWT_SECRET_KEY);
+        console.log("========== SELLER LOGIN ==========");
+        console.log("JWT_SECRET_KEY exists:", !!process.env.JWT_SECRET_KEY);
+        console.log("JWT_SECRET_KEY length:", process.env.JWT_SECRET_KEY?.length);
 
         const token = signAccessToken(seller.id);
 
+        console.log("Generated Token Length:", token.length);
+        console.log("Generated Token:", token);
+
         try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY!);
-          console.log("[SELLER LOGIN] Token verified OK. Payload:", JSON.stringify(decoded));
-        } catch (verifyErr: any) {
-          console.error("[SELLER LOGIN] CRITICAL — Token created but verification FAILED:", verifyErr?.message, verifyErr?.name);
+            const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY!);
+            console.log("SELF VERIFY SUCCESS");
+            console.log(decoded);
+        } catch (err) {
+            console.error("SELF VERIFY FAILED");
+            console.error(err);
         }
 
+        console.log("==================================");
+
         setAuthCookie(res, 'seller_session', token);
+
+        console.log("Cookie written:");
+        console.log("seller_session");
+        console.log("Cookie Token:", token);
 
         return res.status(200).json({
             message: "Login successful",
