@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import { COLORS, FONT, MARGIN, CONTENT_W, PAGE_H, currency, safe, formatDate, formatDateTime, formatStatus, statusColor, drawRoundedRect, drawLabelValue, drawKV } from "../../shared/utils/pdfHelpers.js";
 
 // ---------------------------------------------------------------------------
 // Types — mirror the shapes returned by the Prisma query in the controller
@@ -115,120 +116,6 @@ interface InvoiceOrder {
     customer: InvoiceCustomer;
     sellerOrders: InvoiceSellerOrder[];
     payments: InvoicePayment[];
-}
-
-// ---------------------------------------------------------------------------
-// Design tokens — shadcn / Aura inspired
-// ---------------------------------------------------------------------------
-
-const COLORS = {
-    bg: "#FFFFFF",
-    text: "#09090B",
-    muted: "#64748B",
-    border: "#CBD5E1",
-    cardBg: "#FAFAFA",
-    headerBg: "#18181B",
-    headerText: "#FFFFFF",
-    primary: "#7C3AED",
-    accent: "#F4F4F5",
-    rowAlt: "#F8FAFC",
-    success: "#16A34A",
-    warning: "#CA8A04",
-    danger: "#DC2626",
-} as const;
-
-const FONT = {
-    regular: "Helvetica",
-    bold: "Helvetica-Bold",
-    italic: "Helvetica-Oblique",
-} as const;
-
-const MARGIN = 50;
-const PAGE_W = 595.28;
-const PAGE_H = 841.89;
-const CONTENT_W = PAGE_W - MARGIN * 2;
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function currency(n: number): string {
-    return `Rs. ${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function safe(v: string | null | undefined, fallback = ""): string {
-    return v?.trim() || fallback;
-}
-
-function formatDate(d: string | Date | null | undefined): string {
-    if (!d) return "—";
-    const dt = new Date(d);
-    return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function formatDateTime(d: string | Date | null | undefined): string {
-    if (!d) return "—";
-    const dt = new Date(d);
-    return dt.toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
-}
-
-function formatStatus(s: string): string {
-    return s
-        .split("_")
-        .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
-        .join(" ");
-}
-
-function statusColor(s: string): string {
-    switch (s) {
-        case "PAID":
-        case "COMPLETED":
-        case "DELIVERED":
-            return COLORS.success;
-        case "PENDING":
-        case "PROCESSING":
-        case "SHIPPED":
-        case "ASSIGNED":
-        case "ACCEPTED":
-            return COLORS.warning;
-        case "CANCELLED":
-        case "REJECTED":
-        case "FAILED":
-            return COLORS.danger;
-        default:
-            return COLORS.muted;
-    }
-}
-
-function drawRoundedRect(
-    doc: PDFKit.PDFDocument,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    r: number,
-    fill?: string,
-    stroke?: string,
-) {
-    doc.save();
-    doc.roundedRect(x, y, w, h, r);
-    if (fill) {
-        doc.fill(fill);
-    }
-    if (stroke) {
-        doc.strokeColor(stroke);
-        doc.lineWidth(0.75);
-        doc.stroke();
-    } else if (!fill) {
-        doc.fill("transparent");
-    }
-    doc.restore();
 }
 
 // ---------------------------------------------------------------------------
@@ -642,17 +529,4 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
     }
 }
 
-// ── Label-value pair for info sections ─────────────────────────────────────
-function drawLabelValue(doc: PDFKit.PDFDocument, labelX: number, valX: number, yPos: number, label: string, value: string) {
-    doc.font(FONT.regular).fontSize(8).fillColor(COLORS.muted);
-    doc.text(label, labelX, yPos);
-    doc.font(FONT.bold).fontSize(8).fillColor(COLORS.text);
-    doc.text(value, valX, yPos, { width: 200 });
-}
 
-function drawKV(doc: PDFKit.PDFDocument, x: number, y: number, label: string, value: string) {
-    doc.font(FONT.regular).fontSize(7).fillColor(COLORS.muted);
-    doc.text(label, x, y);
-    doc.font(FONT.regular).fontSize(7.5).fillColor(COLORS.text);
-    doc.text(value, x + 70, y, { width: 150 });
-}

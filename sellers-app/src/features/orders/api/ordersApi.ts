@@ -138,4 +138,11 @@ export const ordersApi = {
     const response = await axiosInstance.get(`/seller/api/orders/${orderId}/timeline`);
     return response.data;
   },
+
+  downloadShippingLabel: async (orderId: string): Promise<Blob> => {
+    const response = await axiosInstance.get(`/seller/api/orders/${orderId}/shipping-label`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };

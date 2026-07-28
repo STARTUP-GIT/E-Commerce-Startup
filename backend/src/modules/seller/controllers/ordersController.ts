@@ -3,6 +3,8 @@ import { prisma } from "../../../config/prisma.js";
 import { getObjectUrl, isValidS3Key, headObjectExists } from '../../../config/storage.js';
 import { SellerStatus } from "@prisma/client";
 import { SellerOrderStatus } from "@prisma/client";
+import { generateShippingLabelPdf } from "../utils/generateShippingLabelPdf.js";
+import { safe } from "../../shared/utils/pdfHelpers.js";
 
 export const getOrders = async ( req: Request,res: Response) => {
 
@@ -928,5 +930,120 @@ export const getAllowedDeliveryMethods = async (req: Request, res: Response) => 
     } catch (error: any) {
         console.error("GET ALLOWED DELIVERY METHODS ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const downloadShippingLabel = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId;
+        const orderId = req.params.orderId;
+
+        if (!sellerId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        if (!orderId) {
+            return res.status(400).json({ message: "Order ID is required" });
+        }
+
+        const sellerOrder = await prisma.sellerOrder.findFirst({
+            where: { id: orderId as string, sellerId },
+            include: {
+                seller: {
+                    include: {
+                        shop: true,
+                    },
+                },
+                order: {
+                    include: {
+                        shippingAddress: true,
+                        customer: true,
+                        payments: {
+                            orderBy: { createdAt: "desc" },
+                            take: 1,
+                        },
+                    },
+                },
+                pickupSellerAddress: true,
+                delivery: {
+                    include: {
+                        deliveryPartner: true,
+                    },
+                },
+            },
+        });
+
+        if (!sellerOrder) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        const allowedStatuses: string[] = [
+            "ACCEPTED",
+            "PROCESSING",
+            "READY_TO_SHIP",
+            "READY_FOR_PICKUP",
+            "PACKED",
+            "SHIPPED",
+            "DELIVERED",
+        ];
+
+        if (!allowedStatuses.includes(sellerOrder.status)) {
+            return res.status(400).json({
+                message: "Shipping label is only available for accepted or beyond orders",
+            });
+        }
+
+        const shippingAddress = sellerOrder.order.shippingAddress;
+        const customer = sellerOrder.order.customer;
+        const seller = sellerOrder.seller;
+        const shop = seller.shop;
+        const pickupAddress = sellerOrder.pickupSellerAddress;
+        const payment = sellerOrder.order.payments?.[0];
+        const isPaid = payment?.status === "PAID" || payment?.status === "COMPLETED";
+
+        const deliveryType = sellerOrder.deliveryMode === "SELF" ? "SELF" : "PLATFORM";
+        const deliveryProvider = sellerOrder.delivery?.deliveryPartner
+            ? `${sellerOrder.delivery.deliveryPartner.firstName} ${sellerOrder.delivery.deliveryPartner.lastName}`
+            : null;
+
+        const trackingId = sellerOrder.delivery?.deliveryNumber || `TRK${sellerOrder.order.orderNumber}`;
+
+        const labelData = {
+            order: {
+                orderNumber: sellerOrder.order.orderNumber,
+                trackingId,
+                orderDate: sellerOrder.order.placedAt || sellerOrder.order.createdAt,
+            },
+            customer: {
+                fullName: shippingAddress.fullName || `${safe(customer.firstName)} ${safe(customer.lastName)}`.trim(),
+                phone: shippingAddress.phone || safe(customer.phone),
+                addressLine1: shippingAddress.addressLine1,
+                addressLine2: shippingAddress.addressLine2,
+                city: shippingAddress.city,
+                state: shippingAddress.state,
+                postalCode: shippingAddress.postalCode,
+            },
+            seller: {
+                shopName: shop?.name || `${seller.firstName} ${seller.lastName}`,
+                city: pickupAddress?.city || "",
+                state: pickupAddress?.state || "",
+            },
+            deliveryType,
+            deliveryProvider: deliveryProvider || sellerOrder.selectedDeliveryMethod || null,
+            isPaid,
+            grandTotal: Number(sellerOrder.order.grandTotal),
+        };
+
+        const doc = await generateShippingLabelPdf(labelData);
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="shipping-label-${sellerOrder.order.orderNumber}.pdf"`);
+
+        doc.pipe(res);
+        doc.end();
+
+    } catch (error) {
+        console.error("DOWNLOAD SHIPPING LABEL ERROR:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
     }
 };

@@ -24,6 +24,7 @@ import {
   FileCheck,
   Truck,
   Package,
+  Download,
 } from 'lucide-react';
 
 export function OrderDetailPage() {
@@ -55,6 +56,8 @@ export function OrderDetailPage() {
     isMarkingDelivered,
     markCodCollected,
     isMarkingCodCollected,
+    downloadShippingLabel,
+    isDownloadingShippingLabel,
   } = useOrders(orderId);
 
   console.log('order:', order);
@@ -72,6 +75,24 @@ export function OrderDetailPage() {
       await markCodCollected(order.id);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to mark COD as collected.');
+    }
+  };
+
+  const handleDownloadShippingLabel = async () => {
+    if (!order) return;
+    setErrorMsg(null);
+    try {
+      const blob = await downloadShippingLabel(order.id);
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `shipping-label-${order?.order?.orderNumber || order.id}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to download shipping label.');
     }
   };
 
@@ -335,6 +356,18 @@ export function OrderDetailPage() {
                   COD Collected
                 </Badge>
               )}
+
+            {order.status !== 'PENDING' && order.status !== 'CANCELLED' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadShippingLabel}
+                isLoading={isDownloadingShippingLabel}
+              >
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                <span>Download Shipping Label</span>
+              </Button>
+            )}
           </div>
         </div>
 

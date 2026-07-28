@@ -13,6 +13,7 @@ import {
     markCodCollected,
     assignDeliveryMethod,
     getAllowedDeliveryMethods,
+    downloadShippingLabel,
 } from "../controllers/ordersController.js";
 import { sellerAuth } from "../../../middleware/sellerAuth.js";
 
@@ -31,5 +32,6 @@ router.patch("/api/orders/:orderId/shipped", sellerAuth, markShipped);
 router.patch("/api/orders/:orderId/delivered", sellerAuth, markDelivered);
 router.patch("/api/orders/:orderId/mark-cod-collected", sellerAuth, markCodCollected);
 router.get("/api/orders/:orderId/timeline", sellerAuth, getOrderTimeline);
+router.get("/api/orders/:orderId/shipping-label", sellerAuth, downloadShippingLabel);
 
 export default router;

@@ -120,6 +120,10 @@ export function useOrders(orderId?: string) {
     },
   });
 
+  const downloadShippingLabelMutation = useMutation({
+    mutationFn: ordersApi.downloadShippingLabel,
+  });
+
   return {
     orders: ordersQuery.data ?? [],
     isLoading: ordersQuery.isLoading,
@@ -162,5 +166,8 @@ export function useOrders(orderId?: string) {
 
     markCodCollected: markCodCollectedMutation.mutateAsync,
     isMarkingCodCollected: markCodCollectedMutation.isPending,
+
+    downloadShippingLabel: downloadShippingLabelMutation.mutateAsync,
+    isDownloadingShippingLabel: downloadShippingLabelMutation.isPending,
   };
 }
