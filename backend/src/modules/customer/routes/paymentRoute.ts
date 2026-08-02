@@ -6,12 +6,13 @@ import {
     refundPayment
 } from "../controllers/paymentController.js";
 import { customerAuth } from "../../../middleware/customerAuth.js";
+import { paymentLimiter, webhookLimiter } from "../../../middleware/rateLimiter.js";
 
 const router = express.Router();
 
-router.post("/api/payment/create", customerAuth, createPayment);
-router.post("/api/payment/verify", customerAuth, verifyPayment);
-router.post("/api/payment/refund", customerAuth, refundPayment);
-router.post("/api/payment/webhook", paymentWebhook); // No authentication for webhook callback
+router.post("/api/payment/create", customerAuth, paymentLimiter, createPayment);
+router.post("/api/payment/verify", customerAuth, paymentLimiter, verifyPayment);
+router.post("/api/payment/refund", customerAuth, paymentLimiter, refundPayment);
+router.post("/api/payment/webhook", webhookLimiter, paymentWebhook); // No authentication for webhook callback
 
 export default router;

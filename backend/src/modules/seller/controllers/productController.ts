@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 
 import { prisma } from "../../../config/prisma.js";
+import { invalidatePublicCache } from "../../../middleware/cache.js";
 
 
 interface Products {
@@ -135,6 +136,8 @@ export const addProducts = async (req: Request, res: Response) => {
                     sellerId: sellerId
                 }
             });
+
+        invalidatePublicCache();
 
         return res.status(201).json({
             message:
@@ -303,6 +306,8 @@ export const EditProduct = async (req: Request, res: Response) => {
                 }
             });
 
+        invalidatePublicCache();
+
         return res.status(200).json({
             message:
                 "Product updated successfully",
@@ -378,6 +383,8 @@ export const removeProducts = async (req: Request, res: Response) => {
             }
         });
 
+        invalidatePublicCache();
+
         return res.status(200).json({
             message:
                 "Product deleted successfully"
@@ -447,6 +454,8 @@ export const restoreDeletedProduct = async (req: Request, res: Response) => {
                 deletedAt: null
             }
         });
+
+        invalidatePublicCache();
 
         return res.status(200).json({
             message: "Product restored successfully",
@@ -519,6 +528,8 @@ export const updateProductStock = async (req: Request, res: Response) => {
                 stockQuantity: targetStock
             }
         });
+
+        invalidatePublicCache();
 
         return res.status(200).json({
             message: "Product stock updated successfully",

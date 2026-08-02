@@ -54,11 +54,12 @@ export async function POST(req: NextRequest) {
             response.cookies.set('customer_session', parsed.value, {
               httpOnly: true,
               secure: isProduction,
-              sameSite: isProduction ? 'none' : 'lax',
+              // 'lax' — see login route: the cookie is only consumed on the
+              // customer-app origin; SameSite=None would widen the CSRF surface.
+              sameSite: 'lax',
               path: '/',
               maxAge: parsed.maxAge ?? 60 * 60 * 24 * 7,
             });
-            console.log('[/api/customer/google] customer_session cookie set on response');
           }
           break;
         }

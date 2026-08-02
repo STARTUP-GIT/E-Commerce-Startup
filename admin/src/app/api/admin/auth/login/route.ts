@@ -43,7 +43,6 @@ export async function POST(req: NextRequest) {
     // Extract admin_session from the backend Set-Cookie and re-emit it
     // with correct attributes for this frontend's origin.
     const rawSetCookie = backendRes.headers.get('set-cookie');
-    console.log('[/api/admin/auth/login] backend Set-Cookie header:', rawSetCookie);
 
     if (rawSetCookie) {
       const cookieEntries = splitSetCookieHeader(rawSetCookie);
@@ -55,11 +54,13 @@ export async function POST(req: NextRequest) {
             response.cookies.set('admin_session', parsed.value, {
               httpOnly: true,
               secure: isProduction,
-              sameSite: isProduction ? 'none' : 'lax',
+              // 'lax' — the cookie is only consumed on the admin origin
+              // (Next.js rewrites proxy to the backend server-side), so
+              // SameSite=None would widen the CSRF surface.
+              sameSite: 'lax',
               path: '/',
               maxAge: parsed.maxAge ?? 60 * 60 * 24 * 60, // default 60 days
             });
-            console.log('[/api/admin/auth/login] admin_session cookie set on response ✓');
           }
           break;
         }

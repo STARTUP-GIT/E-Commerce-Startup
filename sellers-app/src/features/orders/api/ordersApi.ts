@@ -37,6 +37,19 @@ export interface SellerOrder {
   deliveredAt?: string;
   readyByAt?: string;
   rejectionReason?: string;
+  seller?: {
+    firstName: string;
+    lastName: string;
+    shop?: {
+      name: string;
+      businessName?: string | null;
+      gstNumber?: string | null;
+      gstRegistered?: boolean;
+      supportEmail?: string | null;
+      supportPhone?: string | null;
+      logoUrl?: string | null;
+    } | null;
+  } | null;
   order: {
     orderNumber: string;
     shippingAddress: any;
@@ -141,6 +154,13 @@ export const ordersApi = {
 
   downloadShippingLabel: async (orderId: string): Promise<Blob> => {
     const response = await axiosInstance.get(`/seller/api/orders/${orderId}/shipping-label`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  downloadInvoice: async (orderId: string): Promise<Blob> => {
+    const response = await axiosInstance.get(`/seller/api/orders/${orderId}/invoice`, {
       responseType: 'blob',
     });
     return response.data;

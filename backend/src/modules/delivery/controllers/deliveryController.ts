@@ -63,10 +63,12 @@ export const getDelivery = async (req: Request, res: Response) => {
 
 export const getDeliveries = async (req: Request, res: Response) => {
   try {
-    const { page = 1, limit = 20, status } = req.query as any;
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+    const status = req.query.status as string;
     const where: any = {};
     if (status) where.status = status;
-    const deliveries = await prisma.delivery.findMany({ where, skip: (page - 1) * limit, take: Number(limit), orderBy: { createdAt: "desc" } });
+    const deliveries = await prisma.delivery.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { createdAt: "desc" } });
     return res.status(200).json({ count: deliveries.length, deliveries });
   } catch (err) {
     console.error(err);

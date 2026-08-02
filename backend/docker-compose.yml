@@ -1,23 +1,57 @@
 version: '3.8'
 
+# Copy .env.example to .env and fill in real values before running
+# `docker compose up`. No secrets are hardcoded here.
 services:
   db:
     image: postgres:15-alpine
     container_name: marketplace-db
     restart: always
     environment:
-      POSTGRES_DB: marketplace
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: securepassword123
+      POSTGRES_DB: ${POSTGRES_DB:-marketplace}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+    # Do NOT publish to the host in production — services reach it on app-network.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d marketplace"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-marketplace}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
+    networks:
+      - app-network
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.seller
+    container_name: marketplace-migrate
+    restart: "no"
+    entrypoint: ["sh", "-c", "npx prisma migrate deploy"]
+    environment: &backend-env
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@db:5432/${POSTGRES_DB:-marketplace}?schema=public
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set in .env}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      PAYMENT_GATEWAY: ${PAYMENT_GATEWAY:-RAZORPAY}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+      DELIVERY_PROVIDER: ${DELIVERY_PROVIDER:-PORTER}
+      PORTER_API_KEY: ${PORTER_API_KEY:-}
+      PORTER_API_URL: ${PORTER_API_URL:-https://api.porter.in}
+      PORTER_WEBHOOK_SECRET: ${PORTER_WEBHOOK_SECRET:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      CUSTOMER_FRONTEND_URL: ${CUSTOMER_FRONTEND_URL:-}
+      SELLER_FRONTEND_URL: ${SELLER_FRONTEND_URL:-}
+      ADMIN_FRONTEND_URL: ${ADMIN_FRONTEND_URL:-}
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - app-network
 
@@ -28,20 +62,19 @@ services:
     container_name: customer-api
     restart: always
     ports:
-      - "3001:3001"
-    environment:
-      DATABASE_URL: postgresql://postgres:securepassword123@db:5432/marketplace?schema=public
-      JWT_SECRET_KEY: supersecretjwtkeyforproduction123
-      GOOGLE_CLIENT_ID: dummy_google_client_id
-      PAYMENT_GATEWAY: RAZORPAY
-      RAZORPAY_KEY_ID: rzp_live_dummykey
-      RAZORPAY_KEY_SECRET: dummysecret
-      RAZORPAY_WEBHOOK_SECRET: webhooksecret
-      NODE_ENV: production
-      PORT: 3001
+      - "${CUSTOMER_API_PORT:-3001}:3001"
+    environment: *backend-env
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     networks:
       - app-network
 
@@ -52,17 +85,19 @@ services:
     container_name: seller-api
     restart: always
     ports:
-      - "3002:3002"
-    environment:
-      DATABASE_URL: postgresql://postgres:securepassword123@db:5432/marketplace?schema=public
-      JWT_SECRET_KEY: supersecretjwtkeyforproduction123
-      GOOGLE_CLIENT_ID: dummy_google_client_id
-      PAYMENT_GATEWAY: RAZORPAY
-      NODE_ENV: production
-      PORT: 3002
+      - "${SELLER_API_PORT:-3002}:3002"
+    environment: *backend-env
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3002/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     networks:
       - app-network
 
@@ -73,20 +108,19 @@ services:
     container_name: admin-api
     restart: always
     ports:
-      - "3003:3003"
-    environment:
-      DATABASE_URL: postgresql://postgres:securepassword123@db:5432/marketplace?schema=public
-      JWT_SECRET_KEY: supersecretjwtkeyforproduction123
-      GOOGLE_CLIENT_ID: dummy_google_client_id
-      PAYMENT_GATEWAY: RAZORPAY
-      RAZORPAY_KEY_ID: rzp_live_dummykey
-      RAZORPAY_KEY_SECRET: dummysecret
-      RAZORPAY_WEBHOOK_SECRET: webhooksecret
-      NODE_ENV: production
-      PORT: 3003
+      - "${ADMIN_API_PORT:-3003}:3003"
+    environment: *backend-env
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3003/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     networks:
       - app-network
 
@@ -97,21 +131,19 @@ services:
     container_name: delivery-api
     restart: always
     ports:
-      - "3004:3004"
-    environment:
-      DATABASE_URL: postgresql://postgres:securepassword123@db:5432/marketplace?schema=public
-      JWT_SECRET_KEY: supersecretjwtkeyforproduction123
-      GOOGLE_CLIENT_ID: dummy_google_client_id
-      PAYMENT_GATEWAY: RAZORPAY
-      DELIVERY_PROVIDER: PORTER
-      PORTER_API_KEY: porter_api_dummykey
-      PORTER_API_URL: https://api.porter.in
-      PORTER_WEBHOOK_SECRET: porterwebhooksecret
-      NODE_ENV: production
-      PORT: 3004
+      - "${DELIVERY_API_PORT:-3004}:3004"
+    environment: *backend-env
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3004/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     networks:
       - app-network
 
@@ -122,20 +154,19 @@ services:
     container_name: payment-api
     restart: always
     ports:
-      - "3005:3005"
-    environment:
-      DATABASE_URL: postgresql://postgres:securepassword123@db:5432/marketplace?schema=public
-      JWT_SECRET_KEY: supersecretjwtkeyforproduction123
-      GOOGLE_CLIENT_ID: dummy_google_client_id
-      PAYMENT_GATEWAY: RAZORPAY
-      RAZORPAY_KEY_ID: rzp_live_dummykey
-      RAZORPAY_KEY_SECRET: dummysecret
-      RAZORPAY_WEBHOOK_SECRET: webhooksecret
-      NODE_ENV: production
-      PORT: 3005
+      - "${PAYMENT_API_PORT:-3005}:3005"
+    environment: *backend-env
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3005/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     networks:
       - app-network
 

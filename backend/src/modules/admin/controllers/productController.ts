@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 import { logAdminAction } from "../utils/actionLogger.js";
 import { AdminActionType } from "@prisma/client";
+import { invalidatePublicCache } from "../../../middleware/cache.js";
 
 export const getProducts = async (req: Request, res: Response) => {
     try {
@@ -91,6 +92,8 @@ export const deleteProduct = async (req: Request, res: Response) => {
             newValue: { isDeleted: true, status: "REMOVED_BY_ADMIN" }
         });
 
+        invalidatePublicCache();
+
         return res.status(200).json({ message: "Product deleted successfully" });
     } catch (error: any) {
         console.error("DELETE PRODUCT ERROR:", error);
@@ -121,6 +124,8 @@ export const restoreProduct = async (req: Request, res: Response) => {
             newValue: { isDeleted: false, status: "ACTIVE" }
         });
 
+        invalidatePublicCache();
+
         return res.status(200).json({ message: "Product restored successfully", product: updatedProduct });
     } catch (error: any) {
         console.error("RESTORE PRODUCT ERROR:", error);
@@ -150,6 +155,8 @@ export const hideProduct = async (req: Request, res: Response) => {
             previousValue: { status: product.status },
             newValue: { status: "INACTIVE" }
         });
+
+        invalidatePublicCache();
 
         return res.status(200).json({ message: "Product hidden successfully", product: updatedProduct });
     } catch (error: any) {

@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
+import { invalidatePublicCache } from "../../../middleware/cache.js";
 
 export const createState = async (req: Request, res: Response) => {
     try {
@@ -20,6 +21,8 @@ export const createState = async (req: Request, res: Response) => {
                 isActive: isActive !== undefined ? !!isActive : true
             }
         });
+
+        invalidatePublicCache();
 
         return res.status(201).json({ message: "State created successfully", state });
     } catch (error: any) {
@@ -73,6 +76,8 @@ export const updateState = async (req: Request, res: Response) => {
             data
         });
 
+        invalidatePublicCache();
+
         return res.status(200).json({ message: "State updated successfully", state: updated });
     } catch (error: any) {
         console.error("UPDATE STATE ERROR:", error);
@@ -93,6 +98,7 @@ export const deleteState = async (req: Request, res: Response) => {
         }
 
         await prisma.state.delete({ where: { id } });
+        invalidatePublicCache();
         return res.status(200).json({ message: "State deleted successfully" });
     } catch (error: any) {
         console.error("DELETE STATE ERROR:", error);

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 import { logAdminAction } from "../utils/actionLogger.js";
 import { AdminActionType } from "@prisma/client";
+import { sanitizeSeller } from "../../../utils/sanitize.js";
 
 export const getSellers = async (req: Request, res: Response) => {
     try {
@@ -37,7 +38,7 @@ export const getSellers = async (req: Request, res: Response) => {
         ]);
 
         return res.status(200).json({
-            sellers,
+            sellers: sellers.map(sanitizeSeller),
             pagination: {
                 total,
                 page: Number(page),
@@ -72,7 +73,7 @@ export const getSeller = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Seller not found" });
         }
 
-        return res.status(200).json({ seller });
+        return res.status(200).json({ seller: sanitizeSeller(seller) });
     } catch (error: any) {
         console.error("GET SELLER DETAIL ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });

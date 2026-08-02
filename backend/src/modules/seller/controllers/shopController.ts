@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 import { SellerOrderStatus, SellerAddressType } from "@prisma/client";
+import { invalidatePublicCache } from "../../../middleware/cache.js";
 
 
 export const createShop = async (req: Request,res: Response) => {
@@ -837,6 +838,8 @@ export const updateShop = async (req: Request, res: Response) => {
 
             return updatedShop;
         });
+
+        invalidatePublicCache();
 
         return res.status(200).json({
             message: "Shop updated successfully",

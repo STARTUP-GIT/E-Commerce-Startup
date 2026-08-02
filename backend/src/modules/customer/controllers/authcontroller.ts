@@ -225,12 +225,20 @@ export const forgotPassword = async (req: Request, res: Response) => {
         });
 
         if (!customer) {
-            return res.status(404).json({ message: 'User not found' });
+            // Return a generic success to prevent account enumeration.
+            return res.status(200).json({
+                message: 'Password reset instructions have been sent.',
+                email: identifier,
+                emailDelivery: 'sent',
+            });
         }
 
         if (!customer.passwordHash) {
-            return res.status(400).json({
-                message: 'This account uses Google sign-in. Please sign in with Google.'
+            // Do not reveal that this account exists or uses Google sign-in.
+            return res.status(200).json({
+                message: 'Password reset instructions have been sent.',
+                email: customer.email,
+                emailDelivery: 'sent',
             });
         }
 
@@ -257,27 +265,16 @@ export const forgotPassword = async (req: Request, res: Response) => {
         });
 
         if (!emailResult.success) {
-            console.warn('[CUSTOMER FORGOT PASSWORD] Reset token generated but email delivery failed', {
-                customerId: customer.id,
-                email: customer.email,
-                error: emailResult.error
-            });
+            console.warn(`[CUSTOMER FORGOT PASSWORD] Reset token generated but email delivery failed for customer: ${customer.id}`);
         }
 
         return res.status(200).json({
-            message: emailResult.success
-                ? 'Password reset instructions have been sent.'
-                : 'Password reset token was generated but email delivery failed. Please contact support.',
+            message: 'Password reset instructions have been sent.',
             email: customer.email,
-            emailDelivery: emailResult.success ? 'sent' : 'failed',
+            emailDelivery: 'sent',
         });
     } catch (error) {
-        console.error('CUSTOMER FORGOT PASSWORD ERROR:', {
-            route: req.originalUrl,
-            method: req.method,
-            payload: req.body,
-            error
-        });
+        console.error('CUSTOMER FORGOT PASSWORD ERROR:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
     }
 };
@@ -410,7 +407,11 @@ export const googleOAuth = async (req: Request, res: Response) => {
             firstName = payload.given_name ?? "";
             lastName = payload.family_name ?? "";
             avatarUrl = payload.picture ?? "";
-        } else if (bodyEmail) {
+        } else if (
+            bodyEmail &&
+            process.env.NODE_ENV !== "production" &&
+            process.env.ALLOW_UNVERIFIED_GOOGLE === "true"
+        ) {
             email = bodyEmail;
             googleId = providerId || bodyGoogleId || `google_${bodyEmail}`;
             firstName = bodyFirstName || "";
@@ -423,7 +424,7 @@ export const googleOAuth = async (req: Request, res: Response) => {
             }
         } else {
             return res.status(400).json({
-                message: "Google token or user info is required"
+                message: "A valid Google ID token is required"
             });
         }
 

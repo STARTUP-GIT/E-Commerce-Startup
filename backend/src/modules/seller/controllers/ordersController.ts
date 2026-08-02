@@ -4,6 +4,7 @@ import { getObjectUrl, isValidS3Key, headObjectExists } from '../../../config/st
 import { SellerStatus } from "@prisma/client";
 import { SellerOrderStatus } from "@prisma/client";
 import { generateShippingLabelPdf } from "../utils/generateShippingLabelPdf.js";
+import { generateSellerInvoicePdf } from "../utils/generateSellerInvoicePdf.js";
 import { safe } from "../../shared/utils/pdfHelpers.js";
 
 export const getOrders = async ( req: Request,res: Response) => {
@@ -34,6 +35,11 @@ export const getOrders = async ( req: Request,res: Response) => {
                 sellerId
             },
             include: {
+                seller: {
+                    include: {
+                        shop: true
+                    }
+                },
                 order: {
                     include: {
                         payments: true
@@ -49,7 +55,8 @@ export const getOrders = async ( req: Request,res: Response) => {
             },
             orderBy: {
                 createdAt: "desc"
-            }
+            },
+            take: 1000
         });
 
         const mappedOrders = orders.map(o => ({
@@ -102,6 +109,11 @@ export const seeOrders = async (
                 sellerId
             },
             include: {
+                seller: {
+                    include: {
+                        shop: true
+                    }
+                },
                 order: {
                     include: {
                         payments: true
@@ -1045,5 +1057,150 @@ export const downloadShippingLabel = async (req: Request, res: Response) => {
     } catch (error) {
         console.error("DOWNLOAD SHIPPING LABEL ERROR:", error);
         return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+export const downloadInvoice = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId;
+        const orderId = req.params.orderId;
+
+        if (!sellerId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        if (!orderId) {
+            return res.status(400).json({ message: "Order ID is required" });
+        }
+
+        const sellerOrder = await prisma.sellerOrder.findFirst({
+            where: { id: orderId as string, sellerId },
+            include: {
+                seller: {
+                    include: {
+                        shop: true,
+                    },
+                },
+                order: {
+                    include: {
+                        shippingAddress: true,
+                        customer: true,
+                        payments: {
+                            orderBy: { createdAt: "desc" },
+                            take: 1,
+                        },
+                    },
+                },
+                items: {
+                    include: {
+                        product: {
+                            include: {
+                                category: true,
+                            },
+                        },
+                    },
+                },
+                pickupSellerAddress: true,
+                delivery: {
+                    include: {
+                        deliveryPartner: true,
+                    },
+                },
+            },
+        });
+
+        if (!sellerOrder) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        const allowedStatuses: string[] = [
+            "ACCEPTED",
+            "PROCESSING",
+            "READY_TO_SHIP",
+            "READY_FOR_PICKUP",
+            "PACKED",
+            "SHIPPED",
+            "DELIVERED",
+        ];
+
+        if (!allowedStatuses.includes(sellerOrder.status)) {
+            return res.status(400).json({
+                message: "Invoice is only available for accepted or beyond orders",
+            });
+        }
+
+        const shippingAddress = sellerOrder.order.shippingAddress;
+        const customer = sellerOrder.order.customer;
+        const shop = sellerOrder.seller.shop;
+        const pickupAddress = sellerOrder.pickupSellerAddress;
+        const payment = sellerOrder.order.payments?.[0];
+
+        const invoiceData = {
+            invoiceNumber: `INV-${sellerOrder.order.orderNumber}`,
+            orderNumber: sellerOrder.order.orderNumber,
+            orderDate: sellerOrder.order.placedAt || sellerOrder.order.createdAt,
+            status: sellerOrder.status,
+            paymentMethod: sellerOrder.paymentMethod || sellerOrder.order.paymentMethod,
+            selectedDeliveryMethod: sellerOrder.selectedDeliveryMethod || sellerOrder.order.selectedDeliveryMethod,
+            deliveryMode: sellerOrder.deliveryMode,
+            seller: {
+                shopName: shop?.name || `${sellerOrder.seller.firstName} ${sellerOrder.seller.lastName}`,
+                businessName: shop?.businessName,
+                gstNumber: shop?.gstNumber,
+                gstRegistered: shop?.gstRegistered,
+                supportEmail: shop?.supportEmail,
+                supportPhone: shop?.supportPhone,
+                logoUrl: shop?.logoUrl,
+                city: pickupAddress?.city || "",
+                state: pickupAddress?.state || "",
+            },
+            customer: {
+                fullName: shippingAddress.fullName || `${safe(customer.firstName)} ${safe(customer.lastName)}`.trim(),
+                phone: shippingAddress.phone || safe(customer.phone),
+                email: customer.email,
+                addressLine1: shippingAddress.addressLine1,
+                addressLine2: shippingAddress.addressLine2,
+                city: shippingAddress.city,
+                state: shippingAddress.state,
+                postalCode: shippingAddress.postalCode,
+                country: shippingAddress.country,
+            },
+            items: sellerOrder.items.map((item) => ({
+                productName: item.productName,
+                productSku: item.productSku,
+                variantName: item.variantName,
+                quantity: item.quantity,
+                unitPrice: Number(item.unitPrice),
+                totalPrice: Number(item.totalPrice),
+                taxAmount: Number(item.taxAmount),
+                discountAmount: Number(item.discountAmount),
+                categoryName: item.product.category?.name || null,
+            })),
+            subtotal: Number(sellerOrder.subtotal),
+            packingFee: Number(sellerOrder.packingFee),
+            shippingAmount: Number(sellerOrder.shippingAmount),
+            taxAmount: Number(sellerOrder.taxAmount),
+            platformCommission: Number(sellerOrder.platformCommission),
+            grandTotal: Number(sellerOrder.order.grandTotal),
+            paymentStatus: payment?.status || "PENDING",
+            trackingId: sellerOrder.delivery?.deliveryNumber || null,
+            deliveryProvider: sellerOrder.delivery?.deliveryPartner
+                ? `${sellerOrder.delivery.deliveryPartner.firstName} ${sellerOrder.delivery.deliveryPartner.lastName}`
+                : null,
+        };
+
+        const doc = generateSellerInvoicePdf(invoiceData);
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="invoice-${sellerOrder.order.orderNumber}.pdf"`);
+
+        doc.pipe(res);
+        doc.end();
+
+    } catch (error) {
+        console.error("DOWNLOAD INVOICE ERROR:", error);
+        if (!res.headersSent) {
+            return res.status(500).json({ message: "Internal Server Error" });
+        }
     }
 };

@@ -1,13 +1,31 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 
+const SORTABLE_PRODUCT_FIELDS = new Set(["createdAt", "updatedAt", "price", "name", "stockQuantity"]);
+const MAX_PAGE_SIZE = 100;
+
+const clampPage = (value: unknown, fallback: number): number => {
+    const parsed = parseInt(value as string, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+    return parsed;
+};
+
+const clampLimit = (value: unknown, fallback: number): number => {
+    const parsed = parseInt(value as string, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+    return Math.min(parsed, MAX_PAGE_SIZE);
+};
+
+const escapeLike = (input: string): string => input.replace(/[%_\\]/g, (c) => `\\${c}`);
+
 export const getProducts = async (req: Request, res: Response) => {
     try {
-        const page = parseInt(req.query.page as string, 10) || 1;
-        const limit = parseInt(req.query.limit as string, 10) || 10;
+        const page = clampPage(req.query.page, 1);
+        const limit = clampLimit(req.query.limit, 10);
         const skip = (page - 1) * limit;
 
-        const sortBy = (req.query.sortBy as string) || "createdAt";
+        const sortByInput = (req.query.sortBy as string) || "createdAt";
+        const sortBy = SORTABLE_PRODUCT_FIELDS.has(sortByInput) ? sortByInput : "createdAt";
         const sortOrder = (req.query.sortOrder as string) === "asc" ? "asc" : "desc";
 
         const district = req.query.district as string;
@@ -155,8 +173,8 @@ export const searchProducts = async (req: Request, res: Response) => {
             isDeleted: false,
             status: "ACTIVE",
             OR: [
-                { name: { contains: q.trim(), mode: "insensitive" } },
-                { description: { contains: q.trim(), mode: "insensitive" } }
+                { name: { contains: escapeLike(q.trim()), mode: "insensitive" } },
+                { description: { contains: escapeLike(q.trim()), mode: "insensitive" } }
             ]
         };
 
@@ -264,19 +282,27 @@ export const filterProducts = async (req: Request, res: Response) => {
 
         if (minPrice || maxPrice) {
             where.price = {};
-            if (minPrice) where.price.gte = parseFloat(minPrice as string);
-            if (maxPrice) where.price.lte = parseFloat(maxPrice as string);
+            if (minPrice) {
+                const min = parseFloat(minPrice as string);
+                if (Number.isFinite(min) && min >= 0) where.price.gte = min;
+            }
+            if (maxPrice) {
+                const max = parseFloat(maxPrice as string);
+                if (Number.isFinite(max) && max >= 0) where.price.lte = max;
+            }
         }
 
         if (rating) {
             const targetRating = parseFloat(rating as string);
-            where.reviews = {
-                some: {
-                    rating: {
-                        gte: targetRating
+            if (Number.isFinite(targetRating) && targetRating >= 0 && targetRating <= 5) {
+                where.reviews = {
+                    some: {
+                        rating: {
+                            gte: targetRating
+                        }
                     }
-                }
-            };
+                };
+            }
         }
 
         if (!where.seller) {
@@ -380,7 +406,7 @@ export const getProductsByCategory = async (req: Request, res: Response) => {
 
 export const getFeaturedProducts = async (req: Request, res: Response) => {
     try {
-        const limit = parseInt(req.query.limit as string, 10) || 10;
+        const limit = clampLimit(req.query.limit, 10);
         const district = req.query.district as string;
         const state = req.query.state as string;
 
@@ -446,7 +472,7 @@ export const getFeaturedProducts = async (req: Request, res: Response) => {
 export const getRecommendedProducts = async (req: Request, res: Response) => {
     try {
         const customerId = req.customerId;
-        const limit = parseInt(req.query.limit as string, 10) || 10;
+        const limit = clampLimit(req.query.limit, 10);
         const district = req.query.district as string;
         const state = req.query.state as string;
 

@@ -40,9 +40,7 @@ export function PaymentMethodsPage() {
   const { data, isLoading, isError, error: queryError } = useQuery({
     queryKey: ['payment-methods'],
     queryFn: async () => {
-      console.log('[PaymentMethods] Fetching from GET /api/admin/payment-methods ...');
       const result = await paymentMethodApi.getPaymentMethods();
-      console.log('[PaymentMethods] GET response:', result);
       return result;
     },
     staleTime: 0,
@@ -54,12 +52,9 @@ export function PaymentMethodsPage() {
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, allowed }: { id: string; allowed: boolean }) => {
-      const payload = { allowed };
-      console.log('[PaymentMethods] Mutation started — id:', id, 'payload:', payload);
       return paymentMethodApi.toggleStatus(id, allowed);
     },
     onMutate: async ({ id, allowed }) => {
-      console.log('[PaymentMethods] onMutate — optimistic update id:', id, 'allowed:', allowed);
       await queryClient.cancelQueries({ queryKey: ['payment-methods'] });
 
       const previousData = queryClient.getQueryData<{ paymentMethods: PaymentMethodSetting[] }>(['payment-methods']);
@@ -75,8 +70,7 @@ export function PaymentMethodsPage() {
 
       return { previousData };
     },
-    onSuccess: (response) => {
-      console.log('[PaymentMethods] onSuccess — server response:', response);
+    onSuccess: () => {
       showToast('Payment method status updated.', 'success');
       setTogglingId(null);
     },
@@ -194,13 +188,9 @@ export function PaymentMethodsPage() {
                       isLoading={toggleMutation.isPending && togglingId === id}
                       disabled={!id || (toggleMutation.isPending && togglingId === id)}
                       onClick={() => {
-                        console.log('[PaymentMethods] Button clicked — id:', id, 'currentAllowed:', isAllowed);
-                        console.log('[PaymentMethods] Sending PATCH /api/admin/payment-methods/' + id);
                         if (id) {
                           setTogglingId(id);
                           toggleMutation.mutate({ id, allowed: !isAllowed });
-                        } else {
-                          console.error('[PaymentMethods] BLOCKED — id is undefined. GET /api/admin/payment-methods failed or returned empty.');
                         }
                       }}
                     >

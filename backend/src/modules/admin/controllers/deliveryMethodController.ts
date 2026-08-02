@@ -133,11 +133,6 @@ export const toggleDeliveryMethodStatus = async (req: Request, res: Response) =>
         const id = req.params.id as string;
         const allowed = req.body.allowed !== undefined ? req.body.allowed : req.body.enabled;
 
-        console.log('[PATCH /api/admin/delivery-methods/:id] reached');
-        console.log('[PATCH] req.params:', req.params);
-        console.log('[PATCH] req.body:', req.body);
-        console.log('[PATCH] resolved allowed:', allowed);
-
         if (!id) {
             return res.status(400).json({ message: "Delivery Method ID is required" });
         }
@@ -149,14 +144,11 @@ export const toggleDeliveryMethodStatus = async (req: Request, res: Response) =>
         }
 
         const newEnabled = allowed !== undefined ? !!allowed : !method.enabled;
-        console.log('[PATCH] updating enabled to:', newEnabled);
 
         const updated = await prisma.deliveryMethodSetting.update({
             where: { id },
             data: { enabled: newEnabled },
         });
-
-        console.log('[PATCH] Prisma updated record:', updated);
 
         return res.status(200).json({
             message: `Delivery method ${newEnabled ? "enabled" : "disabled"} successfully`,

@@ -26,7 +26,7 @@ import sellerAuth from './modules/seller/routes/authroute.js';
 import shopRoutes from './modules/seller/routes/shopRoute.js';
 import sellerProfileRoute from './modules/seller/routes/profileRoute.js';
 import sellerLocationRoute from './modules/seller/routes/locationRoute.js';
-import { limiter } from './middleware/ratelimiter.js';
+import { limiter, adminLimiter } from './middleware/rateLimiter.js';
 import sellerProducts from './modules/seller/routes/productRoute.js';
 import ordersRoutes from './modules/seller/routes/ordersRoute.js';
 import analyticsRoutes from './modules/seller/routes/analyticsRoute.js';
@@ -37,6 +37,7 @@ import reviewRoutes from './modules/seller/routes/reviewRoute.js';
 
 import { requestLogger } from './middleware/requestLogger.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { csrfOriginCheck } from './middleware/csrfOriginCheck.js';
 import "./jobs/cron.js";
 
 // Admin module routes
@@ -122,6 +123,7 @@ export const configureMiddlewares = (app: express.Express) => {
         allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
         optionsSuccessStatus: 204,
     }));
+    app.use(csrfOriginCheck);
     app.use(requestLogger);
     app.use(limiter);
 
@@ -176,31 +178,31 @@ app.use('/seller', payoutRoutes);
 app.use('/seller', reviewRoutes);
 
 // Admin routes
-app.use('/api/admin/auth', adminAuthRoute);  // handles /api/admin/auth/login, /api/admin/auth/setup/status etc.
-app.use('/api/admin', adminAuthRoute);        // handles /api/admin/profile, /api/admin/list, /api/admin/:id/status etc.
-app.use('/admin', adminAuthRoute);            // handles /admin/api/auth/setup/status (legacy)
-app.use('/api/admin/analytics', adminAnalyticsRoute);
-app.use('/api/admin/sellers', adminSellerRoute);
-app.use('/api/admin/customers', adminCustomerRoute);
-app.use('/api/admin/shops', adminShopRoute);
-app.use('/api/admin/products', adminProductRoute);
-app.use('/api/admin/orders', adminOrderRoute);
-app.use('/api/admin/payments', adminPaymentRoute);
-app.use('/api/admin/reviews', adminReviewRoute);
-app.use('/api/admin/notifications', adminNotificationRoute);
-app.use('/api/admin/reports', adminReportRoute);
-app.use('/api/admin/coupons', adminCouponRoute);
-app.use('/api/admin/settings', adminSettingsRoute);
-app.use('/api/admin/logs', adminLogRoute);
-app.use('/api/admin/cities', adminCityRoute);
-app.use('/api/admin/states', adminStateRoute);
-app.use('/api/admin/payment-methods', adminPaymentMethodRoute);
-app.use('/api/admin/delivery-methods', adminDeliveryMethodRoute);
+app.use('/api/admin/auth', adminLimiter, adminAuthRoute);  // handles /api/admin/auth/login, /api/admin/auth/setup/status etc.
+app.use('/api/admin', adminLimiter, adminAuthRoute);        // handles /api/admin/profile, /api/admin/list, /api/admin/:id/status etc.
+app.use('/admin', adminLimiter, adminAuthRoute);            // handles /admin/api/auth/setup/status (legacy)
+app.use('/api/admin/analytics', adminLimiter, adminAnalyticsRoute);
+app.use('/api/admin/sellers', adminLimiter, adminSellerRoute);
+app.use('/api/admin/customers', adminLimiter, adminCustomerRoute);
+app.use('/api/admin/shops', adminLimiter, adminShopRoute);
+app.use('/api/admin/products', adminLimiter, adminProductRoute);
+app.use('/api/admin/orders', adminLimiter, adminOrderRoute);
+app.use('/api/admin/payments', adminLimiter, adminPaymentRoute);
+app.use('/api/admin/reviews', adminLimiter, adminReviewRoute);
+app.use('/api/admin/notifications', adminLimiter, adminNotificationRoute);
+app.use('/api/admin/reports', adminLimiter, adminReportRoute);
+app.use('/api/admin/coupons', adminLimiter, adminCouponRoute);
+app.use('/api/admin/settings', adminLimiter, adminSettingsRoute);
+app.use('/api/admin/logs', adminLimiter, adminLogRoute);
+app.use('/api/admin/cities', adminLimiter, adminCityRoute);
+app.use('/api/admin/states', adminLimiter, adminStateRoute);
+app.use('/api/admin/payment-methods', adminLimiter, adminPaymentMethodRoute);
+app.use('/api/admin/delivery-methods', adminLimiter, adminDeliveryMethodRoute);
 
 // Delivery routes
 app.use('/', deliveryRoute);
 app.use('/', sellerDeliveryRoute);
-app.use('/api/admin', adminDeliveryRoute);
+app.use('/api/admin', adminLimiter, adminDeliveryRoute);
 app.use('/', deliveryWebhook);
 app.use('/api/storage', storageRoute);
 

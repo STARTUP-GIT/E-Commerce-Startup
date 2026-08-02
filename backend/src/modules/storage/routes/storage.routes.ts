@@ -18,12 +18,14 @@ import {
 } from "../validations/storage.validation.js";
 
 import authGuard from "../../../middleware/authGuard.js";
+import { uploadLimiter } from "../../../middleware/rateLimiter.js";
 
 const router = Router();
 
 router.post(
   "/upload-url",
   authGuard,
+  uploadLimiter,
   validatePresignRequest,
   storageController.generateUploadUrl.bind(storageController)
 );
@@ -31,6 +33,7 @@ router.post(
 router.post(
   "/image",
   authGuard,
+  uploadLimiter,
   uploadSingleImage,
   validateSingleImage,
   validateFolder,
@@ -40,6 +43,7 @@ router.post(
 router.post(
   "/images",
   authGuard,
+  uploadLimiter,
   uploadMultipleImages,
   validateMultipleImages,
   validateFolder,
@@ -49,6 +53,7 @@ router.post(
 router.post(
   "/document",
   authGuard,
+  uploadLimiter,
   uploadDocument.single("document"),
   validateDocument,
   validateFolder,
@@ -58,6 +63,7 @@ router.post(
 router.put(
   "/image",
   authGuard,
+  uploadLimiter,
   uploadSingleImage,
   validateSingleImage,
   validateFolder,
@@ -68,6 +74,7 @@ router.put(
 router.put(
   "/document",
   authGuard,
+  uploadLimiter,
   uploadDocument.single("document"),
   validateDocument,
   validateFolder,

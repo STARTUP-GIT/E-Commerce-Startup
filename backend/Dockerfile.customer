@@ -19,6 +19,7 @@ COPY --from=builder /app/dist ./dist
 RUN npx prisma generate
 
 ENV NODE_ENV=production
+RUN mkdir -p /app/uploads/temp && chown -R node:node /app/uploads
 USER node
 EXPOSE 3001
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/customer.server.js"]
+CMD ["sh", "-c", "node dist/customer.server.js"]

@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
+import { invalidatePublicCache } from "../../../middleware/cache.js";
 
 export const getReviews = async (req: Request, res: Response) => {
     try {
@@ -106,6 +107,8 @@ export const replyToReview = async (req: Request, res: Response) => {
             }
         });
 
+        invalidatePublicCache();
+
         return res.status(200).json({
             message: "Reply added successfully",
             review: updatedReview
@@ -165,6 +168,8 @@ export const deleteReply = async (req: Request, res: Response) => {
                 reply: null
             }
         });
+
+        invalidatePublicCache();
 
         return res.status(200).json({
             message: "Reply deleted successfully",

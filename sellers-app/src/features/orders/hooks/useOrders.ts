@@ -21,7 +21,6 @@ export function useOrders(orderId?: string) {
     queryKey: ['seller-order', orderId],
     queryFn: async () => {
       const res = await ordersApi.getOrder(orderId!);
-      console.log('order fetched:', res.order);
       return res.order;
     },
     enabled: !!orderId,
@@ -124,6 +123,10 @@ export function useOrders(orderId?: string) {
     mutationFn: ordersApi.downloadShippingLabel,
   });
 
+  const downloadInvoiceMutation = useMutation({
+    mutationFn: ordersApi.downloadInvoice,
+  });
+
   return {
     orders: ordersQuery.data ?? [],
     isLoading: ordersQuery.isLoading,
@@ -169,5 +172,8 @@ export function useOrders(orderId?: string) {
 
     downloadShippingLabel: downloadShippingLabelMutation.mutateAsync,
     isDownloadingShippingLabel: downloadShippingLabelMutation.isPending,
+
+    downloadInvoice: downloadInvoiceMutation.mutateAsync,
+    isDownloadingInvoice: downloadInvoiceMutation.isPending,
   };
 }

@@ -6,12 +6,13 @@ import {
     clearWishlist
 } from "../controllers/wishlistController.js";
 import { customerAuth } from "../../../middleware/customerAuth.js";
+import { writeLimiter } from "../../../middleware/rateLimiter.js";
 
 const router = express.Router();
 
-router.get("/api/wishlist", customerAuth, getWishlist);
-router.post("/api/wishlist", customerAuth, addToWishlist);
-router.delete("/api/wishlist", customerAuth, clearWishlist);
-router.delete("/api/wishlist/:itemId", customerAuth, removeFromWishlist);
+router.get("/api/wishlist", customerAuth, writeLimiter, getWishlist);
+router.post("/api/wishlist", customerAuth, writeLimiter, addToWishlist);
+router.delete("/api/wishlist", customerAuth, writeLimiter, clearWishlist);
+router.delete("/api/wishlist/:itemId", customerAuth, writeLimiter, removeFromWishlist);
 
 export default router;

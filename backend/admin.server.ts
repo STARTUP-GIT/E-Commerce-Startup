@@ -11,6 +11,7 @@ import http from 'http';
 import express from 'express';
 import { configureMiddlewares, configureErrorHandlers } from './src/app.js';
 import { prisma } from './src/config/prisma.js';
+import { adminLimiter } from './src/middleware/rateLimiter.js';
 
 // Admin routes
 import adminAuthRoute from './src/modules/admin/routes/authRoute.js';
@@ -42,28 +43,28 @@ ensureDefaultDeliveryMethods().catch(err => console.error("Auto-seed delivery me
 const app = express();
 configureMiddlewares(app);
 
-app.use('/api/admin/auth', adminAuthRoute);  // /api/admin/auth/login, /api/admin/auth/setup/status
-app.use('/api/admin', adminAuthRoute);        // /api/admin/profile, /api/admin/list, /api/admin/:id/status
-app.use('/admin', adminAuthRoute);            // /admin/setup/status (legacy fallback)
-app.use('/api/admin/analytics', adminAnalyticsRoute);
-app.use('/api/admin/sellers', adminSellerRoute);
-app.use('/api/admin/customers', adminCustomerRoute);
-app.use('/api/admin/shops', adminShopRoute);
-app.use('/api/admin/products', adminProductRoute);
-app.use('/api/admin/orders', adminOrderRoute);
-app.use('/api/admin/payments', adminPaymentRoute);
-app.use('/api/admin/reviews', adminReviewRoute);
-app.use('/api/admin/notifications', adminNotificationRoute);
-app.use('/api/admin/reports', adminReportRoute);
-app.use('/api/admin/coupons', adminCouponRoute);
-app.use('/api/admin/settings', adminSettingsRoute);
-app.use('/api/admin/logs', adminLogRoute);
-app.use('/api/admin/cities', adminCityRoute);
-app.use('/api/admin/states', adminStateRoute);
-app.use('/api/admin/categories', adminCategoryRoute);
-app.use('/api/admin/payment-methods', adminPaymentMethodRoute);
-app.use('/api/admin/delivery-methods', adminDeliveryMethodRoute);
-app.use('/api/admin', adminDeliveryRoute);
+app.use('/api/admin/auth', adminLimiter, adminAuthRoute);  // /api/admin/auth/login, /api/admin/auth/setup/status
+app.use('/api/admin', adminLimiter, adminAuthRoute);        // /api/admin/profile, /api/admin/list, /api/admin/:id/status
+app.use('/admin', adminLimiter, adminAuthRoute);            // /admin/setup/status (legacy fallback)
+app.use('/api/admin/analytics', adminLimiter, adminAnalyticsRoute);
+app.use('/api/admin/sellers', adminLimiter, adminSellerRoute);
+app.use('/api/admin/customers', adminLimiter, adminCustomerRoute);
+app.use('/api/admin/shops', adminLimiter, adminShopRoute);
+app.use('/api/admin/products', adminLimiter, adminProductRoute);
+app.use('/api/admin/orders', adminLimiter, adminOrderRoute);
+app.use('/api/admin/payments', adminLimiter, adminPaymentRoute);
+app.use('/api/admin/reviews', adminLimiter, adminReviewRoute);
+app.use('/api/admin/notifications', adminLimiter, adminNotificationRoute);
+app.use('/api/admin/reports', adminLimiter, adminReportRoute);
+app.use('/api/admin/coupons', adminLimiter, adminCouponRoute);
+app.use('/api/admin/settings', adminLimiter, adminSettingsRoute);
+app.use('/api/admin/logs', adminLimiter, adminLogRoute);
+app.use('/api/admin/cities', adminLimiter, adminCityRoute);
+app.use('/api/admin/states', adminLimiter, adminStateRoute);
+app.use('/api/admin/categories', adminLimiter, adminCategoryRoute);
+app.use('/api/admin/payment-methods', adminLimiter, adminPaymentMethodRoute);
+app.use('/api/admin/delivery-methods', adminLimiter, adminDeliveryMethodRoute);
+app.use('/api/admin', adminLimiter, adminDeliveryRoute);
 
 configureErrorHandlers(app);
 

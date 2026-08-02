@@ -16,6 +16,13 @@ import {
 import { sellerAuth } from "../../../middleware/sellerAuth.js";
 import { customerAuth } from "../../../middleware/customerAuth.js";
 import { adminAuth } from "../../../middleware/adminAuth.js";
+import {
+    paymentLimiter,
+    adminLimiter,
+    publicReadLimiter,
+    webhookLimiter,
+    writeLimiter,
+} from "../../../middleware/rateLimiter.js";
 import { prisma } from "../../../config/prisma.js";
 import {
     validateCreatePaymentReq,
@@ -73,23 +80,23 @@ const paymentAuth = async (req: Request, res: Response, next: NextFunction) => {
 };
 
 // Seller packing fee configurations
-router.patch("/api/payment/shop/packing-fee", sellerAuth, togglePackingFee);
+router.patch("/api/payment/shop/packing-fee", sellerAuth, writeLimiter, togglePackingFee);
 
 // Admin packing fee approvals/revocations
-router.patch("/api/payment/admin/shops/:shopId/packing-fee/approve", approvePackingFee);
-router.patch("/api/payment/admin/shops/:shopId/packing-fee/revoke", revokePackingFee);
+router.patch("/api/payment/admin/shops/:shopId/packing-fee/approve", adminAuth, adminLimiter, approvePackingFee);
+router.patch("/api/payment/admin/shops/:shopId/packing-fee/revoke", adminAuth, adminLimiter, revokePackingFee);
 
 // Core payment flows
-router.post("/api/payment/create", customerAuth, validateCreatePaymentReq, createPayment);
-router.post("/api/payment/verify", customerAuth, validateVerifyPaymentReq, verifyPayment);
-router.post("/api/payment/refund", customerAuth, validateRefundPaymentReq, refundPayment);
+router.post("/api/payment/create", customerAuth, paymentLimiter, validateCreatePaymentReq, createPayment);
+router.post("/api/payment/verify", customerAuth, paymentLimiter, validateVerifyPaymentReq, verifyPayment);
+router.post("/api/payment/refund", customerAuth, paymentLimiter, validateRefundPaymentReq, refundPayment);
 
 // Payment history & Invoices
-router.get("/api/payment/history", paymentAuth, getPaymentHistory);
-router.get("/api/payment/invoice/:paymentId", paymentAuth, downloadInvoice);
-router.get("/api/payment/:paymentId", paymentAuth, getPayment);
+router.get("/api/payment/history", paymentAuth, publicReadLimiter, getPaymentHistory);
+router.get("/api/payment/invoice/:paymentId", paymentAuth, publicReadLimiter, downloadInvoice);
+router.get("/api/payment/:paymentId", paymentAuth, publicReadLimiter, getPayment);
 
 // Payment webhooks
-router.post("/api/payment/webhook", paymentWebhook);
+router.post("/api/payment/webhook", webhookLimiter, paymentWebhook);
 
 export default router;

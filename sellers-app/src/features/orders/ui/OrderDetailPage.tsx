@@ -13,6 +13,7 @@ import { DateTimePicker } from '@/shared/components/DateTimePicker';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { useUIStore } from '@/lib/store/uiStore';
+import { SellerInvoice } from './SellerInvoice';
 import {
   ArrowLeft,
   AlertTriangle,
@@ -25,6 +26,7 @@ import {
   Truck,
   Package,
   Download,
+  Printer,
 } from 'lucide-react';
 
 export function OrderDetailPage() {
@@ -58,12 +60,9 @@ export function OrderDetailPage() {
     isMarkingCodCollected,
     downloadShippingLabel,
     isDownloadingShippingLabel,
+    downloadInvoice,
+    isDownloadingInvoice,
   } = useOrders(orderId);
-
-  console.log('order:', order);
-  console.log('isLoadingDetails:', isLoadingDetails);
-  console.log('isErrorDetails:', isErrorDetails);
-  console.log('errorDetails:', errorDetails);
 
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState('');
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
@@ -94,6 +93,28 @@ export function OrderDetailPage() {
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to download shipping label.');
     }
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!order) return;
+    setErrorMsg(null);
+    try {
+      const blob = await downloadInvoice(order.id);
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `invoice-${order?.order?.orderNumber || order.id}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to download invoice.');
+    }
+  };
+
+  const handlePrintInvoice = () => {
+    window.print();
   };
 
   const { upload: uploadProofImage, isUploading, progress: uploadProgress } = useFileUpload({ folder: 'packing-proof' });
@@ -358,15 +379,26 @@ export function OrderDetailPage() {
               )}
 
             {order.status !== 'PENDING' && order.status !== 'CANCELLED' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDownloadShippingLabel}
-                isLoading={isDownloadingShippingLabel}
-              >
-                <Download className="mr-1.5 h-3.5 w-3.5" />
-                <span>Download Shipping Label</span>
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadInvoice}
+                  isLoading={isDownloadingInvoice}
+                >
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  <span>Download Invoice</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadShippingLabel}
+                  isLoading={isDownloadingShippingLabel}
+                >
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  <span>Download Shipping Label</span>
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -417,42 +449,23 @@ export function OrderDetailPage() {
                     ))}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
 
-                {/* Totals panel */}
-                <div className="p-5 border-t border-white/5 flex flex-col items-end space-y-2 bg-white/[0.01] text-xs">
-                  <div className="flex justify-between w-64 text-white/50">
-                    <span>Product Subtotal:</span>
-                    <span>{productService.formatPrice(order.subtotal)}</span>
-                  </div>
-                  {Number(order.packingFee) > 0 && (
-                    <div className="flex justify-between w-64 text-white/50">
-                      <span>Packing Fee:</span>
-                      <span className="text-emerald-400 font-medium">+{productService.formatPrice(order.packingFee)}</span>
-                    </div>
-                  )}
-                  {Number(order.shippingAmount) > 0 && (
-                    <div className="flex justify-between w-64 text-white/50">
-                      <span>Shipping Amount:</span>
-                      <span>+{productService.formatPrice(order.shippingAmount)}</span>
-                    </div>
-                  )}
-                  {Number(order.taxAmount) > 0 && (
-                    <div className="flex justify-between w-64 text-white/50">
-                      <span>Taxes & GST:</span>
-                      <span>+{productService.formatPrice(order.taxAmount)}</span>
-                    </div>
-                  )}
-                  {Number(order.platformCommission) > 0 && (
-                    <div className="flex justify-between w-64 text-white/50 border-t border-white/5 pt-1 mt-1">
-                      <span>Platform Commission (Deducted):</span>
-                      <span className="text-rose-400 font-medium">-{productService.formatPrice(order.platformCommission)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between w-64 text-sm font-bold text-white/95 border-t border-white/10 pt-2 mt-2">
-                    <span>Seller Earnings:</span>
-                    <span className="text-purple-400">{productService.formatPrice(order.sellerEarnings)}</span>
-                  </div>
+            {/* Invoice Preview */}
+            <Card className="border border-white/5">
+              <CardHeader className="border-b border-white/5 pb-4 flex flex-row items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-xs font-bold text-white/90">Invoice Preview</CardTitle>
+                  <CardDescription>Printable tax invoice for this order</CardDescription>
                 </div>
+                <Button variant="outline" size="sm" onClick={handlePrintInvoice}>
+                  <Printer className="mr-1.5 h-3.5 w-3.5" />
+                  <span>Print Invoice</span>
+                </Button>
+              </CardHeader>
+              <CardContent className="p-4 md:p-6">
+                <SellerInvoice order={order} />
               </CardContent>
             </Card>
 

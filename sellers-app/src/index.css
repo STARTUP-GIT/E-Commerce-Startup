@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
@@ -350,4 +349,54 @@
 .divider {
   border:none;
   border-top:1px solid rgba(255,255,255,0.08);
+}
+
+/* =====================================================
+   PRINT — Seller Invoice
+   ===================================================== */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #18181b !important;
+  }
+
+  /* Hide everything except the invoice */
+  body * {
+    display: none;
+  }
+
+  #seller-invoice-print,
+  #seller-invoice-print * {
+    display: revert;
+  }
+
+  #seller-invoice-print {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #seller-invoice-print .print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  #seller-invoice-print tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }

@@ -1,4 +1,5 @@
 import express from "express";
+import crypto from "crypto";
 import { prisma } from "../../../config/prisma.js";
 import PorterService from "../services/porter.service.js";
 
@@ -23,22 +24,31 @@ router.post("/webhook/delivery", express.raw({ type: "application/json" }), asyn
 
     if (!providerOrderId || !providerStatus) return res.status(400).json({ message: "Invalid payload" });
 
-    // Verify signature for known providers if secret configured
+    // Verify signature for ALL providers. Unknown providers must use the
+    // shared DELIVERY_WEBHOOK_SECRET (HMAC-SHA256). Fail closed in production.
+    const isProduction = process.env.NODE_ENV?.toLowerCase() === "production";
+    const signature = typeof signatureHeader === "string" ? signatureHeader : undefined;
+    let signatureValid = false;
+
     if (provider === "PORTER") {
-      const signature = typeof signatureHeader === "string" ? signatureHeader : undefined;
-      const secret = process.env.PORTER_WEBHOOK_SECRET;
-      
-      if (secret || process.env.NODE_ENV?.toLowerCase() === "production") {
-        const valid = PorterService.verifyWebhookSignature(bodyString, signature);
-        if (!valid) {
-          console.warn("Invalid porter webhook signature");
-          return res.status(401).json({ message: "Invalid signature" });
-        }
+      signatureValid = PorterService.verifyWebhookSignature(bodyString, signature);
+    } else {
+      const genericSecret = process.env.DELIVERY_WEBHOOK_SECRET;
+      if (genericSecret && signature) {
+        const hmac = crypto.createHmac("sha256", genericSecret).update(bodyString).digest("hex");
+        signatureValid = crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(signature));
       }
     }
 
+    if (!signatureValid && isProduction) {
+      console.warn(`Rejected unsigned delivery webhook (provider=${provider})`);
+      return res.status(401).json({ message: "Invalid signature" });
+    }
+    if (!signatureValid && !isProduction) {
+      console.warn(`Skipping signature verification for ${provider} webhook (non-production)`);
+    }
+
     // Deduplication & Idempotency: Ignore duplicate events and replay attacks
-    const crypto = await import("crypto");
     const payloadHash = crypto.createHash("sha256").update(bodyString).digest("hex");
     const eventId = payload.eventId || payload.event_id || `${providerOrderId}_${providerStatus}`;
 

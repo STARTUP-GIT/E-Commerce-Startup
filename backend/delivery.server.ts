@@ -8,6 +8,7 @@ import http from 'http';
 import express from 'express';
 import { configureMiddlewares, configureErrorHandlers } from './src/app.js';
 import { prisma } from './src/config/prisma.js';
+import { adminLimiter, webhookLimiter } from './src/middleware/rateLimiter.js';
 
 // Delivery routes
 import deliveryRoute from './src/modules/delivery/routes/deliveryRoute.js';
@@ -17,9 +18,9 @@ import deliveryWebhook from './src/modules/delivery/webhooks/deliveryWebhook.js'
 const app = express();
 configureMiddlewares(app);
 
-app.use('/', deliveryRoute);
-app.use('/', sellerDeliveryRoute);
-app.use('/', deliveryWebhook);
+app.use('/', adminLimiter, deliveryRoute);
+app.use('/', adminLimiter, sellerDeliveryRoute);
+app.use('/', webhookLimiter, deliveryWebhook);
 
 configureErrorHandlers(app);
 

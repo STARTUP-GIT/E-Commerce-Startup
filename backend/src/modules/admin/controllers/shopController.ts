@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 import { logAdminAction } from "../utils/actionLogger.js";
 import { AdminActionType } from "@prisma/client";
+import { invalidatePublicCache } from "../../../middleware/cache.js";
 
 export const getShops = async (req: Request, res: Response) => {
     try {
@@ -107,6 +108,8 @@ export const deleteShop = async (req: Request, res: Response) => {
             previousValue: { name: shop.name },
             newValue: null
         });
+
+        invalidatePublicCache();
 
         return res.status(200).json({ message: "Shop deleted successfully" });
     } catch (error: any) {
@@ -348,6 +351,8 @@ export const approveShop = async (req: Request, res: Response) => {
             newValue: { status: "APPROVED" }
         });
 
+        invalidatePublicCache();
+
         return res.status(200).json({ message: "Shop approved successfully", shop: updatedShop });
     } catch (error: any) {
         console.error("APPROVE SHOP ERROR:", error);
@@ -394,6 +399,8 @@ export const rejectShop = async (req: Request, res: Response) => {
             newValue: { status: "REJECTED", rejectionReason: reason }
         });
 
+        invalidatePublicCache();
+
         return res.status(200).json({ message: "Shop rejected", shop: updatedShop });
     } catch (error: any) {
         console.error("REJECT SHOP ERROR:", error);
@@ -437,6 +444,8 @@ export const suspendShop = async (req: Request, res: Response) => {
             newValue: { status: "SUSPENDED" }
         });
 
+        invalidatePublicCache();
+
         return res.status(200).json({ message: "Shop suspended successfully", shop: updatedShop });
     } catch (error: any) {
         console.error("SUSPEND SHOP ERROR:", error);
@@ -479,6 +488,8 @@ export const disableShop = async (req: Request, res: Response) => {
             previousValue: { status: shop.status },
             newValue: { status: "DISABLED" }
         });
+
+        invalidatePublicCache();
 
         return res.status(200).json({ message: "Shop disabled successfully", shop: updatedShop });
     } catch (error: any) {
@@ -531,6 +542,8 @@ export const updateShopConfig = async (req: Request, res: Response) => {
                 packingFeeApproved: updatedShop.packingFeeApproved
             }
         });
+
+        invalidatePublicCache();
 
         return res.status(200).json({ message: "Shop configurations updated successfully", shop: updatedShop });
     } catch (error: any) {

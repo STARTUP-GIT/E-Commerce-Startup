@@ -8,14 +8,15 @@ import {
     confirmDelivery
 } from "../controllers/orderController.js";
 import { customerAuth } from "../../../middleware/customerAuth.js";
+import { writeLimiter } from "../../../middleware/rateLimiter.js";
 
 const router = express.Router();
 
-router.get("/api/orders", customerAuth, getOrders);
-router.get("/api/orders/:orderId", customerAuth, getOrder);
-router.patch("/api/orders/:orderId/cancel", customerAuth, cancelOrder);
-router.get("/api/orders/:orderId/track", customerAuth, trackOrder);
-router.get("/api/orders/:orderId/invoice", customerAuth, downloadInvoice);
-router.patch("/api/orders/seller-order/:sellerOrderId/confirm", customerAuth, confirmDelivery);
+router.get("/api/orders", customerAuth, writeLimiter, getOrders);
+router.get("/api/orders/:orderId", customerAuth, writeLimiter, getOrder);
+router.patch("/api/orders/:orderId/cancel", customerAuth, writeLimiter, cancelOrder);
+router.get("/api/orders/:orderId/track", customerAuth, writeLimiter, trackOrder);
+router.get("/api/orders/:orderId/invoice", customerAuth, writeLimiter, downloadInvoice);
+router.patch("/api/orders/seller-order/:sellerOrderId/confirm", customerAuth, writeLimiter, confirmDelivery);
 
 export default router;

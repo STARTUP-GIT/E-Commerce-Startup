@@ -12,36 +12,19 @@ declare global {
 
 export const sellerAuth = async (req : Request, res : Response, next : NextFunction) => {
   try {
-    console.log("[sellerAuth] JWT_SECRET_KEY loaded:", !!process.env.JWT_SECRET_KEY);
-
     const token = req.cookies?.seller_session;
 
     if (!token) {
-      console.warn("[sellerAuth] FAIL — No seller_session cookie. cookies:", JSON.stringify(Object.keys(req.cookies || {})));
       return res.status(401).json({ message: "Unauthorized" });
     }
-
-    console.log("========== SELLER AUTH ==========");
-    console.log("JWT_SECRET_KEY exists:", !!process.env.JWT_SECRET_KEY);
-    console.log("JWT_SECRET_KEY length:", process.env.JWT_SECRET_KEY?.length);
-    console.log("Received Token Length:", token.length);
-    console.log("Received Token:", token);
 
     let decoded: any;
 
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET_KEY!);
-      console.log("[sellerAuth] OK — sellerId:", decoded?.id);
     } catch (err: any) {
-      console.error("VERIFY FAILED");
-      console.error({
-        name: err?.name,
-        message: err?.message,
-        stack: err?.stack
-      });
       return res.status(401).json({
-        message: "JWT verification failed",
-        reason: err?.message
+        message: "JWT verification failed"
       });
     }
 
@@ -54,6 +37,24 @@ export const sellerAuth = async (req : Request, res : Response, next : NextFunct
     if (!seller) {
       return res.status(401).json({
         message: "Seller not found",
+      });
+    }
+
+    if (seller.isBanned) {
+      return res.status(403).json({
+        message: "Account is banned",
+      });
+    }
+
+    if (seller.isDeactivated) {
+      return res.status(403).json({
+        message: "Account is deactivated",
+      });
+    }
+
+    if (seller.status === "DISABLED" || seller.status === "BANNED") {
+      return res.status(403).json({
+        message: "Account access restricted",
       });
     }
 

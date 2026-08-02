@@ -71,13 +71,13 @@ export async function POST(req: NextRequest) {
             response.cookies.set('customer_session', parsed.value, {
               httpOnly: true,
               secure: isProduction,
-              // 'none' in production (backend is cross-origin from Next.js server
-              // to backend server), 'lax' in dev (same-origin via localhost).
-              sameSite: isProduction ? 'none' : 'lax',
+              // 'lax' — the cookie is only consumed on the customer-app origin
+              // (Next.js proxies all requests to the backend server-side), so
+              // SameSite=None is unnecessary and would widen the CSRF surface.
+              sameSite: 'lax',
               path: '/',
               maxAge: parsed.maxAge ?? 60 * 60 * 24 * 7, // default 7 days
             });
-            console.log('[/api/customer/login] customer_session cookie set on response');
           }
           break;
         }

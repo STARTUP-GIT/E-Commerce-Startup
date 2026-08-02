@@ -20,7 +20,7 @@ export const customerAuth = async (req: Request, res: Response, next: NextFuncti
         const token = req.cookies.customer_session;
 
         if (!token) {
-            console.warn('[customerAuth] FAIL — No cookie received. cookies:', JSON.stringify(req.cookies));
+            console.warn('[customerAuth] FAIL — No customer_session cookie received. url:', req.originalUrl);
             return res.status(401).json({
                 message: "Unauthorized",
                 reason: "No customer_session cookie received"
@@ -65,7 +65,6 @@ export const customerAuth = async (req: Request, res: Response, next: NextFuncti
         }
 
         req.customerId = decoded.id;
-        console.log('[customerAuth] OK — customerId:', decoded.id, 'url:', req.originalUrl);
 
         next();
 

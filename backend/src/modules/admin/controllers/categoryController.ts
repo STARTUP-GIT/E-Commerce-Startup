@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
+import { invalidatePublicCache } from "../../../middleware/cache.js";
 
 // Helper to generate a slug
 const generateSlug = (name: string) => {
@@ -35,6 +36,8 @@ export const createCategory = async (req: Request, res: Response) => {
                 isActive: isActive !== undefined ? !!isActive : true
             }
         });
+
+        invalidatePublicCache();
 
         return res.status(201).json({ message: "Category created successfully", category });
     } catch (error: any) {
@@ -102,6 +105,8 @@ export const updateCategory = async (req: Request, res: Response) => {
             data
         });
 
+        invalidatePublicCache();
+
         return res.status(200).json({ message: "Category updated successfully", category: updated });
     } catch (error: any) {
         console.error("UPDATE CATEGORY ERROR:", error);
@@ -132,6 +137,8 @@ export const updateCategoryStatus = async (req: Request, res: Response) => {
             data: { isActive: !!isActive }
         });
 
+        invalidatePublicCache();
+
         return res.status(200).json({ message: "Category status updated successfully", category: updated });
     } catch (error: any) {
         console.error("PATCH CATEGORY STATUS ERROR:", error);
@@ -157,6 +164,7 @@ export const deleteCategory = async (req: Request, res: Response) => {
         }
 
         await prisma.category.delete({ where: { id } });
+        invalidatePublicCache();
         return res.status(200).json({ message: "Category deleted successfully" });
     } catch (error: any) {
         console.error("DELETE CATEGORY ERROR:", error);

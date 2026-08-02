@@ -36,5 +36,6 @@ model SellerAddress {
   @@index([sellerId, isActive])
   @@index([postalCode])
   @@index([city, state])
+  @@index([latitude, longitude])
   @@map("seller_addresses")
 }

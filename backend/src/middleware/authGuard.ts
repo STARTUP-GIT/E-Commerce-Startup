@@ -16,7 +16,7 @@ const authToken = (req: Request) => {
   if (auth?.startsWith("Bearer ")) {
     return {
       token: auth.split(" ")[1],
-      type: "admin" as const,
+      type: "bearer" as const,
     };
   }
 
@@ -71,13 +71,57 @@ const authGuard = async (
         break;
       }
 
-      case "seller":
+      case "seller": {
+        const seller = await prisma.seller.findUnique({
+          where: { id: payload.id },
+        });
+        if (!seller || seller.isBanned || seller.isDeactivated) {
+          return res.status(401).json({
+            success: false,
+            message: "Unauthorized",
+          });
+        }
         req.sellerId = payload.id;
         break;
+      }
 
-      case "customer":
+      case "customer": {
+        const customer = await prisma.customer.findUnique({
+          where: { id: payload.id },
+        });
+        if (!customer || customer.isBanned || customer.isDeactivated) {
+          return res.status(401).json({
+            success: false,
+            message: "Unauthorized",
+          });
+        }
         req.customerId = payload.id;
         break;
+      }
+
+      // A raw Bearer token carries no type claim — resolve the identity from
+      // the database instead of assuming "admin" (prevents privilege escalation).
+      case "bearer": {
+        const admin = await prisma.admin.findUnique({ where: { id: payload.id } });
+        if (admin?.isActive) {
+          req.adminId = payload.id;
+          break;
+        }
+        const seller = await prisma.seller.findUnique({ where: { id: payload.id } });
+        if (seller && !seller.isBanned && !seller.isDeactivated) {
+          req.sellerId = payload.id;
+          break;
+        }
+        const customer = await prisma.customer.findUnique({ where: { id: payload.id } });
+        if (customer && !customer.isBanned && !customer.isDeactivated) {
+          req.customerId = payload.id;
+          break;
+        }
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
+      }
     }
 
     next();

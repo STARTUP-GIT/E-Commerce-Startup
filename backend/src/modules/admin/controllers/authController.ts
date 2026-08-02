@@ -378,7 +378,11 @@ export const googleOAuth = async (req: Request, res: Response) => {
             firstName = payload.given_name ?? "";
             lastName = payload.family_name ?? "";
             avatarUrl = payload.picture ?? "";
-        } else if (bodyEmail) {
+        } else if (
+            bodyEmail &&
+            process.env.NODE_ENV !== "production" &&
+            process.env.ALLOW_UNVERIFIED_GOOGLE === "true"
+        ) {
             email = bodyEmail as string;
             googleId = (providerId || bodyGoogleId || `google_${bodyEmail}`) as string;
             firstName = (bodyFirstName || "") as string;
@@ -390,7 +394,7 @@ export const googleOAuth = async (req: Request, res: Response) => {
                 lastName = nameParts.slice(1).join(" ") || "";
             }
         } else {
-            return res.status(400).json({ message: "Google token or user info is required" });
+            return res.status(400).json({ message: "A valid Google ID token is required" });
         }
 
         if (!email) {

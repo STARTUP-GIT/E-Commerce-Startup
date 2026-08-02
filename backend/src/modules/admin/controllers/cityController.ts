@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
+import { invalidatePublicCache } from "../../../middleware/cache.js";
 
 export const createCity = async (req: Request, res: Response) => {
     try {
@@ -21,6 +22,8 @@ export const createCity = async (req: Request, res: Response) => {
                 isActive: isActive !== undefined ? !!isActive : true
             }
         });
+
+        invalidatePublicCache();
 
         return res.status(201).json({ message: "City created successfully", city });
     } catch (error: any) {
@@ -78,6 +81,8 @@ export const updateCity = async (req: Request, res: Response) => {
             data
         });
 
+        invalidatePublicCache();
+
         return res.status(200).json({ message: "City updated successfully", city: updated });
     } catch (error: any) {
         console.error("UPDATE CITY ERROR:", error);
@@ -98,6 +103,7 @@ export const deleteCity = async (req: Request, res: Response) => {
         }
 
         await prisma.city.delete({ where: { id } });
+        invalidatePublicCache();
         return res.status(200).json({ message: "City deleted successfully" });
     } catch (error: any) {
         console.error("DELETE CITY ERROR:", error);

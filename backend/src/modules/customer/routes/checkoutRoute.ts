@@ -11,17 +11,19 @@ import {
     checkoutCod
 } from "../controllers/checkoutController.js";
 import { customerAuth } from "../../../middleware/customerAuth.js";
+import { checkoutLimiter, publicReadLimiter } from "../../../middleware/rateLimiter.js";
+import { cache } from "../../../middleware/cache.js";
 
 const router = express.Router();
 
-router.get("/api/checkout/payment-methods", getEnabledPaymentMethods);
-router.get("/api/checkout/delivery-methods", getEnabledDeliveryMethods);
-router.post("/api/checkout/cod", customerAuth, checkoutCod);
-router.post("/api/checkout", customerAuth, checkout);
-router.post("/api/checkout/apply-coupon", customerAuth, applyCoupon);
-router.post("/api/checkout/remove-coupon", customerAuth, removeCoupon);
+router.get("/api/checkout/payment-methods", publicReadLimiter, cache(120), getEnabledPaymentMethods);
+router.get("/api/checkout/delivery-methods", publicReadLimiter, cache(120), getEnabledDeliveryMethods);
+router.post("/api/checkout/cod", customerAuth, checkoutLimiter, checkoutCod);
+router.post("/api/checkout", customerAuth, checkoutLimiter, checkout);
+router.post("/api/checkout/apply-coupon", customerAuth, checkoutLimiter, applyCoupon);
+router.post("/api/checkout/remove-coupon", customerAuth, checkoutLimiter, removeCoupon);
 router.get("/api/checkout/shipping", customerAuth, calculateShipping);
-router.post("/api/checkout/taxes", customerAuth, calculateTaxes);
+router.post("/api/checkout/taxes", customerAuth, checkoutLimiter, calculateTaxes);
 router.get("/api/checkout/validate", customerAuth, validateCheckout);
 
 export default router;

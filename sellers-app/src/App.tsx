@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -7,27 +7,36 @@ import { supabase } from '@/lib/supabase';
 import axiosInstance from '@/lib/axios/axiosInstance';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 import { GuestRoute, ProtectedRoute } from '@/router/guards';
-import { LoginPage } from '@/features/auth/ui/LoginPage';
-import { AuthCallbackPage } from '@/features/auth/ui/AuthCallbackPage';
-import { RegisterPage } from '@/features/auth/ui/RegisterPage';
-import { ForgotPasswordPage } from '@/features/auth/ui/ForgotPasswordPage';
-import { ShopSetupPage } from '@/features/shop/ui/ShopSetupPage';
-import { ShopSettingsPage } from '@/features/shop/ui/ShopSettingsPage';
-import { DashboardPage } from '@/features/dashboard/ui/DashboardPage';
-import { ProductListPage } from '@/features/products/ui/ProductListPage';
-import { OrdersPage } from '@/features/orders/ui/OrdersPage';
-import { OrderDetailPage } from '@/features/orders/ui/OrderDetailPage';
-import { CustomOrdersPage } from '@/features/custom-orders/ui/CustomOrdersPage';
-import { CustomOrderDetailPage } from '@/features/custom-orders/ui/CustomOrderDetailPage';
-import { AnalyticsPage } from '@/features/analytics/ui/AnalyticsPage';
-import { PayoutsPage } from '@/features/payouts/ui/PayoutsPage';
-import { ReviewsPage } from '@/features/reviews/ui/ReviewsPage';
-import { NotificationsPage } from '@/features/notifications/ui/NotificationsPage';
-import { SettingsPage } from '@/features/settings/ui/SettingsPage';
-import { SellerProfilePage } from '@/features/profile/ui/SellerProfilePage';
 import { ToastContainer } from '@/shared/components/ToastContainer';
 import { ComingSoonDialog } from '@/components/ui/ComingSoonDialog';
 import { PremiumDialogContainer } from '@/components/ui/PremiumDialogContainer';
+
+const LoginPage = lazy(() => import('@/features/auth/ui/LoginPage').then((m) => ({ default: m.LoginPage })));
+const AuthCallbackPage = lazy(() => import('@/features/auth/ui/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage })));
+const RegisterPage = lazy(() => import('@/features/auth/ui/RegisterPage').then((m) => ({ default: m.RegisterPage })));
+const ForgotPasswordPage = lazy(() => import('@/features/auth/ui/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
+const ShopSetupPage = lazy(() => import('@/features/shop/ui/ShopSetupPage').then((m) => ({ default: m.ShopSetupPage })));
+const ShopSettingsPage = lazy(() => import('@/features/shop/ui/ShopSettingsPage').then((m) => ({ default: m.ShopSettingsPage })));
+const DashboardPage = lazy(() => import('@/features/dashboard/ui/DashboardPage').then((m) => ({ default: m.DashboardPage })));
+const ProductListPage = lazy(() => import('@/features/products/ui/ProductListPage').then((m) => ({ default: m.ProductListPage })));
+const OrdersPage = lazy(() => import('@/features/orders/ui/OrdersPage').then((m) => ({ default: m.OrdersPage })));
+const OrderDetailPage = lazy(() => import('@/features/orders/ui/OrderDetailPage').then((m) => ({ default: m.OrderDetailPage })));
+const CustomOrdersPage = lazy(() => import('@/features/custom-orders/ui/CustomOrdersPage').then((m) => ({ default: m.CustomOrdersPage })));
+const CustomOrderDetailPage = lazy(() => import('@/features/custom-orders/ui/CustomOrderDetailPage').then((m) => ({ default: m.CustomOrderDetailPage })));
+const AnalyticsPage = lazy(() => import('@/features/analytics/ui/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })));
+const PayoutsPage = lazy(() => import('@/features/payouts/ui/PayoutsPage').then((m) => ({ default: m.PayoutsPage })));
+const ReviewsPage = lazy(() => import('@/features/reviews/ui/ReviewsPage').then((m) => ({ default: m.ReviewsPage })));
+const NotificationsPage = lazy(() => import('@/features/notifications/ui/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
+const SettingsPage = lazy(() => import('@/features/settings/ui/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const SellerProfilePage = lazy(() => import('@/features/profile/ui/SellerProfilePage').then((m) => ({ default: m.SellerProfilePage })));
+
+function PageLoader() {
+  return (
+    <div className="min-h-screen bg-background flex flex-col justify-center items-center p-8">
+      <span className="h-10 w-10 rounded-full border-4 border-purple-500/20 border-t-purple-500 animate-spin" />
+    </div>
+  );
+}
 
 function ShopRequiredRoute() {
   const { hasShop, isLoadingShop } = useShop();
@@ -148,7 +157,8 @@ function App() {
       <ToastContainer />
       <ComingSoonDialog />
       <PremiumDialogContainer />
-      <Routes>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
         <Route element={<GuestRoute />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -187,6 +197,7 @@ function App() {
           element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
         />
       </Routes>
+      </Suspense>
     </>
   );
 }

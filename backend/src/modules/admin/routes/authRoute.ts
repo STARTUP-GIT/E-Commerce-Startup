@@ -16,6 +16,12 @@ import {
     resetAdminPassword
 } from "../controllers/authController.js";
 import { adminAuth } from "../../../middleware/adminAuth.js";
+import {
+    loginLimiter,
+    registerLimiter,
+    passwordLimiter,
+    googleOAuthLimiter,
+} from "../../../middleware/rateLimiter.js";
 
 const router = Router();
 
@@ -25,15 +31,15 @@ const router = Router();
 //   GET  /api/admin/setup/status        (mounted at /api/admin)
 //   GET  /admin/setup/status            (mounted at /admin)
 router.get("/setup/status", getSetupStatus);
-router.post("/setup", setupFirstAdmin);
+router.post("/setup", registerLimiter, setupFirstAdmin);
 
 // ─── Public: Authentication ───────────────────────────────────────────────────
 // Resolves as:
 //   POST /api/admin/auth/login          (mounted at /api/admin/auth)
 //   POST /api/admin/login               (mounted at /api/admin)  [fallback]
-router.post("/login", login);
-router.post("/google", googleOAuth);
-router.post("/refresh", refresh);
+router.post("/login", loginLimiter, login);
+router.post("/google", googleOAuthLimiter, googleOAuth);
+router.post("/refresh", passwordLimiter, refresh);
 router.post("/logout", adminAuth, logout);
 
 // ─── Protected: Profile ───────────────────────────────────────────────────────

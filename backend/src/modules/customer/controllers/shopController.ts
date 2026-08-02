@@ -1,6 +1,23 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 
+const SORTABLE_PRODUCT_FIELDS = new Set(["createdAt", "updatedAt", "price", "name", "stockQuantity"]);
+const MAX_PAGE_SIZE = 100;
+
+const clampPage = (value: unknown, fallback: number): number => {
+    const parsed = parseInt(value as string, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+    return parsed;
+};
+
+const clampLimit = (value: unknown, fallback: number): number => {
+    const parsed = parseInt(value as string, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+    return Math.min(parsed, MAX_PAGE_SIZE);
+};
+
+const escapeLike = (input: string): string => input.replace(/[%_\\]/g, (c) => `\\${c}`);
+
 // Haversine formula to compute distance in km
 const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371; // Earth radius in km
@@ -28,11 +45,13 @@ export const getNearbyShops = async (req: Request, res: Response) => {
         const lng1 = parseFloat(lngParam);
         const maxRadius = radiusParam ? parseFloat(radiusParam) : 100; // default 100km
 
-        if (isNaN(lat1) || isNaN(lng1)) {
+        if (!Number.isFinite(lat1) || !Number.isFinite(lng1) || Math.abs(lat1) > 90 || Math.abs(lng1) > 180) {
             return res.status(400).json({
                 message: "Valid latitude and longitude query parameters are required"
             });
         }
+
+        const radius = Number.isFinite(maxRadius) && maxRadius > 0 ? Math.min(maxRadius, 500) : 100;
 
         const whereClause: any = {
             status: "APPROVED",
@@ -40,6 +59,14 @@ export const getNearbyShops = async (req: Request, res: Response) => {
                 isBanned: false
             }
         };
+
+        // Bounding box prefilter (~1 degree lat ≈ 111km, ~1 degree lng ≈ 111km * cos(lat))
+        const dLat = radius / 111;
+        const dLng = radius / (111 * Math.max(Math.cos((lat1 * Math.PI) / 180), 0.1));
+        const latMin = lat1 - dLat;
+        const latMax = lat1 + dLat;
+        const lngMin = lng1 - dLng;
+        const lngMax = lng1 + dLng;
 
         if (district) {
             whereClause.defaultPickupAddress = {
@@ -52,6 +79,16 @@ export const getNearbyShops = async (req: Request, res: Response) => {
                 whereClause.defaultPickupAddress = {};
             }
             whereClause.defaultPickupAddress.state = { equals: state.trim(), mode: "insensitive" };
+        }
+
+        if (district || state) {
+            whereClause.defaultPickupAddress.latitude = { gte: latMin, lte: latMax };
+            whereClause.defaultPickupAddress.longitude = { gte: lngMin, lte: lngMax };
+        } else {
+            whereClause.defaultPickupAddress = {
+                latitude: { gte: latMin, lte: latMax },
+                longitude: { gte: lngMin, lte: lngMax }
+            };
         }
 
         const shops = await prisma.shop.findMany({
@@ -68,7 +105,7 @@ export const getNearbyShops = async (req: Request, res: Response) => {
                 const distance = lat2 !== null && lng2 !== null ? getDistance(lat1, lng1, lat2, lng2) : Infinity;
                 return { ...shop, distance };
             })
-            .filter((shop) => shop.distance <= maxRadius)
+            .filter((shop) => shop.distance <= radius)
             .sort((a, b) => a.distance - b.distance);
 
         return res.status(200).json({
@@ -102,8 +139,8 @@ export const searchShops = async (req: Request, res: Response) => {
                 isBanned: false
             },
             OR: [
-                { name: { contains: q.trim(), mode: "insensitive" } },
-                { description: { contains: q.trim(), mode: "insensitive" } }
+                { name: { contains: escapeLike(q.trim()), mode: "insensitive" } },
+                { description: { contains: escapeLike(q.trim()), mode: "insensitive" } }
             ]
         };
 
@@ -298,11 +335,12 @@ export const getShopProducts = async (req: Request, res: Response) => {
             });
         }
 
-        const page = parseInt(req.query.page as string, 10) || 1;
-        const limit = parseInt(req.query.limit as string, 10) || 10;
+        const page = clampPage(req.query.page, 1);
+        const limit = clampLimit(req.query.limit, 10);
         const skip = (page - 1) * limit;
 
-        const sortBy = (req.query.sortBy as string) || "createdAt";
+        const sortByInput = (req.query.sortBy as string) || "createdAt";
+        const sortBy = SORTABLE_PRODUCT_FIELDS.has(sortByInput) ? sortByInput : "createdAt";
         const sortOrder = (req.query.sortOrder as string) === "asc" ? "asc" : "desc";
 
         const products = await prisma.product.findMany({
@@ -344,7 +382,7 @@ export const getShopProducts = async (req: Request, res: Response) => {
 
 export const getFeaturedShops = async (req: Request, res: Response) => {
     try {
-        const limit = parseInt(req.query.limit as string, 10) || 10;
+        const limit = clampLimit(req.query.limit, 10);
         const district = req.query.district as string;
         const state = req.query.state as string;
 

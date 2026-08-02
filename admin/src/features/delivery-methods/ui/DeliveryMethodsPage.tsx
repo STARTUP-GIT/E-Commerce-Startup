@@ -42,9 +42,7 @@ export function DeliveryMethodsPage() {
   const { data, isLoading, isError, error: queryError } = useQuery({
     queryKey: ['delivery-methods-admin'],
     queryFn: async () => {
-      console.log('[DeliveryMethods] Fetching from GET /api/admin/delivery-methods ...');
       const result = await deliveryMethodApi.getDeliveryMethods();
-      console.log('[DeliveryMethods] GET response:', result);
       return result;
     },
     staleTime: 0,
@@ -56,12 +54,9 @@ export function DeliveryMethodsPage() {
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, allowed }: { id: string; allowed: boolean }) => {
-      const payload = { allowed };
-      console.log('[DeliveryMethods] Mutation started — id:', id, 'payload:', payload);
       return deliveryMethodApi.toggleStatus(id, allowed);
     },
     onMutate: async ({ id, allowed }) => {
-      console.log('[DeliveryMethods] onMutate — optimistic update id:', id, 'allowed:', allowed);
       await queryClient.cancelQueries({ queryKey: ['delivery-methods-admin'] });
 
       const previousData = queryClient.getQueryData<{ deliveryMethods: DeliveryMethodSetting[] }>(['delivery-methods-admin']);
@@ -77,8 +72,7 @@ export function DeliveryMethodsPage() {
 
       return { previousData };
     },
-    onSuccess: (response) => {
-      console.log('[DeliveryMethods] onSuccess — server response:', response);
+    onSuccess: () => {
       showToast('Delivery method status updated.', 'success');
       setTogglingId(null);
     },
@@ -195,13 +189,9 @@ export function DeliveryMethodsPage() {
                       isLoading={toggleMutation.isPending && togglingId === id}
                       disabled={!id || (toggleMutation.isPending && togglingId === id)}
                       onClick={() => {
-                        console.log('[DeliveryMethods] Button clicked — id:', id, 'currentAllowed:', isAllowed);
-                        console.log('[DeliveryMethods] Sending PATCH /api/admin/delivery-methods/' + id);
                         if (id) {
                           setTogglingId(id);
                           toggleMutation.mutate({ id, allowed: !isAllowed });
-                        } else {
-                          console.error('[DeliveryMethods] BLOCKED — id is undefined. GET /api/admin/delivery-methods failed or returned empty.');
                         }
                       }}
                     >

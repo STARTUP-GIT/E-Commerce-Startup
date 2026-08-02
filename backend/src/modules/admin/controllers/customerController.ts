@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 import { logAdminAction } from "../utils/actionLogger.js";
 import { AdminActionType } from "@prisma/client";
+import { sanitizeCustomer } from "../../../utils/sanitize.js";
 
 export const getCustomers = async (req: Request, res: Response) => {
     try {
@@ -32,7 +33,7 @@ export const getCustomers = async (req: Request, res: Response) => {
         ]);
 
         return res.status(200).json({
-            customers,
+            customers: customers.map(sanitizeCustomer),
             pagination: {
                 total,
                 page: Number(page),
@@ -63,7 +64,7 @@ export const getCustomer = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Customer not found" });
         }
 
-        return res.status(200).json({ customer });
+        return res.status(200).json({ customer: sanitizeCustomer(customer) });
     } catch (error: any) {
         console.error("GET CUSTOMER DETAIL ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
@@ -108,7 +109,7 @@ export const banCustomer = async (req: Request, res: Response) => {
             newValue: { isBanned: true, banReason: reason }
         });
 
-        return res.status(200).json({ message: "Customer banned successfully", customer: updatedCustomer });
+        return res.status(200).json({ message: "Customer banned successfully", customer: sanitizeCustomer(updatedCustomer) });
     } catch (error: any) {
         console.error("BAN CUSTOMER ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
@@ -141,7 +142,7 @@ export const unbanCustomer = async (req: Request, res: Response) => {
             newValue: { isBanned: false }
         });
 
-        return res.status(200).json({ message: "Customer unbanned successfully", customer: updatedCustomer });
+        return res.status(200).json({ message: "Customer unbanned successfully", customer: sanitizeCustomer(updatedCustomer) });
     } catch (error: any) {
         console.error("UNBAN CUSTOMER ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });

@@ -224,6 +224,30 @@ export const rejectCustomOrder = async (req: Request, res: Response) => {
             });
         }
 
+        // Prevent IDOR: a seller may only cancel a request they are engaged with
+        // (own quote) or a fresh request that no other seller has quoted on yet.
+        const hasOwnQuote = await prisma.customOrderQuote.findUnique({
+            where: {
+                customOrderId_sellerId: {
+                    customOrderId: customOrderId as string,
+                    sellerId
+                }
+            }
+        });
+
+        const otherQuotesCount = await prisma.customOrderQuote.count({
+            where: {
+                customOrderId: customOrderId as string,
+                sellerId: { not: sellerId }
+            }
+        });
+
+        if (!hasOwnQuote && otherQuotesCount > 0) {
+            return res.status(403).json({
+                message: "Forbidden: Another seller is already engaged with this request"
+            });
+        }
+
         const updatedOrder = await prisma.customOrder.update({
             where: {
                 id: customOrderId as string

@@ -9,23 +9,57 @@ import { Badge } from '@/shared/components/Badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { Button } from '@/shared/components/Button';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { Search, ShoppingBag, Eye, AlertTriangle, RefreshCw } from 'lucide-react';
+import { useUIStore } from '@/lib/store/uiStore';
+import { Search, ShoppingBag, Eye, AlertTriangle, RefreshCw, Download, Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import type { SellerOrder } from '../api/ordersApi';
 
 export function OrdersPage() {
-  const { orders, isLoading, isError, refetch } = useOrders();
+  const { orders, isLoading, isError, refetch, downloadInvoice, isDownloadingInvoice, downloadShippingLabel, isDownloadingShippingLabel } = useOrders();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const navigate = useNavigate();
+  const showToast = useUIStore((state) => state.showToast);
 
   const handleRowClick = (orderId: string) => {
     navigate(`/orders/${orderId}`);
   };
 
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadInvoice = async (ord: SellerOrder) => {
+    try {
+      const blob = await downloadInvoice(ord.id);
+      downloadBlob(blob, `invoice-${ord.order.orderNumber}.pdf`);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to download invoice.', 'error');
+    }
+  };
+
+  const handleDownloadShippingLabel = async (ord: SellerOrder) => {
+    try {
+      const blob = await downloadShippingLabel(ord.id);
+      downloadBlob(blob, `shipping-label-${ord.order.orderNumber}.pdf`);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to download shipping label.', 'error');
+    }
+  };
+
   const filteredOrders = orders.filter((o) => {
     const matchesSearch =
       o.order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (o.order.customerEmail && o.order.customerEmail.toLowerCase().includes(searchQuery.toLowerCase()));
+      (o.order.customerEmail && o.order.customerEmail.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (o.order.shippingAddress?.fullName &&
+        o.order.shippingAddress.fullName.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesStatus = statusFilter === 'ALL' ? true : o.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -94,6 +128,7 @@ export function OrdersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Order #</TableHead>
+                    <TableHead>Customer</TableHead>
                     <TableHead>Purchased Date</TableHead>
                     <TableHead>Payment Method</TableHead>
                     <TableHead>Delivery Method</TableHead>
@@ -112,6 +147,16 @@ export function OrdersPage() {
                     >
                       <TableCell className="font-bold text-white/95 text-xs">
                         {ord.order.orderNumber}
+                      </TableCell>
+                      <TableCell className="text-xs text-white/70 min-w-0">
+                        <span className="block font-semibold text-white/85 break-words">
+                          {ord.order.shippingAddress?.fullName || 'Customer'}
+                        </span>
+                        {ord.order.customerEmail && (
+                          <span className="block text-[10px] text-white/40 break-words">
+                            {ord.order.customerEmail}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-xs text-white/50">
                         {ordersService.formatDate(ord.createdAt)}
@@ -141,15 +186,39 @@ export function OrdersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-[11px]"
-                          onClick={() => handleRowClick(ord.id)}
-                        >
-                          <Eye className="mr-1.5 h-3.5 w-3.5 text-white/60" />
-                          <span>View Detail</span>
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-[11px]"
+                            onClick={() => handleDownloadInvoice(ord)}
+                            disabled={isDownloadingInvoice}
+                          >
+                            <Download className="mr-1.5 h-3.5 w-3.5 text-white/60" />
+                            <span>Invoice</span>
+                          </Button>
+                          {ord.status !== 'PENDING' && ord.status !== 'CANCELLED' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-[11px]"
+                              onClick={() => handleDownloadShippingLabel(ord)}
+                              disabled={isDownloadingShippingLabel}
+                            >
+                              <Truck className="mr-1.5 h-3.5 w-3.5 text-white/60" />
+                              <span>Label</span>
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-[11px]"
+                            onClick={() => handleRowClick(ord.id)}
+                          >
+                            <Eye className="mr-1.5 h-3.5 w-3.5 text-white/60" />
+                            <span>View Detail</span>
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { logAdminAction } from "../utils/actionLogger.js";
 import { AdminActionType } from "@prisma/client";
 import { prisma } from "../../../config/prisma.js";
+import { invalidatePublicCache } from "../../../middleware/cache.js";
 
 export interface PlatformSettings {
     gstPercentage: number;
@@ -70,6 +71,8 @@ export const updateSettings = async (req: Request, res: Response) => {
 
         await savePlatformSettings(updated);
 
+        invalidatePublicCache();
+
         await logAdminAction({
             adminId,
             actionType: AdminActionType.MARKETPLACE_SETTINGS_UPDATED,
@@ -106,6 +109,8 @@ export const updateGST = async (req: Request, res: Response) => {
         };
 
         await savePlatformSettings(updated);
+
+        invalidatePublicCache();
 
         await logAdminAction({
             adminId,
@@ -144,6 +149,8 @@ export const updatePlatformFee = async (req: Request, res: Response) => {
 
         await savePlatformSettings(updated);
 
+        invalidatePublicCache();
+
         await logAdminAction({
             adminId,
             actionType: AdminActionType.MARKETPLACE_SETTINGS_UPDATED,
@@ -179,6 +186,8 @@ export const updatePackingRules = async (req: Request, res: Response) => {
         };
 
         await savePlatformSettings(updated);
+
+        invalidatePublicCache();
 
         await logAdminAction({
             adminId,
@@ -219,6 +228,8 @@ export const updatePaymentGateway = async (req: Request, res: Response) => {
 
         await savePlatformSettings(updated);
 
+        invalidatePublicCache();
+
         await logAdminAction({
             adminId,
             actionType: AdminActionType.MARKETPLACE_SETTINGS_UPDATED,
@@ -254,6 +265,8 @@ export const updateOrderSettings = async (req: Request, res: Response) => {
         };
 
         await savePlatformSettings(updated);
+
+        invalidatePublicCache();
 
         await logAdminAction({
             adminId,

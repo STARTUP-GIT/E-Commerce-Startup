@@ -5,6 +5,24 @@ const PHONEPE_SALT_KEY = process.env.PHONEPE_SALT_KEY || "mock_salt_key_123";
 const PHONEPE_SALT_INDEX = process.env.PHONEPE_SALT_INDEX || "1";
 const PHONEPE_HOST_URL = process.env.PHONEPE_HOST_URL || "https://api-preprod.phonepe.com/apis/hermes";
 
+/**
+ * Mock mode is ONLY enabled when explicitly requested (PHONEPE_MOCK=true) or
+ * when running outside production WITHOUT a configured merchant id. In
+ * production the real PhonePe status API is always consulted, so a defaulted
+ * (mock) config can never "verify" a payment that was never paid for.
+ */
+const isMockMode =
+    process.env.PHONEPE_MOCK === "true" ||
+    (process.env.NODE_ENV !== "production" && !process.env.PHONEPE_MERCHANT_ID);
+
+const verifyResponseSignature = (rawBody: string, xVerifyHeader: string | null): boolean => {
+    if (!xVerifyHeader) return true; // header absent — fall back to HTTPS trust
+    const [hash, index] = xVerifyHeader.split("###");
+    if (!hash || (index && index !== PHONEPE_SALT_INDEX)) return false;
+    const expected = crypto.createHash("sha256").update(rawBody + PHONEPE_SALT_KEY).digest("hex");
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(hash));
+};
+
 export const createPayment = async (paymentData: {
     amount: number;
     transactionId: string;
@@ -44,21 +62,82 @@ export const createPayment = async (paymentData: {
 export const verifyPayment = async (paymentData: { merchantTransactionId: string }) => {
     const { merchantTransactionId } = paymentData;
 
+    if (isMockMode) {
+        return {
+            success: true,
+            code: "PAYMENT_SUCCESS",
+            message: "Payment completed successfully (mock)",
+            data: {
+                merchantId: PHONEPE_MERCHANT_ID,
+                merchantTransactionId,
+                transactionId: `TXN_${merchantTransactionId}`,
+                amount: 0,
+                state: "COMPLETED",
+                responseCode: "SUCCESS"
+            }
+        };
+    }
+
     const stringToHash = `/pg/v1/status/${PHONEPE_MERCHANT_ID}/${merchantTransactionId}${PHONEPE_SALT_KEY}`;
     const sha256 = crypto.createHash("sha256").update(stringToHash).digest("hex");
     const xVerify = `${sha256}###${PHONEPE_SALT_INDEX}`;
 
+    const url = `${PHONEPE_HOST_URL}/pg/v1/status/${PHONEPE_MERCHANT_ID}/${merchantTransactionId}`;
+
+    let response: Response;
+    try {
+        response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                "X-VERIFY": xVerify,
+                "X-MERCHANT-ID": PHONEPE_MERCHANT_ID,
+                "accept": "application/json"
+            }
+        });
+    } catch (err: any) {
+        throw new Error(`PhonePe status API unreachable: ${err.message}`);
+    }
+
+    const rawBody = await response.text();
+
+    if (!verifyResponseSignature(rawBody, response.headers.get("x-verify"))) {
+        throw new Error("PhonePe status response signature verification failed");
+    }
+
+    let parsed: any;
+    try {
+        parsed = JSON.parse(rawBody);
+    } catch {
+        throw new Error(`Invalid response from PhonePe status API (HTTP ${response.status})`);
+    }
+
+    const data = parsed?.data;
+
+    if (!parsed?.success || !data) {
+        return {
+            success: false,
+            code: parsed?.code || "PAYMENT_NOT_FOUND",
+            message: parsed?.message || "Payment not found or not completed",
+            data: null
+        };
+    }
+
+    const successState = ["SUCCESS", "COMPLETED", "PAYMENT_SUCCESS"].includes(
+        String(data.status || data.responseCode || "").toUpperCase()
+    );
+
     return {
-        success: true,
-        code: "PAYMENT_SUCCESS",
-        message: "Payment completed successfully",
+        success: successState,
+        code: data.responseCode || data.code || parsed.code,
+        message: data.status || parsed.message,
         data: {
             merchantId: PHONEPE_MERCHANT_ID,
             merchantTransactionId,
-            transactionId: `TXN_${merchantTransactionId}`,
-            amount: 0,
-            state: "COMPLETED",
-            responseCode: "SUCCESS"
+            transactionId: data.transactionId || `TXN_${merchantTransactionId}`,
+            amount: data.transactionAmount ?? data.amount ?? 0,
+            state: data.status,
+            responseCode: data.responseCode
         }
     };
 };

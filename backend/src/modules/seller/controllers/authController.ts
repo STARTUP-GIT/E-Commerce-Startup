@@ -161,31 +161,9 @@ export const login = async (req: Request, res: Response) => {
             });
         }
 
-        console.log("========== SELLER LOGIN ==========");
-        console.log("JWT_SECRET_KEY exists:", !!process.env.JWT_SECRET_KEY);
-        console.log("JWT_SECRET_KEY length:", process.env.JWT_SECRET_KEY?.length);
-
         const token = signAccessToken(seller.id);
 
-        console.log("Generated Token Length:", token.length);
-        console.log("Generated Token:", token);
-
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY!);
-            console.log("SELF VERIFY SUCCESS");
-            console.log(decoded);
-        } catch (err) {
-            console.error("SELF VERIFY FAILED");
-            console.error(err);
-        }
-
-        console.log("==================================");
-
         setAuthCookie(res, 'seller_session', token);
-
-        console.log("Cookie written:");
-        console.log("seller_session");
-        console.log("Cookie Token:", token);
 
         return res.status(200).json({
             message: "Login successful",
@@ -255,7 +233,11 @@ export const googleOAuth = async (req: Request, res: Response) => {
             firstName = payload.given_name ?? "";
             lastName = payload.family_name ?? "";
             avatarUrl = payload.picture ?? "";
-        } else if (bodyEmail) {
+        } else if (
+            bodyEmail &&
+            process.env.NODE_ENV !== "production" &&
+            process.env.ALLOW_UNVERIFIED_GOOGLE === "true"
+        ) {
             email = bodyEmail;
             googleId = providerId || bodyGoogleId || `google_${bodyEmail}`;
             firstName = bodyFirstName || "";
@@ -268,7 +250,7 @@ export const googleOAuth = async (req: Request, res: Response) => {
             }
         } else {
             return res.status(400).json({
-                message: "Google token or user info is required"
+                message: "A valid Google ID token is required"
             });
         }
 
@@ -721,7 +703,12 @@ export const forgotPassword = async (req: Request, res: Response) => {
         });
 
         if (!seller) {
-            return res.status(404).json({ message: 'Seller not found' });
+            // Return a generic success to prevent account enumeration.
+            return res.status(200).json({
+                message: 'Password reset OTP has been sent successfully.',
+                email: loginIdentifier,
+                emailDelivery: 'sent',
+            });
         }
 
         // Generate 6-digit numeric OTP code
@@ -749,16 +736,13 @@ export const forgotPassword = async (req: Request, res: Response) => {
         });
 
         if (!emailResult.success) {
-            console.warn(`[FORGOT PASSWORD] OTP generated but email delivery failed: ${emailResult.error}`);
+            console.warn(`[FORGOT PASSWORD] OTP generated but email delivery failed for seller: ${seller.id}`);
         }
 
         return res.status(200).json({
-            message: emailResult.success
-                ? 'Password reset OTP has been sent successfully.'
-                : 'Password reset OTP was generated but email delivery failed. Please contact support.',
+            message: 'Password reset OTP has been sent successfully.',
             email: seller.email,
-            emailDelivery: emailResult.success ? 'sent' : 'failed',
-            error: emailResult.error,
+            emailDelivery: 'sent',
         });
 
     } catch (error) {

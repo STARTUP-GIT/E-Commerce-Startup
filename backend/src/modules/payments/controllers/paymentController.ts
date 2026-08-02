@@ -450,7 +450,9 @@ export const paymentWebhook = async (req: Request, res: Response) => {
             const shasum = crypto.createHmac("sha256", secret);
             shasum.update(rawBodyStr);
             const digest = shasum.digest("hex");
-            if (digest !== signatureHeader) {
+            const expected = Buffer.from(signatureHeader, "utf8");
+            const actual = Buffer.from(digest, "utf8");
+            if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
                 return res.status(401).json({ message: "Invalid signature" });
             }
         }
