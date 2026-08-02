@@ -11,7 +11,6 @@
     "target": "esnext",
     // Node / Express / ES2022 type support
     "lib": ["es2022", "dom"],
-    "types": ["node", "express"],
 
     // Other Outputs
     // "sourceMap": true,
