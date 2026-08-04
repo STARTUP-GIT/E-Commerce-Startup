@@ -14,6 +14,7 @@ import {
   Users, Clock, ShieldCheck, ChevronRight, Grid3X3,
 } from 'lucide-react';
 import Link from 'next/link';
+import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
 
 const valueProps = [
   { icon: Users,       title: 'Support Local Crafters', desc: 'Every purchase goes directly to independent local makers in your area.' },
@@ -94,6 +95,7 @@ export function HomePage() {
   const { data: session } = useSession();
   const [search, setSearch] = useState('');
   const { shops, isLoading: shopsLoading } = useShopList();
+  const { homepageSections, isFeatureEnabled } = usePlatformLayout();
 
   const { data: categoriesData } = useQuery<any>({
     queryKey: ['home-categories'],
@@ -107,373 +109,378 @@ export function HomePage() {
     if (search.trim()) router.push(`/products?q=${encodeURIComponent(search.trim())}`);
   };
 
-  return (
-    <div style={{ background: '#080808' }}>
-
-      {/* ══════════════════════════════════════════
-          HERO
-          ══════════════════════════════════════════ */}
-      <section
-        style={{
-          minHeight: 'calc(100dvh - 64px)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          overflow: 'hidden',
-          padding: '80px 24px 80px',
-          background: '#080808',
-        }}
-      >
-        {/* Grid lines */}
-        <div
+  const renderSection = (sectionId: string) => {
+    const key = sectionId.toLowerCase();
+    if (key.includes('hero')) {
+      return (
+        <section
+          key={sectionId}
           style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none',
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-                             linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)`,
-            backgroundSize: '80px 80px',
+            minHeight: 'calc(100dvh - 64px)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            overflow: 'hidden',
+            padding: '80px 24px 80px',
+            background: '#080808',
           }}
-        />
-        {/* White glow blob top */}
-        <div
-          className="orb-1"
-          style={{
-            position: 'absolute', top: '-200px', left: '50%', transform: 'translateX(-50%)',
-            width: '900px', height: '600px',
-            borderRadius: '50%',
-            background: 'radial-gradient(ellipse, rgba(255,255,255,0.06) 0%, transparent 70%)',
-            pointerEvents: 'none',
-          }}
-        />
-
-        <div style={{ maxWidth: '900px', width: '100%', textAlign: 'center', position: 'relative', zIndex: 10 }} className="animate-fade-up">
-
-          {/* Eyebrow badge */}
+        >
+          {/* Grid lines */}
           <div
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: '10px',
-              padding: '10px 20px', borderRadius: '100px',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
-              color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase',
-              marginBottom: '40px',
+              position: 'absolute', inset: 0, pointerEvents: 'none',
+              backgroundImage: `linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+                               linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)`,
+              backgroundSize: '80px 80px',
             }}
-          >
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'rgba(255,255,255,0.7)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-            The Local Marketplace for Everything
-          </div>
-
-          {/* Headline — BIG */}
-          <h1
+          />
+          {/* White glow blob top */}
+          <div
+            className="orb-1"
             style={{
-              fontSize: 'clamp(3.5rem, 10vw, 8rem)',
-              fontWeight: 900,
-              lineHeight: 0.9,
-              letterSpacing: '-0.04em',
-              color: '#ffffff',
-              marginBottom: '32px',
+              position: 'absolute', top: '-200px', left: '50%', transform: 'translateX(-50%)',
+              width: '900px', height: '600px',
+              borderRadius: '50%',
+              background: 'radial-gradient(ellipse, rgba(255,255,255,0.06) 0%, transparent 70%)',
+              pointerEvents: 'none',
             }}
-          >
-            Buy Anything.<br />
-            <span
+          />
+
+          <div style={{ maxWidth: '900px', width: '100%', textAlign: 'center', position: 'relative', zIndex: 10 }} className="animate-fade-up">
+
+            {/* Eyebrow badge */}
+            <div
               style={{
-                background: 'linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.4) 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
+                display: 'inline-flex', alignItems: 'center', gap: '10px',
+                padding: '10px 20px', borderRadius: '100px',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
+                color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase',
+                marginBottom: '40px',
               }}
             >
-              From Anyone.
-            </span><br />
-            Near You.
-          </h1>
-
-          {/* Subheading */}
-          <p
-            style={{
-              fontSize: 'clamp(1rem, 2vw, 1.25rem)',
-              color: 'rgba(255,255,255,0.42)',
-              maxWidth: '560px',
-              margin: '0 auto 48px',
-              lineHeight: 1.7,
-              fontWeight: 400,
-            }}
-          >
-            Aura is your local marketplace for everything — fashion, tech, food, prints, crafts, and beyond. Discover creators. Support neighbours.
-          </p>
-
-          {/* Search bar */}
-          <form
-            onSubmit={handleSearch}
-            style={{
-              display: 'flex', gap: '8px',
-              maxWidth: '560px', margin: '0 auto 40px',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: '16px',
-              padding: '8px',
-              WebkitBackdropFilter: 'blur(20px)',
-              backdropFilter: 'blur(20px)',
-            }}
-          >
-            <div style={{ position: 'relative', flex: 1 }}>
-              <Search
-                style={{
-                  position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
-                  width: 18, height: 18, color: 'rgba(255,255,255,0.3)',
-                }}
-              />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search products, shops…"
-                style={{
-                  width: '100%', height: '52px', paddingLeft: '44px', paddingRight: '16px',
-                  background: 'transparent', border: 'none', outline: 'none',
-                  fontSize: '15px', color: '#fff', fontFamily: 'inherit',
-                }}
-              />
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'rgba(255,255,255,0.7)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+              The Local Marketplace for Everything
             </div>
-            <button
-              type="submit"
+
+            {/* Headline — BIG */}
+            <h1
               style={{
-                height: '52px', padding: '0 28px',
-                borderRadius: '12px', border: 'none',
-                background: '#ffffff', color: '#000',
-                fontSize: '15px', fontWeight: 800,
-                cursor: 'pointer', flexShrink: 0,
-                transition: 'opacity 0.15s',
+                fontSize: 'clamp(3.5rem, 10vw, 8rem)',
+                fontWeight: 900,
+                lineHeight: 0.9,
+                letterSpacing: '-0.04em',
+                color: '#ffffff',
+                marginBottom: '32px',
               }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-              onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
             >
-              Search
-            </button>
-          </form>
-
-          {/* CTAs */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center' }}>
-            <Link href="/shops">
-              <button
+              Buy Anything.<br />
+              <span
                 style={{
-                  height: '56px', padding: '0 32px', borderRadius: '14px',
-                  background: '#fff', color: '#000', border: 'none',
-                  fontSize: '15px', fontWeight: 800, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: '10px',
-                  transition: 'transform 0.15s, box-shadow 0.15s',
+                  background: 'linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.4) 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(255,255,255,0.15)'; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
               >
-                Explore Shops <ArrowRight style={{ width: 18, height: 18 }} />
-              </button>
-            </Link>
-            <Link href="/products">
-              <button
+                From Anyone.
+              </span><br />
+              Near You.
+            </h1>
+
+            {/* Subheading */}
+            <p
+              style={{
+                fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+                color: 'rgba(255,255,255,0.42)',
+                maxWidth: '560px',
+                margin: '0 auto 48px',
+                lineHeight: 1.7,
+                fontWeight: 400,
+              }}
+            >
+              Aura is your local marketplace for everything — fashion, tech, food, prints, crafts, and beyond. Discover creators. Support neighbours.
+            </p>
+
+            {/* Search bar */}
+            {isFeatureEnabled('SEARCH') && (
+              <form
+                onSubmit={handleSearch}
                 style={{
-                  height: '56px', padding: '0 32px', borderRadius: '14px',
-                  background: 'transparent', color: 'rgba(255,255,255,0.8)',
-                  border: '1px solid rgba(255,255,255,0.18)',
-                  fontSize: '15px', fontWeight: 700, cursor: 'pointer',
-                  transition: 'all 0.15s',
+                  display: 'flex', gap: '8px',
+                  maxWidth: '560px', margin: '0 auto 40px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '16px',
+                  padding: '8px',
+                  WebkitBackdropFilter: 'blur(20px)',
+                  backdropFilter: 'blur(20px)',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; e.currentTarget.style.color = '#fff'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
               >
-                Browse Products
-              </button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════
-          CATEGORIES
-          ══════════════════════════════════════════ */}
-      <section style={{ maxWidth: '1400px', margin: '0 auto', padding: '100px 24px' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '48px' }}>
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '12px' }}>Browse by</p>
-            <h2 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1 }}>Categories</h2>
-          </div>
-          <Link href="/categories">
-            <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-              className="hover:text-white transition-colors">
-              View all <ArrowRight style={{ width: 15, height: 15 }} />
-            </span>
-          </Link>
-        </div>
-
-        <div className="flex flex-wrap justify-center" style={{ gap: '12px' }}>
-          {homeCategories.slice(0, 12).map((cat: any, i: number) => (
-            <Link key={cat.id} href={`/products?category=${cat.id}`} className="group block w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(25%-9px)] lg:w-[calc(20%-9.6px)] xl:w-[calc(16.667%-10px)]">
-              <div
-                className="glass-card glass-hover"
-                style={{ padding: '28px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '16px' }}
-              >
-                <div
-                  className="group-hover:bg-white group-hover:scale-110 transition-all duration-200"
-                  style={{
-                    width: '56px', height: '56px', borderRadius: '16px',
-                    background: 'rgba(255,255,255,0.08)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {cat.imageUrl ? (
-                    <img src={cat.imageUrl} alt={cat.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} className="group-hover:opacity-90 transition-opacity" />
-                  ) : (
-                    <Grid3X3 className="group-hover:text-black transition-colors" style={{ width: 24, height: 24, color: 'rgba(255,255,255,0.75)' }} />
-                  )}
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <Search
+                    style={{
+                      position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+                      width: 18, height: 18, color: 'rgba(255,255,255,0.3)',
+                    }}
+                  />
+                  <input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search products, shops…"
+                    style={{
+                      width: '100%', height: '52px', paddingLeft: '44px', paddingRight: '16px',
+                      background: 'transparent', border: 'none', outline: 'none',
+                      fontSize: '15px', color: '#fff', fontFamily: 'inherit',
+                    }}
+                  />
                 </div>
-                <span
-                  style={{ fontSize: '14px', fontWeight: 800, color: 'rgba(255,255,255,0.8)', lineHeight: 1.3 }}
-                  className="group-hover:text-white transition-colors"
+                <button
+                  type="submit"
+                  style={{
+                    height: '52px', padding: '0 28px',
+                    borderRadius: '12px', border: 'none',
+                    background: '#ffffff', color: '#000',
+                    fontSize: '15px', fontWeight: 800,
+                    cursor: 'pointer', flexShrink: 0,
+                    transition: 'opacity 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                 >
-                  {cat.name}
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+                  Search
+                </button>
+              </form>
+            )}
 
-      {/* ══════════════════════════════════════════
-          FEATURED SHOPS
-          ══════════════════════════════════════════ */}
-      <section style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px 100px' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '48px' }}>
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '12px' }}>Handpicked</p>
-            <h2 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1 }}>Featured Creators</h2>
+            {/* CTAs */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center' }}>
+              <Link href="/shops">
+                <button
+                  style={{
+                    height: '56px', padding: '0 32px', borderRadius: '14px',
+                    background: '#fff', color: '#000', border: 'none',
+                    fontSize: '15px', fontWeight: 800, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    transition: 'transform 0.15s, box-shadow 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(255,255,255,0.15)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+                >
+                  Explore Shops <ArrowRight style={{ width: 18, height: 18 }} />
+                </button>
+              </Link>
+              <Link href="/products">
+                <button
+                  style={{
+                    height: '56px', padding: '0 32px', borderRadius: '14px',
+                    background: 'transparent', color: 'rgba(255,255,255,0.8)',
+                    border: '1px solid rgba(255,255,255,0.18)',
+                    fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; e.currentTarget.style.color = '#fff'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
+                >
+                  Browse Products
+                </button>
+              </Link>
+            </div>
           </div>
-          <Link href="/shops">
-            <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-              className="hover:text-white transition-colors">
-              All Shops <ArrowRight style={{ width: 15, height: 15 }} />
-            </span>
-          </Link>
-        </div>
+        </section>
+      );
+    }
 
-        {shopsLoading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="glass-card overflow-hidden flex flex-col">
-                <div className="relative flex-shrink-0">
-                  <Skeleton style={{ height: '180px', borderRadius: '0' }} />
-                  <div style={{ position: 'absolute', bottom: 0, left: '24px', transform: 'translateY(50%)', zIndex: 2 }}>
-                    <Skeleton style={{ width: '56px', height: '56px', borderRadius: '14px' }} />
+    if (key.includes('categories') || key.includes('featured-products')) {
+      return (
+        <section key={sectionId} style={{ maxWidth: '1400px', margin: '0 auto', padding: '100px 24px' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '48px' }}>
+            <div>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '12px' }}>Browse by</p>
+              <h2 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1 }}>Categories</h2>
+            </div>
+            <Link href="/categories">
+              <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                className="hover:text-white transition-colors">
+                View all <ArrowRight style={{ width: 15, height: 15 }} />
+              </span>
+            </Link>
+          </div>
+
+          <div className="flex flex-wrap justify-center" style={{ gap: '12px' }}>
+            {homeCategories.slice(0, 12).map((cat: any) => (
+              <Link key={cat.id} href={`/products?category=${cat.id}`} className="group block w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(25%-9px)] lg:w-[calc(20%-9.6px)] xl:w-[calc(16.667%-10px)]">
+                <div
+                  className="glass-card glass-hover"
+                  style={{ padding: '28px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '16px' }}
+                >
+                  <div
+                    className="group-hover:bg-white group-hover:scale-110 transition-all duration-200"
+                    style={{
+                      width: '56px', height: '56px', borderRadius: '16px',
+                      background: 'rgba(255,255,255,0.08)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {cat.imageUrl ? (
+                      <img src={cat.imageUrl} alt={cat.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} className="group-hover:opacity-90 transition-opacity" />
+                    ) : (
+                      <Grid3X3 className="group-hover:text-black transition-colors" style={{ width: 24, height: 24, color: 'rgba(255,255,255,0.75)' }} />
+                    )}
+                  </div>
+                  <span
+                    style={{ fontSize: '14px', fontWeight: 800, color: 'rgba(255,255,255,0.8)', lineHeight: 1.3 }}
+                    className="group-hover:text-white transition-colors"
+                  >
+                    {cat.name}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    if (key.includes('shops') || key.includes('nearby') || key.includes('offers') || key.includes('creators')) {
+      return (
+        <section key={sectionId} style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px 100px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '48px' }}>
+            <div>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '12px' }}>Handpicked</p>
+              <h2 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1 }}>Featured Creators</h2>
+            </div>
+            <Link href="/shops">
+              <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                className="hover:text-white transition-colors">
+                All Shops <ArrowRight style={{ width: 15, height: 15 }} />
+              </span>
+            </Link>
+          </div>
+
+          {shopsLoading ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="glass-card overflow-hidden flex flex-col">
+                  <div className="relative flex-shrink-0">
+                    <Skeleton style={{ height: '180px', borderRadius: '0' }} />
+                    <div style={{ position: 'absolute', bottom: 0, left: '24px', transform: 'translateY(50%)', zIndex: 2 }}>
+                      <Skeleton style={{ width: '56px', height: '56px', borderRadius: '14px' }} />
+                    </div>
+                  </div>
+                  <div style={{ padding: '24px', paddingTop: '36px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <Skeleton style={{ height: '20px', width: '55%' }} />
+                    <Skeleton style={{ height: '14px', width: '90%' }} />
+                    <Skeleton style={{ height: '14px', width: '75%' }} />
                   </div>
                 </div>
-                <div style={{ padding: '24px', paddingTop: '36px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <Skeleton style={{ height: '20px', width: '55%' }} />
-                  <Skeleton style={{ height: '14px', width: '90%' }} />
-                  <Skeleton style={{ height: '14px', width: '75%' }} />
+              ))}
+            </div>
+          ) : shops.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+              {shops.slice(0, 6).map((shop, i) => (
+                <ShopCard key={shop.id} shop={shop} index={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="glass-card" style={{ padding: '80px', textAlign: 'center' }}>
+              <Store style={{ width: 48, height: 48, color: 'rgba(255,255,255,0.18)', margin: '0 auto 16px' }} />
+              <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.35)' }}>No shops available yet.</p>
+            </div>
+          )}
+        </section>
+      );
+    }
+
+    if ((key.includes('custom') || key.includes('promotional') || key.includes('prints')) && isFeatureEnabled('CUSTOM_PRINTING')) {
+      return (
+        <section key={sectionId} style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px 100px' }}>
+          <div
+            className="glass-card"
+            style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(48px, 8vw, 80px)' }}
+          >
+            {/* Grid bg */}
+            <div style={{
+              position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.03,
+              backgroundImage: `linear-gradient(rgba(255,255,255,0.9) 1px, transparent 1px),
+                               linear-gradient(90deg, rgba(255,255,255,0.9) 1px, transparent 1px)`,
+              backgroundSize: '48px 48px',
+            }} />
+
+            <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '48px' }}>
+              <div style={{ maxWidth: '540px' }}>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '16px' }}>
+                  Made Just for You
+                </p>
+                <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 3rem)', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: '20px' }}>
+                  Need Something<br />One-of-a-Kind?
+                </h2>
+                <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.42)', lineHeight: 1.7, marginBottom: '28px' }}>
+                  Commission anything custom — from 3D-printed parts to tailored clothing, bespoke artwork, or personalised gifts. Local makers, real results.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+                  {['Verify designs', 'Local creators', 'Track production'].map(s => (
+                    <span key={s} style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'rgba(255,255,255,0.45)', display: 'inline-block' }} />
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <Link href="/custom-orders" style={{ flexShrink: 0 }}>
+                <button
+                  style={{
+                    height: '60px', padding: '0 40px', borderRadius: '16px',
+                    background: '#fff', color: '#000', border: 'none',
+                    fontSize: '16px', fontWeight: 800, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    transition: 'transform 0.15s, opacity 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.opacity = '0.88'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.opacity = '1'; }}
+                >
+                  <Printer style={{ width: 20, height: 20 }} />
+                  Start a Custom Order
+                </button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (key.includes('value') || key.includes('testimonials')) {
+      return (
+        <section key={sectionId} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
+          <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '100px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '48px' }}>
+            {valueProps.map(({ icon: Icon, title, desc }) => (
+              <div key={title} style={{ display: 'flex', gap: '20px' }}>
+                <div style={{
+                  flexShrink: 0, width: '52px', height: '52px', borderRadius: '14px',
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Icon style={{ width: 22, height: 22, color: 'rgba(255,255,255,0.65)' }} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>{title}</h3>
+                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.38)', lineHeight: 1.7 }}>{desc}</p>
                 </div>
               </div>
             ))}
           </div>
-        ) : shops.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-            {shops.slice(0, 6).map((shop, i) => (
-              <ShopCard key={shop.id} shop={shop} index={i} />
-            ))}
-          </div>
-        ) : (
-          <div className="glass-card" style={{ padding: '80px', textAlign: 'center' }}>
-            <Store style={{ width: 48, height: 48, color: 'rgba(255,255,255,0.18)', margin: '0 auto 16px' }} />
-            <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.35)' }}>No shops available yet.</p>
-          </div>
-        )}
-      </section>
+        </section>
+      );
+    }
 
-      {/* ══════════════════════════════════════════
-          CUSTOM PRINTS CTA
-          ══════════════════════════════════════════ */}
-      <section style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px 100px' }}>
-        <div
-          className="glass-card"
-          style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(48px, 8vw, 80px)' }}
-        >
-          {/* Grid bg */}
-          <div style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.03,
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.9) 1px, transparent 1px),
-                             linear-gradient(90deg, rgba(255,255,255,0.9) 1px, transparent 1px)`,
-            backgroundSize: '48px 48px',
-          }} />
-
-          <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '48px' }}>
-            <div style={{ maxWidth: '540px' }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '16px' }}>
-                Made Just for You
-              </p>
-              <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 3rem)', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: '20px' }}>
-                Need Something<br />One-of-a-Kind?
-              </h2>
-              <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.42)', lineHeight: 1.7, marginBottom: '28px' }}>
-                Commission anything custom — from 3D-printed parts to tailored clothing, bespoke artwork, or personalised gifts. Local makers, real results.
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
-                {['Verify designs', 'Local creators', 'Track production'].map(s => (
-                  <span key={s} style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'rgba(255,255,255,0.45)', display: 'inline-block' }} />
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <Link href="/custom-orders" style={{ flexShrink: 0 }}>
-              <button
-                style={{
-                  height: '60px', padding: '0 40px', borderRadius: '16px',
-                  background: '#fff', color: '#000', border: 'none',
-                  fontSize: '16px', fontWeight: 800, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: '12px',
-                  transition: 'transform 0.15s, opacity 0.15s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.opacity = '0.88'; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.opacity = '1'; }}
-              >
-                <Printer style={{ width: 20, height: 20 }} />
-                Start a Custom Order
-              </button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════
-          VALUE PROPS
-          ══════════════════════════════════════════ */}
-      <section style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '100px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '48px' }}>
-          {valueProps.map(({ icon: Icon, title, desc }) => (
-            <div key={title} style={{ display: 'flex', gap: '20px' }}>
-              <div style={{
-                flexShrink: 0, width: '52px', height: '52px', borderRadius: '14px',
-                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Icon style={{ width: 22, height: 22, color: 'rgba(255,255,255,0.65)' }} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>{title}</h3>
-                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.38)', lineHeight: 1.7 }}>{desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════
-          GUEST SIGN-UP BANNER
-          ══════════════════════════════════════════ */}
-      {!session && (
-        <section style={{ background: '#ffffff' }}>
+    if ((key.includes('guest') || key.includes('signup') || key.includes('flash')) && !session) {
+      return (
+        <section key={sectionId} style={{ background: '#ffffff' }}>
           <div style={{
             maxWidth: '1280px', margin: '0 auto',
             padding: 'clamp(60px, 10vw, 100px) 24px',
@@ -521,8 +528,15 @@ export function HomePage() {
             </div>
           </div>
         </section>
-      )}
+      );
+    }
 
+    return null;
+  };
+
+  return (
+    <div style={{ background: '#080808' }}>
+      {homepageSections.map(sec => renderSection(sec.id))}
     </div>
   );
 }

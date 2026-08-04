@@ -7,8 +7,11 @@ import {
 } from "../controllers/wishlistController.js";
 import { customerAuth } from "../../../middleware/customerAuth.js";
 import { writeLimiter } from "../../../middleware/rateLimiter.js";
+import { requireFeature } from "../../../middleware/featureGuard.js";
 
 const router = express.Router();
+
+router.use(requireFeature("WISHLIST", "CUSTOMER"));
 
 router.get("/api/wishlist", customerAuth, writeLimiter, getWishlist);
 router.post("/api/wishlist", customerAuth, writeLimiter, addToWishlist);

@@ -70,6 +70,14 @@ const nextConfig: NextConfig = {
         destination: '/api/customer/logout',
       },
       {
+        source: '/platform/:path*',
+        destination: `${backendUrl.replace(/\/$/, '')}/platform/:path*`,
+      },
+      {
+        source: '/api/platform/:path*',
+        destination: `${backendUrl.replace(/\/$/, '')}/api/platform/:path*`,
+      },
+      {
         // Everything else under /api/** → backend
         source: '/api/:path*',
         destination: `${backendUrl.replace(/\/$/, '')}/users/api/:path*`,

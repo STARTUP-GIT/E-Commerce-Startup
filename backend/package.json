@@ -17,6 +17,7 @@
     "start:platform": "node dist/platform.server.js",
     "start:delivery": "node dist/delivery.server.js",
     "start:payment": "node dist/payment.server.js",
+    "sync:platform": "node dist/src/modules/platform/services/syncService.js",
     "test": "node ./tests/runTests.cjs && node ./tests/logger.test.cjs && node ./tests/productionAudit.test.cjs"
   },
   "prisma": {

@@ -30,6 +30,7 @@ import {
   Store,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -37,74 +38,90 @@ export function DashboardPage() {
   const { metrics, chartData, isLoadingMetrics } = useAnalytics();
   const { orders, isLoading: isLoadingOrders } = useOrders();
   const navigate = useNavigate();
+  const { dashboardCards, dashboardWidgets, quickActions, isFeatureEnabled } = usePlatformLayout();
 
   const recentOrders = orders.slice(0, 5);
 
-  const stats = [
-    {
+  const allStatsMap: Record<string, any> = {
+    'card-gross-sales': {
+      id: 'card-gross-sales',
       name: "Gross Sales",
       value: productService.formatPrice(metrics?.totalSales ?? 0),
       icon: IndianRupee,
       desc: 'Cumulative sales (gross)',
       color: 'text-emerald-400',
     },
-    {
+    'card-net-earnings': {
+      id: 'card-net-earnings',
       name: 'Net Earnings',
       value: productService.formatPrice(metrics?.netEarnings ?? 0),
       icon: IndianRupee,
       desc: 'Your share after commission',
       color: 'text-purple-400',
     },
-    {
+    'card-commission': {
+      id: 'card-commission',
       name: 'Platform Commission',
       value: productService.formatPrice(metrics?.platformCommission ?? 0),
       icon: IndianRupee,
       desc: 'Platform commission collected',
       color: 'text-rose-400',
     },
-    {
+    'card-packing-fee': {
+      id: 'card-packing-fee',
       name: 'Packing Fee Collected',
       value: productService.formatPrice(metrics?.packingFeeCollectedLifetime ?? 0),
       icon: IndianRupee,
       desc: `Today: ${productService.formatPrice(metrics?.packingFeeCollectedToday ?? 0)} | This Month: ${productService.formatPrice(metrics?.packingFeeCollectedThisMonth ?? 0)}`,
       color: 'text-teal-400',
     },
-    {
+    'card-delivered-revenue': {
+      id: 'card-delivered-revenue',
       name: 'Delivered Revenue',
       value: productService.formatPrice(metrics?.revenue ?? 0),
       icon: IndianRupee,
       desc: 'Delivered order subtotal',
       color: 'text-blue-400',
     },
-    {
+    'card-todays-orders': {
+      id: 'card-todays-orders',
       name: "Today's Orders",
       value: `${metrics?.todaysOrders ?? 0}`,
       icon: ShoppingBag,
       desc: "Orders placed today",
       color: 'text-indigo-400',
     },
-    {
+    'card-pending-orders': {
+      id: 'card-pending-orders',
       name: 'Pending Orders',
       value: `${metrics?.pendingOrders ?? 0}`,
       icon: Clock,
       desc: 'Orders awaiting processing',
       color: 'text-yellow-400',
     },
-    {
+    'card-completed-orders': {
+      id: 'card-completed-orders',
       name: 'Completed Orders',
       value: `${metrics?.completedOrders ?? 0}`,
       icon: ShoppingBag,
       desc: 'Delivered orders count',
       color: 'text-teal-400',
     },
-    {
+    'card-cancelled-orders': {
+      id: 'card-cancelled-orders',
       name: 'Cancelled Orders',
       value: `${metrics?.cancelledOrders ?? 0}`,
       icon: AlertTriangle,
       desc: 'Cancelled orders count',
       color: 'text-red-400',
     },
-  ];
+  };
+
+  const stats = dashboardCards.length
+    ? dashboardCards
+        .map((card) => allStatsMap[card.id] || { name: card.name, value: '0', icon: IndianRupee, desc: card.name, color: 'text-purple-400' })
+        .filter(Boolean)
+    : Object.values(allStatsMap);
 
   return (
     <DashboardLayout>
@@ -249,30 +266,17 @@ export function DashboardPage() {
                   <CardDescription>Task shortcuts for store management</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-3">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-[11px] h-10 border-white/5 hover:bg-white/[0.02]"
-                    onClick={() => navigate('/products')}
-                  >
-                    <Plus className="mr-2.5 h-4 w-4 text-purple-400" />
-                    <span>Add catalog item</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-[11px] h-10 border-white/5 hover:bg-white/[0.02]"
-                    onClick={() => navigate('/custom-orders')}
-                  >
-                    <Clock className="mr-2.5 h-4 w-4 text-indigo-400" />
-                    <span>Quote custom requests</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-[11px] h-10 border-white/5 hover:bg-white/[0.02]"
-                    onClick={() => navigate('/shop')}
-                  >
-                    <Store className="mr-2.5 h-4 w-4 text-emerald-400" />
-                    <span>Link settlement bank</span>
-                  </Button>
+                  {quickActions.map((action) => (
+                    <Button
+                      key={action.id}
+                      variant="outline"
+                      className="w-full justify-start text-[11px] h-10 border-white/5 hover:bg-white/[0.02]"
+                      onClick={() => navigate(action.path || '/dashboard')}
+                    >
+                      <Plus className="mr-2.5 h-4 w-4 text-purple-400" />
+                      <span>{action.name}</span>
+                    </Button>
+                  ))}
                 </CardContent>
               </Card>
             </div>

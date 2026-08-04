@@ -81,13 +81,21 @@ export interface UiLayoutItem {
   name: string;
   enabled?: boolean;
   path?: string;
+  featureKey?: string;
+  icon?: string;
 }
 
 export interface UiBuilderLayout {
   customerHomepageSections: UiLayoutItem[];
   customerNavbar: UiLayoutItem[];
+  customerFooter?: UiLayoutItem[];
+  customerCategoriesLayout?: UiLayoutItem[];
   sellerDashboardWidgets: UiLayoutItem[];
   sellerSidebar: UiLayoutItem[];
+  sellerQuickActions?: UiLayoutItem[];
+  sellerDashboardCards?: UiLayoutItem[];
+  synced?: boolean;
+  syncedAt?: string;
 }
 
 export interface PlatformSettingsData {
@@ -160,36 +168,65 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettingsData = {
     favicon: "/favicon.ico",
   },
   uiLayout: {
+    synced: true,
+    syncedAt: new Date().toISOString(),
     customerHomepageSections: [
       { id: "hero-banner", name: "Hero Banner", enabled: true },
-      { id: "featured-products", name: "Featured Products", enabled: true },
       { id: "trending-categories", name: "Trending Categories", enabled: true },
-      { id: "flash-sales", name: "Flash Sales", enabled: true },
-      { id: "promotional-banners", name: "Promotional Banners", enabled: true },
-      { id: "customer-testimonials", name: "Customer Testimonials", enabled: true },
+      { id: "featured-shops", name: "Featured Creators", enabled: true },
+      { id: "custom-prints", name: "Custom Prints CTA", enabled: true, featureKey: "CUSTOM_PRINTING" },
+      { id: "value-props", name: "Value Props", enabled: true },
+      { id: "guest-signup", name: "Guest Sign-up Banner", enabled: true },
     ],
     customerNavbar: [
-      { id: "nav-home", name: "Home", path: "/" },
-      { id: "nav-categories", name: "Categories", path: "/categories" },
-      { id: "nav-deals", name: "Deals", path: "/deals" },
-      { id: "nav-wishlist", name: "Wishlist", path: "/wishlist" },
-      { id: "nav-orders", name: "Orders", path: "/orders" },
-      { id: "nav-support", name: "Support", path: "/support" },
+      { id: "nav-home", name: "Home", path: "/", enabled: true },
+      { id: "nav-categories", name: "Categories", path: "/categories", enabled: true },
+      { id: "nav-shops", name: "Shops", path: "/shops", enabled: true },
+      { id: "nav-products", name: "Products", path: "/products", enabled: true },
+      { id: "nav-orders", name: "Orders", path: "/orders", enabled: true },
+      { id: "nav-wishlist", name: "Wishlist", path: "/wishlist", featureKey: "WISHLIST", enabled: true },
+      { id: "nav-custom-orders", name: "Custom Orders", path: "/custom-orders", featureKey: "CUSTOM_PRINTING", enabled: true },
     ],
-    sellerDashboardWidgets: [
-      { id: "widget-revenue", name: "Revenue Overview" },
-      { id: "widget-orders", name: "Recent Orders" },
-      { id: "widget-inventory", name: "Inventory Health" },
-      { id: "widget-actions", name: "Quick Actions" },
-      { id: "widget-analytics", name: "Performance Insights" },
+    customerFooter: [
+      { id: "foot-shops", name: "Browse Shops", path: "/shops", enabled: true },
+      { id: "foot-categories", name: "Categories", path: "/categories", enabled: true },
+      { id: "foot-custom-orders", name: "Custom Orders", path: "/custom-orders", featureKey: "CUSTOM_PRINTING", enabled: true },
+      { id: "foot-orders", name: "Track Orders", path: "/orders", enabled: true },
+    ],
+    customerCategoriesLayout: [
+      { id: "cat-grid", name: "Category Grid", enabled: true },
     ],
     sellerSidebar: [
-      { id: "side-dashboard", name: "Dashboard", path: "/seller/dashboard" },
-      { id: "side-products", name: "Products", path: "/seller/products" },
-      { id: "side-orders", name: "Orders", path: "/seller/orders" },
-      { id: "side-analytics", name: "Analytics", path: "/seller/analytics" },
-      { id: "side-coupons", name: "Coupons", path: "/seller/coupons" },
-      { id: "side-settings", name: "Settings", path: "/seller/settings" },
+      { id: "side-dashboard", name: "Dashboard", path: "/dashboard", enabled: true },
+      { id: "side-products", name: "Products", path: "/products", featureKey: "PRODUCT_UPLOAD", enabled: true },
+      { id: "side-orders", name: "Orders", path: "/orders", enabled: true },
+      { id: "side-custom-orders", name: "Custom Requests", path: "/custom-orders", featureKey: "CUSTOM_PRINTING", enabled: true },
+      { id: "side-analytics", name: "Analytics", path: "/analytics", featureKey: "ANALYTICS", enabled: true },
+      { id: "side-payouts", name: "Payouts", path: "/payouts", featureKey: "PAYMENTS", enabled: true },
+      { id: "side-reviews", name: "Reviews", path: "/reviews", featureKey: "REVIEWS", enabled: true },
+      { id: "side-profile", name: "Seller Profile", path: "/profile", enabled: true },
+      { id: "side-shop", name: "Shop & Bank", path: "/shop", featureKey: "BANK_ACCOUNT", enabled: true },
+      { id: "side-settings", name: "Settings", path: "/settings", enabled: true },
+    ],
+    sellerDashboardWidgets: [
+      { id: "widget-revenue", name: "Revenue Summary", enabled: true },
+      { id: "widget-orders", name: "Recent Incoming Orders", enabled: true },
+    ],
+    sellerQuickActions: [
+      { id: "action-add-product", name: "Add catalog item", path: "/products", featureKey: "PRODUCT_UPLOAD", enabled: true },
+      { id: "action-quote-custom", name: "Quote custom requests", path: "/custom-orders", featureKey: "CUSTOM_PRINTING", enabled: true },
+      { id: "action-link-bank", name: "Link settlement bank", path: "/shop", featureKey: "BANK_ACCOUNT", enabled: true },
+    ],
+    sellerDashboardCards: [
+      { id: "card-gross-sales", name: "Gross Sales", enabled: true },
+      { id: "card-net-earnings", name: "Net Earnings", enabled: true },
+      { id: "card-commission", name: "Platform Commission", enabled: true },
+      { id: "card-packing-fee", name: "Packing Fee Collected", enabled: true },
+      { id: "card-delivered-revenue", name: "Delivered Revenue", enabled: true },
+      { id: "card-todays-orders", name: "Today's Orders", enabled: true },
+      { id: "card-pending-orders", name: "Pending Orders", enabled: true },
+      { id: "card-completed-orders", name: "Completed Orders", enabled: true },
+      { id: "card-cancelled-orders", name: "Cancelled Orders", enabled: true },
     ],
   },
   marketplace: {

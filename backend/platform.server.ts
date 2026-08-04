@@ -5,7 +5,7 @@ import { validateEnv } from './src/config/envValidator.js';
 validateEnv();
 
 import { seedPlatformRolesAndPermissions } from './src/modules/platform/utils/platformRoles.js';
-import { syncFeatureDefinitions } from './src/modules/platform/services/featureFlagService.js';
+import { syncPlatformDefaults } from './src/modules/platform/services/syncService.js';
 
 seedPlatformRolesAndPermissions().catch(console.error);
 
@@ -31,14 +31,12 @@ configureErrorHandlers(app);
 const PORT = Number(process.env.PLATFORM_PORT || process.env.PORT || 3006);
 let server: http.Server;
 
-// On server startup: automatically register any feature that is defined in code
-// but missing from the database. Existing records are never deleted and their
-// enabled state is never touched.
+// On server startup: automatically sync features, customer layout, seller layout, and branding
 const start = async () => {
     try {
-        await syncFeatureDefinitions();
+        await syncPlatformDefaults();
     } catch (error) {
-        console.error('[platform] Feature registry sync failed:', error);
+        console.error('[platform] Platform SSOT sync failed:', error);
     }
 
     server = http.createServer(app);

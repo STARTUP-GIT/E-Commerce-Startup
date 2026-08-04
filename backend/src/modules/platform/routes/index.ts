@@ -9,8 +9,12 @@ import releaseRoute from "./releaseRoute.js";
 import webhookRoute from "./webhookRoute.js";
 import backupRoute from "./backupRoute.js";
 import queueRoute from "./queueRoute.js";
+import layoutRoute from "./layoutRoute.js";
 
 const router = Router();
+
+// Public layout and feature sync routes
+router.use("/", layoutRoute);
 
 router.use(adminLimiter);
 

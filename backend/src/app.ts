@@ -72,6 +72,8 @@ import sellerDeliveryRoute from './modules/delivery/routes/sellerDeliveryRoute.j
 import adminDeliveryRoute from './modules/delivery/routes/adminDeliveryRoute.js';
 import deliveryWebhook from './modules/delivery/webhooks/deliveryWebhook.js';
 import storageRoute from './modules/storage/routes/storage.routes.js';
+import platformLayoutRoute from './modules/platform/routes/layoutRoute.js';
+import platformRoute from './modules/platform/routes/index.js';
 
 export const configureMiddlewares = (app: express.Express) => {
     if (process.env.NODE_ENV?.toLowerCase() === 'production') {
@@ -207,6 +209,13 @@ app.use('/', sellerDeliveryRoute);
 app.use('/api/admin', adminLimiter, adminDeliveryRoute);
 app.use('/', deliveryWebhook);
 app.use('/api/storage', storageRoute);
+
+// Platform SSOT routes (public sync APIs for Customer, Seller, Platform)
+app.use('/platform', platformLayoutRoute);
+app.use('/api/platform', platformLayoutRoute);
+app.use('/users/api/platform', platformLayoutRoute);
+app.use('/seller/api/platform', platformLayoutRoute);
+app.use('/api/platform', platformRoute);
 
 configureErrorHandlers(app);
 

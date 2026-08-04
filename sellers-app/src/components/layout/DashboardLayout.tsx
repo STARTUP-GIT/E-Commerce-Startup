@@ -23,6 +23,39 @@ import {
 import { Badge } from '@/shared/components/Badge';
 
 import { useConfirmStore } from '@/lib/store/confirmStore';
+import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+
+const getIconForItem = (path?: string) => {
+  switch (path) {
+    case '/dashboard':
+    case '/seller/dashboard':
+      return LayoutDashboard;
+    case '/products':
+    case '/seller/products':
+      return Box;
+    case '/orders':
+    case '/seller/orders':
+      return ShoppingBag;
+    case '/custom-orders':
+      return Wrench;
+    case '/analytics':
+    case '/seller/analytics':
+      return BarChart3;
+    case '/payouts':
+      return CreditCard;
+    case '/reviews':
+      return Star;
+    case '/profile':
+      return UserCircle;
+    case '/shop':
+      return Store;
+    case '/settings':
+    case '/seller/settings':
+      return Settings;
+    default:
+      return LayoutDashboard;
+  }
+};
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -31,6 +64,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const showConfirm = useConfirmStore((state) => state.showConfirm);
+  const { sidebar, branding } = usePlatformLayout();
 
   const handleLogout = () => {
     showConfirm({
@@ -42,19 +76,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       },
     });
   };
-
-  const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Products', path: '/products', icon: Box },
-    { name: 'Orders', path: '/orders', icon: ShoppingBag },
-    { name: 'Custom Requests', path: '/custom-orders', icon: Wrench },
-    { name: 'Analytics', path: '/analytics', icon: BarChart3 },
-    { name: 'Payouts', path: '/payouts', icon: CreditCard },
-    { name: 'Reviews', path: '/reviews', icon: Star },
-    { name: 'Seller Profile', path: '/profile', icon: UserCircle },
-    { name: 'Shop & Bank', path: '/shop', icon: Store },
-    { name: 'Settings', path: '/settings', icon: Settings },
-  ];
 
   const shopStatusLabel = () => {
     if (!shop) return 'No Shop Setup';
@@ -96,11 +117,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col h-full">
           {/* Brand Logo */}
           <div className="h-16 flex items-center px-6 border-b border-white/5 gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shrink-0">
-              <ShoppingBag className="h-4 w-4 text-black" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white overflow-hidden shrink-0">
+              {branding?.logo && branding.logo !== '/images/logo.png' ? (
+                <img src={branding.logo} alt={branding.marketplaceName} className="h-full w-full object-cover" />
+              ) : (
+                <ShoppingBag className="h-4 w-4 text-black" />
+              )}
             </div>
             <div>
-              <span className="font-black text-white text-xs tracking-tight block">Aura</span>
+              <span className="font-black text-white text-xs tracking-tight block">
+                {branding?.marketplaceName ? branding.marketplaceName.split(' ')[0] : 'Aura'}
+              </span>
               <span className="text-[8px] text-white/40 block font-bold -mt-1 uppercase tracking-wider">Seller Portal</span>
             </div>
           </div>
@@ -130,22 +157,23 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
           {/* Nav links */}
           <nav className="flex-1 px-4 py-3 space-y-1 overflow-y-auto">
-            {navItems.map((item) => {
-              const Icon = item.icon;
+            {sidebar.map((item) => {
+              const Icon = getIconForItem(item.path);
+              const itemPath = item.path || '/dashboard';
               const isAllowed = 
                 shop?.status === 'APPROVED' || 
-                item.path === '/dashboard' || 
-                item.path === '/profile' || 
-                item.path === '/shop' || 
-                item.path === '/settings' || 
-                item.path === '/notifications';
+                itemPath === '/dashboard' || 
+                itemPath === '/profile' || 
+                itemPath === '/shop' || 
+                itemPath === '/settings' || 
+                itemPath === '/notifications';
 
               if (!isAllowed) return null;
 
               return (
                 <NavLink
-                  key={item.path}
-                  to={item.path}
+                  key={item.id || itemPath}
+                  to={itemPath}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
                       isActive

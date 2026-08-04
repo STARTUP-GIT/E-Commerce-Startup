@@ -12,6 +12,7 @@ import axiosInstance from '@/lib/axios/axiosInstance';
 import { shopListApi } from '@/features/shops/shop-list/api/shopListApi';
 import { useLocationStore } from '@/lib/store/locationStore';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
+import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
 
 // ─── Shop Names Marquee ───────────────────────────────────────────────────────
 
@@ -135,14 +136,7 @@ export function Navbar() {
     staleTime: 2 * 60_000,
   });
   const unreadCount = notifData?.notifications?.filter((n: any) => !n.isRead).length || 0;
-
-  const navLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/categories', label: 'Categories' },
-    { href: '/shops', label: 'Shops' },
-    { href: '/products', label: 'Products' },
-    { href: '/orders', label: 'Orders' },
-  ];
+  const { navbar: dynamicNavbar, branding, isFeatureEnabled } = usePlatformLayout();
 
   return (
     <header className="sticky top-0 z-40 w-full">
@@ -153,10 +147,16 @@ export function Navbar() {
           {/* Logo + Location */}
           <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-shrink">
             <Link href="/" className="flex items-center gap-2 sm:gap-3 group shrink-0">
-              <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-white">
-                <ShoppingBag className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-black" />
+              <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-white overflow-hidden">
+                {branding?.logo && branding.logo !== '/images/logo.png' ? (
+                  <img src={branding.logo} alt={branding.marketplaceName} className="h-full w-full object-cover" />
+                ) : (
+                  <ShoppingBag className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-black" />
+                )}
               </div>
-              <span className="text-lg sm:text-xl font-black tracking-tight text-white hidden xs:inline">Aura</span>
+              <span className="text-lg sm:text-xl font-black tracking-tight text-white hidden xs:inline">
+                {branding?.marketplaceName ? branding.marketplaceName.split(' ')[0] : 'Aura'}
+              </span>
             </Link>
 
             {/* Location selector - hidden on very small screens, shown as icon-only */}
@@ -188,13 +188,13 @@ export function Navbar() {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map(({ href, label }) => (
+            {dynamicNavbar.map((item) => (
               <Link
-                key={href}
-                href={href}
+                key={item.id}
+                href={item.path || '/'}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-white/55 hover:text-white hover:bg-white/[0.07] transition-all duration-150"
               >
-                {label}
+                {item.name}
               </Link>
             ))}
           </nav>
@@ -305,10 +305,10 @@ export function Navbar() {
         {/* Mobile Nav Drawer */}
         {mobileNavOpen && (
           <div className="md:hidden border-t border-white/[0.08] bg-black/80 backdrop-blur-xl px-4 py-3 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
-            {navLinks.map(({ href, label }) => (
-              <Link key={href} href={href} onClick={() => setMobileNavOpen(false)}
+            {dynamicNavbar.map((item) => (
+              <Link key={item.id} href={item.path || '/'} onClick={() => setMobileNavOpen(false)}
                 className="flex items-center px-4 py-3 rounded-xl text-sm font-medium text-white/65 hover:text-white hover:bg-white/[0.07] transition-all">
-                {label}
+                {item.name}
               </Link>
             ))}
           </div>
