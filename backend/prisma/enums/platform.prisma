@@ -1,0 +1,61 @@
+// =============================================================================
+// PLATFORM MODULE ENUMS
+// Owned by backend/src/modules/platform. Independent of Admin/Seller/Customer.
+// =============================================================================
+
+enum FeatureFlagStatus {
+  ENABLED
+  DISABLED
+  INTERNAL
+  BETA
+  SCHEDULED
+  DEPRECATED
+}
+
+enum FeatureFlagScope {
+  GLOBAL
+  CUSTOMER
+  SELLER
+  ADMIN
+  PLATFORM
+  SHOP
+  USER
+}
+
+enum FeatureFlagType {
+  BUY_NOW
+  WISHLIST
+  REVIEWS
+  CHAT
+  COUPONS
+  AI_SEARCH
+  RECOMMENDATIONS
+  OTP_LOGIN
+  GOOGLE_LOGIN
+  APPLE_LOGIN
+  RAZORPAY
+  UPI
+  WALLET
+  CUSTOM_PRINT
+  THREE_D_PREVIEW
+  SUBSCRIPTIONS
+  FLASH_SALE
+  BLOG
+  NEWSLETTER
+  LIVE_TRACKING
+  NOTIFICATIONS
+}
+
+enum PlatformUserStatus {
+  ACTIVE
+  DISABLED
+  LOCKED
+}
+
+enum PlatformRoleType {
+  OWNER
+  ADMINISTRATOR
+  DEVELOPER
+  DEVOPS
+  CUSTOM
+}

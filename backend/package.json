@@ -8,11 +8,13 @@
     "dev:customer": "node dist/customer.server.js",
     "dev:seller": "node dist/seller.server.js",
     "dev:admin": "node dist/admin.server.js",
+    "dev:platform": "node dist/platform.server.js",
     "dev:delivery": "node dist/delivery.server.js",
     "dev:payment": "node dist/payment.server.js",
     "start:customer": "node dist/customer.server.js",
     "start:seller": "node dist/seller.server.js",
     "start:admin": "node dist/admin.server.js",
+    "start:platform": "node dist/platform.server.js",
     "start:delivery": "node dist/delivery.server.js",
     "start:payment": "node dist/payment.server.js",
     "test": "node ./tests/runTests.cjs && node ./tests/logger.test.cjs && node ./tests/productionAudit.test.cjs"

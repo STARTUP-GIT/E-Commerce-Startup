@@ -1,6 +1,6 @@
 import type { Response } from 'express';
 
-type CookieName = 'customer_session' | 'seller_session' | 'admin_session';
+type CookieName = 'customer_session' | 'seller_session' | 'admin_session' | 'platform_session';
 
 const isProductionEnv = () => process.env.NODE_ENV?.toLowerCase() === 'production';
 
@@ -14,6 +14,7 @@ const maxAges: Record<CookieName, number> = {
   customer_session: 1000 * 60 * 60 * 24 * 7,       // 7 days
   seller_session: 1000 * 60 * 60 * 24 * 7,          // 7 days
   admin_session: 1000 * 60 * 60 * 24 * 60,          // 60 days
+  platform_session: 1000 * 60 * 60 * 24 * 60,       // 60 days
 };
 
 export const setAuthCookie = (res: Response, name: CookieName, token: string) => {

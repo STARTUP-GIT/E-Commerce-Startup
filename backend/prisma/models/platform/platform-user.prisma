@@ -1,0 +1,26 @@
+// =============================================================================
+// PlatformUser — users of the PLATFORM control panel (NOT marketplace admins).
+// Platform Owner, Platform Administrator, Developer, DevOps.
+// =============================================================================
+
+model PlatformUser {
+  id           String            @id @default(cuid())
+  email        String            @unique @db.VarChar(320)
+  passwordHash String?           @db.VarChar(255)
+  firstName    String            @db.VarChar(100)
+  lastName     String            @db.VarChar(100)
+  avatarUrl    String?           @db.VarChar(2048)
+  phone        String?           @db.VarChar(20)
+  status       PlatformUserStatus @default(ACTIVE)
+  isOwner      Boolean           @default(false)
+  lastLoginAt  DateTime?
+  roleId       String?
+  role         PlatformRole?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([roleId])
+  @@map("platform_users")
+}

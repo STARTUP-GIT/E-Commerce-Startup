@@ -1,0 +1,28 @@
+// =============================================================================
+// AuditTrail — immutable audit log for EVERY Platform action.
+// No FK relation intentionally: audit entries must survive user deletion.
+// =============================================================================
+
+model AuditTrail {
+  id          String    @id @default(cuid())
+  userId      String?   @db.VarChar(40)
+  email       String?   @db.VarChar(320)
+  action      String    @db.VarChar(80)
+  module      String    @db.VarChar(60)
+  targetType  String    @db.VarChar(50)
+  targetId    String?   @db.VarChar(60)
+  description String    @db.Text
+  previousValue Json?
+  newValue      Json?
+  ipAddress   String?   @db.VarChar(45)
+  userAgent   String?   @db.VarChar(512)
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([module])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("audit_trails")
+}

@@ -1,0 +1,17 @@
+// =============================================================================
+// PlatformPermission — fine-grained permission keys granted to Platform roles.
+// Keys look like "platform.featureFlags.manage", "platform.monitoring.view".
+// =============================================================================
+
+model PlatformPermission {
+  id          String         @id @default(cuid())
+  key         String         @unique @db.VarChar(120)
+  name        String         @db.VarChar(120)
+  description String?        @db.Text
+  module      String         @db.VarChar(60)
+  roles       PlatformRole[] @relation("PlatformRolePermissions")
+  createdAt   DateTime       @default(now())
+
+  @@index([module])
+  @@map("platform_permissions")
+}
