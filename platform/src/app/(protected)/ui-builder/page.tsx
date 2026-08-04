@@ -9,35 +9,37 @@ type TabType = "homepage" | "navbar" | "seller-widgets" | "seller-sidebar";
 
 const DEFAULT_LAYOUT: UiBuilderLayout = {
   customerHomepageSections: [
-    { id: "hero-banner", name: "Hero Banner", enabled: true },
-    { id: "featured-products", name: "Featured Products", enabled: true },
-    { id: "trending-categories", name: "Trending Categories", enabled: true },
-    { id: "flash-sales", name: "Flash Sales", enabled: true },
-    { id: "promotional-banners", name: "Promotional Banners", enabled: true },
-    { id: "customer-testimonials", name: "Customer Testimonials", enabled: true },
+    { id: "hero-banner", name: "Hero Banner", enabled: true, visibility: true, order: 1, section: "customerHomepageSections" },
+    { id: "trending-categories", name: "Trending Categories", enabled: true, visibility: true, order: 2, section: "customerHomepageSections" },
+    { id: "featured-shops", name: "Featured Creators", enabled: true, visibility: true, order: 3, section: "customerHomepageSections" },
+    { id: "custom-prints", name: "Custom Prints CTA", enabled: true, visibility: true, featureKey: "CUSTOM_PRINTING", order: 4, section: "customerHomepageSections" },
+    { id: "value-props", name: "Value Props", enabled: true, visibility: true, order: 5, section: "customerHomepageSections" },
+    { id: "guest-signup", name: "Guest Sign-up Banner", enabled: true, visibility: true, order: 6, section: "customerHomepageSections" },
   ],
   customerNavbar: [
-    { id: "nav-home", name: "Home", path: "/" },
-    { id: "nav-categories", name: "Categories", path: "/categories" },
-    { id: "nav-deals", name: "Deals", path: "/deals" },
-    { id: "nav-wishlist", name: "Wishlist", path: "/wishlist" },
-    { id: "nav-orders", name: "Orders", path: "/orders" },
-    { id: "nav-support", name: "Support", path: "/support" },
+    { id: "nav-home", name: "Home", path: "/", enabled: true, visibility: true, order: 1, section: "customerNavbar" },
+    { id: "nav-categories", name: "Categories", path: "/categories", enabled: true, visibility: true, order: 2, section: "customerNavbar" },
+    { id: "nav-shops", name: "Shops", path: "/shops", enabled: true, visibility: true, order: 3, section: "customerNavbar" },
+    { id: "nav-products", name: "Products", path: "/products", enabled: true, visibility: true, order: 4, section: "customerNavbar" },
+    { id: "nav-orders", name: "Orders", path: "/orders", enabled: true, visibility: true, order: 5, section: "customerNavbar" },
+    { id: "nav-wishlist", name: "Wishlist", path: "/wishlist", featureKey: "WISHLIST", enabled: true, visibility: true, order: 6, section: "customerNavbar" },
+    { id: "nav-custom-orders", name: "Custom Orders", path: "/custom-orders", featureKey: "CUSTOM_PRINTING", enabled: true, visibility: true, order: 7, section: "customerNavbar" },
   ],
   sellerDashboardWidgets: [
-    { id: "widget-revenue", name: "Revenue Overview" },
-    { id: "widget-orders", name: "Recent Orders" },
-    { id: "widget-inventory", name: "Inventory Health" },
-    { id: "widget-actions", name: "Quick Actions" },
-    { id: "widget-analytics", name: "Performance Insights" },
+    { id: "widget-revenue", name: "Revenue Summary", enabled: true, visibility: true, order: 1, section: "sellerDashboardWidgets" },
+    { id: "widget-orders", name: "Recent Incoming Orders", enabled: true, visibility: true, order: 2, section: "sellerDashboardWidgets" },
   ],
   sellerSidebar: [
-    { id: "side-dashboard", name: "Dashboard", path: "/seller/dashboard" },
-    { id: "side-products", name: "Products", path: "/seller/products" },
-    { id: "side-orders", name: "Orders", path: "/seller/orders" },
-    { id: "side-analytics", name: "Analytics", path: "/seller/analytics" },
-    { id: "side-coupons", name: "Coupons", path: "/seller/coupons" },
-    { id: "side-settings", name: "Settings", path: "/seller/settings" },
+    { id: "side-dashboard", name: "Dashboard", path: "/dashboard", enabled: true, visibility: true, order: 1, section: "sellerSidebar" },
+    { id: "side-products", name: "Products", path: "/products", featureKey: "PRODUCT_UPLOAD", enabled: true, visibility: true, order: 2, section: "sellerSidebar" },
+    { id: "side-orders", name: "Orders", path: "/orders", enabled: true, visibility: true, order: 3, section: "sellerSidebar" },
+    { id: "side-custom-orders", name: "Custom Requests", path: "/custom-orders", featureKey: "CUSTOM_PRINTING", enabled: true, visibility: true, order: 4, section: "sellerSidebar" },
+    { id: "side-analytics", name: "Analytics", path: "/analytics", featureKey: "ANALYTICS", enabled: true, visibility: true, order: 5, section: "sellerSidebar" },
+    { id: "side-payouts", name: "Payouts", path: "/payouts", featureKey: "PAYMENTS", enabled: true, visibility: true, order: 6, section: "sellerSidebar" },
+    { id: "side-reviews", name: "Reviews", path: "/reviews", featureKey: "REVIEWS", enabled: true, visibility: true, order: 7, section: "sellerSidebar" },
+    { id: "side-profile", name: "Seller Profile", path: "/profile", enabled: true, visibility: true, order: 8, section: "sellerSidebar" },
+    { id: "side-shop", name: "Shop & Bank", path: "/shop", featureKey: "BANK_ACCOUNT", enabled: true, visibility: true, order: 9, section: "sellerSidebar" },
+    { id: "side-settings", name: "Settings", path: "/settings", enabled: true, visibility: true, order: 10, section: "sellerSidebar" },
   ],
 };
 
@@ -59,12 +61,32 @@ export default function UiBuilderPage() {
     setLoading(true);
     try {
       const res = await api.get("/api/platform/settings");
-      if (res.data?.settings?.uiLayout) {
+      const ui = res.data?.settings?.uiLayout || res.data?.uiLayout;
+      if (ui) {
+        const mergeItems = (saved: UiLayoutItem[] | undefined, defaults: UiLayoutItem[], sectionName: string) => {
+          if (!saved || !Array.isArray(saved) || saved.length === 0) return defaults;
+          const savedIds = new Set(saved.map((i) => i.id));
+          const missingDefaults = defaults.filter((d) => !savedIds.has(d.id));
+          const combined = [...saved, ...missingDefaults];
+          return combined.map((item, index) => {
+            const isEnabled = item.enabled !== false && item.visibility !== false;
+            return {
+              ...item,
+              section: sectionName,
+              order: index + 1,
+              enabled: isEnabled,
+              visibility: isEnabled,
+            };
+          });
+        };
+
         setLayout({
-          customerHomepageSections: res.data.settings.uiLayout.customerHomepageSections || DEFAULT_LAYOUT.customerHomepageSections,
-          customerNavbar: res.data.settings.uiLayout.customerNavbar || DEFAULT_LAYOUT.customerNavbar,
-          sellerDashboardWidgets: res.data.settings.uiLayout.sellerDashboardWidgets || DEFAULT_LAYOUT.sellerDashboardWidgets,
-          sellerSidebar: res.data.settings.uiLayout.sellerSidebar || DEFAULT_LAYOUT.sellerSidebar,
+          ...DEFAULT_LAYOUT,
+          ...ui,
+          customerHomepageSections: mergeItems(ui.customerHomepageSections, DEFAULT_LAYOUT.customerHomepageSections, "customerHomepageSections"),
+          customerNavbar: mergeItems(ui.customerNavbar, DEFAULT_LAYOUT.customerNavbar, "customerNavbar"),
+          sellerDashboardWidgets: mergeItems(ui.sellerDashboardWidgets, DEFAULT_LAYOUT.sellerDashboardWidgets, "sellerDashboardWidgets"),
+          sellerSidebar: mergeItems(ui.sellerSidebar, DEFAULT_LAYOUT.sellerSidebar, "sellerSidebar"),
         });
       }
     } catch (err) {
@@ -79,8 +101,31 @@ export default function UiBuilderPage() {
     setMessage(null);
 
     try {
-      const res = await api.patch("/api/platform/settings/ui-layout", layout);
+      const normalizeList = (items: UiLayoutItem[], sectionName: string) =>
+        items.map((item, index) => {
+          const isEnabled = item.enabled !== false && item.visibility !== false;
+          return {
+            ...item,
+            section: sectionName,
+            order: index + 1,
+            enabled: isEnabled,
+            visibility: isEnabled,
+          };
+        });
+
+      const updatedLayout: UiBuilderLayout = {
+        ...layout,
+        customerHomepageSections: normalizeList(layout.customerHomepageSections, "customerHomepageSections"),
+        customerNavbar: normalizeList(layout.customerNavbar, "customerNavbar"),
+        sellerDashboardWidgets: normalizeList(layout.sellerDashboardWidgets, "sellerDashboardWidgets"),
+        sellerSidebar: normalizeList(layout.sellerSidebar, "sellerSidebar"),
+        synced: true,
+        syncedAt: new Date().toISOString(),
+      };
+
+      const res = await api.patch("/api/platform/settings/ui-layout", updatedLayout);
       if (res.status === 200 || res.status === 201) {
+        setLayout(updatedLayout);
         setMessage({ type: "success", text: "UI Layout configurations saved successfully!" });
       } else {
         setMessage({ type: "error", text: "Failed to save UI layout." });
@@ -129,11 +174,15 @@ export default function UiBuilderPage() {
   };
 
   const toggleSectionEnabled = (id: string) => {
-    if (activeTab !== "homepage") return;
-    const updated = layout.customerHomepageSections.map((item) =>
-      item.id === id ? { ...item, enabled: !item.enabled } : item
-    );
-    setLayout((prev) => ({ ...prev, customerHomepageSections: updated }));
+    const currentList = getActiveList();
+    const updated = currentList.map((item) => {
+      if (item.id === id) {
+        const nextState = item.enabled === false || item.visibility === false ? true : false;
+        return { ...item, enabled: nextState, visibility: nextState };
+      }
+      return item;
+    });
+    setActiveList(updated);
   };
 
   // Drag and drop handlers
@@ -163,9 +212,9 @@ export default function UiBuilderPage() {
 
   const tabs: { id: TabType; label: string; icon: React.ElementType; desc: string }[] = [
     { id: "homepage", label: "Customer Homepage", icon: LayoutTemplate, desc: "Reorder & toggle homepage sections" },
-    { id: "navbar", label: "Customer Navbar", icon: Compass, desc: "Reorder main customer navigation items" },
-    { id: "seller-widgets", label: "Seller Widgets", icon: LayoutDashboard, desc: "Reorder seller dashboard widgets" },
-    { id: "seller-sidebar", label: "Seller Sidebar", icon: PanelLeft, desc: "Reorder seller navigation menu items" },
+    { id: "navbar", label: "Customer Navbar", icon: Compass, desc: "Reorder & toggle customer navigation items" },
+    { id: "seller-widgets", label: "Seller Widgets", icon: LayoutDashboard, desc: "Reorder & toggle seller dashboard widgets" },
+    { id: "seller-sidebar", label: "Seller Sidebar", icon: PanelLeft, desc: "Reorder & toggle seller navigation menu items" },
   ];
 
   return (
@@ -179,7 +228,7 @@ export default function UiBuilderPage() {
           <div>
             <h1 className="text-2xl font-black text-white tracking-tight">UI Layout Builder</h1>
             <p className="text-xs text-white/50 font-medium">
-              Drag and drop to reorder elements and manage homepage section visibility.
+              Drag and drop to reorder elements and manage visibility across Customer and Seller apps.
             </p>
           </div>
         </div>
@@ -245,7 +294,7 @@ export default function UiBuilderPage() {
               {tabs.find((t) => t.id === activeTab)?.label}
             </h2>
             <p className="text-xs text-white/40">
-              Drag elements up or down using the handle to change display order.
+              Drag elements up or down using the handle to change display order, or toggle visibility.
             </p>
           </div>
           <span className="text-xs font-mono text-white/40">{getActiveList().length} items</span>
@@ -282,29 +331,27 @@ export default function UiBuilderPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Enable / Disable toggle for Homepage Sections */}
-                {activeTab === "homepage" && (
-                  <button
-                    onClick={() => toggleSectionEnabled(item.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
-                      item.enabled !== false
-                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                        : "bg-white/5 border-white/10 text-white/40"
-                    }`}
-                  >
-                    {item.enabled !== false ? (
-                      <>
-                        <Eye className="h-3.5 w-3.5" />
-                        <span>Visible</span>
-                      </>
-                    ) : (
-                      <>
-                        <EyeOff className="h-3.5 w-3.5" />
-                        <span>Hidden</span>
-                      </>
-                    )}
-                  </button>
-                )}
+                {/* Enable / Disable toggle for all layout items */}
+                <button
+                  onClick={() => toggleSectionEnabled(item.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                    item.enabled !== false && item.visibility !== false
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                      : "bg-white/5 border-white/10 text-white/40"
+                  }`}
+                >
+                  {item.enabled !== false && item.visibility !== false ? (
+                    <>
+                      <Eye className="h-3.5 w-3.5" />
+                      <span>Visible</span>
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff className="h-3.5 w-3.5" />
+                      <span>Hidden</span>
+                    </>
+                  )}
+                </button>
 
                 {/* Manual Move Up / Move Down accessibility buttons */}
                 <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-white/10">

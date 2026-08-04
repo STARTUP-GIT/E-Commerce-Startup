@@ -7,7 +7,7 @@ export const platformSettingsApi = {
     return response.data;
   },
   updateBranding: async (payload: Partial<BrandingConfig>): Promise<{ message: string; settings: PlatformSettings }> => {
-    const response = await axiosInstance.patch('/api/platform/settings/branding', payload);
+    const response = await axiosInstance.put('/api/platform/branding', payload);
     return response.data;
   },
   updateUiLayout: async (payload: Partial<UiBuilderLayout>): Promise<{ message: string; settings: PlatformSettings }> => {

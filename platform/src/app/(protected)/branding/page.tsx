@@ -23,7 +23,7 @@ export default function BrandingPage() {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/platform/branding");
+      const res = await api.get("/api/platform/branding");
       const data = res.data;
       if (data) {
         setBranding({
@@ -45,7 +45,7 @@ export default function BrandingPage() {
     setMessage(null);
 
     try {
-      const res = await api.put("/platform/branding", {
+      const res = await api.put("/api/platform/branding", {
         marketplaceName: branding.marketplaceName,
         logoUrl: branding.logo,
         faviconUrl: branding.favicon,

@@ -18,7 +18,12 @@ export interface UiLayoutItem {
   id: string;
   name: string;
   enabled?: boolean;
+  visibility?: boolean;
+  order?: number;
+  section?: string;
   path?: string;
+  featureKey?: string;
+  icon?: string;
 }
 
 export interface UiBuilderLayout {
@@ -26,6 +31,12 @@ export interface UiBuilderLayout {
   customerNavbar: UiLayoutItem[];
   sellerDashboardWidgets: UiLayoutItem[];
   sellerSidebar: UiLayoutItem[];
+  customerFooter?: UiLayoutItem[];
+  customerCategoriesLayout?: UiLayoutItem[];
+  sellerQuickActions?: UiLayoutItem[];
+  sellerDashboardCards?: UiLayoutItem[];
+  synced?: boolean;
+  syncedAt?: string;
 }
 
 export interface PlatformSettings {
