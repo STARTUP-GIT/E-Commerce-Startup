@@ -38,7 +38,7 @@ export function DashboardPage() {
   const { metrics, chartData, isLoadingMetrics } = useAnalytics();
   const { orders, isLoading: isLoadingOrders } = useOrders();
   const navigate = useNavigate();
-  const { dashboardCards, dashboardWidgets, quickActions, isFeatureEnabled } = usePlatformLayout();
+  const { dashboardCards, quickActions } = usePlatformLayout();
 
   const recentOrders = orders.slice(0, 5);
 
