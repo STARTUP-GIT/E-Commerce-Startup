@@ -11,7 +11,7 @@ export const ensureDefaultDeliveryMethods = async () => {
                     {
                         code: "PORTAL_DELIVERY",
                         name: "Portal Delivery",
-                        description: "Delivered using Aura logistics",
+                        description: "Delivered using marketplace logistics",
                         enabled: true,
                         displayOrder: 1,
                     },
@@ -29,7 +29,7 @@ export const ensureDefaultDeliveryMethods = async () => {
             // Update existing defaults if they exist with legacy descriptions
             await prisma.deliveryMethodSetting.updateMany({
                 where: { code: "PORTAL_DELIVERY" },
-                data: { name: "Portal Delivery", description: "Delivered using Aura logistics" },
+                data: { name: "Portal Delivery", description: "Delivered using marketplace logistics" },
             });
             await prisma.deliveryMethodSetting.updateMany({
                 where: { code: "SELLER_DELIVERY" },

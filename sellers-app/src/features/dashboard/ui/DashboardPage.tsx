@@ -38,7 +38,8 @@ export function DashboardPage() {
   const { metrics, chartData, isLoadingMetrics } = useAnalytics();
   const { orders, isLoading: isLoadingOrders } = useOrders();
   const navigate = useNavigate();
-  const { dashboardCards, quickActions } = usePlatformLayout();
+  const { dashboardCards, quickActions, branding } = usePlatformLayout();
+  const marketplaceName = branding?.marketplaceName || 'the marketplace';
 
   const recentOrders = orders.slice(0, 5);
 
@@ -157,7 +158,7 @@ export function DashboardPage() {
               </div>
               <h3 className="text-lg font-bold text-white tracking-tight">Create Your Store Profile</h3>
               <p className="text-xs text-white/50 max-w-xl leading-relaxed">
-                Ready to start selling on Aura? Create your storefront, configure your pick-up address, and link your settlement bank details to list items. You can choose to set up your shop now or continue exploring your profile.
+                Ready to start selling on {marketplaceName}? Create your storefront, configure your pick-up address, and link your settlement bank details to list items. You can choose to set up your shop now or continue exploring your profile.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 shrink-0 relative z-10 w-full md:w-auto">

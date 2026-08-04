@@ -1,4 +1,4 @@
-const RECENTLY_VIEWED_KEY = 'aura_recently_viewed_products';
+const RECENTLY_VIEWED_KEY = 'marketplace_recently_viewed_products';
 
 export const productListService = {
   formatPrice: (price: number | string): string => {

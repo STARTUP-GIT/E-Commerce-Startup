@@ -95,7 +95,9 @@ export function HomePage() {
   const { data: session } = useSession();
   const [search, setSearch] = useState('');
   const { shops, isLoading: shopsLoading } = useShopList();
-  const { homepageSections, isFeatureEnabled } = usePlatformLayout();
+  const { homepageSections, branding, isFeatureEnabled } = usePlatformLayout();
+  const marketplaceName = branding?.marketplaceName || 'Marketplace';
+
 
   const { data: categoriesData } = useQuery<any>({
     queryKey: ['home-categories'],
@@ -202,7 +204,7 @@ export function HomePage() {
                 fontWeight: 400,
               }}
             >
-              Aura is your local marketplace for everything — fashion, tech, food, prints, crafts, and beyond. Discover creators. Support neighbours.
+              {marketplaceName} is your local marketplace for everything — fashion, tech, food, prints, crafts, and beyond. Discover creators. Support neighbours.
             </p>
 
             {/* Search bar */}
@@ -492,7 +494,7 @@ export function HomePage() {
                 Your neighbourhood.<br />Your marketplace.
               </h2>
               <p style={{ fontSize: '16px', color: 'rgba(0,0,0,0.5)', marginTop: '12px', maxWidth: '400px', lineHeight: 1.6 }}>
-                Join Aura free — browse local sellers, follow your favourite shops, and get anything delivered or picked up nearby.
+                Join {marketplaceName} free — browse local sellers, follow your favourite shops, and get anything delivered or picked up nearby.
               </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>

@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { ShoppingBag, Mail, ArrowRight } from 'lucide-react';
 import { Button } from './Button';
 import { Input } from './Input';
+import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
 
 export function Footer() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const { branding } = usePlatformLayout();
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,10 +30,14 @@ export function Footer() {
           <div className="lg:col-span-2 space-y-4">
             <Link href="/" className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-                <ShoppingBag className="h-5 w-5 text-white" />
+                {branding?.logo && branding.logo !== '/images/logo.png' ? (
+                  <img src={branding.logo} alt={branding.marketplaceName} className="h-full w-full object-cover rounded-lg" />
+                ) : (
+                  <ShoppingBag className="h-5 w-5 text-white" />
+                )}
               </div>
               <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-foreground to-zinc-400 bg-clip-text text-transparent">
-                Aura
+                {branding?.marketplaceName ? branding.marketplaceName : 'Marketplace'}
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
@@ -145,7 +151,7 @@ export function Footer() {
         {/* Divider */}
         <div className="border-t border-border mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Aura Inc. All rights reserved.
+            &copy; {new Date().getFullYear()} {branding?.marketplaceName || 'Marketplace'} Inc. All rights reserved.
           </p>
           <div className="flex gap-6">
             <a href="#" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -160,3 +166,4 @@ export function Footer() {
     </footer>
   );
 }
+

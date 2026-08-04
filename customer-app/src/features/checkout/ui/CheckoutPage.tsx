@@ -265,7 +265,7 @@ export function CheckoutPage() {
                     <span className="font-bold text-foreground text-xs sm:text-sm">• Portal Delivery</span>
                     <Badge variant="outline" className="text-[10px]">Standard Charge</Badge>
                   </div>
-                  <p className="text-muted-foreground text-[11px]">Delivered using Aura logistics</p>
+                  <p className="text-muted-foreground text-[11px]">Delivered using portal logistics</p>
                 </div>
               )}
 

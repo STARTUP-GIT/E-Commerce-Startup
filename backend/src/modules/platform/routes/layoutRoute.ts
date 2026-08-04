@@ -5,6 +5,9 @@ import {
   getBranding,
   getPublicFeatures,
 } from "../controllers/layoutController.js";
+import { updateBranding } from "../controllers/settingsController.js";
+import { platformAuth, requirePermission } from "../middleware/platformAuth.js";
+import { PERMISSIONS } from "../utils/constants.js";
 
 const router = Router();
 
@@ -12,6 +15,9 @@ const router = Router();
 router.get("/layout/customer", getCustomerLayout);
 router.get("/layout/seller", getSellerLayout);
 router.get("/branding", getBranding);
+router.put("/branding", platformAuth, requirePermission(PERMISSIONS.MARKETPLACE_MANAGE), updateBranding);
+router.patch("/branding", platformAuth, requirePermission(PERMISSIONS.MARKETPLACE_MANAGE), updateBranding);
 router.get("/features", getPublicFeatures);
 
 export default router;
+

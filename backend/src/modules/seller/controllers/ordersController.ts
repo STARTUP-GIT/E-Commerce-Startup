@@ -1189,7 +1189,7 @@ export const downloadInvoice = async (req: Request, res: Response) => {
                 : null,
         };
 
-        const doc = generateSellerInvoicePdf(invoiceData);
+        const doc = await generateSellerInvoicePdf(invoiceData);
 
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `attachment; filename="invoice-${sellerOrder.order.orderNumber}.pdf"`);

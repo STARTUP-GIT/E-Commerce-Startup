@@ -3,7 +3,7 @@ import { Footer } from '@/shared/components/Footer';
 import { ShopListPage } from '@/features/shops/shop-list/ui/ShopListPage';
 
 export const metadata = {
-  title: 'Local Craft Shops | Aura Marketplace',
+  title: 'Local Craft Shops',
   description: 'Find local artisans, craft makers, and 3D printing vendors near you.',
 };
 

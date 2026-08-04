@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { getPlatformSettings, DEFAULT_PLATFORM_SETTINGS } from "../services/settingsService.js";
+import { getPlatformSettings, getPlatformBranding, DEFAULT_PLATFORM_SETTINGS } from "../services/settingsService.js";
 import { listRegisteredFeatures } from "../services/featureFlagService.js";
 
 /**
@@ -10,7 +10,7 @@ export const getCustomerLayout = async (_req: Request, res: Response): Promise<v
   try {
     const settings = await getPlatformSettings();
     const uiLayout = settings.uiLayout || DEFAULT_PLATFORM_SETTINGS.uiLayout;
-    const branding = settings.branding || DEFAULT_PLATFORM_SETTINGS.branding;
+    const branding = await getPlatformBranding();
 
     const allFeatures = await listRegisteredFeatures();
     const customerFeatures: Record<string, boolean> = {};
@@ -48,7 +48,7 @@ export const getSellerLayout = async (_req: Request, res: Response): Promise<voi
   try {
     const settings = await getPlatformSettings();
     const uiLayout = settings.uiLayout || DEFAULT_PLATFORM_SETTINGS.uiLayout;
-    const branding = settings.branding || DEFAULT_PLATFORM_SETTINGS.branding;
+    const branding = await getPlatformBranding();
 
     const allFeatures = await listRegisteredFeatures();
     const sellerFeatures: Record<string, boolean> = {};
@@ -80,18 +80,17 @@ export const getSellerLayout = async (_req: Request, res: Response): Promise<voi
 
 /**
  * GET /platform/branding (and /api/platform/branding)
- * Public branding payload (marketplace name, logo, favicon).
+ * Public branding payload (marketplace name, logo, favicon, logoUrl, faviconUrl).
  */
 export const getBranding = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const settings = await getPlatformSettings();
-    const branding = settings.branding || DEFAULT_PLATFORM_SETTINGS.branding;
-
+    const branding = await getPlatformBranding();
     res.status(200).json(branding);
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to fetch Branding configuration" });
   }
 };
+
 
 /**
  * GET /platform/features (and /api/platform/features)

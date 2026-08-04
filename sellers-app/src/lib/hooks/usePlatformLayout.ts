@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios/axiosInstance';
 
@@ -14,6 +15,8 @@ export interface BrandingConfig {
   marketplaceName: string;
   logo: string;
   favicon: string;
+  logoUrl?: string;
+  faviconUrl?: string;
 }
 
 export interface SellerPlatformLayout {
@@ -76,7 +79,7 @@ const DEFAULT_LAYOUT: SellerPlatformLayout = {
     BANK_ACCOUNT: true,
   },
   branding: {
-    marketplaceName: 'Aura Marketplace',
+    marketplaceName: 'Marketplace',
     logo: '/images/logo.png',
     favicon: '/favicon.ico',
   },
@@ -101,6 +104,22 @@ export function usePlatformLayout() {
   });
 
   const layout = data || DEFAULT_LAYOUT;
+  const branding = layout.branding || DEFAULT_LAYOUT.branding;
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && branding) {
+      const faviconUrl = branding.faviconUrl || branding.favicon;
+      if (faviconUrl) {
+        let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = 'shortcut icon';
+          document.getElementsByTagName('head')[0].appendChild(link);
+        }
+        link.href = faviconUrl;
+      }
+    }
+  }, [branding]);
 
   const isFeatureEnabled = (key: string): boolean => {
     if (!layout.features) return true;
@@ -141,7 +160,7 @@ export function usePlatformLayout() {
 
   return {
     layout,
-    branding: layout.branding || DEFAULT_LAYOUT.branding,
+    branding,
     features: layout.features || DEFAULT_LAYOUT.features,
     sidebar: getActiveSidebar(),
     dashboardWidgets: getActiveWidgets(),
@@ -152,3 +171,4 @@ export function usePlatformLayout() {
     isError: !!error,
   };
 }
+

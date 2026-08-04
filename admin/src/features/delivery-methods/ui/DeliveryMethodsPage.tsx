@@ -22,7 +22,7 @@ const SYSTEM_DELIVERY_METHODS: FixedSystemDeliveryMethod[] = [
   {
     code: 'PORTAL_DELIVERY',
     name: 'Portal Delivery',
-    description: 'Delivered using Aura Logistics',
+    description: 'Delivered using Portal Logistics',
     icon: <Truck className="h-5 w-5 text-white/40" />,
   },
   {

@@ -12,7 +12,10 @@ import { Link } from 'react-router-dom';
 import { GoogleButton } from './GoogleButton';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 
+import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+
 export function RegisterPage() {
+  const { branding } = usePlatformLayout();
   const { register: registerSeller, isRegistering } = useAuth();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -46,10 +49,14 @@ export function RegisterPage() {
       <div className="relative z-10 w-full max-w-[440px] animate-fade-up">
         {/* Portal Header */}
         <div className="flex flex-col items-center mb-6">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-900/80 to-indigo-900/80 glass border border-purple-500/30 mb-3 shadow-lg">
-            <Store className="h-6 w-6 text-purple-400" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-900/80 to-indigo-900/80 glass border border-purple-500/30 mb-3 shadow-lg overflow-hidden">
+            {branding?.logo && branding.logo !== '/images/logo.png' ? (
+              <img src={branding.logo} alt={branding.marketplaceName} className="h-full w-full object-cover" />
+            ) : (
+              <Store className="h-6 w-6 text-purple-400" />
+            )}
           </div>
-          <h1 className="text-2xl font-extrabold text-white text-gradient">Aura Marketplace</h1>
+          <h1 className="text-2xl font-extrabold text-white text-gradient">{branding?.marketplaceName || 'Marketplace'}</h1>
           <p className="text-xs text-white/40 mt-1 uppercase tracking-widest font-semibold">Seller Portal</p>
         </div>
 

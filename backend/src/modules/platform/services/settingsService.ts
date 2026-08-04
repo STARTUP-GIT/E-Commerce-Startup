@@ -74,7 +74,12 @@ export interface BrandingConfiguration {
   marketplaceName: string;
   logo: string;
   favicon: string;
+  logoUrl?: string;
+  faviconUrl?: string;
+  updatedAt?: string;
+  updatedBy?: string;
 }
+
 
 export interface UiLayoutItem {
   id: string;
@@ -308,6 +313,29 @@ export const getPlatformSettings = async (): Promise<PlatformSettingsData> => {
   }
 };
 
+let brandingCache: BrandingConfiguration | null = null;
+
+export const invalidateBrandingCache = (): void => {
+  brandingCache = null;
+};
+
+export const getPlatformBranding = async (): Promise<BrandingConfiguration> => {
+  if (brandingCache) return brandingCache;
+  const settings = await getPlatformSettings();
+  const b = settings.branding || DEFAULT_PLATFORM_SETTINGS.branding;
+  const normalized: BrandingConfiguration = {
+    marketplaceName: b.marketplaceName || DEFAULT_PLATFORM_SETTINGS.branding.marketplaceName,
+    logo: b.logo || b.logoUrl || DEFAULT_PLATFORM_SETTINGS.branding.logo,
+    favicon: b.favicon || b.faviconUrl || DEFAULT_PLATFORM_SETTINGS.branding.favicon,
+    logoUrl: b.logoUrl || b.logo || DEFAULT_PLATFORM_SETTINGS.branding.logo,
+    faviconUrl: b.faviconUrl || b.favicon || DEFAULT_PLATFORM_SETTINGS.branding.favicon,
+    updatedAt: b.updatedAt || new Date().toISOString(),
+    updatedBy: b.updatedBy || "system",
+  };
+  brandingCache = normalized;
+  return normalized;
+};
+
 export const savePlatformSettings = async (settings: PlatformSettingsData): Promise<PlatformSettingsData> => {
   const data = JSON.parse(JSON.stringify(settings));
   await prisma.platformSetting.upsert({
@@ -315,6 +343,7 @@ export const savePlatformSettings = async (settings: PlatformSettingsData): Prom
     update: { data },
     create: { id: PLATFORM_SETTING_ID, data },
   });
+  invalidateBrandingCache();
   return settings;
 };
 
@@ -331,5 +360,39 @@ export const updatePlatformSettings = async (patch: Partial<PlatformSettingsData
     storage: patch.storage ? { ...current.storage, ...patch.storage } : current.storage,
     security: patch.security ? { ...current.security, ...patch.security } : current.security,
   } as PlatformSettingsData;
+  invalidateBrandingCache();
   return savePlatformSettings(merged);
 };
+
+export const updatePlatformBranding = async (
+  patch: Partial<BrandingConfiguration>,
+  updatedBy: string = "system"
+): Promise<BrandingConfiguration> => {
+  const current = await getPlatformSettings();
+  const newLogo = patch.logo || patch.logoUrl || current.branding.logo;
+  const newFavicon = patch.favicon || patch.faviconUrl || current.branding.favicon;
+  const newName = patch.marketplaceName || current.branding.marketplaceName;
+  const now = new Date().toISOString();
+
+  const updatedBranding: BrandingConfiguration = {
+    marketplaceName: newName,
+    logo: newLogo,
+    favicon: newFavicon,
+    logoUrl: newLogo,
+    faviconUrl: newFavicon,
+    updatedAt: now,
+    updatedBy: updatedBy,
+  };
+
+  await updatePlatformSettings({
+    branding: updatedBranding,
+    marketplace: {
+      ...current.marketplace,
+      marketplaceName: newName,
+    },
+  });
+
+  invalidateBrandingCache();
+  return getPlatformBranding();
+};
+

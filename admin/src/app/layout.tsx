@@ -11,8 +11,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Aura Admin — Enterprise Control Panel",
-  description: "Premium enterprise administration dashboard for the Aura marketplace platform.",
+  title: {
+    default: "Marketplace Admin — Control Panel",
+    template: "%s | Marketplace Admin",
+  },
+  description: "Enterprise administration dashboard for the marketplace platform.",
   robots: "noindex, nofollow",
 };
 

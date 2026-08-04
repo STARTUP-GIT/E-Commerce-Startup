@@ -43,12 +43,14 @@ function StatCard({
   return content;
 }
 
+import { usePlatformBranding } from '@/lib/hooks/usePlatformBranding';
+
 export function DashboardPage() {
+  const { branding } = usePlatformBranding();
   const { admin } = useAuth();
   const { data: dashboard, isLoading: isDashboardLoading } = useDashboard();
   const { data: monthlyRevenue, isLoading: isMonthlyLoading } = useMonthlyRevenue();
   const { data: activities, isLoading: isActivitiesLoading } = useRecentActivities();
-
   const stats = [
     {
       label: "Total Revenue",
@@ -136,7 +138,7 @@ export function DashboardPage() {
             Welcome back, {admin?.firstName}
           </h1>
           <p className="text-xs text-white/45">
-            Aura Marketplace · Enterprise Administration Control Panel
+            {branding?.marketplaceName || 'Marketplace'} · Enterprise Administration Control Panel
           </p>
         </div>
         <div className="flex gap-2 text-[10px] text-white/40 font-medium items-center bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2">

@@ -2,9 +2,11 @@ import { SignupForm } from '@/features/auth/signup/ui/SignupForm';
 import { ShoppingBag, Shield, Users, Award } from 'lucide-react';
 import Link from 'next/link';
 
+import { BrandLogo } from '@/shared/components/BrandLogo';
+
 export const metadata = {
-  title: 'Create Account | Aura Marketplace',
-  description: 'Join Aura Marketplace to discover local artisans, custom 3D prints, and handcrafted goods.',
+  title: 'Create Account | Customer Portal',
+  description: 'Join the marketplace to discover local artisans, custom 3D prints, and handcrafted goods.',
 };
 
 export default function SignupPage() {
@@ -46,12 +48,7 @@ export default function SignupPage() {
 
       {/* ── Brand header ────────────────────────────────────────── */}
       <div className="mb-6 z-10 animate-fade-in">
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white border border-white/10 shadow-md">
-            <ShoppingBag className="h-4.5 w-4.5 text-black" />
-          </div>
-          <span className="text-lg font-black tracking-tight text-white">Aura</span>
-        </Link>
+        <BrandLogo />
       </div>
 
       {/* ── Form Card Wrapper ─────────────────────────────────────── */}

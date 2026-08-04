@@ -24,7 +24,14 @@ function RowValue({ children, className = '' }: { children: React.ReactNode; cla
   );
 }
 
+import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+
 export function SellerInvoice({ order, className = '' }: SellerInvoiceProps) {
+  const { branding } = usePlatformLayout();
+  const mktName = branding?.marketplaceName || 'Marketplace';
+  const domain = `${mktName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+  const supportEmail = `support@${domain}`;
+
   const shop = order.seller?.shop;
   const shipping = order.order.shippingAddress;
   const invoiceNo = sellerInvoiceService.invoiceNumber(order);
@@ -42,11 +49,11 @@ export function SellerInvoice({ order, className = '' }: SellerInvoiceProps) {
       <div className="bg-zinc-900 text-white px-6 py-5 md:px-8 print:bg-zinc-900">
         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
-            <p className="text-xl font-extrabold tracking-tight">
-              AURA <span className="font-medium text-zinc-400">Marketplace</span>
+            <p className="text-xl font-extrabold tracking-tight uppercase">
+              {mktName}
             </p>
-            <p className="text-[11px] text-zinc-400 mt-1">support@auramarketplace.com</p>
-            <p className="text-[11px] text-zinc-400">auramarketplace.com</p>
+            <p className="text-[11px] text-zinc-400 mt-1">{supportEmail}</p>
+            <p className="text-[11px] text-zinc-400">{domain}</p>
           </div>
           <div className="text-left md:text-center">
             <p className="text-2xl font-extrabold tracking-[0.2em] uppercase">Tax Invoice</p>
@@ -258,13 +265,13 @@ export function SellerInvoice({ order, className = '' }: SellerInvoiceProps) {
           <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Note</p>
           <p className="mt-1.5 text-xs text-zinc-600 leading-relaxed">
             Thank you for your order. For any support, please contact the seller directly or reach
-            out to Aura Marketplace at support@auramarketplace.com.
+            out to {mktName} at {supportEmail}.
           </p>
         </div>
 
         <div className="border-t border-zinc-200 pt-4 flex flex-col gap-1 md:flex-row md:items-center md:justify-between text-[10px] text-zinc-500 print:border-zinc-300">
           <p>This is a computer generated invoice. No signature required.</p>
-          <p>Aura Marketplace Pvt. Ltd.  |  auramarketplace.com</p>
+          <p>{mktName}  |  {domain}</p>
         </div>
       </div>
     </div>

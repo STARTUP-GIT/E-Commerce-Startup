@@ -892,7 +892,7 @@ export function ShopSettingsPage() {
           isOpen={isRequestModalOpen}
           onClose={() => setIsRequestModalOpen(false)}
           title="Request Packing Fee Approval"
-          description="Submit a request to Aura Administration to enable customer packing fees for your shop."
+          description="Submit a request to Platform Administration to enable customer packing fees for your shop."
         >
           <form onSubmit={handleRequestSubmit} className="space-y-4 pt-2">
             {requestError && (

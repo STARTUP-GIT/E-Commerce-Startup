@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import { COLORS, FONT, MARGIN, CONTENT_W, PAGE_H, currency, safe, formatDate, formatDateTime, formatStatus, statusColor, drawRoundedRect, drawLabelValue, drawKV } from "../../shared/utils/pdfHelpers.js";
+import { getPlatformBranding } from "../../platform/services/settingsService.js";
 
 // ---------------------------------------------------------------------------
 // Types — mirror the shape returned by the seller orders controller
@@ -65,13 +66,18 @@ export interface SellerInvoiceData {
 // Main generator
 // ---------------------------------------------------------------------------
 
-export function generateSellerInvoicePdf(data: SellerInvoiceData): PDFKit.PDFDocument {
+export async function generateSellerInvoicePdf(data: SellerInvoiceData): Promise<PDFKit.PDFDocument> {
+    const branding = await getPlatformBranding();
+    const mktName = branding.marketplaceName || "Marketplace";
+    const domain = `${mktName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+    const supportEmail = `support@${domain}`;
+
     const doc = new PDFDocument({
         size: "A4",
         margin: 0,
         info: {
             Title: `Invoice ${data.invoiceNumber}`,
-            Author: "Aura Marketplace",
+            Author: mktName,
         },
     });
 
@@ -82,12 +88,12 @@ export function generateSellerInvoicePdf(data: SellerInvoiceData): PDFKit.PDFDoc
     drawRoundedRect(doc, MARGIN, y, CONTENT_W, headerH, 4, COLORS.headerBg);
 
     doc.font(FONT.bold).fontSize(12).fillColor(COLORS.headerText);
-    doc.text("AURA", MARGIN + 16, y + 16, { continued: true });
-    doc.font(FONT.regular).fontSize(9).text(" Marketplace", { continued: false });
+    doc.text(mktName, MARGIN + 16, y + 16);
 
     doc.font(FONT.regular).fontSize(7).fillColor("#A1A1AA");
-    doc.text("support@auramarketplace.com", MARGIN + 16, y + 38);
-    doc.text("auramarketplace.com", MARGIN + 16, y + 48);
+    doc.text(supportEmail, MARGIN + 16, y + 38);
+    doc.text(domain, MARGIN + 16, y + 48);
+
 
     // TAX INVOICE label (center)
     doc.font(FONT.bold).fontSize(22).fillColor(COLORS.headerText);
@@ -358,7 +364,7 @@ export function generateSellerInvoicePdf(data: SellerInvoiceData): PDFKit.PDFDoc
     doc.font(FONT.bold).fontSize(8).fillColor(COLORS.muted);
     doc.text("NOTE", MARGIN + 12, y + 10);
 
-    const noteText = data.notes || "Thank you for your order. For any support, please contact the seller directly or reach out to Aura Marketplace at support@auramarketplace.com";
+    const noteText = data.notes || `Thank you for your order. For any support, please contact the seller directly or reach out to ${mktName} at ${supportEmail}`;
     doc.font(FONT.regular).fontSize(7.5).fillColor(COLORS.text);
     doc.text(noteText, MARGIN + 12, y + 24, { width: CONTENT_W - 24 });
 
@@ -387,13 +393,14 @@ export function generateSellerInvoicePdf(data: SellerInvoiceData): PDFKit.PDFDoc
         align: "center",
     });
 
-    doc.text("auramarketplace.com", MARGIN + CONTENT_W - 120, footerY, {
+    doc.text(domain, MARGIN + CONTENT_W - 120, footerY, {
         width: 120,
         align: "right",
     });
 
     doc.font(FONT.regular).fontSize(6).fillColor(COLORS.muted);
-    doc.text("Aura Marketplace Pvt. Ltd.", MARGIN, footerY + 11, { width: 220 });
+    doc.text(`${mktName} Pvt. Ltd.`, MARGIN, footerY + 11, { width: 220 });
 
     return doc;
 }
+

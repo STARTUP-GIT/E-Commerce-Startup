@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import { COLORS, FONT, MARGIN, CONTENT_W, PAGE_H, currency, safe, formatDate, formatDateTime, formatStatus, statusColor, drawRoundedRect, drawLabelValue, drawKV } from "../../shared/utils/pdfHelpers.js";
+import { getPlatformBranding } from "../../platform/services/settingsService.js";
 
 // ---------------------------------------------------------------------------
 // Types — mirror the shapes returned by the Prisma query in the controller
@@ -122,13 +123,17 @@ interface InvoiceOrder {
 // Main generator
 // ---------------------------------------------------------------------------
 
-export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
+export async function generateInvoicePdf(order: InvoiceOrder): Promise<PDFKit.PDFDocument> {
+    const branding = await getPlatformBranding();
+    const mktName = branding.marketplaceName || "Marketplace";
+    const mktLogo = order.marketplaceLogoUrl || branding.logoUrl || branding.logo;
+
     const doc = new PDFDocument({
         size: "A4",
         margin: 0,
         info: {
             Title: `Invoice ${order.orderNumber}`,
-            Author: "Aura Marketplace",
+            Author: mktName,
         },
     });
 
@@ -144,21 +149,20 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
     drawRoundedRect(doc, MARGIN, y, CONTENT_W, headerH, 4, COLORS.headerBg);
 
     // Marketplace logo (left) — fallback to text if URL missing or image fails
-    const marketplaceLogoUrl = order.marketplaceLogoUrl;
-    if (marketplaceLogoUrl) {
+    if (mktLogo) {
         try {
-            doc.image(marketplaceLogoUrl, MARGIN + 16, y + 12, { fit: [36, 36] });
+            doc.image(mktLogo, MARGIN + 16, y + 12, { fit: [36, 36] });
         } catch {
             // image fetch failed — draw text fallback below
         }
     }
     doc.font(FONT.bold).fontSize(12).fillColor(COLORS.headerText);
-    doc.text("AURA", MARGIN + 16, y + (marketplaceLogoUrl ? 52 : 16), { continued: true });
-    doc.font(FONT.regular).fontSize(9).text(" Marketplace", { continued: false });
+    doc.text(mktName, MARGIN + 16, y + (mktLogo ? 52 : 16));
 
     doc.font(FONT.regular).fontSize(7).fillColor("#A1A1AA");
-    doc.text("support@auramarketplace.com", MARGIN + 16, y + (marketplaceLogoUrl ? 64 : 38));
-    doc.text("auramarketplace.com", MARGIN + 16, y + (marketplaceLogoUrl ? 72 : 48));
+    doc.text(`support@${mktName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`, MARGIN + 16, y + (mktLogo ? 64 : 38));
+    doc.text(`${mktName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`, MARGIN + 16, y + (mktLogo ? 72 : 48));
+
 
     // INVOICE label (center)
     doc.font(FONT.bold).fontSize(22).fillColor(COLORS.headerText);
@@ -480,9 +484,12 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
     doc.font(FONT.bold).fontSize(8).fillColor(COLORS.muted);
     doc.text("NOTE", MARGIN + 12, y + 10);
 
+    const domain = `${mktName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+    const supportEmail = `support@${domain}`;
+
     doc.font(FONT.regular).fontSize(7.5).fillColor(COLORS.text);
     doc.text(
-        "Thank you for shopping with Aura Marketplace. For any support, please contact us at support@auramarketplace.com",
+        `Thank you for shopping with ${mktName}. For any support, please contact us at ${supportEmail}`,
         MARGIN + 12,
         y + 24,
         { width: CONTENT_W - 24 },
@@ -519,14 +526,15 @@ export function generateInvoicePdf(order: InvoiceOrder): PDFKit.PDFDocument {
             align: "center",
         });
 
-        doc.text("auramarketplace.com", MARGIN + CONTENT_W - 120, footerY, {
+        doc.text(domain, MARGIN + CONTENT_W - 120, footerY, {
             width: 120,
             align: "right",
         });
 
         doc.font(FONT.regular).fontSize(6).fillColor(COLORS.muted);
-        doc.text("Aura Marketplace Pvt. Ltd.", MARGIN, footerY + 11, { width: 220 });
+        doc.text(`${mktName} Pvt. Ltd.`, MARGIN, footerY + 11, { width: 220 });
     }
 }
+
 
 

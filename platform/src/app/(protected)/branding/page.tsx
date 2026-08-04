@@ -11,9 +11,9 @@ export default function BrandingPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const [branding, setBranding] = useState<BrandingConfig>({
-    marketplaceName: "Aura Marketplace",
-    logo: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80",
-    favicon: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=64&auto=format&fit=crop&q=80",
+    marketplaceName: "Marketplace",
+    logo: "",
+    favicon: "",
   });
 
   useEffect(() => {
@@ -23,12 +23,13 @@ export default function BrandingPage() {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/api/platform/settings");
-      if (res.data?.settings?.branding) {
+      const res = await api.get("/platform/branding");
+      const data = res.data;
+      if (data) {
         setBranding({
-          marketplaceName: res.data.settings.branding.marketplaceName || "Aura Marketplace",
-          logo: res.data.settings.branding.logo || "",
-          favicon: res.data.settings.branding.favicon || "",
+          marketplaceName: data.marketplaceName || "Marketplace",
+          logo: data.logoUrl || data.logo || "",
+          favicon: data.faviconUrl || data.favicon || "",
         });
       }
     } catch (err: any) {
@@ -44,7 +45,13 @@ export default function BrandingPage() {
     setMessage(null);
 
     try {
-      const res = await api.patch("/api/platform/settings/branding", branding);
+      const res = await api.put("/platform/branding", {
+        marketplaceName: branding.marketplaceName,
+        logoUrl: branding.logo,
+        faviconUrl: branding.favicon,
+        logo: branding.logo,
+        favicon: branding.favicon,
+      });
       if (res.status === 200 || res.status === 201) {
         setMessage({ type: "success", text: "Branding configurations saved successfully!" });
       } else {
@@ -56,6 +63,7 @@ export default function BrandingPage() {
       setSaving(false);
     }
   };
+
 
   if (loading) {
     return (
@@ -115,7 +123,7 @@ export default function BrandingPage() {
             required
             value={branding.marketplaceName}
             onChange={(e) => setBranding({ ...branding, marketplaceName: e.target.value })}
-            placeholder="e.g. Aura Marketplace"
+            placeholder="e.g. Example Marketplace"
             className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder-white/20 text-sm font-medium focus:outline-none focus:border-white/30 transition-all"
           />
         </div>

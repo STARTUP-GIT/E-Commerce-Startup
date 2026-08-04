@@ -105,8 +105,8 @@ export function usePayment() {
           key: razorpayKey,
           amount: amountPaise,
           currency: currency,
-          name: 'Aura Marketplace',
-          description: 'Aura Marketplace Checkout Payment',
+          name: 'Marketplace',
+          description: 'Marketplace Checkout Payment',
           order_id: orderId,
           handler: async (response: any) => {
             await verifyPaymentMutation.mutateAsync({

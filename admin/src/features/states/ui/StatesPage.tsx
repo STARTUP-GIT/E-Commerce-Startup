@@ -109,7 +109,7 @@ export function StatesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white/95">Operational States</h1>
-          <p className="text-xs text-white/45 mt-1">Manage operational coverage states for Aura delivery & checkout validation</p>
+          <p className="text-xs text-white/45 mt-1">Manage operational coverage states for marketplace delivery & checkout validation</p>
         </div>
         <Button size="sm" onClick={() => setShowForm(!showForm)}>
           <Plus className="mr-2 h-3.5 w-3.5" /> Add State

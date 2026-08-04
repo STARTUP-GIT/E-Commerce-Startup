@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import { COLORS, FONT, safe, formatDate, currencyShort } from "../../shared/utils/pdfHelpers.js";
+import { getPlatformBranding } from "../../platform/services/settingsService.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -126,7 +127,12 @@ function drawDivider(doc: PDFKit.PDFDocument, y: number, left: number, width: nu
 // ---------------------------------------------------------------------------
 
 export async function generateShippingLabelPdf(data: ShippingLabelData): Promise<PDFKit.PDFDocument> {
-    const qrBuffer = await QRCode.toBuffer(`https://auramarketplace.com/track/${data.order.trackingId}`, {
+    const branding = await getPlatformBranding();
+    const mktName = branding.marketplaceName || "Marketplace";
+    const domain = `${mktName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+    const supportEmail = `support@${domain}`;
+
+    const qrBuffer = await QRCode.toBuffer(`https://${domain}/track/${data.order.trackingId}`, {
         width: 140,
         margin: 1,
     });
@@ -141,7 +147,7 @@ export async function generateShippingLabelPdf(data: ShippingLabelData): Promise
         margin: 0,
         info: {
             Title: `Shipping Label ${data.order.orderNumber}`,
-            Author: "Aura Marketplace",
+            Author: mktName,
         },
     });
 
@@ -149,15 +155,16 @@ export async function generateShippingLabelPdf(data: ShippingLabelData): Promise
 
     // ── HEADER (Centered) ───────────────────────────────────────────────
     doc.font(FONT.bold).fontSize(12).fillColor("#09090B");
-    doc.text("AURA MARKETPLACE", M, y, { align: "center", width: CONTENT_W });
+    doc.text(mktName.toUpperCase(), M, y, { align: "center", width: CONTENT_W });
     y += 14;
 
     doc.font(FONT.regular).fontSize(6.5).fillColor("#64748B");
-    doc.text("auramarketplace.com  •  support@auramarketplace.com", M, y, { align: "center", width: CONTENT_W });
+    doc.text(`${domain}  •  ${supportEmail}`, M, y, { align: "center", width: CONTENT_W });
     y += 12;
 
     // ── DIVIDER 1 ───────────────────────────────────────────────────────
     y = drawDivider(doc, y, M, CONTENT_W);
+
 
     // ── SECTION 1: ORDER INFORMATION (2 Columns, Aligned Labels) ────────
     doc.font(FONT.bold).fontSize(7.5).fillColor("#09090B");
@@ -329,10 +336,11 @@ export async function generateShippingLabelPdf(data: ShippingLabelData): Promise
     });
 
     doc.font(FONT.regular).fontSize(6).fillColor("#94A3B8");
-    doc.text("Aura Marketplace  |  auramarketplace.com  |  support@auramarketplace.com", M, footerY + 8, {
+    doc.text(`${mktName}  |  ${domain}  |  ${supportEmail}`, M, footerY + 8, {
         width: CONTENT_W,
         align: "center",
     });
 
     return doc;
 }
+

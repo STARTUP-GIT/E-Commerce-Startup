@@ -11,7 +11,10 @@ import { Button } from '@/shared/components/Button';
 import { ShieldCheck, Mail, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+import { usePlatformBranding } from '@/lib/hooks/usePlatformBranding';
+
 export function LoginPage() {
+  const { branding } = usePlatformBranding();
   const { login, isLoggingIn } = useAuth();
 
   const loginForm = useForm<LoginInput>({
@@ -38,11 +41,15 @@ export function LoginPage() {
         className="w-full max-w-md"
       >
         <div className="flex flex-col items-center mb-8 space-y-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-xl shadow-white/5 shrink-0">
-            <ShieldCheck className="h-6 w-6 text-black" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-xl shadow-white/5 shrink-0 overflow-hidden">
+            {branding?.logo && branding.logo !== '/images/logo.png' ? (
+              <img src={branding.logo} alt={branding.marketplaceName} className="h-full w-full object-cover" />
+            ) : (
+              <ShieldCheck className="h-6 w-6 text-black" />
+            )}
           </div>
           <div className="text-center">
-            <h2 className="text-xl font-black tracking-tight text-white block">AURA</h2>
+            <h2 className="text-xl font-black tracking-tight text-white block uppercase">{branding?.marketplaceName || 'Marketplace'}</h2>
             <span className="text-[10px] text-white/40 block font-bold uppercase tracking-wider">
               Control Panel & Systems
             </span>
@@ -66,7 +73,7 @@ export function LoginPage() {
                   <Mail className="absolute left-3.5 top-3 h-4.5 w-4.5 text-white/25 pointer-events-none" />
                   <Input
                     type="email"
-                    placeholder="admin@aura.com"
+                    placeholder="admin@example.com"
                     autoComplete="email"
                     error={!!loginForm.formState.errors.email}
                     className="pl-11"
@@ -116,7 +123,7 @@ export function LoginPage() {
         </Card>
 
         <p className="text-center text-[10px] text-white/25 mt-6 font-medium">
-          Aura Marketplace • Enterprise Admin System v1.0.0
+          {branding?.marketplaceName || 'Marketplace'} • Enterprise Admin System
         </p>
       </motion.div>
     </div>

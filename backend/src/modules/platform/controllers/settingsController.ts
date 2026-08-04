@@ -7,6 +7,7 @@ import { auditRequest } from "../utils/auditLogger.js";
 import {
   getPlatformSettings,
   updatePlatformSettings,
+  updatePlatformBranding,
   type PaymentProviderConfig,
   type StorageProviderConfig,
 } from "../services/settingsService.js";
@@ -218,30 +219,38 @@ export const updateRazorpay = async (req: Request, res: Response) => {
 export const updateBranding = async (req: Request, res: Response) => {
   try {
     const previous = await getPlatformSettings();
-    const { marketplaceName, logo, favicon } = req.body;
-    const settings = await updatePlatformSettings({
-      branding: {
-        marketplaceName: marketplaceName ?? previous.branding.marketplaceName,
-        logo: logo ?? previous.branding.logo,
-        favicon: favicon ?? previous.branding.favicon,
+    const { marketplaceName, logo, favicon, logoUrl, faviconUrl } = req.body;
+    const userEmail = (req as any).platformUser?.email || (req as any).user?.email || "system";
+    
+    const branding = await updatePlatformBranding(
+      {
+        marketplaceName,
+        logo: logo || logoUrl,
+        favicon: favicon || faviconUrl,
+        logoUrl: logoUrl || logo,
+        faviconUrl: faviconUrl || favicon,
       },
-    });
+      userEmail
+    );
+    const settings = await getPlatformSettings();
+
     await auditRequest(req, {
-      userId: req.platformUserId,
-      email: req.platformUser?.email,
+      userId: (req as any).platformUserId,
+      email: userEmail,
       action: "BRANDING_UPDATED",
       module: "branding",
       targetType: "PlatformSetting",
       targetId: "branding",
       description: "Updated marketplace branding",
       previousValue: previous.branding,
-      newValue: settings.branding,
+      newValue: branding,
     });
-    return res.status(200).json({ message: "Branding updated successfully", settings });
+    return res.status(200).json({ message: "Branding updated successfully", branding, settings });
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Internal Server Error" });
   }
 };
+
 
 export const updateUiLayout = async (req: Request, res: Response) => {
   try {

@@ -155,7 +155,7 @@ export function Navbar() {
                 )}
               </div>
               <span className="text-lg sm:text-xl font-black tracking-tight text-white hidden xs:inline">
-                {branding?.marketplaceName ? branding.marketplaceName.split(' ')[0] : 'Aura'}
+                {branding?.marketplaceName ? branding.marketplaceName : 'Marketplace'}
               </span>
             </Link>
 

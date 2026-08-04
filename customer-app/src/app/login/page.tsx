@@ -3,9 +3,11 @@ import { ShoppingBag, Sparkles, Star, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
+import { BrandLogo } from '@/shared/components/BrandLogo';
+
 export const metadata = {
-  title: 'Sign In | Aura Marketplace',
-  description: 'Sign in to your Aura account to explore local artisans and custom 3D prints.',
+  title: 'Sign In | Customer Portal',
+  description: 'Sign in to your account to explore local artisans and custom products.',
 };
 
 export default function LoginPage() {
@@ -47,12 +49,7 @@ export default function LoginPage() {
 
       {/* ── Brand header ────────────────────────────────────────── */}
       <div className="mb-6 z-10 animate-fade-in">
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white border border-white/10 shadow-md">
-            <ShoppingBag className="h-4.5 w-4.5 text-black" />
-          </div>
-          <span className="text-lg font-black tracking-tight text-white">Aura</span>
-        </Link>
+        <BrandLogo />
       </div>
 
       {/* ── Form Card Wrapper ─────────────────────────────────────── */}

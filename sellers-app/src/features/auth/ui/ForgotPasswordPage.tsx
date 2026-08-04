@@ -30,7 +30,10 @@ type RequestInput = z.infer<typeof requestSchema>;
 type OtpInput = z.infer<typeof otpSchema>;
 type ResetInput = z.infer<typeof resetSchema>;
 
+import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+
 export function ForgotPasswordPage() {
+  const { branding } = usePlatformLayout();
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading] = useState(false);
@@ -149,7 +152,7 @@ export function ForgotPasswordPage() {
           <Store className="h-6 w-6 text-white" />
         </div>
         <h2 className="text-center text-3xl font-extrabold tracking-tight text-white">
-          Aura Seller Portal
+          {branding?.marketplaceName || 'Marketplace'} Seller Portal
         </h2>
         <p className="mt-1 text-center text-xs text-white/40 uppercase tracking-widest font-semibold">
           Password Recovery Wizard

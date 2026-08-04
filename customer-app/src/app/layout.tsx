@@ -15,8 +15,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Aura Marketplace - Customer Portal",
-  description: "Experience premium marketplace shopping with Aura — discover local artisans and custom 3D prints.",
+  title: {
+    default: "Customer Portal",
+    template: "%s | Customer Portal",
+  },
+  description: "Experience premium marketplace shopping — discover local artisans and custom products.",
 };
 
 export default function RootLayout({

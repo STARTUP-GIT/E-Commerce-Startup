@@ -18,6 +18,7 @@ import { PERMISSIONS } from "../utils/constants.js";
 const router = Router();
 
 router.get("/", platformAuth, requirePermission(PERMISSIONS.MARKETPLACE_VIEW), getSettings);
+router.put("/branding", platformAuth, requirePermission(PERMISSIONS.MARKETPLACE_MANAGE), updateBranding);
 router.patch("/branding", platformAuth, requirePermission(PERMISSIONS.MARKETPLACE_MANAGE), updateBranding);
 router.patch("/ui-layout", platformAuth, requirePermission(PERMISSIONS.MARKETPLACE_MANAGE), updateUiLayout);
 router.patch("/marketplace", platformAuth, requirePermission(PERMISSIONS.MARKETPLACE_MANAGE), updateMarketplace);

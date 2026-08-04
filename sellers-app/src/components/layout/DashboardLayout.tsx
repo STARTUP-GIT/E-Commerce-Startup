@@ -126,7 +126,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <span className="font-black text-white text-xs tracking-tight block">
-                {branding?.marketplaceName ? branding.marketplaceName.split(' ')[0] : 'Aura'}
+                {branding?.marketplaceName ? branding.marketplaceName : 'Marketplace'}
               </span>
               <span className="text-[8px] text-white/40 block font-bold -mt-1 uppercase tracking-wider">Seller Portal</span>
             </div>
@@ -225,7 +225,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <Menu className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-1.5 text-xs text-white/40 font-semibold">
-              <span>Aura</span>
+              <span>{branding?.marketplaceName || 'Marketplace'}</span>
               <ChevronRight className="h-3 w-3" />
               <span className="text-white/80 capitalize">
                 {location.pathname.replace('/', '').replace('-', ' ') || 'Dashboard'}
