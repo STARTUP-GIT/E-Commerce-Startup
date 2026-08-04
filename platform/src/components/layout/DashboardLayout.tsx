@@ -6,38 +6,12 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useUIStore } from '@/lib/store/uiStore';
 import {
-  LayoutDashboard,
-  Cpu,
-  SlidersHorizontal,
-  Wrench,
   Store,
-  Percent,
-  CreditCard,
-  Landmark,
-  Database,
-  Cloud,
-  Mail,
-  KeyRound,
-  KeySquare,
-  Webhook,
-  HeartPulse,
-  Activity,
-  ScrollText,
-  FileClock,
-  ListTodo,
-  Boxes,
-  Layers,
-  Rocket,
-  ShieldCheck,
-  Shield,
   Users,
-  UserCog,
-  TerminalSquare,
-  FileArchive,
-  History,
+  Layout,
   LogOut,
   Menu,
-  Gauge,
+  Sparkles,
 } from 'lucide-react';
 import { Badge } from '@/shared/components/Badge';
 import { useConfirmStore } from '@/lib/store/confirmStore';
@@ -46,79 +20,33 @@ interface NavItem {
   name: string;
   path: string;
   icon: React.ElementType;
+  description: string;
 }
 
-interface NavGroup {
-  group: string;
-  items: NavItem[];
-}
-
-const NAV_GROUPS: NavGroup[] = [
+const NAV_ITEMS: NavItem[] = [
   {
-    group: 'Operations',
-    items: [
-      { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-      { name: 'System', path: '/system', icon: Cpu },
-      { name: 'Maintenance', path: '/maintenance', icon: Wrench },
-    ],
+    name: 'Branding',
+    path: '/branding',
+    icon: Sparkles,
+    description: 'Name, logo, & favicon',
   },
   {
-    group: 'Configuration',
-    items: [
-      { name: 'Marketplace Config', path: '/marketplace', icon: Store },
-      { name: 'Commission Engine', path: '/commission', icon: Percent },
-      { name: 'Payment Providers', path: '/payment-providers', icon: Landmark },
-      { name: 'Razorpay', path: '/razorpay', icon: CreditCard },
-      { name: 'Storage', path: '/storage', icon: Database },
-      { name: 'Cloudinary', path: '/cloudinary', icon: Cloud },
-      { name: 'Email Providers', path: '/email-providers', icon: Mail },
-      { name: 'OAuth Providers', path: '/oauth-providers', icon: KeyRound },
-    ],
+    name: 'Customer Dashboard',
+    path: '/customer-dashboard',
+    icon: Users,
+    description: 'Customer feature switches',
   },
   {
-    group: 'Flags & Access',
-    items: [
-      { name: 'Feature Flags', path: '/feature-flags', icon: SlidersHorizontal },
-      { name: 'API Keys', path: '/api-keys', icon: KeySquare },
-      { name: 'Webhooks', path: '/webhooks', icon: Webhook },
-    ],
+    name: 'Seller Dashboard',
+    path: '/seller-dashboard',
+    icon: Store,
+    description: 'Seller feature switches',
   },
   {
-    group: 'Monitoring',
-    items: [
-      { name: 'Health', path: '/monitoring/health', icon: HeartPulse },
-      { name: 'Overview', path: '/monitoring/overview', icon: Gauge },
-      { name: 'Logs', path: '/monitoring/logs', icon: ScrollText },
-      { name: 'Audit Logs', path: '/monitoring/audit-logs', icon: FileClock },
-      { name: 'Queues', path: '/queues', icon: ListTodo },
-      { name: 'Background Jobs', path: '/queues/jobs', icon: Boxes },
-      { name: 'Cache', path: '/monitoring/cache', icon: Layers },
-    ],
-  },
-  {
-    group: 'Release & Delivery',
-    items: [
-      { name: 'Release Management', path: '/releases', icon: Rocket },
-      { name: 'Webhooks', path: '/webhooks', icon: Webhook },
-      { name: 'Version History', path: '/version-history', icon: History },
-    ],
-  },
-  {
-    group: 'People & RBAC',
-    items: [
-      { name: 'Platform Users', path: '/users', icon: Users },
-      { name: 'Roles', path: '/roles', icon: UserCog },
-      { name: 'Permissions', path: '/permissions', icon: Shield },
-      { name: 'Developer Tools', path: '/developer-tools', icon: TerminalSquare },
-    ],
-  },
-  {
-    group: 'Security & Data',
-    items: [
-      { name: 'Security', path: '/security', icon: ShieldCheck },
-      { name: 'Backups', path: '/backups', icon: FileArchive },
-      { name: 'Payments', path: '/payments', icon: CreditCard },
-    ],
+    name: 'UI Builder',
+    path: '/ui-builder',
+    icon: Layout,
+    description: 'Drag & drop layout builder',
   },
 ];
 
@@ -140,11 +68,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   };
 
   const activePageName = () => {
-    for (const group of NAV_GROUPS) {
-      const matched = group.items.find((item) => pathname.startsWith(item.path));
-      if (matched) return matched.name;
-    }
-    return 'System';
+    const matched = NAV_ITEMS.find((item) => pathname.startsWith(item.path));
+    return matched ? matched.name : 'Platform Management';
   };
 
   if (isLoading) {
@@ -179,7 +104,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           {/* Brand Logo */}
           <div className="h-16 flex items-center px-6 border-b border-white/5 gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shrink-0">
-              <Cpu className="h-4 w-4 text-black" />
+              <Sparkles className="h-4 w-4 text-black" />
             </div>
             <div>
               <span className="font-black text-white text-xs tracking-tight block">PLATFORM</span>
@@ -188,34 +113,33 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Nav links */}
-          <nav className="flex-1 px-4 py-3 space-y-4 overflow-y-auto">
-            {NAV_GROUPS.map((group) => (
-              <div key={group.group}>
-                <div className="px-3 pb-1.5 text-[9px] font-black text-white/30 uppercase tracking-widest">
-                  {group.group}
-                </div>
-                <div className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = pathname.startsWith(item.path);
-                    return (
-                      <Link
-                        key={item.path}
-                        href={item.path}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          isActive
-                            ? 'bg-white/10 text-white border border-white/15 shadow-sm'
-                            : 'text-white/60 hover:text-white/95 hover:bg-white/[0.03] border border-transparent'
-                        }`}
-                      >
-                        <Icon className="h-4 w-4 shrink-0" />
-                        <span>{item.name}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+          <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
+            <div className="px-3 pb-2 text-[9px] font-black text-white/30 uppercase tracking-widest">
+              Core Modules
+            </div>
+            <div className="space-y-1.5">
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname.startsWith(item.path);
+                return (
+                  <Link
+                    key={item.path}
+                    href={item.path}
+                    className={`flex items-start gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                      isActive
+                        ? 'bg-white/10 text-white border border-white/15 shadow-sm'
+                        : 'text-white/60 hover:text-white/95 hover:bg-white/[0.03] border border-transparent'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="block leading-tight">{item.name}</span>
+                      <span className="text-[9px] text-white/40 font-normal block leading-tight mt-0.5">{item.description}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
           </nav>
 
           {/* User info & Logout */}
@@ -261,13 +185,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </button>
             <h1 className="text-sm font-black text-white/90 tracking-tight">{activePageName()}</h1>
           </div>
-          <Link
-            href="/monitoring/health"
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.02] text-[10px] font-bold text-white/60 hover:text-white/90 hover:border-white/25 transition-colors"
-          >
-            <Activity className="h-3.5 w-3.5" />
-            System Status
-          </Link>
         </header>
 
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">{children}</main>

@@ -214,3 +214,52 @@ export const updateRazorpay = async (req: Request, res: Response) => {
     return res.status(500).json({ message: error.message || "Internal Server Error" });
   }
 };
+
+export const updateBranding = async (req: Request, res: Response) => {
+  try {
+    const previous = await getPlatformSettings();
+    const { marketplaceName, logo, favicon } = req.body;
+    const settings = await updatePlatformSettings({
+      branding: {
+        marketplaceName: marketplaceName ?? previous.branding.marketplaceName,
+        logo: logo ?? previous.branding.logo,
+        favicon: favicon ?? previous.branding.favicon,
+      },
+    });
+    await auditRequest(req, {
+      userId: req.platformUserId,
+      email: req.platformUser?.email,
+      action: "BRANDING_UPDATED",
+      module: "branding",
+      targetType: "PlatformSetting",
+      targetId: "branding",
+      description: "Updated marketplace branding",
+      previousValue: previous.branding,
+      newValue: settings.branding,
+    });
+    return res.status(200).json({ message: "Branding updated successfully", settings });
+  } catch (error: any) {
+    return res.status(500).json({ message: error.message || "Internal Server Error" });
+  }
+};
+
+export const updateUiLayout = async (req: Request, res: Response) => {
+  try {
+    const previous = await getPlatformSettings();
+    const settings = await updatePlatformSettings({ uiLayout: req.body });
+    await auditRequest(req, {
+      userId: req.platformUserId,
+      email: req.platformUser?.email,
+      action: "UI_LAYOUT_UPDATED",
+      module: "ui-builder",
+      targetType: "PlatformSetting",
+      targetId: "uiLayout",
+      description: "Updated UI Builder layouts",
+      previousValue: previous.uiLayout,
+      newValue: settings.uiLayout,
+    });
+    return res.status(200).json({ message: "UI layout updated successfully", settings });
+  } catch (error: any) {
+    return res.status(500).json({ message: error.message || "Internal Server Error" });
+  }
+};

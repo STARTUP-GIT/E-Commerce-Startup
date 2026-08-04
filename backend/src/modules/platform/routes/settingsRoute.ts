@@ -9,6 +9,8 @@ import {
   updateEmailProviders,
   updateOAuthProviders,
   updateRazorpay,
+  updateBranding,
+  updateUiLayout,
 } from "../controllers/settingsController.js";
 import { platformAuth, requirePermission } from "../middleware/platformAuth.js";
 import { PERMISSIONS } from "../utils/constants.js";
@@ -16,6 +18,8 @@ import { PERMISSIONS } from "../utils/constants.js";
 const router = Router();
 
 router.get("/", platformAuth, requirePermission(PERMISSIONS.MARKETPLACE_VIEW), getSettings);
+router.patch("/branding", platformAuth, requirePermission(PERMISSIONS.MARKETPLACE_MANAGE), updateBranding);
+router.patch("/ui-layout", platformAuth, requirePermission(PERMISSIONS.MARKETPLACE_MANAGE), updateUiLayout);
 router.patch("/marketplace", platformAuth, requirePermission(PERMISSIONS.MARKETPLACE_MANAGE), updateMarketplace);
 router.patch("/commission", platformAuth, requirePermission(PERMISSIONS.COMMISSION_MANAGE), updateCommission);
 router.patch("/maintenance", platformAuth, requirePermission(PERMISSIONS.MAINTENANCE_MANAGE), updateMaintenance);

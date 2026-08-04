@@ -70,7 +70,29 @@ export interface MaintenanceConfig {
   endsAt?: string;
 }
 
+export interface BrandingConfiguration {
+  marketplaceName: string;
+  logo: string;
+  favicon: string;
+}
+
+export interface UiLayoutItem {
+  id: string;
+  name: string;
+  enabled?: boolean;
+  path?: string;
+}
+
+export interface UiBuilderLayout {
+  customerHomepageSections: UiLayoutItem[];
+  customerNavbar: UiLayoutItem[];
+  sellerDashboardWidgets: UiLayoutItem[];
+  sellerSidebar: UiLayoutItem[];
+}
+
 export interface PlatformSettingsData {
+  branding: BrandingConfiguration;
+  uiLayout: UiBuilderLayout;
   marketplace: MarketplaceConfiguration;
   commission: CommissionEngineConfig;
   maintenance: MaintenanceConfig;
@@ -132,6 +154,44 @@ export interface BackupRecord {
 }
 
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettingsData = {
+  branding: {
+    marketplaceName: "Aura Marketplace",
+    logo: "/images/logo.png",
+    favicon: "/favicon.ico",
+  },
+  uiLayout: {
+    customerHomepageSections: [
+      { id: "hero-banner", name: "Hero Banner", enabled: true },
+      { id: "featured-products", name: "Featured Products", enabled: true },
+      { id: "trending-categories", name: "Trending Categories", enabled: true },
+      { id: "flash-sales", name: "Flash Sales", enabled: true },
+      { id: "promotional-banners", name: "Promotional Banners", enabled: true },
+      { id: "customer-testimonials", name: "Customer Testimonials", enabled: true },
+    ],
+    customerNavbar: [
+      { id: "nav-home", name: "Home", path: "/" },
+      { id: "nav-categories", name: "Categories", path: "/categories" },
+      { id: "nav-deals", name: "Deals", path: "/deals" },
+      { id: "nav-wishlist", name: "Wishlist", path: "/wishlist" },
+      { id: "nav-orders", name: "Orders", path: "/orders" },
+      { id: "nav-support", name: "Support", path: "/support" },
+    ],
+    sellerDashboardWidgets: [
+      { id: "widget-revenue", name: "Revenue Overview" },
+      { id: "widget-orders", name: "Recent Orders" },
+      { id: "widget-inventory", name: "Inventory Health" },
+      { id: "widget-actions", name: "Quick Actions" },
+      { id: "widget-analytics", name: "Performance Insights" },
+    ],
+    sellerSidebar: [
+      { id: "side-dashboard", name: "Dashboard", path: "/seller/dashboard" },
+      { id: "side-products", name: "Products", path: "/seller/products" },
+      { id: "side-orders", name: "Orders", path: "/seller/orders" },
+      { id: "side-analytics", name: "Analytics", path: "/seller/analytics" },
+      { id: "side-coupons", name: "Coupons", path: "/seller/coupons" },
+      { id: "side-settings", name: "Settings", path: "/seller/settings" },
+    ],
+  },
   marketplace: {
     marketplaceName: "Aura Marketplace",
     currency: "INR",
@@ -198,6 +258,8 @@ export const getPlatformSettings = async (): Promise<PlatformSettingsData> => {
     return {
       ...DEFAULT_PLATFORM_SETTINGS,
       ...data,
+      branding: { ...DEFAULT_PLATFORM_SETTINGS.branding, ...(data.branding || {}) },
+      uiLayout: { ...DEFAULT_PLATFORM_SETTINGS.uiLayout, ...(data.uiLayout || {}) },
       marketplace: { ...DEFAULT_PLATFORM_SETTINGS.marketplace, ...(data.marketplace || {}) },
       commission: { ...DEFAULT_PLATFORM_SETTINGS.commission, ...(data.commission || {}) },
       maintenance: { ...DEFAULT_PLATFORM_SETTINGS.maintenance, ...(data.maintenance || {}) },
@@ -224,6 +286,8 @@ export const updatePlatformSettings = async (patch: Partial<PlatformSettingsData
   const merged = {
     ...current,
     ...patch,
+    branding: patch.branding ? { ...current.branding, ...patch.branding } : current.branding,
+    uiLayout: patch.uiLayout ? { ...current.uiLayout, ...patch.uiLayout } : current.uiLayout,
     marketplace: patch.marketplace ? { ...current.marketplace, ...patch.marketplace } : current.marketplace,
     commission: patch.commission ? { ...current.commission, ...patch.commission } : current.commission,
     maintenance: patch.maintenance ? { ...current.maintenance, ...patch.maintenance } : current.maintenance,
