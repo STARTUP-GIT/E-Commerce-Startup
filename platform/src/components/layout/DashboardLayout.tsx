@@ -16,6 +16,8 @@ import {
 import { Badge } from '@/shared/components/Badge';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 
+import { useSettings } from '@/hooks/useSettings';
+
 interface NavItem {
   name: string;
   path: string;
@@ -52,9 +54,18 @@ const NAV_ITEMS: NavItem[] = [
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, isLoading } = useAuth();
+  const { settings } = useSettings();
   const { sidebarOpen, toggleSidebar } = useUIStore();
   const pathname = usePathname();
   const showConfirm = useConfirmStore((state) => state.showConfirm);
+
+  const mktName = settings?.branding?.marketplaceName || 'Platform';
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && mktName) {
+      document.title = `${mktName} | Platform Control Plane`;
+    }
+  }, [mktName]);
 
   const handleLogout = () => {
     showConfirm({

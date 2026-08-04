@@ -4,10 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { checkoutApi } from '@/features/checkout/api/checkoutApi';
+import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
 
 export function usePayment() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const { branding } = usePlatformLayout();
+  const mktName = branding?.marketplaceName || 'Marketplace';
 
   const loadRazorpayScript = (): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -105,8 +108,8 @@ export function usePayment() {
           key: razorpayKey,
           amount: amountPaise,
           currency: currency,
-          name: 'Marketplace',
-          description: 'Marketplace Checkout Payment',
+          name: mktName,
+          description: `${mktName} Checkout Payment`,
           order_id: orderId,
           handler: async (response: any) => {
             await verifyPaymentMutation.mutateAsync({

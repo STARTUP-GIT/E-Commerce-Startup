@@ -133,30 +133,41 @@ export default function BrandingPage() {
           <div className="flex items-center gap-2">
             <ImageIcon className="h-4 w-4 text-white/60" />
             <h2 className="text-sm font-bold text-white uppercase tracking-wider">Marketplace Logo</h2>
+            <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-white/10 text-white/60">Optional</span>
           </div>
           <p className="text-xs text-white/40">
-            Provide the image URL for the primary logo displayed on headers and invoices.
+            Provide the image URL for the primary logo displayed on headers and invoices. Leave blank to use the default logo.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <input
-              type="url"
-              required
+              type="text"
               value={branding.logo}
               onChange={(e) => setBranding({ ...branding, logo: e.target.value })}
-              placeholder="https://example.com/logo.png"
+              placeholder="https://example.com/logo.png or leave blank for default"
               className="flex-1 w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder-white/20 text-sm font-medium focus:outline-none focus:border-white/30 transition-all"
             />
-            {branding.logo && (
-              <div className="h-12 w-24 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                <img
-                  src={branding.logo}
-                  alt="Logo Preview"
-                  className="max-h-8 max-w-full object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
-                />
+            {branding.logo ? (
+              <div className="flex items-center gap-2">
+                <div className="h-12 w-24 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                  <img
+                    src={branding.logo}
+                    alt="Logo Preview"
+                    className="max-h-8 max-w-full object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBranding({ ...branding, logo: "" })}
+                  className="text-xs text-rose-400 hover:underline px-2 py-1"
+                >
+                  Clear Logo
+                </button>
               </div>
+            ) : (
+              <div className="text-xs text-white/40 italic">Using default logo</div>
             )}
           </div>
         </div>
@@ -166,30 +177,41 @@ export default function BrandingPage() {
           <div className="flex items-center gap-2">
             <Globe className="h-4 w-4 text-white/60" />
             <h2 className="text-sm font-bold text-white uppercase tracking-wider">Favicon Icon</h2>
+            <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-white/10 text-white/60">Optional</span>
           </div>
           <p className="text-xs text-white/40">
-            Provide the icon URL for the browser tab favicon (.ico or .png).
+            Provide the icon URL for the browser tab favicon (.ico or .png). Leave blank for default.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <input
-              type="url"
-              required
+              type="text"
               value={branding.favicon}
               onChange={(e) => setBranding({ ...branding, favicon: e.target.value })}
-              placeholder="https://example.com/favicon.ico"
+              placeholder="https://example.com/favicon.ico or leave blank for default"
               className="flex-1 w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder-white/20 text-sm font-medium focus:outline-none focus:border-white/30 transition-all"
             />
-            {branding.favicon && (
-              <div className="h-12 w-12 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                <img
-                  src={branding.favicon}
-                  alt="Favicon Preview"
-                  className="h-6 w-6 object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
-                />
+            {branding.favicon ? (
+              <div className="flex items-center gap-2">
+                <div className="h-12 w-12 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                  <img
+                    src={branding.favicon}
+                    alt="Favicon Preview"
+                    className="h-6 w-6 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBranding({ ...branding, favicon: "" })}
+                  className="text-xs text-rose-400 hover:underline px-2 py-1"
+                >
+                  Clear Favicon
+                </button>
               </div>
+            ) : (
+              <div className="text-xs text-white/40 italic">Using default favicon</div>
             )}
           </div>
         </div>

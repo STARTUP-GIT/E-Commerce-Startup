@@ -29,15 +29,22 @@ export function Footer() {
           {/* Brand Info */}
           <div className="lg:col-span-2 space-y-4">
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-                {branding?.logo && branding.logo !== '/images/logo.png' ? (
-                  <img src={branding.logo} alt={branding.marketplaceName} className="h-full w-full object-cover rounded-lg" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary overflow-hidden shrink-0">
+                {branding?.logo && branding.logo.trim() !== '' ? (
+                  <img
+                    src={branding.logo}
+                    alt={branding.marketplaceName || 'Marketplace'}
+                    className="h-full w-full object-cover rounded-lg"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
                 ) : (
                   <ShoppingBag className="h-5 w-5 text-white" />
                 )}
               </div>
               <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-foreground to-zinc-400 bg-clip-text text-transparent">
-                {branding?.marketplaceName ? branding.marketplaceName : 'Marketplace'}
+                {branding?.marketplaceName || 'Marketplace'}
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">

@@ -108,6 +108,9 @@ export function usePlatformLayout() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && branding) {
+      if (branding.marketplaceName) {
+        document.title = `${branding.marketplaceName} | Seller Portal`;
+      }
       const faviconUrl = branding.faviconUrl || branding.favicon;
       if (faviconUrl) {
         let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");

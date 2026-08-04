@@ -4,10 +4,10 @@ import { renderOtpTemplate } from './templates/otp.template.js';
 import { renderForgotPasswordTemplate } from './templates/forgotPassword.template.js';
 import { renderVerificationTemplate } from './templates/emailVerification.template.js';
 import { renderWelcomeTemplate } from './templates/welcome.template.js';
+import { getPlatformBranding } from '../../modules/platform/services/settingsService.js';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM;
-const APP_NAME = process.env.APP_NAME || 'E-Commerce Startup';
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
@@ -52,7 +52,9 @@ class EmailService {
       return { success: false, error: 'Email sender is not configured. Please set EMAIL_FROM.' };
     }
 
-    const fullSubject = `${APP_NAME} • ${subject}`;
+    const branding = await getPlatformBranding().catch(() => ({ marketplaceName: 'Marketplace' }));
+    const mktName = branding.marketplaceName || 'Marketplace';
+    const fullSubject = `${mktName} • ${subject}`;
 
     if (isDev && isUsingResendDev) {
       this.log('warn', '⚠ Development mode: Resend free tier only delivers to your own verified email', {

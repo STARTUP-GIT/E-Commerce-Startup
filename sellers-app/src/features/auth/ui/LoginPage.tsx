@@ -47,9 +47,16 @@ export function LoginPage() {
       <div className="relative z-10 w-full max-w-[420px] animate-fade-up">
         {/* Portal Header */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-900/80 to-indigo-900/80 glass border border-purple-500/30 mb-3 shadow-lg overflow-hidden">
-            {branding?.logo && branding.logo !== '/images/logo.png' ? (
-              <img src={branding.logo} alt={branding.marketplaceName} className="h-full w-full object-cover" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-900/80 to-indigo-900/80 glass border border-purple-500/30 mb-3 shadow-lg overflow-hidden shrink-0">
+            {branding?.logo && branding.logo.trim() !== '' ? (
+              <img
+                src={branding.logo}
+                alt={branding.marketplaceName || 'Marketplace'}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
             ) : (
               <Store className="h-6 w-6 text-purple-400" />
             )}

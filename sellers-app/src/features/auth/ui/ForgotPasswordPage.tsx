@@ -148,8 +148,19 @@ export function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-background bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.2),rgba(255,255,255,0))] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md flex flex-col items-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg shadow-purple-500/25 mb-4">
-          <Store className="h-6 w-6 text-white" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg shadow-purple-500/25 mb-4 overflow-hidden shrink-0">
+          {branding?.logo && branding.logo.trim() !== '' ? (
+            <img
+              src={branding.logo}
+              alt={branding.marketplaceName || 'Marketplace'}
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+              }}
+            />
+          ) : (
+            <Store className="h-6 w-6 text-white" />
+          )}
         </div>
         <h2 className="text-center text-3xl font-extrabold tracking-tight text-white">
           {branding?.marketplaceName || 'Marketplace'} Seller Portal

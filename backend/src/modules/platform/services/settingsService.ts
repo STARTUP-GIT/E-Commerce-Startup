@@ -323,12 +323,14 @@ export const getPlatformBranding = async (): Promise<BrandingConfiguration> => {
   if (brandingCache) return brandingCache;
   const settings = await getPlatformSettings();
   const b = settings.branding || DEFAULT_PLATFORM_SETTINGS.branding;
+  const logoVal = b.logo !== undefined ? b.logo : (b.logoUrl !== undefined ? b.logoUrl : DEFAULT_PLATFORM_SETTINGS.branding.logo);
+  const faviconVal = b.favicon !== undefined ? b.favicon : (b.faviconUrl !== undefined ? b.faviconUrl : DEFAULT_PLATFORM_SETTINGS.branding.favicon);
   const normalized: BrandingConfiguration = {
     marketplaceName: b.marketplaceName || DEFAULT_PLATFORM_SETTINGS.branding.marketplaceName,
-    logo: b.logo || b.logoUrl || DEFAULT_PLATFORM_SETTINGS.branding.logo,
-    favicon: b.favicon || b.faviconUrl || DEFAULT_PLATFORM_SETTINGS.branding.favicon,
-    logoUrl: b.logoUrl || b.logo || DEFAULT_PLATFORM_SETTINGS.branding.logo,
-    faviconUrl: b.faviconUrl || b.favicon || DEFAULT_PLATFORM_SETTINGS.branding.favicon,
+    logo: logoVal,
+    favicon: faviconVal,
+    logoUrl: logoVal,
+    faviconUrl: faviconVal,
     updatedAt: b.updatedAt || new Date().toISOString(),
     updatedBy: b.updatedBy || "system",
   };
@@ -369,9 +371,9 @@ export const updatePlatformBranding = async (
   updatedBy: string = "system"
 ): Promise<BrandingConfiguration> => {
   const current = await getPlatformSettings();
-  const newLogo = patch.logo || patch.logoUrl || current.branding.logo;
-  const newFavicon = patch.favicon || patch.faviconUrl || current.branding.favicon;
-  const newName = patch.marketplaceName || current.branding.marketplaceName;
+  const newLogo = patch.logo !== undefined ? patch.logo : (patch.logoUrl !== undefined ? patch.logoUrl : current.branding.logo);
+  const newFavicon = patch.favicon !== undefined ? patch.favicon : (patch.faviconUrl !== undefined ? patch.faviconUrl : current.branding.favicon);
+  const newName = (patch.marketplaceName !== undefined && patch.marketplaceName !== "") ? patch.marketplaceName.trim() : current.branding.marketplaceName;
   const now = new Date().toISOString();
 
   const updatedBranding: BrandingConfiguration = {
