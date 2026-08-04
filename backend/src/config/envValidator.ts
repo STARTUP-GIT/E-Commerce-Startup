@@ -1,6 +1,8 @@
 import 'dotenv/config';
 
 export const validateEnv = () => {
+    const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+
     const requiredEnv = [
         'DATABASE_URL',
         'JWT_SECRET_KEY',
@@ -12,6 +14,14 @@ export const validateEnv = () => {
     ];
 
     const missing = requiredEnv.filter(name => !process.env[name]);
+
+    // DIRECT_URL is required in production so Prisma Migrate/CLI can reach the
+    // database directly (Neon pooled endpoints cannot run migrations). In
+    // development only, the runtime falls back to DATABASE_URL (see prisma.ts).
+    if (isProduction && !process.env.DIRECT_URL) {
+        console.error("FATAL: Missing environment variable DIRECT_URL. Expected a Neon direct connection string.");
+        process.exit(1);
+    }
 
     const gateway = (process.env.PAYMENT_GATEWAY || '').toUpperCase();
     if (gateway === 'RAZORPAY') {

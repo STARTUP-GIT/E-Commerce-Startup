@@ -34,6 +34,8 @@ services:
     entrypoint: ["sh", "-c", "npx prisma migrate deploy"]
     environment: &backend-env
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@db:5432/${POSTGRES_DB:-marketplace}?schema=public
+      # Local docker Postgres has no pooler, so the direct URL equals DATABASE_URL.
+      DIRECT_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@db:5432/${POSTGRES_DB:-marketplace}?schema=public
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set in .env}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       PAYMENT_GATEWAY: ${PAYMENT_GATEWAY:-RAZORPAY}
