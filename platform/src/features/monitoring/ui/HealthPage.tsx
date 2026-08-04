@@ -6,7 +6,6 @@ import { monitoringApi } from '@/lib/api/platformApi';
 import { PageHeader } from '@/shared/components/PageHeader';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/shared/components/Card';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { Badge } from '@/shared/components/Badge';
 import { HeartPulse, RefreshCw } from 'lucide-react';
 
 export function HealthPage() {
@@ -86,17 +85,19 @@ export function HealthPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Feature Flag Engine Status</CardTitle>
-              <CardDescription>Evaluated through the shared engine helper.</CardDescription>
+              <CardTitle>Registered Features</CardTitle>
+              <CardDescription>Features defined in code and auto-registered on startup.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-3">
-                {Object.entries(health.featureFlags).map(([key, enabled]) => (
-                  <div key={key} className="flex items-center gap-2 p-3 rounded-xl border border-white/10 bg-white/[0.02]">
-                    <span className="text-xs font-mono font-bold text-white/80">{key}</span>
-                    <Badge variant={enabled ? 'success' : 'outline'}>{enabled ? 'ON' : 'OFF'}</Badge>
-                  </div>
-                ))}
+                <div className="flex items-center gap-3 p-4 rounded-xl border border-white/10 bg-white/[0.02]">
+                  <span className="text-xs font-mono font-bold text-white/80">Total</span>
+                  <span className="text-sm font-black text-white">{health.featureFlags.total}</span>
+                </div>
+                <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10">
+                  <span className="text-xs font-mono font-bold text-emerald-300">Enabled</span>
+                  <span className="text-sm font-black text-emerald-400">{health.featureFlags.enabled}</span>
+                </div>
               </div>
             </CardContent>
           </Card>

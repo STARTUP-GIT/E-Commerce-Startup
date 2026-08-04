@@ -1,0 +1,23 @@
+// =============================================================================
+// Feature — every deployable feature the marketplace owns.
+// -----------------------------------------------------------------------------
+// Developers register features in code (see the Platform feature registry).
+// On backend startup the registry is compared with this table and anything
+// missing is inserted automatically. Platform can ONLY flip `enabled` — it
+// never creates or deletes features.
+// =============================================================================
+
+model Feature {
+  id          String   @id @default(cuid())
+  featureKey  String   @db.VarChar(80)
+  application String   @db.VarChar(40)
+  displayName String   @db.VarChar(120)
+  enabled     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([featureKey, application], map: "features_featureKey_application_key")
+  @@index([application])
+  @@index([enabled])
+  @@map("features")
+}

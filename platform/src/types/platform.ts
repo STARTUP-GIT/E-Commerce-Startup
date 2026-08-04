@@ -151,7 +151,7 @@ export interface HealthResponse {
     };
     storage: { freeBytes: number; totalBytes: number };
     database: { status: string; latencyMs: number | null };
-    featureFlags: Record<string, boolean>;
+    featureFlags: { total: number; enabled: number };
   };
 }
 

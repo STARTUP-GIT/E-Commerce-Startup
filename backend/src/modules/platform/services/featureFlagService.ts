@@ -1,145 +1,118 @@
 // =============================================================================
-// FEATURE FLAG ENGINE
+// FEATURE ENGINE
 // -----------------------------------------------------------------------------
-// The single source of truth for evaluating feature flags.
+// Single source of truth for evaluating features:
 //
-//   isFeatureEnabled("BUY_NOW")      -> Promise<boolean>
+//   isFeatureEnabled("BUY_NOW", { application: "CUSTOMER" }) -> Promise<boolean>
 //
-// Used by BOTH the backend and (through the /engine/check endpoint) the
-// frontend. Never hardcode `if (true)` / `if (false)` anywhere — always route
-// through this helper.
+// Used by the backend and exposed to frontends via the /engine/check endpoints.
 //
 // Evaluation rules:
-//   1. Unknown flag            -> false
-//   2. status = SCHEDULED      -> enabled only inside [startsAt, endsAt]
-//   3. status = DISABLED       -> false
-//   4. targetEnvironment match -> false if flag pinned to another env
-//   5. rolloutPercentage       -> deterministic bucketing using a stable
-//      hash of key + scope identifier (userId/shopId for USER/SHOP scopes)
+//   1. Feature must be REGISTERED in code (deployed) -> otherwise false
+//   2. Unknown / not yet registered feature           -> false
+//   3. `enabled === true` on the Feature record       -> true
+//
+// Platform never creates or deletes features. On server startup
+// syncFeatureDefinitions() inserts any registered feature that is missing from
+// the database, leaving the `enabled` state of existing rows untouched.
 // =============================================================================
 
 import { prisma } from "../../../config/prisma.js";
-import type { FeatureFlag, FeatureFlagStatus, FeatureFlagScope } from "@prisma/client";
-import crypto from "crypto";
+import { FEATURE_DEFINITIONS, isFeatureRegistered } from "./featureRegistry.js";
+import type { Feature } from "@prisma/client";
 
 interface EvaluateOptions {
-  /** Stable identifier used for USER / SHOP scoped rollout bucketing. */
+  /** Owning application, e.g. "CUSTOMER" | "SELLER". */
+  application?: string;
+  /** Kept for forward compatibility (user-scoped consumers). */
   userId?: string;
+  /** Kept for forward compatibility (shop-scoped consumers). */
   shopId?: string;
-  /** Current environment, e.g. "production" | "staging" | "development". */
-  environment?: string;
-  /** A seed that overrides the default bucketing input. */
-  seed?: string;
 }
-
-export const DEFAULT_ENVIRONMENT = process.env.NODE_ENV || "development";
 
 // ── Small in-memory cache (30s) to keep DB pressure low ───────────────────────
 interface CacheEntry {
   expiresAt: number;
-  flag: FeatureFlag | null;
+  value: Feature | null;
 }
 const CACHE_TTL_MS = 30 * 1000;
-const flagCache = new Map<string, CacheEntry>();
+const featureCache = new Map<string, CacheEntry>();
 
-export const clearFeatureFlagCache = (key?: string): void => {
-  if (key) {
-    flagCache.delete(normalizeCacheKey(key));
+export const clearFeatureCache = (application?: string, featureKey?: string): void => {
+  if (application && featureKey) {
+    featureCache.delete(cacheKeyOf(application, featureKey));
     return;
   }
-  flagCache.clear();
+  if (featureKey) {
+    for (const key of featureCache.keys()) {
+      if (key.endsWith(`:${featureKey.toUpperCase()}`)) featureCache.delete(key);
+    }
+    return;
+  }
+  featureCache.clear();
 };
 
-const normalizeCacheKey = (key: string) => key.trim().toUpperCase();
+const cacheKeyOf = (application: string, featureKey: string): string =>
+  `${String(application).toUpperCase()}:${String(featureKey).toUpperCase()}`;
 
-const getCached = (cacheKey: string): FeatureFlag | null | undefined => {
-  const entry = flagCache.get(cacheKey);
+const getCached = (cacheKey: string): Feature | null | undefined => {
+  const entry = featureCache.get(cacheKey);
   if (!entry) return undefined;
   if (Date.now() > entry.expiresAt) {
-    flagCache.delete(cacheKey);
+    featureCache.delete(cacheKey);
     return undefined;
   }
-  return entry.flag;
+  return entry.value;
 };
 
-const setCached = (cacheKey: string, flag: FeatureFlag | null): void => {
-  flagCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, flag });
+const setCached = (cacheKey: string, feature: Feature | null): void => {
+  featureCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, value: feature });
 };
 
-const fetchFlag = async (key: string): Promise<FeatureFlag | null> => {
-  const cacheKey = normalizeCacheKey(key);
+const fetchFeature = async (application: string, featureKey: string): Promise<Feature | null> => {
+  const cacheKey = cacheKeyOf(application, featureKey);
   const cached = getCached(cacheKey);
   if (cached !== undefined) return cached;
 
-  const flag = await prisma.featureFlag.findUnique({ where: { key: cacheKey } });
-  setCached(cacheKey, flag);
-  return flag;
-};
-
-// Deterministic stable hash bucketing (0-99) — no Math.random, so the same
-// user/scope always lands in the same bucket for the same key.
-const stableBucket = (input: string): number => {
-  const hash = crypto.createHash("sha256").update(input).digest();
-  return hash[0] % 100;
-};
-
-const statusAllows = (status: FeatureFlagStatus): boolean =>
-  status === "ENABLED" || status === "BETA" || status === "INTERNAL";
-
-const isWithinSchedule = (flag: FeatureFlag): boolean => {
-  const now = Date.now();
-  if (flag.startsAt && now < flag.startsAt.getTime()) return false;
-  if (flag.endsAt && now > flag.endsAt.getTime()) return false;
-  return true;
-};
-
-const scopeIdentifier = (scope: FeatureFlagScope, opts: EvaluateOptions): string | null => {
-  switch (scope) {
-    case "USER":
-      return opts.userId || null;
-    case "SHOP":
-      return opts.shopId || null;
-    case "CUSTOMER":
-      return opts.userId || null;
-    default:
-      return null;
-  }
+  const feature = await prisma.feature.findUnique({
+    where: { featureKey_application: { featureKey, application } },
+  });
+  setCached(cacheKey, feature);
+  return feature;
 };
 
 /**
  * Core evaluation helper. Reused by the backend and exposed to frontends via
- * GET /api/platform/feature-flags/engine/check.
+ * GET/POST /api/platform/feature-flags/engine/check.
  */
 export const isFeatureEnabled = async (
   key: string,
   opts: EvaluateOptions = {}
 ): Promise<boolean> => {
-  const flag = await fetchFlag(key);
-  if (!flag) return false;
+  const featureKey = String(key).trim().toUpperCase();
+  if (!featureKey) return false;
 
-  if (!flag.enabled) return false;
+  const application = opts.application?.trim().toUpperCase();
 
-  if (flag.status === "SCHEDULED") {
-    if (!isWithinSchedule(flag)) return false;
-  } else if (flag.status === "DISABLED") {
-    return false;
-  } else if (flag.status === "DEPRECATED") {
-    // Deprecated features may keep serving until the flag is deleted.
-  } else if (!statusAllows(flag.status)) {
-    return false;
+  let feature: Feature | null;
+  if (application) {
+    // Not deployed (not registered in code) -> never enabled.
+    if (!isFeatureRegistered(application, featureKey)) return false;
+    feature = await fetchFeature(application, featureKey);
+  } else {
+    // No application context: match any application that has this key.
+    const cacheKey = `*:${featureKey}`;
+    const cached = getCached(cacheKey);
+    if (cached !== undefined) {
+      feature = cached;
+    } else {
+      const rows = await prisma.feature.findMany({ where: { featureKey } });
+      feature = rows.length > 0 ? (rows[0] as Feature) : null;
+      setCached(cacheKey, feature);
+    }
   }
 
-  if (flag.targetEnvironment) {
-    const env = (opts.environment || DEFAULT_ENVIRONMENT).toLowerCase();
-    if (flag.targetEnvironment.toLowerCase() !== env) return false;
-  }
-
-  if (flag.rolloutPercentage <= 0) return false;
-  if (flag.rolloutPercentage >= 100) return true;
-
-  const id = scopeIdentifier(flag.scope, opts);
-  const seed = opts.seed || id || "global";
-  return stableBucket(`${flag.key}:${seed}`) < flag.rolloutPercentage;
+  return feature?.enabled === true;
 };
 
 /** Bulk evaluation — returns a map of key -> boolean. */
@@ -154,16 +127,59 @@ export const areFeaturesEnabled = async (
   return results;
 };
 
-export interface FeatureFlagSummary {
-  key: string;
-  type: string;
-  enabled: boolean;
-  status: FeatureFlagStatus;
-  scope: FeatureFlagScope;
-  rolloutPercentage: number;
-  targetEnvironment: string | null;
-}
+/**
+ * Only REGISTERED (deployed) features are ever shown in Platform. Stale rows
+ * that are no longer in the registry are excluded but never deleted.
+ */
+export const listRegisteredFeatures = async (): Promise<Feature[]> => {
+  const rows = await prisma.feature.findMany({
+    orderBy: [{ application: "asc" }, { featureKey: "asc" }],
+  });
+  return rows.filter((row) => isFeatureRegistered(row.application, row.featureKey));
+};
 
-/** Full public definition without evaluation (used by management UI). */
-export const getFeatureFlagByKey = async (key: string): Promise<FeatureFlag | null> =>
-  fetchFlag(key);
+/**
+ * Automatic feature synchronization.
+ *
+ * On server startup, load the code-defined registry and compare it with the
+ * database. Insert any missing features. Existing records are NEVER deleted
+ * and their `enabled` state is NEVER touched.
+ */
+export const syncFeatureDefinitions = async (): Promise<{
+  inserted: number;
+  existing: number;
+}> => {
+  const rows = await prisma.feature.findMany({
+    select: { featureKey: true, application: true },
+  });
+  const existingKeys = new Set(
+    rows.map((row) => cacheKeyOf(row.application, row.featureKey))
+  );
+
+  const missing = FEATURE_DEFINITIONS.filter(
+    (def) => !existingKeys.has(cacheKeyOf(def.application, def.featureKey))
+  );
+
+  if (missing.length === 0) {
+    console.log(
+      `[platform] Feature registry synchronized — ${rows.length} feature(s) present, none missing.`
+    );
+    return { inserted: 0, existing: rows.length };
+  }
+
+  await prisma.feature.createMany({
+    data: missing.map((def) => ({
+      featureKey: def.featureKey,
+      application: def.application,
+      displayName: def.displayName,
+      enabled: def.enabled ?? false,
+    })),
+  });
+
+  console.log(
+    `[platform] Registered ${missing.length} new feature(s): ${missing
+      .map((def) => `${def.application}:${def.featureKey}`)
+      .join(", ")}`
+  );
+  return { inserted: missing.length, existing: rows.length };
+};

@@ -2,9 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { featureFlagApi } from '../api/featureFlagApi';
 
 export interface FeatureFlagContext {
+  application?: string;
   userId?: string;
   shopId?: string;
-  environment?: string;
 }
 
 /**
@@ -12,19 +12,13 @@ export interface FeatureFlagContext {
  * ─────────────────────────────────────────────────────────────────────────────
  * THE shared helper for the entire frontend ecosystem.
  *
- * Evaluates a single feature flag through the backend Feature Flag Engine
- * (deterministic sha256 bucketing for rollouts, status + environment rules,
- * 30s TTL cache server-side). Any app/frontend can call this hook with the
- * same key — the evaluation is consistent everywhere.
+ * Evaluates a single feature through the backend Feature Engine. Any
+ * app/frontend can call this hook with the same key — the evaluation is
+ * consistent everywhere and reflects the latest state Platform toggled.
  *
  * Usage:
- *   const buyNow = useFeatureFlag('BUY_NOW');
+ *   const buyNow = useFeatureFlag('BUY_NOW', { application: 'CUSTOMER' });
  *   if (buyNow.enabled) { ... }
- *
- *   const liveTracking = useFeatureFlag('LIVE_TRACKING', {
- *     userId: 'usr_123', // included in the rollout bucket seed
- *     environment: 'production',
- *   });
  */
 export function useFeatureFlag(key: string, context: FeatureFlagContext = {}) {
   const query = useQuery({
@@ -51,7 +45,7 @@ export function useFeatureFlag(key: string, context: FeatureFlagContext = {}) {
 export function useFeatureFlags(keys: string[], context: FeatureFlagContext = {}) {
   const query = useQuery({
     queryKey: ['feature-flags-engine', keys, context],
-    queryFn: () => featureFlagApi.checkFlags(keys),
+    queryFn: () => featureFlagApi.checkFlags(keys, context),
     staleTime: 60 * 1000,
     retry: 1,
     enabled: keys.length > 0,

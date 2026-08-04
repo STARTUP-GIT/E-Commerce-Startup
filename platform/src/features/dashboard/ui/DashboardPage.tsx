@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { monitoringApi } from '@/lib/api/platformApi';
 import { useSettings } from '@/hooks/useSettings';
 import { useFeatureFlags } from '@/features/feature-flags/hooks/useFeatureFlags';
+import { applicationLabel } from '@/features/feature-flags/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/shared/components/Card';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Badge } from '@/shared/components/Badge';
@@ -24,7 +25,7 @@ export function DashboardPage() {
   const { data: healthData } = useQuery({ queryKey: ['health'], queryFn: monitoringApi.health, refetchInterval: 30_000 });
   const { data: overviewData } = useQuery({ queryKey: ['overview'], queryFn: monitoringApi.overview, refetchInterval: 30_000 });
   const { settings, isLoading: settingsLoading } = useSettings();
-  const { flags, isLoading: flagsLoading } = useFeatureFlags();
+  const { features, isLoading: flagsLoading } = useFeatureFlags();
 
   const health = healthData?.health;
   const overview = overviewData?.overview;
@@ -109,8 +110,8 @@ export function DashboardPage() {
                 <HealthTile label="Hostname" value={health.hostname} sub={health.platform} ok />
                 <HealthTile
                   label="Feature Flags"
-                  value={`${Object.values(health.featureFlags).filter(Boolean).length} enabled`}
-                  sub="BUY_NOW / AI_SEARCH / LIVE_TRACKING"
+                  value={`${health.featureFlags.enabled} / ${health.featureFlags.total} enabled`}
+                  sub="registered features"
                   ok
                 />
               </div>
@@ -191,26 +192,25 @@ export function DashboardPage() {
         <CardContent>
           {flagsLoading ? (
             <Skeleton className="h-40 w-full" />
-          ) : flags.length === 0 ? (
-            <p className="text-xs text-white/40">No feature flags configured yet.</p>
+          ) : features.length === 0 ? (
+            <p className="text-xs text-white/40">No registered features yet.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {flags.slice(0, 6).map((flag) => (
+              {features.slice(0, 6).map((flag) => (
                 <Link
                   key={flag.id}
-                  href={`/feature-flags/${flag.id}`}
+                  href="/feature-flags"
                   className="glass-card p-4 hover:border-white/15 transition-colors"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-mono font-bold text-white/90">{flag.key}</span>
+                    <span className="text-xs font-mono font-bold text-white/90">{flag.featureKey}</span>
                     <Badge variant={flag.enabled ? 'success' : 'outline'} className="text-[9px]">
                       {flag.enabled ? 'ON' : 'OFF'}
                     </Badge>
                   </div>
                   <p className="text-[10px] text-white/45 line-clamp-2">{flag.displayName}</p>
                   <div className="mt-3 flex items-center justify-between">
-                    <Badge variant="secondary" className="text-[9px]">{flag.scope}</Badge>
-                    <span className="text-[10px] font-bold text-white/50">{flag.rolloutPercentage}% rollout</span>
+                    <Badge variant="secondary" className="text-[9px]">{applicationLabel(flag.application)}</Badge>
                   </div>
                 </Link>
               ))}

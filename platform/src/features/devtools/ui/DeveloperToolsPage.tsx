@@ -10,13 +10,13 @@ import { Input } from '@/shared/components/Input';
 import { Button } from '@/shared/components/Button';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Badge } from '@/shared/components/Badge';
-import { TerminalSquare, FlaskConical, Zap, User, Store, Globe } from 'lucide-react';
+import { TerminalSquare, FlaskConical, Zap, User, Store } from 'lucide-react';
 
 export function DeveloperToolsPage() {
   const [flagKey, setFlagKey] = useState('');
+  const [application, setApplication] = useState('CUSTOMER');
   const [userId, setUserId] = useState('');
   const [shopId, setShopId] = useState('');
-  const [environment, setEnvironment] = useState('');
   const [result, setResult] = useState<{ key: string; enabled: boolean } | null>(null);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,17 +24,16 @@ export function DeveloperToolsPage() {
   const { data: flagsData } = useQuery({ queryKey: ['feature-flags'], queryFn: () => featureFlagApi.list() });
   const { data: healthData } = useQuery({ queryKey: ['dev-tools-health'], queryFn: monitoringApi.health });
 
-  const flags = flagsData?.flags ?? [];
+  const flags = flagsData?.features ?? [];
 
   const runCheck = async () => {
     if (!flagKey.trim()) return;
     setChecking(true);
     setError(null);
     try {
-      const ctx: { userId?: string; shopId?: string; environment?: string } = {};
+      const ctx: { application?: string; userId?: string; shopId?: string } = { application };
       if (userId.trim()) ctx.userId = userId.trim();
       if (shopId.trim()) ctx.shopId = shopId.trim();
-      if (environment.trim()) ctx.environment = environment.trim();
       const res = await featureFlagApi.checkFlag(flagKey.trim().toUpperCase(), ctx);
       setResult(res);
     } catch (e) {
@@ -78,12 +77,12 @@ export function DeveloperToolsPage() {
                     <button
                       key={flag.id}
                       onClick={() => {
-                        setFlagKey(flag.key);
+                        setFlagKey(flag.featureKey);
                         setResult(null);
                       }}
                       className="px-2 py-0.5 rounded-md border border-white/10 text-[9px] font-mono text-white/40 hover:text-white hover:border-white/25 transition-colors cursor-pointer"
                     >
-                      {flag.key}
+                      {flag.featureKey}
                     </button>
                   ))}
                 </div>
@@ -91,6 +90,19 @@ export function DeveloperToolsPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider flex items-center gap-1">
+                  <Zap className="h-3 w-3" /> Application
+                </label>
+                <select
+                  className="glass-input h-10 w-full rounded-xl px-3 text-xs text-white"
+                  value={application}
+                  onChange={(e) => setApplication(e.target.value)}
+                >
+                  <option value="CUSTOMER">CUSTOMER</option>
+                  <option value="SELLER">SELLER</option>
+                </select>
+              </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider flex items-center gap-1">
                   <User className="h-3 w-3" /> User ID
@@ -102,22 +114,6 @@ export function DeveloperToolsPage() {
                   <Store className="h-3 w-3" /> Shop ID
                 </label>
                 <Input value={shopId} onChange={(e) => setShopId(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider flex items-center gap-1">
-                  <Globe className="h-3 w-3" /> Environment
-                </label>
-                <select
-                  className="glass-input h-10 w-full rounded-xl px-3 text-xs text-white"
-                  value={environment}
-                  onChange={(e) => setEnvironment(e.target.value)}
-                >
-                  <option value="">Default</option>
-                  <option value="PRODUCTION">PRODUCTION</option>
-                  <option value="STAGING">STAGING</option>
-                  <option value="DEVELOPMENT">DEVELOPMENT</option>
-                  <option value="SANDBOX">SANDBOX</option>
-                </select>
               </div>
             </div>
 

@@ -5,10 +5,9 @@ import { validateEnv } from './src/config/envValidator.js';
 validateEnv();
 
 import { seedPlatformRolesAndPermissions } from './src/modules/platform/utils/platformRoles.js';
-import { ensureDefaultFeatureFlags } from './src/modules/platform/controllers/featureFlagController.js';
+import { syncFeatureDefinitions } from './src/modules/platform/services/featureFlagService.js';
 
 seedPlatformRolesAndPermissions().catch(console.error);
-ensureDefaultFeatureFlags().catch(console.error);
 
 import http from 'http';
 import express from 'express';
@@ -30,14 +29,29 @@ app.get('/api/platform/healthz', (_req, res) => {
 configureErrorHandlers(app);
 
 const PORT = Number(process.env.PLATFORM_PORT || process.env.PORT || 3006);
-const server = http.createServer(app);
+let server: http.Server;
 
-server.listen(PORT, () => {
-    console.log(`Platform server is running on PORT : ${PORT}`);
-});
+// On server startup: automatically register any feature that is defined in code
+// but missing from the database. Existing records are never deleted and their
+// enabled state is never touched.
+const start = async () => {
+    try {
+        await syncFeatureDefinitions();
+    } catch (error) {
+        console.error('[platform] Feature registry sync failed:', error);
+    }
+
+    server = http.createServer(app);
+    server.listen(PORT, () => {
+        console.log(`Platform server is running on PORT : ${PORT}`);
+    });
+};
+
+start();
 
 // Graceful Shutdown
 const gracefulShutdown = (signal: string) => {
+    if (!server) return;
     console.log(`Received ${signal}. Starting graceful shutdown...`);
     server.close(async () => {
         console.log("HTTP server closed.");

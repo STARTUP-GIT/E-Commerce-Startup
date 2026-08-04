@@ -5,7 +5,6 @@
 import type { Request, Response } from "express";
 import os from "os";
 import { prisma } from "../../../config/prisma.js";
-import { isFeatureEnabled } from "../services/featureFlagService.js";
 
 const formatUptime = (seconds: number): string => {
   const d = Math.floor(seconds / 86400);
@@ -43,10 +42,9 @@ export const getHealth = async (_req: Request, res: Response) => {
 
     const uptimeSeconds = process.uptime();
 
-    const [buyNow, aiSearch, liveTracking] = await Promise.all([
-      isFeatureEnabled("BUY_NOW"),
-      isFeatureEnabled("AI_SEARCH"),
-      isFeatureEnabled("LIVE_TRACKING"),
+    const [totalFeatures, enabledFeatures] = await Promise.all([
+      prisma.feature.count(),
+      prisma.feature.count({ where: { enabled: true } }),
     ]);
 
     const health = {
@@ -70,7 +68,7 @@ export const getHealth = async (_req: Request, res: Response) => {
         totalBytes: os.totalmem(),
       },
       database: { status: database, latencyMs: databaseLatencyMs },
-      featureFlags: { BUY_NOW: buyNow, AI_SEARCH: aiSearch, LIVE_TRACKING: liveTracking },
+      featureFlags: { total: totalFeatures, enabled: enabledFeatures },
     };
 
     return res.status(200).json({ health });
@@ -83,8 +81,8 @@ export const getOverview = async (_req: Request, res: Response) => {
   try {
     const [userCount, flagCount, enabledFlagCount, roleCount, auditCount, settings] = await Promise.all([
       prisma.platformUser.count(),
-      prisma.featureFlag.count(),
-      prisma.featureFlag.count({ where: { enabled: true } }),
+      prisma.feature.count(),
+      prisma.feature.count({ where: { enabled: true } }),
       prisma.platformRole.count(),
       prisma.auditTrail.count(),
       prisma.platformSetting.findUnique({ where: { id: 2 } }),

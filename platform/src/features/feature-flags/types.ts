@@ -1,90 +1,41 @@
-export type FeatureFlagStatus =
-  | 'ENABLED'
-  | 'DISABLED'
-  | 'INTERNAL'
-  | 'BETA'
-  | 'SCHEDULED'
-  | 'DEPRECATED';
+export type FeatureApplication = 'CUSTOMER' | 'SELLER';
 
-export type FeatureFlagScope =
-  | 'GLOBAL'
-  | 'CUSTOMER'
-  | 'SELLER'
-  | 'ADMIN'
-  | 'PLATFORM'
-  | 'SHOP'
-  | 'USER';
-
-export type FeatureFlagType =
-  | 'BUY_NOW'
-  | 'WISHLIST'
-  | 'REVIEWS'
-  | 'CHAT'
-  | 'COUPONS'
-  | 'AI_SEARCH'
-  | 'RECOMMENDATIONS'
-  | 'OTP_LOGIN'
-  | 'GOOGLE_LOGIN'
-  | 'APPLE_LOGIN'
-  | 'RAZORPAY'
-  | 'UPI'
-  | 'WALLET'
-  | 'CUSTOM_PRINT'
-  | '3D_PREVIEW'
-  | 'SUBSCRIPTIONS'
-  | 'FLASH_SALE'
-  | 'BLOG'
-  | 'NEWSLETTER'
-  | 'LIVE_TRACKING'
-  | 'NOTIFICATIONS';
-
-export interface FeatureFlag {
+/**
+ * A deployed feature auto-registered by the backend.
+ * Platform only ever toggles `enabled` — features are defined in code,
+ * never created or deleted from the UI.
+ */
+export interface Feature {
   id: string;
-  key: string;
-  type: FeatureFlagType;
+  featureKey: string;
+  application: string;
   displayName: string;
-  description?: string | null;
   enabled: boolean;
-  status: FeatureFlagStatus;
-  scope: FeatureFlagScope;
-  rolloutPercentage: number;
-  targetEnvironment?: string | null;
-  scheduledAt?: string | null;
-  startsAt?: string | null;
-  endsAt?: string | null;
-  metadata?: Record<string, unknown> | null;
-  createdBy?: string | null;
-  updatedBy?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface FeatureFlagPayload {
-  key?: string;
-  type: FeatureFlagType;
-  displayName: string;
-  description?: string;
-  status: FeatureFlagStatus;
-  scope: FeatureFlagScope;
-  rolloutPercentage?: number;
-  targetEnvironment?: string;
-  scheduledAt?: string;
-  startsAt?: string;
-  endsAt?: string;
-  metadata?: Record<string, unknown>;
+export const APPLICATION_ORDER: string[] = ['CUSTOMER', 'SELLER'];
+
+export const APPLICATION_LABELS: Record<string, string> = {
+  CUSTOMER: 'Customer Dashboard',
+  SELLER: 'Seller Dashboard',
+};
+
+export function applicationLabel(application: string): string {
+  const normalized = application?.toUpperCase();
+  if (APPLICATION_LABELS[normalized]) return APPLICATION_LABELS[normalized];
+  if (!application) return 'General';
+  return `${application.charAt(0).toUpperCase()}${application.slice(1).toLowerCase()} Dashboard`;
 }
 
-export const FEATURE_FLAG_TYPES: FeatureFlagType[] = [
-  'BUY_NOW', 'WISHLIST', 'REVIEWS', 'CHAT', 'COUPONS', 'AI_SEARCH',
-  'RECOMMENDATIONS', 'OTP_LOGIN', 'GOOGLE_LOGIN', 'APPLE_LOGIN', 'RAZORPAY',
-  'UPI', 'WALLET', 'CUSTOM_PRINT', '3D_PREVIEW', 'SUBSCRIPTIONS',
-  'FLASH_SALE', 'BLOG', 'NEWSLETTER', 'LIVE_TRACKING', 'NOTIFICATIONS',
-];
-
-export const FEATURE_FLAG_STATUSES: FeatureFlagStatus[] = [
-  'ENABLED', 'DISABLED', 'INTERNAL', 'BETA', 'SCHEDULED', 'DEPRECATED',
-];
-
-export const FEATURE_FLAG_SCOPES: FeatureFlagScope[] = [
-  'GLOBAL', 'CUSTOMER', 'SELLER', 'ADMIN', 'PLATFORM', 'SHOP', 'USER',
-];
+export function formatUpdatedAt(iso: string): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
