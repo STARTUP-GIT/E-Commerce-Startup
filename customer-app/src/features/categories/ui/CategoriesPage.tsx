@@ -6,6 +6,7 @@ import axiosInstance from '@/lib/axios/axiosInstance';
 import Link from 'next/link';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { useBranding } from '@/lib/providers/BrandingProvider';
+import { Grid3x3, ArrowRight } from 'lucide-react';
 
 export function CategoriesPage() {
   const { branding } = useBranding();
@@ -44,7 +45,7 @@ export function CategoriesPage() {
           </div>
         ) : categories.length === 0 ? (
           <div className="text-center py-20">
-            <Grid3X3 className="mx-auto h-12 w-12 text-white/20 mb-4" />
+            <Grid3x3 className="mx-auto h-12 w-12 text-white/20 mb-4" />
             <p className="text-white/40 text-sm font-medium">No categories available yet.</p>
           </div>
         ) : (
@@ -61,7 +62,7 @@ export function CategoriesPage() {
                     {cat.imageUrl ? (
                       <img src={cat.imageUrl} alt={cat.name} className="w-full h-full object-cover" />
                     ) : (
-                      <Grid3X3 className="w-5 h-5 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white/50 group-hover:text-black transition-colors duration-200" />
+                      <Grid3x3 className="w-5 h-5 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white/50 group-hover:text-black transition-colors duration-200" />
                     )}
                   </div>
                   <span className="text-xs sm:text-sm lg:text-base font-extrabold text-white/70 group-hover:text-white text-center leading-tight transition-colors duration-200 line-clamp-2">
