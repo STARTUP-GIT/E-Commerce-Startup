@@ -168,7 +168,7 @@ export interface BackupRecord {
 
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettingsData = {
   branding: {
-    marketplaceName: "Aura Marketplace",
+    marketplaceName: "Marketplace",
     logo: "/images/logo.png",
     favicon: "/favicon.ico",
   },
@@ -235,7 +235,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettingsData = {
     ],
   },
   marketplace: {
-    marketplaceName: "Aura Marketplace",
+    marketplaceName: "Marketplace",
     currency: "INR",
     taxRate: 18,
     timezone: "Asia/Kolkata",

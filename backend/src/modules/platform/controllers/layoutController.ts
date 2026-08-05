@@ -91,6 +91,88 @@ export const getBranding = async (_req: Request, res: Response): Promise<void> =
   }
 };
 
+/**
+ * GET /api/platform/public/branding (and /platform/public/branding)
+ * Public unauthenticated branding payload matching required schema:
+ * { name, logo, favicon, updatedAt }
+ */
+export const getPublicBranding = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const branding = await getPlatformBranding();
+    const logoVal = branding.logo || branding.logoUrl || "/images/logo.png";
+    const faviconVal = branding.favicon || branding.faviconUrl || "/favicon.ico";
+    res.status(200).json({
+      name: branding.marketplaceName || "Marketplace",
+      logo: logoVal,
+      favicon: faviconVal,
+      updatedAt: branding.updatedAt || new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to fetch public branding" });
+  }
+};
+
+/**
+ * GET /api/platform/public/layout/customer-navbar
+ * Returns the customer navbar configuration array.
+ */
+export const getCustomerNavbar = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const settings = await getPlatformSettings();
+    const uiLayout = settings.uiLayout || DEFAULT_PLATFORM_SETTINGS.uiLayout;
+    const navbar = uiLayout.customerNavbar || DEFAULT_PLATFORM_SETTINGS.uiLayout.customerNavbar;
+    res.status(200).json(navbar);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to fetch customer navbar" });
+  }
+};
+
+/**
+ * GET /api/platform/public/layout/customer-homepage
+ * Returns the customer homepage sections configuration array.
+ */
+export const getCustomerHomepage = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const settings = await getPlatformSettings();
+    const uiLayout = settings.uiLayout || DEFAULT_PLATFORM_SETTINGS.uiLayout;
+    const homepageSections =
+      uiLayout.customerHomepageSections || DEFAULT_PLATFORM_SETTINGS.uiLayout.customerHomepageSections;
+    res.status(200).json(homepageSections);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to fetch customer homepage sections" });
+  }
+};
+
+/**
+ * GET /api/platform/public/layout/seller-sidebar
+ * Returns the seller sidebar configuration array.
+ */
+export const getSellerSidebar = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const settings = await getPlatformSettings();
+    const uiLayout = settings.uiLayout || DEFAULT_PLATFORM_SETTINGS.uiLayout;
+    const sidebar = uiLayout.sellerSidebar || DEFAULT_PLATFORM_SETTINGS.uiLayout.sellerSidebar;
+    res.status(200).json(sidebar);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to fetch seller sidebar" });
+  }
+};
+
+/**
+ * GET /api/platform/public/layout/seller-widgets
+ * Returns the seller dashboard widgets configuration array.
+ */
+export const getSellerWidgets = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const settings = await getPlatformSettings();
+    const uiLayout = settings.uiLayout || DEFAULT_PLATFORM_SETTINGS.uiLayout;
+    const widgets =
+      uiLayout.sellerDashboardWidgets || DEFAULT_PLATFORM_SETTINGS.uiLayout.sellerDashboardWidgets;
+    res.status(200).json(widgets);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to fetch seller widgets" });
+  }
+};
 
 /**
  * GET /platform/features (and /api/platform/features)
@@ -120,3 +202,4 @@ export const getPublicFeatures = async (_req: Request, res: Response): Promise<v
     res.status(500).json({ error: error.message || "Failed to fetch feature status" });
   }
 };
+
