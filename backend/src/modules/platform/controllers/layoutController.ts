@@ -59,15 +59,23 @@ export const getSellerLayout = async (_req: Request, res: Response): Promise<voi
       }
     }
 
+    const sidebar = uiLayout.sellerSidebar || DEFAULT_PLATFORM_SETTINGS.uiLayout.sellerSidebar;
+    const widgets = uiLayout.sellerDashboardWidgets || DEFAULT_PLATFORM_SETTINGS.uiLayout.sellerDashboardWidgets;
+    const quickActions = uiLayout.sellerQuickActions || DEFAULT_PLATFORM_SETTINGS.uiLayout.sellerQuickActions;
+    const dashboardCards = uiLayout.sellerDashboardCards || DEFAULT_PLATFORM_SETTINGS.uiLayout.sellerDashboardCards;
+
     res.status(200).json({
-      sidebar: uiLayout.sellerSidebar || DEFAULT_PLATFORM_SETTINGS.uiLayout.sellerSidebar,
-      dashboardWidgets:
-        uiLayout.sellerDashboardWidgets ||
-        DEFAULT_PLATFORM_SETTINGS.uiLayout.sellerDashboardWidgets,
-      quickActions:
-        uiLayout.sellerQuickActions || DEFAULT_PLATFORM_SETTINGS.uiLayout.sellerQuickActions,
-      dashboardCards:
-        uiLayout.sellerDashboardCards || DEFAULT_PLATFORM_SETTINGS.uiLayout.sellerDashboardCards,
+      success: true,
+      sidebar,
+      widgets,
+      dashboardWidgets: widgets,
+      quickActions,
+      dashboardCards,
+      layout: {
+        sidebar,
+        widgets,
+        dashboardWidgets: widgets,
+      },
       features: sellerFeatures,
       branding,
       synced: true,
