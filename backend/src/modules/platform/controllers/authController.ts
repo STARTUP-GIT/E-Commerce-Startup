@@ -49,7 +49,7 @@ export const getSetupStatus = async (_req: Request, res: Response) => {
 // ─── First User Setup ────────────────────────────────────────────────────────
 // Creates the Platform Owner. The same credentials ALSO create a Marketplace
 // Super Admin so the Platform Owner can access BOTH panels with one account.
-// Marketplace Admins never gain Platform access automatically.
+// Admin app users never gain Platform access automatically.
 
 export const setupFirstUser = async (req: Request, res: Response) => {
   try {
@@ -121,7 +121,7 @@ export const setupFirstUser = async (req: Request, res: Response) => {
     setAuthCookie(res, "platform_session", accessToken);
 
     return res.status(201).json({
-      message: "Platform Owner created successfully. You can now access the Marketplace Admin with the same credentials.",
+      message: "Platform Owner created successfully. You can now access the Admin portal with the same credentials.",
       user: safeUser(user),
     });
   } catch (error: any) {

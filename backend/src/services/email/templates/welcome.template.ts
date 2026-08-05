@@ -1,6 +1,8 @@
 import { renderBaseTemplate } from './base.template.js';
 
-export const renderWelcomeTemplate = ({ firstName = 'there', loginUrl }: { firstName?: string; loginUrl: string }) => renderBaseTemplate({
+export const renderWelcomeTemplate = ({ firstName = 'there', loginUrl, marketplaceName, logoUrl }: { firstName?: string; loginUrl: string; marketplaceName?: string; logoUrl?: string }) => renderBaseTemplate({
+  marketplaceName,
+  logoUrl,
   title: 'Welcome aboard',
   preheader: 'Your account is ready',
   content: `

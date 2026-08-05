@@ -1,6 +1,8 @@
 import { renderBaseTemplate } from './base.template.js';
 
-export const renderVerificationTemplate = ({ firstName = 'there', verificationUrl }: { firstName?: string; verificationUrl: string }) => renderBaseTemplate({
+export const renderVerificationTemplate = ({ firstName = 'there', verificationUrl, marketplaceName, logoUrl }: { firstName?: string; verificationUrl: string; marketplaceName?: string; logoUrl?: string }) => renderBaseTemplate({
+  marketplaceName,
+  logoUrl,
   title: 'Verify your email',
   preheader: 'Confirm your email address',
   content: `

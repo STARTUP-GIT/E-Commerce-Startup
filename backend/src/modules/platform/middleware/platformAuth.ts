@@ -2,7 +2,7 @@
 // PLATFORM AUTH MIDDLEWARE
 // -----------------------------------------------------------------------------
 // Verifies the `platform_session` JWT, loads the PlatformUser with its role and
-// permissions. Marketplace Admins DO NOT get platform access — only rows in the
+// permissions. Admin app users DO NOT get platform access — only rows in the
 // `platform_users` table can authenticate here.
 // =============================================================================
 

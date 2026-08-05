@@ -34,6 +34,8 @@ import adminCategoryRoute from './src/modules/admin/routes/categoryRoute.js';
 import adminPaymentMethodRoute from './src/modules/admin/routes/paymentMethodRoute.js';
 import adminDeliveryMethodRoute from './src/modules/admin/routes/deliveryMethodRoute.js';
 import adminDeliveryRoute from './src/modules/delivery/routes/adminDeliveryRoute.js';
+import platformLayoutRoute from './src/modules/platform/routes/layoutRoute.js';
+import platformRoute from './src/modules/platform/routes/index.js';
 import { ensureDefaultPaymentMethods } from './src/modules/admin/controllers/paymentMethodController.js';
 import { ensureDefaultDeliveryMethods } from './src/modules/admin/controllers/deliveryMethodController.js';
 
@@ -65,6 +67,12 @@ app.use('/api/admin/categories', adminLimiter, adminCategoryRoute);
 app.use('/api/admin/payment-methods', adminLimiter, adminPaymentMethodRoute);
 app.use('/api/admin/delivery-methods', adminLimiter, adminDeliveryMethodRoute);
 app.use('/api/admin', adminLimiter, adminDeliveryRoute);
+
+// Platform SSOT routes (public sync APIs for Customer, Seller, Platform)
+app.use('/platform', platformLayoutRoute);
+app.use('/api/platform', platformLayoutRoute);
+app.use('/users/api/platform', platformLayoutRoute);
+app.use('/api/platform', platformRoute);
 
 configureErrorHandlers(app);
 

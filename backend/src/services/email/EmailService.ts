@@ -30,6 +30,14 @@ const sellerFrontendUrl = resolveUrl(process.env.SELLER_FRONTEND_URL || process.
 const adminFrontendUrl = resolveUrl(process.env.ADMIN_FRONTEND_URL || process.env.FRONTEND_ADMIN_URL, 'http://localhost:8001');
 
 class EmailService {
+  private static async resolveBranding(): Promise<{ marketplaceName: string; logoUrl?: string }> {
+    const branding = await getPlatformBranding().catch(() => null);
+    return {
+      marketplaceName: branding?.marketplaceName || branding?.name || 'Marketplace',
+      logoUrl: branding?.logo || branding?.logoUrl || undefined,
+    };
+  }
+
   private static log(level: 'info' | 'warn' | 'error', event: string, payload?: Record<string, unknown>) {
     const prefix = `[EMAIL]`;
     const message = payload ? `${prefix} ${event} ${JSON.stringify(payload)}` : `${prefix} ${event}`;
@@ -41,7 +49,13 @@ class EmailService {
     // info-level email events are suppressed in production to keep server logs clean
   }
 
-  private static async sendWithRetry(to: string, subject: string, html: string, isRetry = false): Promise<EmailSendResult> {
+  private static async sendWithRetry(
+    to: string,
+    subject: string,
+    html: string,
+    branding: { marketplaceName: string; logoUrl?: string },
+    isRetry = false,
+  ): Promise<EmailSendResult> {
     if (!resend) {
       this.log('error', '✗ RESEND_API_KEY not configured', { to, subject });
       return { success: false, error: 'Email service is not configured. Please set RESEND_API_KEY.' };
@@ -52,7 +66,6 @@ class EmailService {
       return { success: false, error: 'Email sender is not configured. Please set EMAIL_FROM.' };
     }
 
-    const branding = await getPlatformBranding().catch(() => ({ marketplaceName: 'Marketplace' }));
     const mktName = branding.marketplaceName || 'Marketplace';
     const fullSubject = `${mktName} • ${subject}`;
 
@@ -103,7 +116,7 @@ class EmailService {
 
       if (!isRetry) {
         this.log('info', '↻ Retrying email once...', { to, subject: fullSubject });
-        return this.sendWithRetry(to, subject, html, true);
+        return this.sendWithRetry(to, subject, html, branding, true);
       }
 
       return { success: false, error: 'Email delivery failed' };
@@ -111,26 +124,30 @@ class EmailService {
   }
 
   static async sendOTPEmail(to: string, otp: string, options?: { firstName?: string; expiresInMinutes?: number }): Promise<EmailSendResult> {
-    const html = renderOtpTemplate({ otp, expiresInMinutes: options?.expiresInMinutes, recipientName: options?.firstName });
-    return this.sendWithRetry(to, 'Verification code', html);
+    const branding = await this.resolveBranding();
+    const html = renderOtpTemplate({ otp, expiresInMinutes: options?.expiresInMinutes, recipientName: options?.firstName, marketplaceName: branding.marketplaceName, logoUrl: branding.logoUrl });
+    return this.sendWithRetry(to, 'Verification code', html, branding);
   }
 
   static async sendPasswordResetEmail(to: string, token: string, options?: { firstName?: string; resetUrl?: string }): Promise<EmailSendResult> {
+    const branding = await this.resolveBranding();
     const resetUrl = options?.resetUrl || `${sellerFrontendUrl}/forgot-password#otp=${token}&username=${encodeURIComponent(to)}`;
-    const html = renderForgotPasswordTemplate({ firstName: options?.firstName, otp: token, resetUrl });
-    return this.sendWithRetry(to, 'Reset your password', html);
+    const html = renderForgotPasswordTemplate({ firstName: options?.firstName, otp: token, resetUrl, marketplaceName: branding.marketplaceName, logoUrl: branding.logoUrl });
+    return this.sendWithRetry(to, 'Reset your password', html, branding);
   }
 
   static async sendVerificationEmail(to: string, options?: { firstName?: string; verificationUrl?: string }): Promise<EmailSendResult> {
+    const branding = await this.resolveBranding();
     const verificationUrl = options?.verificationUrl || `${customerFrontendUrl}/verify-email?email=${encodeURIComponent(to)}`;
-    const html = renderVerificationTemplate({ firstName: options?.firstName, verificationUrl });
-    return this.sendWithRetry(to, 'Verify your email', html);
+    const html = renderVerificationTemplate({ firstName: options?.firstName, verificationUrl, marketplaceName: branding.marketplaceName, logoUrl: branding.logoUrl });
+    return this.sendWithRetry(to, 'Verify your email', html, branding);
   }
 
   static async sendWelcomeEmail(to: string, options?: { firstName?: string; loginUrl?: string }): Promise<EmailSendResult> {
+    const branding = await this.resolveBranding();
     const loginUrl = options?.loginUrl || `${customerFrontendUrl}/login`;
-    const html = renderWelcomeTemplate({ firstName: options?.firstName, loginUrl });
-    return this.sendWithRetry(to, 'Welcome aboard', html);
+    const html = renderWelcomeTemplate({ firstName: options?.firstName, loginUrl, marketplaceName: branding.marketplaceName, logoUrl: branding.logoUrl });
+    return this.sendWithRetry(to, 'Welcome aboard', html, branding);
   }
 
   static async sendOTP(to: string, otp: string, options?: { firstName?: string; expiresInMinutes?: number }): Promise<EmailSendResult> {
@@ -142,6 +159,7 @@ class EmailService {
   }
 
   static async sendOrderPlaced(to: string, options?: { firstName?: string; orderUrl?: string }): Promise<EmailSendResult> {
+    const branding = await this.resolveBranding();
     const orderUrl = options?.orderUrl || `${customerFrontendUrl}/orders`;
     const html = renderBaseTemplate({
       title: 'Order placed',
@@ -150,11 +168,14 @@ class EmailService {
       ctaLabel: 'View order',
       ctaUrl: orderUrl,
       footerNote: 'Thanks for shopping with us.',
+      marketplaceName: branding.marketplaceName,
+      logoUrl: branding.logoUrl,
     });
-    return this.sendWithRetry(to, 'Order placed', html);
+    return this.sendWithRetry(to, 'Order placed', html, branding);
   }
 
   static async sendSellerApproved(to: string, options?: { firstName?: string; sellerUrl?: string }): Promise<EmailSendResult> {
+    const branding = await this.resolveBranding();
     const sellerUrl = options?.sellerUrl || `${sellerFrontendUrl}/dashboard`;
     const html = renderBaseTemplate({
       title: 'Seller approved',
@@ -163,11 +184,14 @@ class EmailService {
       ctaLabel: 'Open seller dashboard',
       ctaUrl: sellerUrl,
       footerNote: 'Welcome to the marketplace.',
+      marketplaceName: branding.marketplaceName,
+      logoUrl: branding.logoUrl,
     });
-    return this.sendWithRetry(to, 'Seller approved', html);
+    return this.sendWithRetry(to, 'Seller approved', html, branding);
   }
 
   static async sendDeliveryAssigned(to: string, options?: { firstName?: string; trackingUrl?: string }): Promise<EmailSendResult> {
+    const branding = await this.resolveBranding();
     const trackingUrl = options?.trackingUrl || `${customerFrontendUrl}/orders`;
     const html = renderBaseTemplate({
       title: 'Delivery assigned',
@@ -176,8 +200,10 @@ class EmailService {
       ctaLabel: 'Track order',
       ctaUrl: trackingUrl,
       footerNote: 'We will keep you updated on the delivery progress.',
+      marketplaceName: branding.marketplaceName,
+      logoUrl: branding.logoUrl,
     });
-    return this.sendWithRetry(to, 'Delivery assigned', html);
+    return this.sendWithRetry(to, 'Delivery assigned', html, branding);
   }
 }
 

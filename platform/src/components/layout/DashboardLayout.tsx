@@ -16,7 +16,7 @@ import {
 import { Badge } from '@/shared/components/Badge';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 
-import { useSettings } from '@/hooks/useSettings';
+import { useBranding } from '@/lib/providers/BrandingProvider';
 
 interface NavItem {
   name: string;
@@ -54,16 +54,16 @@ const NAV_ITEMS: NavItem[] = [
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, isLoading } = useAuth();
-  const { settings } = useSettings();
+  const { branding } = useBranding();
   const { sidebarOpen, toggleSidebar } = useUIStore();
   const pathname = usePathname();
   const showConfirm = useConfirmStore((state) => state.showConfirm);
 
-  const brandName = settings?.branding?.name || settings?.branding?.marketplaceName || 'Platform';
+  const brandName = branding?.name || branding?.marketplaceName || 'Marketplace';
 
   React.useEffect(() => {
     if (typeof window !== 'undefined' && brandName) {
-      document.title = `${brandName} | Platform Control Plane`;
+      document.title = brandName;
     }
   }, [brandName]);
 
@@ -114,11 +114,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col h-full">
           {/* Brand Logo */}
           <div className="h-16 flex items-center px-6 border-b border-white/5 gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shrink-0">
-              <Sparkles className="h-4 w-4 text-black" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white overflow-hidden shrink-0">
+              {branding?.logo && branding.logo !== '/images/logo.png' ? (
+                <img src={branding.logo} alt={branding.name} className="h-full w-full object-cover" />
+              ) : (
+                <Sparkles className="h-4 w-4 text-black" />
+              )}
             </div>
             <div>
-              <span className="font-black text-white text-xs tracking-tight block">PLATFORM</span>
+              <span className="font-black text-white text-xs tracking-tight block">{brandName}</span>
               <span className="text-[8px] text-white/45 block font-bold -mt-1 uppercase tracking-wider">Control Plane</span>
             </div>
           </div>

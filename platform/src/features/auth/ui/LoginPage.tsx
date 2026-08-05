@@ -10,9 +10,11 @@ import { Input } from '@/shared/components/Input';
 import { Button } from '@/shared/components/Button';
 import { Hexagon, Mail, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useBranding } from '@/lib/providers/BrandingProvider';
 
 export function LoginPage() {
   const { login, isLoggingIn } = useAuth();
+  const { branding } = useBranding();
 
   const loginForm = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -38,13 +40,17 @@ export function LoginPage() {
         className="w-full max-w-md"
       >
         <div className="flex flex-col items-center mb-8 space-y-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-xl shadow-white/5 shrink-0">
-            <Hexagon className="h-6 w-6 text-black" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-xl shadow-white/5 shrink-0 overflow-hidden">
+            {branding?.logo && branding.logo !== '/images/logo.png' ? (
+              <img src={branding.logo} alt={branding.name} className="h-full w-full object-cover" />
+            ) : (
+              <Hexagon className="h-6 w-6 text-black" />
+            )}
           </div>
           <div className="text-center">
-            <h2 className="text-xl font-black tracking-tight text-white block">PLATFORM</h2>
+            <h2 className="text-xl font-black tracking-tight text-white block">{branding?.name || 'Marketplace'}</h2>
             <span className="text-[10px] text-white/40 block font-bold uppercase tracking-wider">
-              Control Plane &amp; Operations
+              Platform Control Plane
             </span>
           </div>
         </div>
@@ -116,7 +122,7 @@ export function LoginPage() {
         </Card>
 
         <p className="text-center text-[10px] text-white/25 mt-6 font-medium">
-          Marketplace Ecosystem • Platform Control Plane v0.1.0
+          {branding?.name || 'Marketplace'} Platform Control Plane
         </p>
       </motion.div>
     </div>

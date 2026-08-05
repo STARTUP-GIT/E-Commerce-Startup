@@ -1,7 +1,7 @@
 import type PDFDocument from "pdfkit";
 
 // ---------------------------------------------------------------------------
-// Design tokens — shadcn / Aura inspired
+// Design tokens — shadcn inspired
 // ---------------------------------------------------------------------------
 
 export const COLORS = {

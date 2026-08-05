@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios/axiosInstance';
+import { fetchBranding, normalizeBranding } from '@/lib/services/brandingService';
+import type { BrandingConfig } from '@/lib/services/brandingService';
 
 export interface UiLayoutItem {
   id: string;
@@ -11,17 +13,7 @@ export interface UiLayoutItem {
   icon?: string;
 }
 
-export interface BrandingConfig {
-  name: string;
-  marketplaceName: string;
-  logo: string;
-  favicon: string;
-  tagline?: string;
-  shortName?: string;
-  logoUrl?: string;
-  faviconUrl?: string;
-  updatedAt?: string;
-}
+export type { BrandingConfig };
 
 export interface SellerPlatformLayout {
   sidebar: UiLayoutItem[];
@@ -71,41 +63,12 @@ const DEFAULT_CARDS: UiLayoutItem[] = [
 ];
 
 export function usePlatformLayout() {
-  // Public Branding query
+  // Public Branding query — single source of truth from the Platform Branding API
   const { data: publicBranding } = useQuery<BrandingConfig>({
     queryKey: ['public-branding'],
     queryFn: async () => {
-      try {
-        const res = await axiosInstance.get('/api/platform/public/branding');
-        const d = res.data;
-        const nameVal = d.name || d.marketplaceName || 'Marketplace';
-        return {
-          name: nameVal,
-          marketplaceName: nameVal,
-          logo: d.logo || d.logoUrl || '/images/logo.png',
-          favicon: d.favicon || d.faviconUrl || '/favicon.ico',
-          tagline: d.tagline || 'Your local marketplace for everything',
-          shortName: d.shortName || nameVal,
-          logoUrl: d.logo || d.logoUrl || '/images/logo.png',
-          faviconUrl: d.favicon || d.faviconUrl || '/favicon.ico',
-          updatedAt: d.updatedAt,
-        };
-      } catch {
-        const fallback = await axiosInstance.get('/platform/branding');
-        const d = fallback.data;
-        const nameVal = d.name || d.marketplaceName || 'Marketplace';
-        return {
-          name: nameVal,
-          marketplaceName: nameVal,
-          logo: d.logo || d.logoUrl || '/images/logo.png',
-          favicon: d.favicon || d.faviconUrl || '/favicon.ico',
-          tagline: d.tagline || 'Your local marketplace for everything',
-          shortName: d.shortName || nameVal,
-          logoUrl: d.logo || d.logoUrl || '/images/logo.png',
-          faviconUrl: d.favicon || d.faviconUrl || '/favicon.ico',
-          updatedAt: d.updatedAt,
-        };
-      }
+      const branding = await fetchBranding(axiosInstance);
+      return normalizeBranding(branding);
     },
     staleTime: 10_000,
     refetchInterval: 15_000,
@@ -174,7 +137,7 @@ export function usePlatformLayout() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && branding.name) {
-      document.title = `${branding.name} | Seller Portal`;
+      document.title = branding.name;
       const faviconUrl = branding.faviconUrl || branding.favicon;
       if (faviconUrl) {
         let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");

@@ -3,63 +3,17 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios/axiosInstance';
+import { fetchBranding, normalizeBranding, DEFAULT_BRANDING } from '@/lib/services/brandingService';
+import type { BrandingConfig } from '@/lib/services/brandingService';
 
-export interface BrandingConfig {
-  name: string;
-  marketplaceName: string;
-  logo: string;
-  favicon: string;
-  tagline?: string;
-  shortName?: string;
-  logoUrl?: string;
-  faviconUrl?: string;
-  updatedAt?: string;
-}
-
-const DEFAULT_BRANDING: BrandingConfig = {
-  name: 'Marketplace',
-  marketplaceName: 'Marketplace',
-  logo: '',
-  favicon: '',
-  tagline: 'Your local marketplace for everything',
-  shortName: 'Marketplace',
-};
+export type { BrandingConfig };
 
 export function usePlatformBranding() {
   const { data, isLoading } = useQuery<BrandingConfig>({
     queryKey: ['platform-public-branding'],
     queryFn: async () => {
-      try {
-        const res = await axiosInstance.get('/api/platform/public/branding');
-        const d = res.data;
-        const nameVal = d.name || d.marketplaceName || 'Marketplace';
-        return {
-          name: nameVal,
-          marketplaceName: nameVal,
-          logo: d.logo || d.logoUrl || '',
-          favicon: d.favicon || d.faviconUrl || '',
-          tagline: d.tagline || 'Your local marketplace for everything',
-          shortName: d.shortName || nameVal,
-          logoUrl: d.logo || d.logoUrl || '',
-          faviconUrl: d.favicon || d.faviconUrl || '',
-          updatedAt: d.updatedAt,
-        };
-      } catch {
-        const fallback = await axiosInstance.get('/platform/branding');
-        const d = fallback.data;
-        const nameVal = d.name || d.marketplaceName || 'Marketplace';
-        return {
-          name: nameVal,
-          marketplaceName: nameVal,
-          logo: d.logo || d.logoUrl || '',
-          favicon: d.favicon || d.faviconUrl || '',
-          tagline: d.tagline || 'Your local marketplace for everything',
-          shortName: d.shortName || nameVal,
-          logoUrl: d.logo || d.logoUrl || '',
-          faviconUrl: d.favicon || d.faviconUrl || '',
-          updatedAt: d.updatedAt,
-        };
-      }
+      const branding = await fetchBranding(axiosInstance);
+      return normalizeBranding(branding);
     },
     staleTime: 10_000,
     refetchInterval: 15_000,
@@ -69,7 +23,7 @@ export function usePlatformBranding() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && branding.name) {
-      document.title = `${branding.name} | Admin Portal`;
+      document.title = branding.name;
       const faviconUrl = branding.faviconUrl || branding.favicon;
       if (faviconUrl) {
         let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");

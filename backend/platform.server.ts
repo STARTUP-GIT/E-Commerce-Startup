@@ -14,9 +14,15 @@ import express from 'express';
 import { configureMiddlewares, configureErrorHandlers } from './src/app.js';
 import { prisma } from './src/config/prisma.js';
 import platformRoute from './src/modules/platform/routes/index.js';
+import platformLayoutRoute from './src/modules/platform/routes/layoutRoute.js';
 
 const app = express();
 configureMiddlewares(app);
+
+// Public platform SSOT branding/layout endpoints (single source of truth)
+app.use('/platform', platformLayoutRoute);
+app.use('/api/platform', platformLayoutRoute);
+app.use('/users/api/platform', platformLayoutRoute);
 
 // Platform module routes — entirely independent of Admin/Seller/Customer modules.
 app.use('/api/platform', platformRoute);

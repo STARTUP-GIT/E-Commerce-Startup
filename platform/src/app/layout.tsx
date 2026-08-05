@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "PLATFORM — Control Plane",
+  title: "Marketplace",
   description: "Enterprise platform operations console for the marketplace ecosystem.",
   robots: "noindex, nofollow",
 };

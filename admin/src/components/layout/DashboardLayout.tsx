@@ -61,7 +61,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { name: 'Shops', path: '/shops', icon: Store },
     { name: 'Packing Fee Requests', path: '/packing-fee-requests', icon: CreditCard },
     { name: 'Products', path: '/products', icon: Box },
-    { name: 'Marketplace Categories', path: '/categories', icon: Grid },
+    { name: `${branding?.shortName || branding?.name || 'Marketplace'} Categories`, path: '/categories', icon: Grid },
     { name: 'Orders', path: '/orders', icon: ShoppingBag },
     { name: 'Payments', path: '/payments', icon: CreditCard },
     { name: 'Payment Methods', path: '/payment-methods', icon: CreditCard },

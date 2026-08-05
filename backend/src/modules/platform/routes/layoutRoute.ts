@@ -17,6 +17,10 @@ import { PERMISSIONS } from "../utils/constants.js";
 const router = Router();
 
 // Public synchronization endpoints — accessible by Customer, Seller, Platform, and Admin apps
+// Single source of truth branding endpoint (public, no authentication):
+//   GET /api/platform/branding/public
+//   GET /api/platform/public/branding
+router.get("/branding/public", getPublicBranding);
 router.get("/public/branding", getPublicBranding);
 router.get("/public/layout/customer-navbar", getCustomerNavbar);
 router.get("/public/layout/customer-homepage", getCustomerHomepage);

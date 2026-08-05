@@ -1,6 +1,8 @@
 import { renderBaseTemplate } from './base.template.js';
 
-export const renderOtpTemplate = ({ otp, expiresInMinutes = 10, recipientName = 'there' }: { otp: string; expiresInMinutes?: number; recipientName?: string }) => renderBaseTemplate({
+export const renderOtpTemplate = ({ otp, expiresInMinutes = 10, recipientName = 'there', marketplaceName, logoUrl }: { otp: string; expiresInMinutes?: number; recipientName?: string; marketplaceName?: string; logoUrl?: string }) => renderBaseTemplate({
+  marketplaceName,
+  logoUrl,
   title: 'Your verification code',
   preheader: 'Use this secure code to continue',
   content: `

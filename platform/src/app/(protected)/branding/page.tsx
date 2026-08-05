@@ -118,7 +118,7 @@ export default function BrandingPage() {
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* Marketplace Name & Short Name */}
+        {/* Brand Name & Short Name */}
         <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-md space-y-4">
           <div className="flex items-center gap-2">
             <Store className="h-4 w-4 text-white/60" />
@@ -135,7 +135,7 @@ export default function BrandingPage() {
                 required
                 value={branding.name}
                 onChange={(e) => setBranding({ ...branding, name: e.target.value, marketplaceName: e.target.value })}
-                placeholder="e.g. Aura Marketplace"
+                placeholder="e.g. Your Marketplace Name"
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder-white/20 text-sm font-medium focus:outline-none focus:border-white/30 transition-all"
               />
             </div>
@@ -145,7 +145,7 @@ export default function BrandingPage() {
                 type="text"
                 value={branding.shortName || ""}
                 onChange={(e) => setBranding({ ...branding, shortName: e.target.value })}
-                placeholder="e.g. Aura"
+                placeholder="e.g. Your Name"
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder-white/20 text-sm font-medium focus:outline-none focus:border-white/30 transition-all"
               />
             </div>

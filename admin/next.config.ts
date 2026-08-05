@@ -32,6 +32,15 @@ const nextConfig: NextConfig = {
         destination: `${adminBackendUrl.replace(/\/$/, "")}/api/admin/:path*`,
       },
       {
+        // Public platform sync APIs (branding, layout, features) — same backend
+        source: "/api/platform/:path*",
+        destination: `${adminBackendUrl.replace(/\/$/, "")}/api/platform/:path*`,
+      },
+      {
+        source: "/platform/:path*",
+        destination: `${adminBackendUrl.replace(/\/$/, "")}/platform/:path*`,
+      },
+      {
         source: "/api/storage/:path*",
         destination: `${storageBackendUrl.replace(/\/$/, "")}/api/storage/:path*`,
       },

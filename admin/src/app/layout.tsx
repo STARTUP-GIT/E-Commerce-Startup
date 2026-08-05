@@ -12,8 +12,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Admin Portal — Control Panel",
-    template: "%s | Admin Portal",
+    default: "Marketplace",
+    template: "%s | Marketplace",
   },
   description: "Enterprise administration dashboard for the marketplace platform.",
   robots: "noindex, nofollow",

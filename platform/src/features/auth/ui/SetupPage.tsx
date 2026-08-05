@@ -62,7 +62,7 @@ export function SetupPage() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-lg font-bold text-white/90">Owner Account</CardTitle>
             <CardDescription className="text-xs">
-              The owner account also gains access to the Marketplace Admin with the same credentials.
+              The owner account also gains access to the Admin portal with the same credentials.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -1,6 +1,8 @@
 import { renderBaseTemplate } from './base.template.js';
 
-export const renderForgotPasswordTemplate = ({ firstName = 'there', otp, resetUrl }: { firstName?: string; otp: string; resetUrl: string }) => renderBaseTemplate({
+export const renderForgotPasswordTemplate = ({ firstName = 'there', otp, resetUrl, marketplaceName, logoUrl }: { firstName?: string; otp: string; resetUrl: string; marketplaceName?: string; logoUrl?: string }) => renderBaseTemplate({
+  marketplaceName,
+  logoUrl,
   title: 'Reset your password',
   preheader: 'We received a password reset request',
   content: `

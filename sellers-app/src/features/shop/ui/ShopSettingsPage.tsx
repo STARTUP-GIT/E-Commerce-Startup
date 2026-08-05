@@ -295,7 +295,7 @@ export function ShopSettingsPage() {
         <Card className="border border-white/10 bg-gradient-to-br from-purple-500/10 via-transparent to-emerald-500/10">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold text-white/90">Platform Configuration (Read Only)</CardTitle>
-            <CardDescription className="text-xs text-white/50">Marketplace parameters configured by administrative team</CardDescription>
+            <CardDescription className="text-xs text-white/50">Platform parameters configured by administrative team</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2 text-xs">
             <div className="rounded-2xl border border-white/10 bg-black/20 p-3 flex flex-col justify-between">

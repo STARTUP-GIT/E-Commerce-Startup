@@ -17,7 +17,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Online Store",
+    default: "Marketplace",
     template: "%s",
   },
   description: "Discover local artisans, handcrafted items, and custom products.",
