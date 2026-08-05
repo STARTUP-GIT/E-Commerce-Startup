@@ -165,7 +165,7 @@ export function HomePage() {
               }}
             >
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'rgba(255,255,255,0.7)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-              The Local {marketplaceName} for Everything
+              {branding.heroBadge}
             </div>
 
             {/* Headline — BIG */}
@@ -179,7 +179,7 @@ export function HomePage() {
                 marginBottom: '32px',
               }}
             >
-              Buy Anything.<br />
+              {branding.heroHeadingLine1}<br />
               <span
                 style={{
                   background: 'linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.4) 100%)',
@@ -188,9 +188,9 @@ export function HomePage() {
                   backgroundClip: 'text',
                 }}
               >
-                From Anyone.
+                {branding.heroHeadingLine2}
               </span><br />
-              Near You.
+              {branding.heroHeadingLine3}
             </h1>
 
             {/* Subheading */}
@@ -204,7 +204,7 @@ export function HomePage() {
                 fontWeight: 400,
               }}
             >
-              {marketplaceName} is your local marketplace for everything — fashion, tech, food, prints, crafts, and beyond. Discover creators. Support neighbours.
+              {branding.heroDescription}
             </p>
 
             {/* Search bar */}
@@ -232,7 +232,7 @@ export function HomePage() {
                   <input
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder={`Search products, shops on ${marketplaceName}…`}
+                    placeholder={branding.searchPlaceholder}
                     style={{
                       width: '100%', height: '52px', paddingLeft: '44px', paddingRight: '16px',
                       background: 'transparent', border: 'none', outline: 'none',
@@ -272,7 +272,7 @@ export function HomePage() {
                   onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(255,255,255,0.15)'; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
                 >
-                  Explore Shops <ArrowRight style={{ width: 18, height: 18 }} />
+                  {branding.exploreShopsButtonText} <ArrowRight style={{ width: 18, height: 18 }} />
                 </button>
               </Link>
               <Link href="/products">
@@ -287,7 +287,7 @@ export function HomePage() {
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; e.currentTarget.style.color = '#fff'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
                 >
-                  Browse Products
+                  {branding.browseProductsButtonText}
                 </button>
               </Link>
             </div>

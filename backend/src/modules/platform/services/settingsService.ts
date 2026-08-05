@@ -79,6 +79,19 @@ export interface BrandingConfiguration {
   shortName?: string;
   logoUrl?: string;
   faviconUrl?: string;
+  // --- Customer-facing content (single source of truth) ---
+  heroBadge?: string;
+  heroHeadingLine1?: string;
+  heroHeadingLine2?: string;
+  heroHeadingLine3?: string;
+  heroDescription?: string;
+  searchPlaceholder?: string;
+  exploreShopsButtonText?: string;
+  browseProductsButtonText?: string;
+  footerDescription?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  browserTitle?: string;
   updatedAt?: string;
   updatedBy?: string;
 }
@@ -177,6 +190,18 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettingsData = {
     favicon: "/favicon.ico",
     tagline: "Your local marketplace for everything",
     shortName: "Marketplace",
+    heroBadge: "The Local Marketplace for Everything",
+    heroHeadingLine1: "Buy Anything.",
+    heroHeadingLine2: "From Anyone.",
+    heroHeadingLine3: "Near You.",
+    heroDescription: "Marketplace is your local marketplace for everything — fashion, tech, food, prints, crafts, and beyond. Discover creators. Support neighbours.",
+    searchPlaceholder: "Search products, shops on Marketplace…",
+    exploreShopsButtonText: "Explore Shops",
+    browseProductsButtonText: "Browse Products",
+    footerDescription: "Discover local craft creators, purchase unique handmade items, and order custom-made 3D prints directly from makers on Marketplace.",
+    seoTitle: "Marketplace",
+    seoDescription: "Discover local artisans, handcrafted items, and custom products.",
+    browserTitle: "Marketplace",
   },
   uiLayout: {
     synced: true,
@@ -325,20 +350,24 @@ export const invalidateBrandingCache = (): void => {
   brandingCache = null;
 };
 
+const textOrDefault = (value: string | undefined | null, fallback: string | undefined | null): string =>
+  value && value.trim() !== "" ? value.trim() : (fallback || "");
+
 export const getPlatformBranding = async (): Promise<BrandingConfiguration> => {
   if (brandingCache) return brandingCache;
   const settings = await getPlatformSettings();
   const b = settings.branding || DEFAULT_PLATFORM_SETTINGS.branding;
-  const logoVal = b.logo !== undefined ? b.logo : (b.logoUrl !== undefined ? b.logoUrl : DEFAULT_PLATFORM_SETTINGS.branding.logo);
+  const d = DEFAULT_PLATFORM_SETTINGS.branding;
+  const logoVal = b.logo !== undefined ? b.logo : (b.logoUrl !== undefined ? b.logoUrl : d.logo);
   // Fall back to the brand logo when no favicon is configured, so browser tabs
   // never show the framework default icon.
-  const faviconRaw = b.favicon !== undefined ? b.favicon : (b.faviconUrl !== undefined ? b.faviconUrl : DEFAULT_PLATFORM_SETTINGS.branding.favicon);
+  const faviconRaw = b.favicon !== undefined ? b.favicon : (b.faviconUrl !== undefined ? b.faviconUrl : d.favicon);
   const faviconVal = faviconRaw && faviconRaw.trim() !== '' && faviconRaw !== '/favicon.ico'
     ? faviconRaw
     : logoVal;
-  const nameVal = (b.name && b.name.trim()) || b.marketplaceName || DEFAULT_PLATFORM_SETTINGS.branding.marketplaceName;
-  const taglineVal = b.tagline || DEFAULT_PLATFORM_SETTINGS.branding.tagline || "Your local marketplace for everything";
-  const shortNameVal = b.shortName || nameVal;
+  const nameVal = (b.name && b.name.trim()) || b.marketplaceName || d.marketplaceName;
+  const taglineVal = textOrDefault(b.tagline, d.tagline);
+  const shortNameVal = textOrDefault(b.shortName, nameVal);
 
   const normalized: BrandingConfiguration = {
     name: nameVal,
@@ -349,6 +378,18 @@ export const getPlatformBranding = async (): Promise<BrandingConfiguration> => {
     shortName: shortNameVal,
     logoUrl: logoVal,
     faviconUrl: faviconVal,
+    heroBadge: textOrDefault(b.heroBadge, d.heroBadge),
+    heroHeadingLine1: textOrDefault(b.heroHeadingLine1, d.heroHeadingLine1),
+    heroHeadingLine2: textOrDefault(b.heroHeadingLine2, d.heroHeadingLine2),
+    heroHeadingLine3: textOrDefault(b.heroHeadingLine3, d.heroHeadingLine3),
+    heroDescription: textOrDefault(b.heroDescription, d.heroDescription),
+    searchPlaceholder: textOrDefault(b.searchPlaceholder, d.searchPlaceholder),
+    exploreShopsButtonText: textOrDefault(b.exploreShopsButtonText, d.exploreShopsButtonText),
+    browseProductsButtonText: textOrDefault(b.browseProductsButtonText, d.browseProductsButtonText),
+    footerDescription: textOrDefault(b.footerDescription, d.footerDescription),
+    seoTitle: textOrDefault(b.seoTitle, d.seoTitle),
+    seoDescription: textOrDefault(b.seoDescription, d.seoDescription),
+    browserTitle: textOrDefault(b.browserTitle, d.browserTitle),
     updatedAt: b.updatedAt || new Date().toISOString(),
     updatedBy: b.updatedBy || "system",
   };
@@ -389,12 +430,20 @@ export const updatePlatformBranding = async (
   updatedBy: string = "system"
 ): Promise<BrandingConfiguration> => {
   const current = await getPlatformSettings();
+  const d = DEFAULT_PLATFORM_SETTINGS.branding;
   const newLogo = patch.logo !== undefined ? patch.logo : (patch.logoUrl !== undefined ? patch.logoUrl : current.branding.logo);
   const newFavicon = patch.favicon !== undefined ? patch.favicon : (patch.faviconUrl !== undefined ? patch.faviconUrl : current.branding.favicon);
   const rawName = patch.name !== undefined ? patch.name : patch.marketplaceName;
   const newName = (rawName !== undefined && rawName.trim() !== "") ? rawName.trim() : (current.branding.name || current.branding.marketplaceName || "Marketplace");
-  const newTagline = patch.tagline !== undefined ? patch.tagline : (current.branding.tagline || "Your local marketplace for everything");
-  const newShortName = patch.shortName !== undefined ? patch.shortName : (current.branding.shortName || newName);
+  const newTagline = textOrDefault(patch.tagline, textOrDefault(current.branding.tagline, d.tagline));
+  const newShortName = textOrDefault(patch.shortName, textOrDefault(current.branding.shortName, newName));
+  // Untouched (undefined) → keep existing value; cleared (empty string) → original default.
+  const resolveText = (key: keyof BrandingConfiguration): string => {
+    const provided = patch[key];
+    const existing = (current.branding as any)?.[key];
+    if (provided === undefined) return textOrDefault(existing, (d as any)[key] || "");
+    return textOrDefault(provided, (d as any)[key] || "");
+  };
   const now = new Date().toISOString();
 
   const updatedBranding: BrandingConfiguration = {
@@ -406,6 +455,18 @@ export const updatePlatformBranding = async (
     shortName: newShortName,
     logoUrl: newLogo,
     faviconUrl: newFavicon,
+    heroBadge: resolveText("heroBadge"),
+    heroHeadingLine1: resolveText("heroHeadingLine1"),
+    heroHeadingLine2: resolveText("heroHeadingLine2"),
+    heroHeadingLine3: resolveText("heroHeadingLine3"),
+    heroDescription: resolveText("heroDescription"),
+    searchPlaceholder: resolveText("searchPlaceholder"),
+    exploreShopsButtonText: resolveText("exploreShopsButtonText"),
+    browseProductsButtonText: resolveText("browseProductsButtonText"),
+    footerDescription: resolveText("footerDescription"),
+    seoTitle: resolveText("seoTitle"),
+    seoDescription: resolveText("seoDescription"),
+    browserTitle: resolveText("browserTitle"),
     updatedAt: now,
     updatedBy: updatedBy,
   };

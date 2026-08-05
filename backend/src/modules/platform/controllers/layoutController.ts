@@ -119,6 +119,18 @@ export const getPublicBranding = async (_req: Request, res: Response): Promise<v
       shortName: branding.shortName || nameVal,
       logoUrl: logoVal,
       faviconUrl: faviconVal,
+      heroBadge: branding.heroBadge,
+      heroHeadingLine1: branding.heroHeadingLine1,
+      heroHeadingLine2: branding.heroHeadingLine2,
+      heroHeadingLine3: branding.heroHeadingLine3,
+      heroDescription: branding.heroDescription,
+      searchPlaceholder: branding.searchPlaceholder,
+      exploreShopsButtonText: branding.exploreShopsButtonText,
+      browseProductsButtonText: branding.browseProductsButtonText,
+      footerDescription: branding.footerDescription,
+      seoTitle: branding.seoTitle,
+      seoDescription: branding.seoDescription,
+      browserTitle: branding.browserTitle,
       updatedAt: branding.updatedAt || new Date().toISOString(),
     });
   } catch (error: any) {

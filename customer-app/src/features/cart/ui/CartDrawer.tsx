@@ -13,10 +13,12 @@ import { useQuery } from '@tanstack/react-query';
 import { profileApi } from '@/features/auth/profile/api/profileApi';
 import { useLocationStore } from '@/lib/store/locationStore';
 import { useConfirmStore } from '@/lib/store/confirmStore';
+import { useBranding } from '@/lib/providers/BrandingProvider';
 
 export function CartDrawer() {
   const cartOpen = useUIStore((state) => state.cartOpen);
   const setCartOpen = useUIStore((state) => state.setCartOpen);
+  const { branding } = useBranding();
 
   const {
     cart,
@@ -196,7 +198,7 @@ export function CartDrawer() {
                     Looks like you haven&apos;t added anything to your cart yet.
                   </p>
                   <Button variant="outline" className="mt-4 cursor-pointer" onClick={() => setCartOpen(false)}>
-                    Browse Products
+                    {branding.browseProductsButtonText}
                   </Button>
                 </div>
               )}

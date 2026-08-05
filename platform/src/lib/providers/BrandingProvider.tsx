@@ -33,7 +33,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && branding.name) {
-      document.title = branding.name;
+      document.title = branding.browserTitle || branding.name;
       const faviconUrl = branding.faviconUrl || branding.favicon;
       if (faviconUrl) {
         let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
@@ -45,7 +45,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
         link.href = faviconUrl;
       }
     }
-  }, [branding.name, branding.faviconUrl, branding.favicon]);
+  }, [branding.name, branding.browserTitle, branding.faviconUrl, branding.favicon]);
 
   return (
     <BrandingContext.Provider value={{ branding, isLoading, refetchBranding: refetch }}>

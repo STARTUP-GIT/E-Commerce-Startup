@@ -5,6 +5,21 @@ export interface BrandingConfig {
   favicon: string;
   tagline?: string;
   shortName?: string;
+  logoUrl?: string;
+  faviconUrl?: string;
+  heroBadge?: string;
+  heroHeadingLine1?: string;
+  heroHeadingLine2?: string;
+  heroHeadingLine3?: string;
+  heroDescription?: string;
+  searchPlaceholder?: string;
+  exploreShopsButtonText?: string;
+  browseProductsButtonText?: string;
+  footerDescription?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  browserTitle?: string;
+  updatedAt?: string;
 }
 
 export interface FeatureFlag {

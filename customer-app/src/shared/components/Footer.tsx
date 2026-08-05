@@ -31,7 +31,7 @@ export function Footer() {
           <div className="lg:col-span-2 space-y-4">
             <BrandLogo />
             <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
-              {branding.tagline || `Discover local craft creators, purchase unique handmade items, and order custom-made 3D prints directly from makers on ${branding.name}.`}
+              {branding.footerDescription}
             </p>
             <div className="flex items-center gap-3 pt-2">
               {/* Twitter SVG */}

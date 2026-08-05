@@ -219,7 +219,12 @@ export const updateRazorpay = async (req: Request, res: Response) => {
 export const updateBranding = async (req: Request, res: Response) => {
   try {
     const previous = await getPlatformSettings();
-    const { marketplaceName, logo, favicon, logoUrl, faviconUrl } = req.body;
+    const {
+      marketplaceName, name, logo, favicon, logoUrl, faviconUrl, tagline, shortName,
+      heroBadge, heroHeadingLine1, heroHeadingLine2, heroHeadingLine3, heroDescription,
+      searchPlaceholder, exploreShopsButtonText, browseProductsButtonText, footerDescription,
+      seoTitle, seoDescription, browserTitle,
+    } = req.body;
 
     if (marketplaceName !== undefined && (typeof marketplaceName !== "string" || marketplaceName.trim() === "")) {
       return res.status(400).json({ message: "Marketplace name is required." });
@@ -228,14 +233,29 @@ export const updateBranding = async (req: Request, res: Response) => {
     const userEmail = (req as any).platformUser?.email || (req as any).user?.email || "system";
     const finalLogo = logo !== undefined ? logo : (logoUrl !== undefined ? logoUrl : undefined);
     const finalFavicon = favicon !== undefined ? favicon : (faviconUrl !== undefined ? faviconUrl : undefined);
-    
+
     const branding = await updatePlatformBranding(
       {
         marketplaceName: marketplaceName ? marketplaceName.trim() : undefined,
+        name: name !== undefined ? name : undefined,
         logo: finalLogo,
         favicon: finalFavicon,
         logoUrl: finalLogo,
         faviconUrl: finalFavicon,
+        tagline,
+        shortName,
+        heroBadge,
+        heroHeadingLine1,
+        heroHeadingLine2,
+        heroHeadingLine3,
+        heroDescription,
+        searchPlaceholder,
+        exploreShopsButtonText,
+        browseProductsButtonText,
+        footerDescription,
+        seoTitle,
+        seoDescription,
+        browserTitle,
       },
       userEmail
     );

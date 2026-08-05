@@ -34,7 +34,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && branding.name) {
-      document.title = branding.name;
+      document.title = branding.browserTitle || branding.name;
 
       const faviconUrl = branding.faviconUrl || branding.favicon || branding.logo;
       if (faviconUrl) {
@@ -63,7 +63,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
       }
       ogSiteMeta.content = branding.name;
     }
-  }, [branding.name, branding.faviconUrl, branding.favicon, branding.logo]);
+  }, [branding.name, branding.browserTitle, branding.faviconUrl, branding.favicon, branding.logo]);
 
   return (
     <BrandingContext.Provider value={{ branding, isLoading, refetchBranding: refetch }}>

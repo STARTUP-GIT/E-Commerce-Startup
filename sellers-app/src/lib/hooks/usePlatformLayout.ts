@@ -132,12 +132,24 @@ export function usePlatformLayout() {
     shortName: publicBranding?.shortName || fullLayoutData?.branding?.shortName || nameVal,
     logoUrl: publicBranding?.logoUrl || fullLayoutData?.branding?.logoUrl || '/images/logo.png',
     faviconUrl: publicBranding?.faviconUrl || fullLayoutData?.branding?.faviconUrl || '/favicon.ico',
+    heroBadge: publicBranding?.heroBadge || fullLayoutData?.branding?.heroBadge || 'The Local Marketplace for Everything',
+    heroHeadingLine1: publicBranding?.heroHeadingLine1 || fullLayoutData?.branding?.heroHeadingLine1 || 'Buy Anything.',
+    heroHeadingLine2: publicBranding?.heroHeadingLine2 || fullLayoutData?.branding?.heroHeadingLine2 || 'From Anyone.',
+    heroHeadingLine3: publicBranding?.heroHeadingLine3 || fullLayoutData?.branding?.heroHeadingLine3 || 'Near You.',
+    heroDescription: publicBranding?.heroDescription || fullLayoutData?.branding?.heroDescription || 'Marketplace is your local marketplace for everything — fashion, tech, food, prints, crafts, and beyond. Discover creators. Support neighbours.',
+    searchPlaceholder: publicBranding?.searchPlaceholder || fullLayoutData?.branding?.searchPlaceholder || 'Search products, shops on Marketplace…',
+    exploreShopsButtonText: publicBranding?.exploreShopsButtonText || fullLayoutData?.branding?.exploreShopsButtonText || 'Explore Shops',
+    browseProductsButtonText: publicBranding?.browseProductsButtonText || fullLayoutData?.branding?.browseProductsButtonText || 'Browse Products',
+    footerDescription: publicBranding?.footerDescription || fullLayoutData?.branding?.footerDescription || 'Discover local craft creators, purchase unique handmade items, and order custom-made 3D prints directly from makers on Marketplace.',
+    seoTitle: publicBranding?.seoTitle || fullLayoutData?.branding?.seoTitle || 'Marketplace',
+    seoDescription: publicBranding?.seoDescription || fullLayoutData?.branding?.seoDescription || 'Discover local artisans, handcrafted items, and custom products.',
+    browserTitle: publicBranding?.browserTitle || fullLayoutData?.branding?.browserTitle || 'Marketplace',
     updatedAt: publicBranding?.updatedAt || fullLayoutData?.updatedAt,
   };
 
   useEffect(() => {
     if (typeof window !== 'undefined' && branding.name) {
-      document.title = branding.name;
+      document.title = branding.browserTitle || branding.name;
       const faviconUrl = branding.faviconUrl || branding.favicon;
       if (faviconUrl) {
         let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
@@ -149,7 +161,7 @@ export function usePlatformLayout() {
         link.href = faviconUrl;
       }
     }
-  }, [branding.name, branding.faviconUrl, branding.favicon]);
+  }, [branding.name, branding.browserTitle, branding.faviconUrl, branding.favicon]);
 
   const isFeatureEnabled = (key: string): boolean => {
     if (!fullLayoutData?.features) return true;
