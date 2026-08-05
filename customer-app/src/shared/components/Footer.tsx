@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { ShoppingBag, Mail, ArrowRight } from 'lucide-react';
 import { Button } from './Button';
 import { Input } from './Input';
-import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+import { useBranding } from '@/lib/providers/BrandingProvider';
 
 export function Footer() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
-  const { branding } = usePlatformLayout();
+  const { branding } = useBranding();
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +33,7 @@ export function Footer() {
                 {branding?.logo && branding.logo.trim() !== '' ? (
                   <img
                     src={branding.logo}
-                    alt={branding.marketplaceName || 'Marketplace'}
+                    alt={branding.name}
                     className="h-full w-full object-cover rounded-lg"
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = 'none';
@@ -44,7 +44,7 @@ export function Footer() {
                 )}
               </div>
               <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-foreground to-zinc-400 bg-clip-text text-transparent">
-                {branding?.marketplaceName || 'Marketplace'}
+                {branding.name}
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
@@ -158,7 +158,7 @@ export function Footer() {
         {/* Divider */}
         <div className="border-t border-border mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} {branding?.marketplaceName || 'Marketplace'} Inc. All rights reserved.
+            &copy; {new Date().getFullYear()} {branding.name} Inc. All rights reserved.
           </p>
           <div className="flex gap-6">
             <a href="#" className="text-xs text-muted-foreground hover:text-foreground transition-colors">

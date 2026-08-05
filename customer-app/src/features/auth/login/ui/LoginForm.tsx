@@ -10,10 +10,10 @@ import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
-import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+import { useBranding } from '@/lib/providers/BrandingProvider';
 
 export function LoginForm() {
-  const { branding } = usePlatformLayout();
+  const { branding } = useBranding();
   const { login, isLoading, error } = useLogin();
   const [showPassword, setShowPassword] = useState(false);
   const searchParams = useSearchParams();
@@ -52,7 +52,7 @@ export function LoginForm() {
           Welcome back
         </h1>
         <p className="text-xs sm:text-sm text-white/45 font-medium">
-          Sign in to your {branding?.marketplaceName || 'marketplace'} account
+          Sign in to your {branding.name} account
         </p>
       </div>
 

@@ -3,10 +3,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { ShoppingBag } from 'lucide-react';
-import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+import { useBranding } from '@/lib/providers/BrandingProvider';
 
 export function BrandLogo() {
-  const { branding } = usePlatformLayout();
+  const { branding } = useBranding();
   const hasLogo = Boolean(branding?.logo && branding.logo.trim() !== '');
 
   return (
@@ -15,7 +15,7 @@ export function BrandLogo() {
         {hasLogo ? (
           <img
             src={branding.logo}
-            alt={branding.marketplaceName || 'Marketplace'}
+            alt={branding.name}
             className="h-full w-full object-cover"
             onError={(e) => {
               (e.target as HTMLElement).style.display = 'none';
@@ -26,7 +26,7 @@ export function BrandLogo() {
         )}
       </div>
       <span className="text-lg font-black tracking-tight text-white">
-        {branding?.marketplaceName || 'Marketplace'}
+        {branding.name}
       </span>
     </Link>
   );

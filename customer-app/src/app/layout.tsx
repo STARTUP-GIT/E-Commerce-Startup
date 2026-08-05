@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import ReactQueryProvider from "@/lib/providers/ReactQueryProvider";
 import SessionProvider from "@/lib/providers/SessionProvider";
+import { BrandingProvider } from "@/lib/providers/BrandingProvider";
 import { CartDrawer } from "@/features/cart/ui/CartDrawer";
 import { ComingSoonDialog } from "@/components/ui/ComingSoonDialog";
 import { PremiumDialogContainer } from "@/components/ui/PremiumDialogContainer";
@@ -34,11 +35,13 @@ export default function RootLayout({
       >
         <SessionProvider>
           <ReactQueryProvider>
-            {children}
-            <CartDrawer />
-            <ComingSoonDialog />
-            <AddressSelectorDialog />
-            <PremiumDialogContainer />
+            <BrandingProvider>
+              {children}
+              <CartDrawer />
+              <ComingSoonDialog />
+              <AddressSelectorDialog />
+              <PremiumDialogContainer />
+            </BrandingProvider>
           </ReactQueryProvider>
         </SessionProvider>
       </body>

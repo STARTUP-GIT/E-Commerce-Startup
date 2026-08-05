@@ -151,7 +151,7 @@ export function Navbar() {
                 {branding?.logo && branding.logo.trim() !== '' ? (
                   <img
                     src={branding.logo}
-                    alt={branding.marketplaceName || 'Marketplace'}
+                    alt={branding.name}
                     className="h-full w-full object-cover"
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = 'none';
@@ -162,7 +162,7 @@ export function Navbar() {
                 )}
               </div>
               <span className="text-lg sm:text-xl font-black tracking-tight text-white hidden xs:inline">
-                {branding?.marketplaceName || 'Marketplace'}
+                {branding.name}
               </span>
             </Link>
 

@@ -7,6 +7,7 @@ import { Skeleton } from '@/shared/components/Skeleton';
 import { Search, MapPin, Navigation, Store, AlertCircle, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
+import { useBranding } from '@/lib/providers/BrandingProvider';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 
 // ─── Shop Card Skeleton ──────────────────────────────────────────────────────
@@ -105,6 +106,7 @@ function ShopCard({ shop, index }: ShopCardProps) {
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function ShopListPage() {
+  const { branding } = useBranding();
   const [searchQuery, setSearchQuery] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [radius, setRadius] = useState(50);
@@ -157,7 +159,7 @@ export function ShopListPage() {
         <div className="relative z-10 space-y-1.5 max-w-xl">
           <div className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full glass-sm text-[9px] sm:text-[11px] font-semibold text-purple-300 mb-1.5 sm:mb-2">
             <Store className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-            Local Craft Marketplace
+            Local Craft {branding.name}
           </div>
           <h2 className="text-xl sm:text-3xl font-extrabold tracking-tight text-white">
             Discover Local Craft Shops

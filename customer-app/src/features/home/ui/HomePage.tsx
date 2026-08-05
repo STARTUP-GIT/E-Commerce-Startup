@@ -96,7 +96,7 @@ export function HomePage() {
   const [search, setSearch] = useState('');
   const { shops, isLoading: shopsLoading } = useShopList();
   const { homepageSections, branding, isFeatureEnabled } = usePlatformLayout();
-  const marketplaceName = branding?.marketplaceName || 'Marketplace';
+  const marketplaceName = branding?.name || branding?.marketplaceName || 'Marketplace';
 
 
   const { data: categoriesData } = useQuery<any>({
@@ -165,7 +165,7 @@ export function HomePage() {
               }}
             >
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'rgba(255,255,255,0.7)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-              The Local Marketplace for Everything
+              The Local {marketplaceName} for Everything
             </div>
 
             {/* Headline — BIG */}

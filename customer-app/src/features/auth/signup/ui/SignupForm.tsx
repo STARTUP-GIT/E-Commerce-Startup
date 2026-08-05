@@ -9,10 +9,10 @@ import { GoogleButton } from '@/features/auth/google-auth/ui/GoogleButton';
 import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, User, AtSign, AlertCircle, Loader2 } from 'lucide-react';
 
-import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+import { useBranding } from '@/lib/providers/BrandingProvider';
 
 export function SignupForm() {
-  const { branding } = usePlatformLayout();
+  const { branding } = useBranding();
   const { signup, isLoading, error } = useSignup();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -36,7 +36,7 @@ export function SignupForm() {
           Create your account
         </h1>
         <p className="text-xs sm:text-sm text-white/45 font-medium">
-          Join {branding?.marketplaceName || 'the marketplace'} and discover local craft makers
+          Join {branding.name} and discover local craft makers
         </p>
       </div>
 

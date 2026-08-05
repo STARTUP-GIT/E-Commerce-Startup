@@ -4,13 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { checkoutApi } from '@/features/checkout/api/checkoutApi';
-import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+import { useBranding } from '@/lib/providers/BrandingProvider';
 
 export function usePayment() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const { branding } = usePlatformLayout();
-  const mktName = branding?.marketplaceName || 'Marketplace';
+  const { branding } = useBranding();
+  const mktName = branding.name;
 
   const loadRazorpayScript = (): Promise<boolean> => {
     return new Promise((resolve) => {
