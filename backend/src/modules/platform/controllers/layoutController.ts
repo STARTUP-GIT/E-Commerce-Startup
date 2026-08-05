@@ -108,7 +108,7 @@ export const getPublicBranding = async (_req: Request, res: Response): Promise<v
   try {
     const branding = await getPlatformBranding();
     const logoVal = branding.logo || branding.logoUrl || "/images/logo.png";
-    const faviconVal = branding.favicon || branding.faviconUrl || "/favicon.ico";
+    const faviconVal = branding.favicon && branding.favicon !== "/favicon.ico" ? branding.favicon : logoVal;
     const nameVal = branding.name || branding.marketplaceName || "Marketplace";
     res.status(200).json({
       name: nameVal,

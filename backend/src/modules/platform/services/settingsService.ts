@@ -330,7 +330,12 @@ export const getPlatformBranding = async (): Promise<BrandingConfiguration> => {
   const settings = await getPlatformSettings();
   const b = settings.branding || DEFAULT_PLATFORM_SETTINGS.branding;
   const logoVal = b.logo !== undefined ? b.logo : (b.logoUrl !== undefined ? b.logoUrl : DEFAULT_PLATFORM_SETTINGS.branding.logo);
-  const faviconVal = b.favicon !== undefined ? b.favicon : (b.faviconUrl !== undefined ? b.faviconUrl : DEFAULT_PLATFORM_SETTINGS.branding.favicon);
+  // Fall back to the brand logo when no favicon is configured, so browser tabs
+  // never show the framework default icon.
+  const faviconRaw = b.favicon !== undefined ? b.favicon : (b.faviconUrl !== undefined ? b.faviconUrl : DEFAULT_PLATFORM_SETTINGS.branding.favicon);
+  const faviconVal = faviconRaw && faviconRaw.trim() !== '' && faviconRaw !== '/favicon.ico'
+    ? faviconRaw
+    : logoVal;
   const nameVal = (b.name && b.name.trim()) || b.marketplaceName || DEFAULT_PLATFORM_SETTINGS.branding.marketplaceName;
   const taglineVal = b.tagline || DEFAULT_PLATFORM_SETTINGS.branding.tagline || "Your local marketplace for everything";
   const shortNameVal = b.shortName || nameVal;

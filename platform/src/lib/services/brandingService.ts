@@ -36,7 +36,8 @@ export const DEFAULT_BRANDING: BrandingConfig = {
 export const normalizeBranding = (d: any): BrandingConfig => {
   const nameVal = d?.name || d?.marketplaceName || DEFAULT_BRANDING.name;
   const logoVal = d?.logo || d?.logoUrl || DEFAULT_BRANDING.logo;
-  const faviconVal = d?.favicon || d?.faviconUrl || DEFAULT_BRANDING.favicon;
+  const rawFavicon = d?.favicon || d?.faviconUrl || '';
+  const faviconVal = rawFavicon && rawFavicon !== '/favicon.ico' ? rawFavicon : logoVal;
   const taglineVal = d?.tagline || DEFAULT_BRANDING.tagline;
   return {
     name: nameVal,
