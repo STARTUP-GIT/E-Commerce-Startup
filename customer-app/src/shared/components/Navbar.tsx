@@ -12,7 +12,8 @@ import axiosInstance from '@/lib/axios/axiosInstance';
 import { shopListApi } from '@/features/shops/shop-list/api/shopListApi';
 import { useLocationStore } from '@/lib/store/locationStore';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
-import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+import { BrandLogo } from './BrandLogo';
+import { usePlatformLayout, UiLayoutItem } from '@/lib/hooks/usePlatformLayout';
 
 // ─── Shop Names Marquee ───────────────────────────────────────────────────────
 
@@ -146,25 +147,7 @@ export function Navbar() {
 
           {/* Logo + Location */}
           <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-shrink">
-            <Link href="/" className="flex items-center gap-2 sm:gap-3 group shrink-0">
-              <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-white overflow-hidden shrink-0">
-                {branding?.logo && branding.logo.trim() !== '' ? (
-                  <img
-                    src={branding.logo}
-                    alt={branding.name}
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <ShoppingBag className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-black" />
-                )}
-              </div>
-              <span className="text-lg sm:text-xl font-black tracking-tight text-white hidden xs:inline">
-                {branding.name}
-              </span>
-            </Link>
+            <BrandLogo />
 
             {/* Location selector - hidden on very small screens, shown as icon-only */}
             {(() => {

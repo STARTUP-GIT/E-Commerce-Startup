@@ -6,7 +6,7 @@ import { Suspense } from 'react';
 import { BrandLogo } from '@/shared/components/BrandLogo';
 
 export const metadata = {
-  title: 'Sign In | Customer Portal',
+  title: 'Sign In',
   description: 'Sign in to your account to explore local artisans and custom products.',
 };
 

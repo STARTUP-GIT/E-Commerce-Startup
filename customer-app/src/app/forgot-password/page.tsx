@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { BrandLogo } from '@/shared/components/BrandLogo';
 
 export const metadata = {
-  title: 'Reset Password | Customer Portal',
+  title: 'Reset Password',
   description: 'Recover or reset your account password safely and securely.',
 };
 

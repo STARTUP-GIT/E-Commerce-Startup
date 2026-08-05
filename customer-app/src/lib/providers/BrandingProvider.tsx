@@ -9,7 +9,7 @@ export interface BrandingData {
   marketplaceName: string;
   logo: string;
   favicon: string;
-  tagline?: string;
+  tagline: string;
   shortName?: string;
   logoUrl?: string;
   faviconUrl?: string;
@@ -30,56 +30,69 @@ const DEFAULT_BRANDING: BrandingData = {
 const BrandingContext = createContext<{
   branding: BrandingData;
   isLoading: boolean;
+  refetchBranding: () => void;
 }>({
   branding: DEFAULT_BRANDING,
   isLoading: true,
+  refetchBranding: () => {},
 });
 
 export function BrandingProvider({ children }: { children: React.ReactNode }) {
-  const { data, isLoading } = useQuery<BrandingData>({
+  const { data, isLoading, refetch } = useQuery<BrandingData>({
     queryKey: ['public-branding'],
     queryFn: async () => {
       try {
         const res = await axiosInstance.get('/api/platform/public/branding');
         const d = res.data;
         const nameVal = d.name || d.marketplaceName || 'Marketplace';
+        const logoVal = d.logo || d.logoUrl || '';
+        const faviconVal = d.favicon || d.faviconUrl || '/favicon.ico';
+        const taglineVal = d.tagline || 'Your local marketplace for everything';
         return {
           name: nameVal,
           marketplaceName: nameVal,
-          logo: d.logo || d.logoUrl || '/images/logo.png',
-          favicon: d.favicon || d.faviconUrl || '/favicon.ico',
-          tagline: d.tagline || 'Your local marketplace for everything',
+          logo: logoVal,
+          favicon: faviconVal,
+          tagline: taglineVal,
           shortName: d.shortName || nameVal,
-          logoUrl: d.logo || d.logoUrl || '/images/logo.png',
-          faviconUrl: d.favicon || d.faviconUrl || '/favicon.ico',
+          logoUrl: logoVal,
+          faviconUrl: faviconVal,
           updatedAt: d.updatedAt,
         };
       } catch {
-        const fallback = await axiosInstance.get('/platform/branding');
-        const d = fallback.data;
-        const nameVal = d.name || d.marketplaceName || 'Marketplace';
-        return {
-          name: nameVal,
-          marketplaceName: nameVal,
-          logo: d.logo || d.logoUrl || '/images/logo.png',
-          favicon: d.favicon || d.faviconUrl || '/favicon.ico',
-          tagline: d.tagline || 'Your local marketplace for everything',
-          shortName: d.shortName || nameVal,
-          logoUrl: d.logo || d.logoUrl || '/images/logo.png',
-          faviconUrl: d.favicon || d.faviconUrl || '/favicon.ico',
-          updatedAt: d.updatedAt,
-        };
+        try {
+          const fallback = await axiosInstance.get('/platform/branding');
+          const d = fallback.data;
+          const nameVal = d.name || d.marketplaceName || 'Marketplace';
+          const logoVal = d.logo || d.logoUrl || '';
+          const faviconVal = d.favicon || d.faviconUrl || '/favicon.ico';
+          const taglineVal = d.tagline || 'Your local marketplace for everything';
+          return {
+            name: nameVal,
+            marketplaceName: nameVal,
+            logo: logoVal,
+            favicon: faviconVal,
+            tagline: taglineVal,
+            shortName: d.shortName || nameVal,
+            logoUrl: logoVal,
+            faviconUrl: faviconVal,
+            updatedAt: d.updatedAt,
+          };
+        } catch {
+          return DEFAULT_BRANDING;
+        }
       }
     },
-    staleTime: 60_000,
+    staleTime: 10_000,
     refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 
   const branding = data || DEFAULT_BRANDING;
 
   useEffect(() => {
     if (typeof window !== 'undefined' && branding.name) {
-      document.title = `${branding.name} | Customer Portal`;
+      document.title = branding.name;
 
       const faviconUrl = branding.faviconUrl || branding.favicon;
       if (faviconUrl) {
@@ -111,7 +124,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   }, [branding.name, branding.faviconUrl, branding.favicon]);
 
   return (
-    <BrandingContext.Provider value={{ branding, isLoading }}>
+    <BrandingContext.Provider value={{ branding, isLoading, refetchBranding: refetch }}>
       {children}
     </BrandingContext.Provider>
   );

@@ -232,7 +232,7 @@ export function HomePage() {
                   <input
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="Search products, shops…"
+                    placeholder={`Search products, shops on ${marketplaceName}…`}
                     style={{
                       width: '100%', height: '52px', paddingLeft: '44px', paddingRight: '16px',
                       background: 'transparent', border: 'none', outline: 'none',

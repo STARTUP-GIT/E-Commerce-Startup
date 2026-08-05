@@ -1,7 +1,7 @@
 import { CustomOrderPage } from '@/features/custom-orders/ui/CustomOrderPage';
 
 export const metadata = {
-  title: 'Custom Manufacturing Requests | Marketplace',
+  title: 'Custom Manufacturing Requests',
   description: 'Submit custom 3D printing and manufacturing designs to verify quotations and track bespoke production.',
 };
 

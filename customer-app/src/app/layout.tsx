@@ -17,10 +17,10 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Customer Portal",
-    template: "%s | Customer Portal",
+    default: "Online Store",
+    template: "%s",
   },
-  description: "Experience premium marketplace shopping — discover local artisans and custom products.",
+  description: "Discover local artisans, handcrafted items, and custom products.",
 };
 
 export default function RootLayout({

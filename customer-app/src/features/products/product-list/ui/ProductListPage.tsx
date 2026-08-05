@@ -12,8 +12,10 @@ import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Search, Filter, Package, Star, Eye, ChevronLeft, ChevronRight, Compass, Sparkles, History } from 'lucide-react';
 import Link from 'next/link';
+import { useBranding } from '@/lib/providers/BrandingProvider';
 
 export function ProductListPage() {
+  const { branding } = useBranding();
   const searchParams = useSearchParams();
 
   const { data: categoriesData } = useQuery<any>({
@@ -149,7 +151,7 @@ export function ProductListPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search..."
+                placeholder={`Search ${branding.name} products…`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 sm:pl-9 h-8 sm:h-9 text-[11px] sm:text-xs"

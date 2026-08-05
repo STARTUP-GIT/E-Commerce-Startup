@@ -1,33 +1,54 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ShoppingBag } from 'lucide-react';
 import { useBranding } from '@/lib/providers/BrandingProvider';
 
-export function BrandLogo() {
+interface BrandLogoProps {
+  className?: string;
+  showText?: boolean;
+  textClassName?: string;
+  logoSizeClassName?: string;
+}
+
+export function BrandLogo({
+  className = '',
+  showText = true,
+  textClassName = 'text-lg sm:text-xl font-black tracking-tight text-white',
+  logoSizeClassName = 'h-8 w-8 sm:h-9 sm:w-9',
+}: BrandLogoProps) {
   const { branding } = useBranding();
-  const hasLogo = Boolean(branding?.logo && branding.logo.trim() !== '');
+  const [imageError, setImageError] = useState(false);
+
+  const logoUrl = branding?.logo || branding?.logoUrl;
+
+  useEffect(() => {
+    setImageError(false);
+  }, [logoUrl]);
+
+  const hasValidLogo = Boolean(!imageError && logoUrl && logoUrl.trim() !== '');
 
   return (
-    <Link href="/" className="flex items-center gap-2.5 group">
-      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white border border-white/10 shadow-md overflow-hidden shrink-0">
-        {hasLogo ? (
+    <Link href="/" className={`flex items-center gap-2.5 sm:gap-3 group shrink-0 ${className}`}>
+      <div className={`flex ${logoSizeClassName} items-center justify-center rounded-xl bg-white border border-white/10 shadow-md overflow-hidden shrink-0`}>
+        {hasValidLogo ? (
           <img
-            src={branding.logo}
-            alt={branding.name}
+            src={logoUrl}
+            alt={branding?.name || 'Brand Logo'}
             className="h-full w-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
-            }}
+            onError={() => setImageError(true)}
           />
         ) : (
           <ShoppingBag className="h-4.5 w-4.5 text-black" />
         )}
       </div>
-      <span className="text-lg font-black tracking-tight text-white">
-        {branding.name}
-      </span>
+      {showText && (
+        <span className={textClassName}>
+          {branding?.name || 'Marketplace'}
+        </span>
+      )}
     </Link>
   );
 }
+

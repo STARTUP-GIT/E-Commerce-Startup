@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ShoppingBag, Mail, ArrowRight } from 'lucide-react';
 import { Button } from './Button';
 import { Input } from './Input';
+import { BrandLogo } from './BrandLogo';
 import { useBranding } from '@/lib/providers/BrandingProvider';
 
 export function Footer() {
@@ -28,25 +29,7 @@ export function Footer() {
           
           {/* Brand Info */}
           <div className="lg:col-span-2 space-y-4">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary overflow-hidden shrink-0">
-                {branding?.logo && branding.logo.trim() !== '' ? (
-                  <img
-                    src={branding.logo}
-                    alt={branding.name}
-                    className="h-full w-full object-cover rounded-lg"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <ShoppingBag className="h-5 w-5 text-white" />
-                )}
-              </div>
-              <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-foreground to-zinc-400 bg-clip-text text-transparent">
-                {branding.name}
-              </span>
-            </Link>
+            <BrandLogo />
             <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
               {branding.tagline || `Discover local craft creators, purchase unique handmade items, and order custom-made 3D prints directly from makers on ${branding.name}.`}
             </p>

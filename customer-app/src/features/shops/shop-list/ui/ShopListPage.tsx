@@ -175,7 +175,7 @@ export function ShopListPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-white/30" />
             <input
-              placeholder="Search shops by name or category…"
+              placeholder={`Search shops on ${branding.name} by name or category…`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="glass-input w-full h-9 sm:h-10 pl-9 sm:pl-10 pr-4 rounded-xl text-xs sm:text-sm text-white placeholder:text-white/25 outline-none"
