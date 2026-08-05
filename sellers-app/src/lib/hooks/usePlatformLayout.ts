@@ -32,6 +32,42 @@ export interface SellerPlatformLayout {
   updatedAt: string;
 }
 
+const DEFAULT_SIDEBAR: UiLayoutItem[] = [
+  { id: 'side-dashboard', name: 'Dashboard', path: '/dashboard', enabled: true },
+  { id: 'side-products', name: 'Products', path: '/products', featureKey: 'PRODUCT_UPLOAD', enabled: true },
+  { id: 'side-orders', name: 'Orders', path: '/orders', enabled: true },
+  { id: 'side-custom-orders', name: 'Custom Requests', path: '/custom-orders', featureKey: 'CUSTOM_PRINTING', enabled: true },
+  { id: 'side-analytics', name: 'Analytics', path: '/analytics', featureKey: 'ANALYTICS', enabled: true },
+  { id: 'side-payouts', name: 'Payouts', path: '/payouts', featureKey: 'PAYMENTS', enabled: true },
+  { id: 'side-reviews', name: 'Reviews', path: '/reviews', featureKey: 'REVIEWS', enabled: true },
+  { id: 'side-profile', name: 'Seller Profile', path: '/profile', enabled: true },
+  { id: 'side-shop', name: 'Shop & Bank', path: '/shop', featureKey: 'BANK_ACCOUNT', enabled: true },
+  { id: 'side-settings', name: 'Settings', path: '/settings', enabled: true },
+];
+
+const DEFAULT_WIDGETS: UiLayoutItem[] = [
+  { id: 'widget-revenue', name: 'Revenue Summary', enabled: true },
+  { id: 'widget-orders', name: 'Recent Incoming Orders', enabled: true },
+];
+
+const DEFAULT_QUICK_ACTIONS: UiLayoutItem[] = [
+  { id: 'action-add-product', name: 'Add catalog item', path: '/products', featureKey: 'PRODUCT_UPLOAD', enabled: true },
+  { id: 'action-quote-custom', name: 'Quote custom requests', path: '/custom-orders', featureKey: 'CUSTOM_PRINTING', enabled: true },
+  { id: 'action-link-bank', name: 'Link settlement bank', path: '/shop', featureKey: 'BANK_ACCOUNT', enabled: true },
+];
+
+const DEFAULT_CARDS: UiLayoutItem[] = [
+  { id: 'card-gross-sales', name: 'Gross Sales', enabled: true },
+  { id: 'card-net-earnings', name: 'Net Earnings', enabled: true },
+  { id: 'card-commission', name: 'Platform Commission', enabled: true },
+  { id: 'card-packing-fee', name: 'Packing Fee Collected', enabled: true },
+  { id: 'card-delivered-revenue', name: 'Delivered Revenue', enabled: true },
+  { id: 'card-todays-orders', name: "Today's Orders", enabled: true },
+  { id: 'card-pending-orders', name: 'Pending Orders', enabled: true },
+  { id: 'card-completed-orders', name: 'Completed Orders', enabled: true },
+  { id: 'card-cancelled-orders', name: 'Cancelled Orders', enabled: true },
+];
+
 export function usePlatformLayout() {
   // Public Branding query
   const { data: publicBranding } = useQuery<BrandingConfig>({
@@ -146,28 +182,44 @@ export function usePlatformLayout() {
     return fullLayoutData.features[key] !== false;
   };
 
-  const rawSidebar = sidebarData || fullLayoutData?.sidebar || [];
+  const rawSidebar = (sidebarData && sidebarData.length > 0)
+    ? sidebarData
+    : (fullLayoutData?.sidebar && fullLayoutData.sidebar.length > 0)
+      ? fullLayoutData.sidebar
+      : DEFAULT_SIDEBAR;
+
+  const rawWidgets = (widgetsData && widgetsData.length > 0)
+    ? widgetsData
+    : (fullLayoutData?.dashboardWidgets && fullLayoutData.dashboardWidgets.length > 0)
+      ? fullLayoutData.dashboardWidgets
+      : DEFAULT_WIDGETS;
+
+  const rawQuickActions = (fullLayoutData?.quickActions && fullLayoutData.quickActions.length > 0)
+    ? fullLayoutData.quickActions
+    : DEFAULT_QUICK_ACTIONS;
+
+  const rawDashboardCards = (fullLayoutData?.dashboardCards && fullLayoutData.dashboardCards.length > 0)
+    ? fullLayoutData.dashboardCards
+    : DEFAULT_CARDS;
+
   const activeSidebar = rawSidebar.filter((item) => {
     if (item.enabled === false) return false;
     if (item.featureKey && !isFeatureEnabled(item.featureKey)) return false;
     return true;
   });
 
-  const rawWidgets = widgetsData || fullLayoutData?.dashboardWidgets || [];
   const activeWidgets = rawWidgets.filter((item) => {
     if (item.enabled === false) return false;
     if (item.featureKey && !isFeatureEnabled(item.featureKey)) return false;
     return true;
   });
 
-  const rawQuickActions = fullLayoutData?.quickActions || [];
   const activeQuickActions = rawQuickActions.filter((item) => {
     if (item.enabled === false) return false;
     if (item.featureKey && !isFeatureEnabled(item.featureKey)) return false;
     return true;
   });
 
-  const rawDashboardCards = fullLayoutData?.dashboardCards || [];
   const activeDashboardCards = rawDashboardCards.filter((item) => {
     if (item.enabled === false) return false;
     if (item.featureKey && !isFeatureEnabled(item.featureKey)) return false;

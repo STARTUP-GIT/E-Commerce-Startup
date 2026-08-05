@@ -32,6 +32,32 @@ export interface CustomerPlatformLayout {
   updatedAt: string;
 }
 
+const DEFAULT_NAVBAR: UiLayoutItem[] = [
+  { id: 'nav-home', name: 'Home', path: '/', enabled: true },
+  { id: 'nav-categories', name: 'Categories', path: '/categories', enabled: true },
+  { id: 'nav-shops', name: 'Shops', path: '/shops', enabled: true },
+  { id: 'nav-products', name: 'Products', path: '/products', enabled: true },
+  { id: 'nav-orders', name: 'Orders', path: '/orders', enabled: true },
+  { id: 'nav-wishlist', name: 'Wishlist', path: '/wishlist', featureKey: 'WISHLIST', enabled: true },
+  { id: 'nav-custom-orders', name: 'Custom Orders', path: '/custom-orders', featureKey: 'CUSTOM_PRINTING', enabled: true },
+];
+
+const DEFAULT_HOMEPAGE_SECTIONS: UiLayoutItem[] = [
+  { id: 'hero-banner', name: 'Hero Banner', enabled: true },
+  { id: 'trending-categories', name: 'Trending Categories', enabled: true },
+  { id: 'featured-shops', name: 'Featured Creators', enabled: true },
+  { id: 'custom-prints', name: 'Custom Prints CTA', enabled: true, featureKey: 'CUSTOM_PRINTING' },
+  { id: 'value-props', name: 'Value Props', enabled: true },
+  { id: 'guest-signup', name: 'Guest Sign-up Banner', enabled: true },
+];
+
+const DEFAULT_FOOTER: UiLayoutItem[] = [
+  { id: 'foot-shops', name: 'Browse Shops', path: '/shops', enabled: true },
+  { id: 'foot-categories', name: 'Categories', path: '/categories', enabled: true },
+  { id: 'foot-custom-orders', name: 'Custom Orders', path: '/custom-orders', featureKey: 'CUSTOM_PRINTING', enabled: true },
+  { id: 'foot-orders', name: 'Track Orders', path: '/orders', enabled: true },
+];
+
 export function usePlatformLayout() {
   // Public Branding query
   const { data: publicBranding } = useQuery<BrandingConfig>({
@@ -146,15 +172,35 @@ export function usePlatformLayout() {
     return fullLayoutData.features[key] !== false;
   };
 
-  const rawNavbar = navbarData || fullLayoutData?.navbar || [];
+  const rawNavbar = (navbarData && navbarData.length > 0)
+    ? navbarData
+    : (fullLayoutData?.navbar && fullLayoutData.navbar.length > 0)
+      ? fullLayoutData.navbar
+      : DEFAULT_NAVBAR;
+
+  const rawHomepage = (homepageData && homepageData.length > 0)
+    ? homepageData
+    : (fullLayoutData?.homepageSections && fullLayoutData.homepageSections.length > 0)
+      ? fullLayoutData.homepageSections
+      : DEFAULT_HOMEPAGE_SECTIONS;
+
+  const rawFooter = (fullLayoutData?.footer && fullLayoutData.footer.length > 0)
+    ? fullLayoutData.footer
+    : DEFAULT_FOOTER;
+
   const activeNavbar = rawNavbar.filter((item) => {
     if (item.enabled === false) return false;
     if (item.featureKey && !isFeatureEnabled(item.featureKey)) return false;
     return true;
   });
 
-  const rawHomepage = homepageData || fullLayoutData?.homepageSections || [];
   const activeHomepage = rawHomepage.filter((item) => {
+    if (item.enabled === false) return false;
+    if (item.featureKey && !isFeatureEnabled(item.featureKey)) return false;
+    return true;
+  });
+
+  const activeFooter = rawFooter.filter((item) => {
     if (item.enabled === false) return false;
     if (item.featureKey && !isFeatureEnabled(item.featureKey)) return false;
     return true;
@@ -166,7 +212,7 @@ export function usePlatformLayout() {
     features: fullLayoutData?.features || {},
     navbar: activeNavbar,
     homepageSections: activeHomepage,
-    footer: (fullLayoutData?.footer || []).filter(item => item.enabled !== false),
+    footer: activeFooter,
     isFeatureEnabled,
     isLoading,
     isError: !!error,
