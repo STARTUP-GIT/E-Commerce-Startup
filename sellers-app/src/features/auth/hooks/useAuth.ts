@@ -26,6 +26,9 @@ export function useAuth() {
   const loginMutation = useMutation({
     mutationFn: authApi.login,
     onSuccess: (data) => {
+      if (data.token) {
+        localStorage.setItem('seller_token', data.token);
+      }
       // Clear all previous queries to avoid cache leaks across logins
       queryClient.clear();
       // Set query data directly and invalidate cache
@@ -40,6 +43,9 @@ export function useAuth() {
   const registerMutation = useMutation({
     mutationFn: authApi.register,
     onSuccess: (data) => {
+      if (data.token) {
+        localStorage.setItem('seller_token', data.token);
+      }
       // Clear all previous queries to avoid cache leaks across registrations
       queryClient.clear();
       // Invalidate profile query to fetch new register profile
@@ -59,10 +65,12 @@ export function useAuth() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
+      localStorage.removeItem('seller_token');
       await supabase.auth.signOut();
       return authApi.logout();
     },
     onSuccess: () => {
+      localStorage.removeItem('seller_token');
       // Clear all queries
       queryClient.setQueryData(['profile'], null);
       queryClient.clear();

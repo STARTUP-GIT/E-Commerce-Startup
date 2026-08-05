@@ -14,11 +14,13 @@ export interface SellerProfile {
 
 export interface LoginResponse {
   message: string;
+  token?: string;
   user: SellerProfile;
 }
 
 export interface RegisterResponse {
   message?: string;
+  token?: string;
   user: {
     id: string;
     email: string;

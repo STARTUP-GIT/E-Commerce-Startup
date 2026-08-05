@@ -19,6 +19,14 @@ axiosInstance.interceptors.request.use(
     } else if (config.data) {
       config.headers['Content-Type'] = 'application/json';
     }
+
+    if (typeof window !== 'undefined') {
+      const storedToken = localStorage.getItem('seller_token');
+      if (storedToken && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${storedToken}`;
+      }
+    }
+
     return config;
   },
   (error) => Promise.reject(error)

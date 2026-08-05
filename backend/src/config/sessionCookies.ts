@@ -2,7 +2,10 @@ import type { Response } from 'express';
 
 type CookieName = 'customer_session' | 'seller_session' | 'admin_session' | 'platform_session';
 
-const isProductionEnv = () => process.env.NODE_ENV?.toLowerCase() === 'production';
+const isProductionEnv = () =>
+  (process.env.NODE_ENV || '').toLowerCase() === 'production' ||
+  process.env.VERCEL === '1' ||
+  process.env.RENDER === 'true';
 
 const cookieOptions = (isProduction: boolean) => ({
   httpOnly: true,
@@ -55,7 +58,6 @@ export const clearRefreshCookie = (res: Response) => {
   });
 };
 
-// Legacy named exports kept for backwards compatibility
 export const customersessionCookie = () => ({
   name: 'customer_session' as CookieName,
   options: cookieOptions(isProductionEnv()),

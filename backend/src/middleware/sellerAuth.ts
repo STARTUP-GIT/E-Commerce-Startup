@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
-import {prisma} from "../config/prisma.js";
-import type { Request,Response,NextFunction } from "express";
+import { prisma } from "../config/prisma.js";
+import type { Request, Response, NextFunction } from "express";
+import { getJwtSecret, verifyAccessToken } from "../config/token.js";
 
 declare global {
   namespace Express {
@@ -10,27 +11,46 @@ declare global {
   }
 }
 
-export const sellerAuth = async (req : Request, res : Response, next : NextFunction) => {
+export const sellerAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const token = req.cookies?.seller_session;
+    const cookieToken = req.cookies?.seller_session;
+    const authHeader = req.headers.authorization;
+    const headerToken = authHeader?.startsWith("Bearer ")
+      ? authHeader.substring(7)
+      : (req.headers["x-seller-token"] as string | undefined);
+
+    const token = cookieToken || headerToken;
 
     if (!token) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: "Unauthorized - missing seller token" });
     }
 
     let decoded: any;
 
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET_KEY!);
+      decoded = verifyAccessToken(token);
     } catch (err: any) {
+      try {
+        decoded = jwt.verify(token, getJwtSecret());
+      } catch (innerErr: any) {
+        console.warn("[sellerAuth] Token verification failed:", innerErr.message);
+        return res.status(401).json({
+          message: "JWT verification failed",
+        });
+      }
+    }
+
+    const targetId = decoded.id || decoded.userId || decoded.sellerId || decoded.sub;
+
+    if (!targetId) {
       return res.status(401).json({
-        message: "JWT verification failed"
+        message: "Invalid token payload",
       });
     }
 
     const seller = await prisma.seller.findUnique({
       where: {
-        id: decoded.id,
+        id: targetId,
       },
     });
 
@@ -67,4 +87,4 @@ export const sellerAuth = async (req : Request, res : Response, next : NextFunct
       message: "Internal server error",
     });
   }
-};
+};

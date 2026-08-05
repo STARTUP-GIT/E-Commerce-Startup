@@ -89,15 +89,14 @@ export const register = async (req: Request, res: Response) => {
     setAuthCookie(res, 'seller_session', token);
 
     return res.status(201).json({
+        message: "Registration successful",
+        token,
         user: {
             id: newSeller.id,
             email: newSeller.email,
             fullname: `${newSeller.firstName} ${newSeller.lastName ?? ""}`.trim()
         }
     });
-
-
-
 }
 
 export const login = async (req: Request, res: Response) => {
@@ -167,6 +166,7 @@ export const login = async (req: Request, res: Response) => {
 
         return res.status(200).json({
             message: "Login successful",
+            token,
             user: {
                 id: seller.id,
                 email: seller.email,
