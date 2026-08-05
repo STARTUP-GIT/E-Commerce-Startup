@@ -51,7 +51,7 @@ export function ProductsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white/95">Products</h1>
-          <p className="text-xs text-white/45 mt-1">Monitor and moderate marketplace listings</p>
+          <p className="text-xs text-white/45 mt-1">Monitor and moderate product listings</p>
         </div>
         <div className="text-xs text-white/40 bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 font-semibold">{total} total products</div>
       </div>

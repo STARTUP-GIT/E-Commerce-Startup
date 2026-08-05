@@ -128,7 +128,7 @@ function drawDivider(doc: PDFKit.PDFDocument, y: number, left: number, width: nu
 
 export async function generateShippingLabelPdf(data: ShippingLabelData): Promise<PDFKit.PDFDocument> {
     const branding = await getPlatformBranding();
-    const mktName = branding.marketplaceName || "Marketplace";
+    const mktName = branding.name || branding.marketplaceName || "Marketplace";
     const domain = `${mktName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
     const supportEmail = `support@${domain}`;
 

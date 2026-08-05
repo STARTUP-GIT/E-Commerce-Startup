@@ -16,6 +16,8 @@ export interface BrandingConfig {
   marketplaceName: string;
   logo: string;
   favicon: string;
+  tagline?: string;
+  shortName?: string;
   logoUrl?: string;
   faviconUrl?: string;
   updatedAt?: string;
@@ -76,11 +78,14 @@ export function usePlatformLayout() {
       try {
         const res = await axiosInstance.get('/api/platform/public/branding');
         const d = res.data;
+        const nameVal = d.name || d.marketplaceName || 'Marketplace';
         return {
-          name: d.name || d.marketplaceName || 'Marketplace',
-          marketplaceName: d.name || d.marketplaceName || 'Marketplace',
+          name: nameVal,
+          marketplaceName: nameVal,
           logo: d.logo || d.logoUrl || '/images/logo.png',
           favicon: d.favicon || d.faviconUrl || '/favicon.ico',
+          tagline: d.tagline || 'Your local marketplace for everything',
+          shortName: d.shortName || nameVal,
           logoUrl: d.logo || d.logoUrl || '/images/logo.png',
           faviconUrl: d.favicon || d.faviconUrl || '/favicon.ico',
           updatedAt: d.updatedAt,
@@ -88,11 +93,14 @@ export function usePlatformLayout() {
       } catch {
         const fallback = await axiosInstance.get('/platform/branding');
         const d = fallback.data;
+        const nameVal = d.name || d.marketplaceName || 'Marketplace';
         return {
-          name: d.marketplaceName || 'Marketplace',
-          marketplaceName: d.marketplaceName || 'Marketplace',
+          name: nameVal,
+          marketplaceName: nameVal,
           logo: d.logo || d.logoUrl || '/images/logo.png',
           favicon: d.favicon || d.faviconUrl || '/favicon.ico',
+          tagline: d.tagline || 'Your local marketplace for everything',
+          shortName: d.shortName || nameVal,
           logoUrl: d.logo || d.logoUrl || '/images/logo.png',
           faviconUrl: d.favicon || d.faviconUrl || '/favicon.ico',
           updatedAt: d.updatedAt,
@@ -151,19 +159,22 @@ export function usePlatformLayout() {
     refetchInterval: 15_000,
   });
 
+  const nameVal = publicBranding?.name || fullLayoutData?.branding?.name || fullLayoutData?.branding?.marketplaceName || 'Marketplace';
   const branding: BrandingConfig = {
-    name: publicBranding?.name || fullLayoutData?.branding?.marketplaceName || 'Marketplace',
-    marketplaceName: publicBranding?.name || fullLayoutData?.branding?.marketplaceName || 'Marketplace',
+    name: nameVal,
+    marketplaceName: nameVal,
     logo: publicBranding?.logo || fullLayoutData?.branding?.logo || '/images/logo.png',
     favicon: publicBranding?.favicon || fullLayoutData?.branding?.favicon || '/favicon.ico',
+    tagline: publicBranding?.tagline || fullLayoutData?.branding?.tagline || 'Your local marketplace for everything',
+    shortName: publicBranding?.shortName || fullLayoutData?.branding?.shortName || nameVal,
     logoUrl: publicBranding?.logoUrl || fullLayoutData?.branding?.logoUrl || '/images/logo.png',
     faviconUrl: publicBranding?.faviconUrl || fullLayoutData?.branding?.faviconUrl || '/favicon.ico',
     updatedAt: publicBranding?.updatedAt || fullLayoutData?.updatedAt,
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && branding.marketplaceName) {
-      document.title = `${branding.marketplaceName} | Seller Portal`;
+    if (typeof window !== 'undefined' && branding.name) {
+      document.title = `${branding.name} | Seller Portal`;
       const faviconUrl = branding.faviconUrl || branding.favicon;
       if (faviconUrl) {
         let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
@@ -175,7 +186,7 @@ export function usePlatformLayout() {
         link.href = faviconUrl;
       }
     }
-  }, [branding.marketplaceName, branding.faviconUrl, branding.favicon]);
+  }, [branding.name, branding.faviconUrl, branding.favicon]);
 
   const isFeatureEnabled = (key: string): boolean => {
     if (!fullLayoutData?.features) return true;

@@ -71,9 +71,12 @@ export interface MaintenanceConfig {
 }
 
 export interface BrandingConfiguration {
+  name: string;
   marketplaceName: string;
   logo: string;
   favicon: string;
+  tagline?: string;
+  shortName?: string;
   logoUrl?: string;
   faviconUrl?: string;
   updatedAt?: string;
@@ -168,9 +171,12 @@ export interface BackupRecord {
 
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettingsData = {
   branding: {
+    name: "Marketplace",
     marketplaceName: "Marketplace",
     logo: "/images/logo.png",
     favicon: "/favicon.ico",
+    tagline: "Your local marketplace for everything",
+    shortName: "Marketplace",
   },
   uiLayout: {
     synced: true,
@@ -325,10 +331,17 @@ export const getPlatformBranding = async (): Promise<BrandingConfiguration> => {
   const b = settings.branding || DEFAULT_PLATFORM_SETTINGS.branding;
   const logoVal = b.logo !== undefined ? b.logo : (b.logoUrl !== undefined ? b.logoUrl : DEFAULT_PLATFORM_SETTINGS.branding.logo);
   const faviconVal = b.favicon !== undefined ? b.favicon : (b.faviconUrl !== undefined ? b.faviconUrl : DEFAULT_PLATFORM_SETTINGS.branding.favicon);
+  const nameVal = (b.name && b.name.trim()) || b.marketplaceName || DEFAULT_PLATFORM_SETTINGS.branding.marketplaceName;
+  const taglineVal = b.tagline || DEFAULT_PLATFORM_SETTINGS.branding.tagline || "Your local marketplace for everything";
+  const shortNameVal = b.shortName || nameVal;
+
   const normalized: BrandingConfiguration = {
-    marketplaceName: b.marketplaceName || DEFAULT_PLATFORM_SETTINGS.branding.marketplaceName,
+    name: nameVal,
+    marketplaceName: nameVal,
     logo: logoVal,
     favicon: faviconVal,
+    tagline: taglineVal,
+    shortName: shortNameVal,
     logoUrl: logoVal,
     faviconUrl: faviconVal,
     updatedAt: b.updatedAt || new Date().toISOString(),
@@ -373,13 +386,19 @@ export const updatePlatformBranding = async (
   const current = await getPlatformSettings();
   const newLogo = patch.logo !== undefined ? patch.logo : (patch.logoUrl !== undefined ? patch.logoUrl : current.branding.logo);
   const newFavicon = patch.favicon !== undefined ? patch.favicon : (patch.faviconUrl !== undefined ? patch.faviconUrl : current.branding.favicon);
-  const newName = (patch.marketplaceName !== undefined && patch.marketplaceName !== "") ? patch.marketplaceName.trim() : current.branding.marketplaceName;
+  const rawName = patch.name !== undefined ? patch.name : patch.marketplaceName;
+  const newName = (rawName !== undefined && rawName.trim() !== "") ? rawName.trim() : (current.branding.name || current.branding.marketplaceName || "Marketplace");
+  const newTagline = patch.tagline !== undefined ? patch.tagline : (current.branding.tagline || "Your local marketplace for everything");
+  const newShortName = patch.shortName !== undefined ? patch.shortName : (current.branding.shortName || newName);
   const now = new Date().toISOString();
 
   const updatedBranding: BrandingConfiguration = {
+    name: newName,
     marketplaceName: newName,
     logo: newLogo,
     favicon: newFavicon,
+    tagline: newTagline,
+    shortName: newShortName,
     logoUrl: newLogo,
     faviconUrl: newFavicon,
     updatedAt: now,

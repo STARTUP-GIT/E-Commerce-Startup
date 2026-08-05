@@ -138,7 +138,7 @@ export function DashboardPage() {
             Welcome back, {admin?.firstName}
           </h1>
           <p className="text-xs text-white/45">
-            {branding?.marketplaceName || 'Marketplace'} · Enterprise Administration Control Panel
+            {branding?.name || 'Marketplace'} · Enterprise Administration Control Panel
           </p>
         </div>
         <div className="flex gap-2 text-[10px] text-white/40 font-medium items-center bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2">

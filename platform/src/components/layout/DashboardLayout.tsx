@@ -59,13 +59,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const showConfirm = useConfirmStore((state) => state.showConfirm);
 
-  const mktName = settings?.branding?.marketplaceName || 'Platform';
+  const brandName = settings?.branding?.name || settings?.branding?.marketplaceName || 'Platform';
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined' && mktName) {
-      document.title = `${mktName} | Platform Control Plane`;
+    if (typeof window !== 'undefined' && brandName) {
+      document.title = `${brandName} | Platform Control Plane`;
     }
-  }, [mktName]);
+  }, [brandName]);
 
   const handleLogout = () => {
     showConfirm({

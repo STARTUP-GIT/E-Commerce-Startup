@@ -63,13 +63,13 @@ export function SetupPage() {
         <div className="flex flex-col items-center mb-8 space-y-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-xl shadow-white/5 shrink-0 overflow-hidden">
             {branding?.logo && branding.logo !== '/images/logo.png' ? (
-              <img src={branding.logo} alt={branding.marketplaceName} className="h-full w-full object-cover" />
+              <img src={branding.logo} alt={branding.name} className="h-full w-full object-cover" />
             ) : (
               <ShieldCheck className="h-6 w-6 text-black" />
             )}
           </div>
           <div className="text-center">
-            <h2 className="text-xl font-black tracking-tight text-white block uppercase">{branding?.marketplaceName || 'Marketplace'}</h2>
+            <h2 className="text-xl font-black tracking-tight text-white block uppercase">{branding?.name || 'Marketplace'}</h2>
             <span className="text-[10px] text-white/40 block font-bold uppercase tracking-wider">
               Control Panel & Systems
             </span>
@@ -185,7 +185,7 @@ export function SetupPage() {
         </Card>
 
         <p className="text-center text-[10px] text-white/25 mt-6 font-medium">
-          {branding?.marketplaceName || 'Marketplace'} • Enterprise Admin System
+          {branding?.name || 'Marketplace'} • Enterprise Admin System
         </p>
       </motion.div>
     </div>

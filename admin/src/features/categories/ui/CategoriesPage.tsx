@@ -87,7 +87,7 @@ export function CategoriesPage() {
     <div className="space-y-6 animate-fade-up">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white/95">Marketplace Categories</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white/95">Product Categories</h1>
           <p className="text-xs text-white/45 mt-1">Manage global product categories for seller catalogs and customer browsing</p>
         </div>
         <Button size="sm" onClick={() => setShowForm(!showForm)}>
@@ -134,7 +134,7 @@ export function CategoriesPage() {
         <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl">
           <Grid className="mx-auto h-12 w-12 text-white/20 mb-4" />
           <h4 className="text-base font-bold text-white/60">No categories yet</h4>
-          <p className="text-sm text-white/30 mt-1">Create your first marketplace category to get started.</p>
+          <p className="text-sm text-white/30 mt-1">Create your first category to get started.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -202,7 +202,7 @@ export function CategoriesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md p-6 bg-[#0c0c12] border border-white/10 rounded-2xl shadow-xl">
             <h2 className="text-base font-bold text-white mb-1">Edit Category</h2>
-            <p className="text-[11px] text-white/40 mb-4">Update the details of this marketplace category</p>
+            <p className="text-[11px] text-white/40 mb-4">Update the details of this category</p>
             <form onSubmit={editForm.handleSubmit((v) => updateMutation.mutate({ id: editingCategory.id, payload: v }))} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Category Name</label>

@@ -345,7 +345,7 @@ export function ProductListPage() {
             setFormError(null);
           }}
           title="Add New Catalog Product"
-          description="Create a listing to display in the marketplace catalog"
+          description="Create a listing to display in the product catalog"
         >
           {formError && (
             <div className="flex items-center gap-2 p-3 rounded-xl border border-red-500/20 bg-red-500/10 text-xs text-red-400 mb-4">

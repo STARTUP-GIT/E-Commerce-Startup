@@ -9,9 +9,10 @@ import { Button } from '@/shared/components/Button';
 import { Badge } from '@/shared/components/Badge';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { ClipboardList, Calendar, IndianRupee, ArrowRight, Package, Download } from 'lucide-react';
-import Link from 'next/link';
+import { useBranding } from '@/lib/providers/BrandingProvider';
 
 export function OrderHistoryPage() {
+  const { branding } = useBranding();
   const { orders, isOrdersLoading, downloadInvoice, isDownloadingInvoice } = useOrder();
 
   return (
@@ -128,7 +129,7 @@ export function OrderHistoryPage() {
           <ClipboardList className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground opacity-50 mb-3 sm:mb-4" />
           <h4 className="text-sm sm:text-base font-bold text-foreground">No orders placed</h4>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 px-4">
-            You haven&apos;t placed any orders on the marketplace yet.
+            You haven&apos;t placed any orders on {branding.name} yet.
           </p>
           <Link href="/products" className="inline-block mt-4">
             <Button size="sm" className="cursor-pointer">Start Shopping</Button>

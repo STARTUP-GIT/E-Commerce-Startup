@@ -341,7 +341,7 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
       <div className="border-t border-border pt-8 sm:pt-12 space-y-6 sm:space-y-8">
         <div>
           <h3 className="text-xl sm:text-2xl font-bold tracking-tight">Customer Reviews</h3>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Read reviews left by other marketplace buyers.</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Read reviews left by other verified buyers.</p>
         </div>
 
         <div className="grid md:grid-cols-[280px_1fr] gap-6 sm:gap-8 lg:gap-12 items-start">

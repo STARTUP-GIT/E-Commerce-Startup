@@ -51,7 +51,7 @@ export function LoginPage() {
             {branding?.logo && branding.logo.trim() !== '' ? (
               <img
                 src={branding.logo}
-                alt={branding.marketplaceName || 'Marketplace'}
+                alt={branding.name || 'Marketplace'}
                 className="h-full w-full object-cover"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
@@ -61,7 +61,7 @@ export function LoginPage() {
               <Store className="h-6 w-6 text-purple-400" />
             )}
           </div>
-          <h1 className="text-2xl font-extrabold text-white text-gradient">{branding?.marketplaceName || 'Marketplace'}</h1>
+          <h1 className="text-2xl font-extrabold text-white text-gradient">{branding?.name || 'Marketplace'}</h1>
           <p className="text-xs text-white/40 mt-1 uppercase tracking-widest font-semibold">Seller Portal</p>
         </div>
 

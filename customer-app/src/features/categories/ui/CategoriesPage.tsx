@@ -5,9 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios/axiosInstance';
 import Link from 'next/link';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { Grid3X3, ArrowRight } from 'lucide-react';
+import { useBranding } from '@/lib/providers/BrandingProvider';
 
 export function CategoriesPage() {
+  const { branding } = useBranding();
   const { data, isLoading } = useQuery<any>({
     queryKey: ['allowed-categories'],
     queryFn: async () => (await axiosInstance.get('/api/categories/allowed')).data,
@@ -29,7 +30,7 @@ export function CategoriesPage() {
             <span className="block sm:inline bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent"> Categories</span>
           </h1>
           <p className="text-sm sm:text-base text-white/40 mt-4 sm:mt-6 max-w-xl mx-auto leading-relaxed">
-            Discover products across every category. All managed by our marketplace team.
+            Discover products across every category. All verified and listed on {branding.name}.
           </p>
         </div>
 

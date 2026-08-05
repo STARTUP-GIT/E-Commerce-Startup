@@ -28,7 +28,7 @@ import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
 
 export function SellerInvoice({ order, className = '' }: SellerInvoiceProps) {
   const { branding } = usePlatformLayout();
-  const mktName = branding?.marketplaceName || 'Marketplace';
+  const mktName = branding?.name || branding?.marketplaceName || 'Marketplace';
   const domain = `${mktName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
   const supportEmail = `support@${domain}`;
 

@@ -1,7 +1,10 @@
 export interface BrandingConfig {
+  name: string;
   marketplaceName: string;
   logo: string;
   favicon: string;
+  tagline?: string;
+  shortName?: string;
 }
 
 export interface FeatureFlag {

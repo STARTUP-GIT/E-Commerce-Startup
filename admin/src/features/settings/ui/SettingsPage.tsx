@@ -51,7 +51,7 @@ export function SettingsPage() {
     <div className="space-y-6 animate-fade-up">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-white/95">Platform Settings</h1>
-        <p className="text-xs text-white/45 mt-1">Configure global marketplace rules and rates</p>
+        <p className="text-xs text-white/45 mt-1">Configure global platform rules and rates</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">

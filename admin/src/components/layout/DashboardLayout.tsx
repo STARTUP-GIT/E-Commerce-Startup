@@ -116,13 +116,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div className="h-16 flex items-center px-6 border-b border-white/5 gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white overflow-hidden shrink-0">
               {branding?.logo && branding.logo !== '/images/logo.png' ? (
-                <img src={branding.logo} alt={branding.marketplaceName} className="h-full w-full object-cover" />
+                <img src={branding.logo} alt={branding.name} className="h-full w-full object-cover" />
               ) : (
                 <ShieldAlert className="h-4 w-4 text-black" />
               )}
             </div>
             <div>
-              <span className="font-black text-white text-xs tracking-tight block uppercase">{branding?.marketplaceName || 'Marketplace'}</span>
+              <span className="font-black text-white text-xs tracking-tight block uppercase">{branding?.name || 'Marketplace'}</span>
               <span className="text-[8px] text-white/45 block font-bold -mt-1 uppercase tracking-wider">Enterprise Admin</span>
             </div>
           </div>
@@ -187,7 +187,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <Menu className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-1.5 text-xs text-white/40 font-semibold">
-              <span>{branding?.marketplaceName || 'Marketplace'}</span>
+              <span>{branding?.name || 'Marketplace'}</span>
               <ChevronRight className="h-3 w-3" />
               <span className="text-white/80 capitalize">
                 {activePageName()}

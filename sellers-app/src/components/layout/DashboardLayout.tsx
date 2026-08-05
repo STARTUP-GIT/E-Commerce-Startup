@@ -121,7 +121,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               {branding?.logo && branding.logo.trim() !== '' ? (
                 <img
                   src={branding.logo}
-                  alt={branding.marketplaceName || 'Marketplace'}
+                  alt={branding.name || 'Marketplace'}
                   className="h-full w-full object-cover"
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = 'none';
@@ -133,7 +133,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div>
               <span className="font-black text-white text-xs tracking-tight block">
-                {branding?.marketplaceName || 'Marketplace'}
+                {branding?.name || 'Marketplace'}
               </span>
               <span className="text-[8px] text-white/40 block font-bold -mt-1 uppercase tracking-wider">Seller Portal</span>
             </div>
@@ -232,7 +232,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <Menu className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-1.5 text-xs text-white/40 font-semibold">
-              <span>{branding?.marketplaceName || 'Marketplace'}</span>
+              <span>{branding?.name || 'Marketplace'}</span>
               <ChevronRight className="h-3 w-3" />
               <span className="text-white/80 capitalize">
                 {location.pathname.replace('/', '').replace('-', ' ') || 'Dashboard'}

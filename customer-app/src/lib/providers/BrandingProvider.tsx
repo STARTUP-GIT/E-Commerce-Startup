@@ -9,6 +9,8 @@ export interface BrandingData {
   marketplaceName: string;
   logo: string;
   favicon: string;
+  tagline?: string;
+  shortName?: string;
   logoUrl?: string;
   faviconUrl?: string;
   updatedAt?: string;
@@ -19,6 +21,8 @@ const DEFAULT_BRANDING: BrandingData = {
   marketplaceName: 'Marketplace',
   logo: '/images/logo.png',
   favicon: '/favicon.ico',
+  tagline: 'Your local marketplace for everything',
+  shortName: 'Marketplace',
   logoUrl: '/images/logo.png',
   faviconUrl: '/favicon.ico',
 };
@@ -44,6 +48,8 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
           marketplaceName: nameVal,
           logo: d.logo || d.logoUrl || '/images/logo.png',
           favicon: d.favicon || d.faviconUrl || '/favicon.ico',
+          tagline: d.tagline || 'Your local marketplace for everything',
+          shortName: d.shortName || nameVal,
           logoUrl: d.logo || d.logoUrl || '/images/logo.png',
           faviconUrl: d.favicon || d.faviconUrl || '/favicon.ico',
           updatedAt: d.updatedAt,
@@ -51,12 +57,14 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
       } catch {
         const fallback = await axiosInstance.get('/platform/branding');
         const d = fallback.data;
-        const nameVal = d.marketplaceName || 'Marketplace';
+        const nameVal = d.name || d.marketplaceName || 'Marketplace';
         return {
           name: nameVal,
           marketplaceName: nameVal,
           logo: d.logo || d.logoUrl || '/images/logo.png',
           favicon: d.favicon || d.faviconUrl || '/favicon.ico',
+          tagline: d.tagline || 'Your local marketplace for everything',
+          shortName: d.shortName || nameVal,
           logoUrl: d.logo || d.logoUrl || '/images/logo.png',
           faviconUrl: d.favicon || d.faviconUrl || '/favicon.ico',
           updatedAt: d.updatedAt,

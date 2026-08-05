@@ -43,7 +43,7 @@ export function PayoutsPage() {
         {/* Title */}
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight text-white/95">Settlements & Payouts</h1>
-          <p className="text-xs text-white/45">Monitor your lifetime marketplace earnings, check pending settlements, and review payout logs.</p>
+          <p className="text-xs text-white/45">Monitor your store earnings, check pending settlements, and review payout logs.</p>
         </div>
 
         {/* Cards summary */}

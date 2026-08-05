@@ -109,10 +109,16 @@ export const getPublicBranding = async (_req: Request, res: Response): Promise<v
     const branding = await getPlatformBranding();
     const logoVal = branding.logo || branding.logoUrl || "/images/logo.png";
     const faviconVal = branding.favicon || branding.faviconUrl || "/favicon.ico";
+    const nameVal = branding.name || branding.marketplaceName || "Marketplace";
     res.status(200).json({
-      name: branding.marketplaceName || "Marketplace",
+      name: nameVal,
+      marketplaceName: nameVal,
       logo: logoVal,
       favicon: faviconVal,
+      tagline: branding.tagline || "Your local marketplace for everything",
+      shortName: branding.shortName || nameVal,
+      logoUrl: logoVal,
+      faviconUrl: faviconVal,
       updatedAt: branding.updatedAt || new Date().toISOString(),
     });
   } catch (error: any) {

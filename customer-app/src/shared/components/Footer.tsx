@@ -48,7 +48,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
-              Discover local craft creators, purchase unique handmade items, and order custom-made 3D prints directly from makers in your area.
+              {branding.tagline || `Discover local craft creators, purchase unique handmade items, and order custom-made 3D prints directly from makers on ${branding.name}.`}
             </p>
             <div className="flex items-center gap-3 pt-2">
               {/* Twitter SVG */}
