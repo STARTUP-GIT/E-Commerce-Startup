@@ -62,10 +62,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const brandName = branding?.name || branding?.marketplaceName || 'Marketplace';
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined' && brandName) {
-      document.title = brandName;
+    if (typeof window !== 'undefined') {
+      const targetTitle = branding?.browserTitle || brandName;
+      if (targetTitle) {
+        document.title = targetTitle;
+      }
     }
-  }, [brandName]);
+  }, [brandName, branding?.browserTitle]);
 
   const handleLogout = () => {
     showConfirm({

@@ -20,7 +20,7 @@ const BACKEND_URL = process.env.BACKEND_API_URL?.replace(/\/$/, "");
 const FALLBACK_METADATA: Metadata = {
   title: {
     default: "Marketplace",
-    template: "%s",
+    template: "%s | Marketplace",
   },
   description: "Discover local artisans, handcrafted items, and custom products.",
 };
@@ -39,13 +39,14 @@ export async function generateMetadata(): Promise<Metadata> {
     const seoDescription = typeof b?.seoDescription === "string" && b.seoDescription.trim() !== ""
       ? b.seoDescription.trim()
       : "Discover local artisans, handcrafted items, and custom products.";
+    const brandName = typeof b?.name === "string" && b.name.trim() !== "" ? b.name.trim() : "Marketplace";
     const browserTitle = typeof b?.browserTitle === "string" && b.browserTitle.trim() !== ""
       ? b.browserTitle.trim()
-      : seoTitle;
+      : brandName;
     return {
       title: {
         default: browserTitle || seoTitle,
-        template: "%s",
+        template: `%s | ${browserTitle || seoTitle}`,
       },
       description: seoDescription,
     };
