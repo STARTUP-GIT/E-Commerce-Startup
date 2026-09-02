@@ -10,6 +10,7 @@ import { Input } from '@/shared/components/Input';
 import { Button } from '@/shared/components/Button';
 import { ShieldCheck, Mail, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 import { usePlatformBranding } from '@/lib/hooks/usePlatformBranding';
 
@@ -109,6 +110,12 @@ export function LoginPage() {
                     {loginForm.formState.errors.password.message}
                   </p>
                 )}
+              </div>
+
+              <div className="flex justify-end">
+                <Link href="/forgot-password" className="text-[10px] text-white/40 hover:text-white/70 transition-colors font-medium">
+                  Forgot password?
+                </Link>
               </div>
 
               <Button

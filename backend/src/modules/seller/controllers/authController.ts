@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { prisma } from '../../../config/prisma.js'
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { importJWK, jwtVerify } from 'jose';
 import { signAccessToken } from '../../../config/token.js'
 import { setAuthCookie, clearAuthCookie, sellersessionCookie } from '../../../config/sessionCookies.js'
 import { AuthProvider } from "@prisma/client";
@@ -9,6 +10,35 @@ import { OAuth2Client } from "google-auth-library";
 import EmailService from '../../../services/email/email.service.js';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+let cachedSupabaseJwks: { keys: any[]; fetchedAt: number } | null = null;
+const JWKS_CACHE_TTL = 3600000; // 1 hour
+
+async function verifySupabaseJwt(token: string): Promise<any> {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+    if (!supabaseUrl) throw new Error('Supabase URL not configured');
+
+    const jwksUrl = `${supabaseUrl.replace(/\/$/, '')}/.well-known/jwks.json`;
+
+    if (!cachedSupabaseJwks || Date.now() - cachedSupabaseJwks.fetchedAt > JWKS_CACHE_TTL) {
+        const res = await fetch(jwksUrl);
+        if (!res.ok) throw new Error(`Failed to fetch Supabase JWKS: ${res.status}`);
+        const data = await res.json() as { keys: any[] };
+        cachedSupabaseJwks = { keys: data.keys, fetchedAt: Date.now() };
+    }
+
+    const { payload } = await jwtVerify(
+        token,
+        async (header) => {
+            const key = cachedSupabaseJwks!.keys.find((k) => k.kid === header.kid);
+            if (!key) throw new Error(`No matching JWKS key for kid: ${header.kid}`);
+            return importJWK(key, key.alg);
+        },
+        { issuer: supabaseUrl.replace(/\/$/, '') + '/auth/v1' }
+    );
+
+    return payload;
+}
 
 
 
@@ -208,36 +238,51 @@ export const googleOAuth = async (req: Request, res: Response) => {
         } = req.body;
 
         if (idToken) {
-            const audience = process.env.GOOGLE_CLIENT_ID;
-            if (!audience) {
-                return res.status(500).json({
-                    message: "Google client ID is not configured"
-                });
+            // Path 1: Raw Google id_token from NextAuth or direct Google OAuth
+            try {
+                const audience = process.env.GOOGLE_CLIENT_ID;
+                if (!audience) {
+                    return res.status(500).json({ message: "Google client ID is not configured" });
+                }
+                const ticket = await googleClient.verifyIdToken({ idToken, audience });
+                const payload = ticket.getPayload();
+                if (!payload || !payload.email) {
+                    return res.status(401).json({ message: "Invalid Google token" });
+                }
+                email = payload.email;
+                googleId = payload.sub;
+                firstName = payload.given_name ?? "";
+                lastName = payload.family_name ?? "";
+                avatarUrl = payload.picture ?? "";
+            } catch {
+                // idToken verification failed — fall through to try Supabase JWT
             }
+        }
 
-            const ticket = await googleClient.verifyIdToken({
-                idToken,
-                audience
-            });
-
-            const payload = ticket.getPayload();
-
-            if (!payload || !payload.email) {
-                return res.status(401).json({
-                    message: "Invalid Google token"
-                });
+        if (!email && accessToken) {
+            // Path 2: Supabase access token (or Google id_token that failed verification above)
+            try {
+                const payload = await verifySupabaseJwt(accessToken);
+                email = (payload.email as string) || undefined;
+                googleId = (payload.sub as string) || payload.provider_id as string || undefined;
+                firstName = (payload.given_name as string) || (payload.user_metadata as any)?.given_name || "";
+                lastName = (payload.family_name as string) || (payload.user_metadata as any)?.family_name || "";
+                avatarUrl = (payload.picture as string) || (payload.user_metadata as any)?.avatar_url || "";
+                if (!firstName && (payload.full_name as string)) {
+                    const parts = (payload.full_name as string).trim().split(/\s+/);
+                    firstName = parts[0] || "";
+                    lastName = parts.slice(1).join(" ") || "";
+                }
+            } catch (supabaseErr: any) {
+                console.warn('[GOOGLE_AUTH] Supabase JWT verification failed:', supabaseErr?.message);
             }
+        }
 
-            email = payload.email;
-            googleId = payload.sub;
-            firstName = payload.given_name ?? "";
-            lastName = payload.family_name ?? "";
-            avatarUrl = payload.picture ?? "";
-        } else if (
-            bodyEmail &&
+        if (!email && bodyEmail &&
             process.env.NODE_ENV !== "production" &&
             process.env.ALLOW_UNVERIFIED_GOOGLE === "true"
         ) {
+            // Path 3: Dev bypass only
             email = bodyEmail;
             googleId = providerId || bodyGoogleId || `google_${bodyEmail}`;
             firstName = bodyFirstName || "";
@@ -248,9 +293,11 @@ export const googleOAuth = async (req: Request, res: Response) => {
                 firstName = firstName || nameParts[0] || "";
                 lastName = lastName || nameParts.slice(1).join(" ") || "";
             }
-        } else {
-            return res.status(400).json({
-                message: "A valid Google ID token is required"
+        }
+
+        if (!email) {
+            return res.status(401).json({
+                message: "Unable to verify Google authentication. Please try again."
             });
         }
 
@@ -305,6 +352,7 @@ export const googleOAuth = async (req: Request, res: Response) => {
 
             return res.status(200).json({
                 message: "Google login successful",
+                token,
                 user: {
                     id: seller.id,
                     email: seller.email,
@@ -375,6 +423,7 @@ export const googleOAuth = async (req: Request, res: Response) => {
 
         return res.status(201).json({
             message: "Google account created successfully",
+            token,
             user: {
                 id: seller.id,
                 email: seller.email,

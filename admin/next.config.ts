@@ -28,6 +28,18 @@ const nextConfig: NextConfig = {
         destination: "/api/admin/auth/login",
       },
       {
+        source: "/api/admin/auth/forgot-password",
+        destination: `${adminBackendUrl.replace(/\/$/, "")}/api/admin/auth/forgot-password`,
+      },
+      {
+        source: "/api/admin/auth/verify-otp",
+        destination: `${adminBackendUrl.replace(/\/$/, "")}/api/admin/auth/verify-otp`,
+      },
+      {
+        source: "/api/admin/auth/reset-password",
+        destination: `${adminBackendUrl.replace(/\/$/, "")}/api/admin/auth/reset-password`,
+      },
+      {
         source: "/api/admin/:path*",
         destination: `${adminBackendUrl.replace(/\/$/, "")}/api/admin/:path*`,
       },

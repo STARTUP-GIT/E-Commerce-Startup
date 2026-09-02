@@ -66,12 +66,25 @@ export function useAuth() {
   const logoutMutation = useMutation({
     mutationFn: async () => {
       localStorage.removeItem('seller_token');
-      await supabase.auth.signOut();
-      return authApi.logout();
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {
+        // Supabase session may already be expired or missing
+      }
+      try {
+        await authApi.logout();
+      } catch {
+        // Backend session may already be cleared
+      }
     },
     onSuccess: () => {
       localStorage.removeItem('seller_token');
-      // Clear all queries
+      queryClient.setQueryData(['profile'], null);
+      queryClient.clear();
+      navigate('/login');
+    },
+    onError: () => {
+      localStorage.removeItem('seller_token');
       queryClient.setQueryData(['profile'], null);
       queryClient.clear();
       navigate('/login');

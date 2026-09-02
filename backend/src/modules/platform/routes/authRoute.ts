@@ -13,6 +13,9 @@ import {
   updateUserStatus,
   updateUserRole,
   resetUserPassword,
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
   listRoles,
   createRole,
   updateRole,
@@ -22,7 +25,7 @@ import {
   deletePermission,
 } from "../controllers/authController.js";
 import { platformAuth, requirePermission, requireOwner } from "../middleware/platformAuth.js";
-import { loginLimiter, registerLimiter, passwordLimiter, adminLimiter } from "../../../middleware/rateLimiter.js";
+import { loginLimiter, registerLimiter, passwordLimiter, otpLimiter, adminLimiter } from "../../../middleware/rateLimiter.js";
 import { PERMISSIONS } from "../utils/constants.js";
 
 const router = Router();
@@ -32,6 +35,9 @@ router.get("/setup/status", getSetupStatus);
 router.post("/setup", registerLimiter, setupFirstUser);
 router.post("/login", loginLimiter, login);
 router.post("/refresh", passwordLimiter, refresh);
+router.post("/forgot-password", passwordLimiter, forgotPassword);
+router.post("/verify-otp", otpLimiter, verifyOtp);
+router.post("/reset-password", passwordLimiter, resetPassword);
 router.post("/logout", platformAuth, logout);
 
 // ─── Profile ─────────────────────────────────────────────────────────────────

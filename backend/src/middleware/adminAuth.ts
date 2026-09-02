@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/prisma.js";
 import jwt from "jsonwebtoken";
+import { getJwtSecret, verifyAccessToken } from "../config/token.js";
 
 interface JwtPayload {
     id: string;
@@ -29,10 +30,16 @@ export const adminAuth = async (req: Request, res: Response, next: NextFunction)
             });
         }
 
-        const decoded = jwt.verify(
-            token,
-            process.env.JWT_SECRET_KEY!
-        ) as JwtPayload;
+        let decoded: JwtPayload;
+        try {
+            decoded = verifyAccessToken(token) as JwtPayload;
+        } catch {
+            try {
+                decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
+            } catch {
+                return res.status(401).json({ message: "Invalid token" });
+            }
+        }
 
         const admin = await prisma.admin.findUnique({
             where: { id: decoded.id }

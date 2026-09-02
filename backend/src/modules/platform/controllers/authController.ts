@@ -10,6 +10,7 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../../
 import { setAuthCookie, clearAuthCookie, setRefreshCookie, clearRefreshCookie } from "../../../config/sessionCookies.js";
 import { getOwnerRole, seedPlatformRolesAndPermissions } from "../utils/platformRoles.js";
 import { auditRequest } from "../utils/auditLogger.js";
+import EmailService from "../../../services/email/email.service.js";
 import type { PlatformUserStatus, PlatformRoleType } from "@prisma/client";
 
 const safeUser = (user: any) => ({
@@ -696,5 +697,203 @@ export const deletePermission = async (req: Request, res: Response) => {
     return res.status(200).json({ message: "Permission deleted successfully" });
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Internal Server Error" });
+  }
+};
+
+// ─── Forgot Password (self-service) ───────────────────────────────────────────
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await prisma.platformUser.findUnique({ where: { email: email.toLowerCase() } });
+
+    if (!user || user.status === "DISABLED") {
+      return res.status(200).json({
+        message: "If an account exists for this email, a password reset link has been sent.",
+      });
+    }
+
+    if (!user.passwordHash) {
+      return res.status(200).json({
+        message: "If an account exists for this email, a password reset link has been sent.",
+      });
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const codeHash = await bcrypt.hash(code, 10);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await prisma.otp.create({
+      data: {
+        entityType: "ADMIN",
+        entityId: user.id,
+        email: user.email,
+        codeHash,
+        purpose: "PASSWORD_RESET",
+        expiresAt,
+      }
+    });
+
+    const platformFrontendUrl = (process.env.PLATFORM_FRONTEND_URL || "http://localhost:8004").replace(/\/$/, "");
+    const resetLink = `${platformFrontendUrl}/forgot-password?otp=${code}&email=${encodeURIComponent(user.email)}`;
+
+    await EmailService.sendForgotPassword(user.email, code, {
+      firstName: user.firstName,
+      resetUrl: resetLink,
+    });
+
+    return res.status(200).json({
+      message: "If an account exists for this email, a password reset link has been sent.",
+    });
+  } catch (error: any) {
+    console.error("PLATFORM FORGOT PASSWORD ERROR:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+// ─── Verify OTP ───────────────────────────────────────────────────────────────
+
+export const verifyOtp = async (req: Request, res: Response) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP are required" });
+    }
+
+    const user = await prisma.platformUser.findUnique({ where: { email: email.toLowerCase() } });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    const otpRecord = await prisma.otp.findFirst({
+      where: {
+        email: user.email,
+        purpose: "PASSWORD_RESET",
+        expiresAt: { gt: new Date() },
+        usedAt: null,
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({ message: "OTP expired or not found. Please request a new one." });
+    }
+
+    if (otpRecord.attempts >= otpRecord.maxAttempts) {
+      return res.status(400).json({ message: "Max attempts exceeded. Please request a new OTP." });
+    }
+
+    const isMatch = await bcrypt.compare(otp, otpRecord.codeHash);
+    if (!isMatch) {
+      await prisma.otp.update({
+        where: { id: otpRecord.id },
+        data: { attempts: { increment: 1 } }
+      });
+      return res.status(400).json({ message: "Invalid OTP code. Please try again." });
+    }
+
+    await prisma.otp.update({
+      where: { id: otpRecord.id },
+      data: { usedAt: new Date() }
+    });
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetHash = await bcrypt.hash(resetToken, 10);
+
+    await prisma.otp.create({
+      data: {
+        entityType: "ADMIN",
+        entityId: user.id,
+        email: user.email,
+        codeHash: resetHash,
+        purpose: "PASSWORD_RESET",
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      }
+    });
+
+    return res.status(200).json({ message: "OTP verified successfully.", resetToken });
+  } catch (error: any) {
+    console.error("PLATFORM VERIFY OTP ERROR:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+// ─── Reset Password ───────────────────────────────────────────────────────────
+
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+
+    if (!resetToken || !newPassword) {
+      return res.status(400).json({ message: "Token and new password are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const resetRecords = await prisma.otp.findMany({
+      where: {
+        purpose: "PASSWORD_RESET",
+        expiresAt: { gt: new Date() },
+        usedAt: null,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    });
+
+    let matchedRecord = null;
+    for (const record of resetRecords) {
+      const isMatch = await bcrypt.compare(resetToken, record.codeHash);
+      if (isMatch) {
+        matchedRecord = record;
+        break;
+      }
+    }
+
+    if (!matchedRecord) {
+      return res.status(400).json({ message: "Invalid or expired password reset token." });
+    }
+
+    await prisma.otp.update({
+      where: { id: matchedRecord.id },
+      data: { usedAt: new Date() }
+    });
+
+    const user = await prisma.platformUser.findUnique({ where: { id: matchedRecord.entityId } });
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+
+    await prisma.platformUser.update({
+      where: { id: user.id },
+      data: { passwordHash }
+    });
+
+    await auditRequest(req, {
+      userId: user.id,
+      email: user.email,
+      action: "PASSWORD_RESET",
+      module: "auth",
+      targetType: "PlatformUser",
+      targetId: user.id,
+      description: "User reset their password via OTP flow",
+    });
+
+    return res.status(200).json({
+      message: "Password updated successfully. Please log in with your new password."
+    });
+  } catch (error: any) {
+    console.error("PLATFORM RESET PASSWORD ERROR:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };

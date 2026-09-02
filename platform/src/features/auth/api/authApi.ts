@@ -172,4 +172,19 @@ export const authApi = {
     const response = await axiosInstance.delete(`/api/platform/auth/permissions/${id}`);
     return response.data;
   },
+
+  forgotPassword: async (email: string): Promise<{ message: string }> => {
+    const response = await axiosInstance.post('/api/platform/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  verifyOtp: async (payload: { email: string; otp: string }): Promise<{ message: string; resetToken: string }> => {
+    const response = await axiosInstance.post('/api/platform/auth/verify-otp', payload);
+    return response.data;
+  },
+
+  resetPassword: async (payload: { resetToken: string; newPassword: string }): Promise<{ message: string }> => {
+    const response = await axiosInstance.post('/api/platform/auth/reset-password', payload);
+    return response.data;
+  },
 };

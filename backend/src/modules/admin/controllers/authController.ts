@@ -2,9 +2,11 @@ import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../../config/token.js";
 import { setAuthCookie, clearAuthCookie, setRefreshCookie, clearRefreshCookie } from "../../../config/sessionCookies.js";
 import { OAuth2Client } from "google-auth-library";
+import EmailService from "../../../services/email/email.service.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -684,5 +686,174 @@ export const resetAdminPassword = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error("RESET ADMIN PASSWORD ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+// ─── Forgot Password (self-service) ───────────────────────────────────────────
+
+export const forgotPassword = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+
+        const admin = await prisma.admin.findUnique({ where: { email: email.toLowerCase() } });
+
+        // Always return success to prevent account enumeration
+        if (!admin || !admin.isActive) {
+            return res.status(200).json({
+                message: "If an account exists for this email, a password reset link has been sent.",
+            });
+        }
+
+        // If admin has no passwordHash (Google-only account), they can't reset via password
+        if (!admin.passwordHash) {
+            return res.status(200).json({
+                message: "If an account exists for this email, a password reset link has been sent.",
+            });
+        }
+
+        // Generate 6-digit numeric OTP
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const codeHash = await bcrypt.hash(code, 10);
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+        await prisma.otp.create({
+            data: {
+                entityType: "ADMIN",
+                entityId: admin.id,
+                email: admin.email,
+                codeHash,
+                purpose: "PASSWORD_RESET",
+                expiresAt,
+            }
+        });
+
+        const adminFrontendUrl = (process.env.ADMIN_FRONTEND_URL || "http://localhost:8001").replace(/\/$/, "");
+        const resetLink = `${adminFrontendUrl}/forgot-password?otp=${code}&email=${encodeURIComponent(admin.email)}`;
+
+        await EmailService.sendForgotPassword(admin.email, code, {
+            firstName: admin.firstName,
+            resetUrl: resetLink,
+        });
+
+        return res.status(200).json({
+            message: "If an account exists for this email, a password reset link has been sent.",
+        });
+    } catch (error: any) {
+        console.error("ADMIN FORGOT PASSWORD ERROR:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+// ─── Verify OTP ───────────────────────────────────────────────────────────────
+
+export const verifyOtp = async (req: Request, res: Response) => {
+    try {
+        const { email, otp } = req.body;
+
+        if (!email || !otp) {
+            return res.status(400).json({ message: "Email and OTP are required" });
+        }
+
+        const admin = await prisma.admin.findUnique({ where: { email: email.toLowerCase() } });
+        if (!admin) {
+            return res.status(400).json({ message: "Invalid or expired OTP" });
+        }
+
+        const otpRecord = await prisma.otp.findFirst({
+            where: {
+                email: admin.email,
+                purpose: "PASSWORD_RESET",
+                expiresAt: { gt: new Date() },
+                usedAt: null,
+            },
+            orderBy: { createdAt: "desc" }
+        });
+
+        if (!otpRecord) {
+            return res.status(400).json({ message: "OTP expired or not found. Please request a new one." });
+        }
+
+        if (otpRecord.attempts >= otpRecord.maxAttempts) {
+            return res.status(400).json({ message: "Max attempts exceeded. Please request a new OTP." });
+        }
+
+        const isMatch = await bcrypt.compare(otp, otpRecord.codeHash);
+        if (!isMatch) {
+            await prisma.otp.update({
+                where: { id: otpRecord.id },
+                data: { attempts: { increment: 1 } }
+            });
+            return res.status(400).json({ message: "Invalid OTP code. Please try again." });
+        }
+
+        await prisma.otp.update({
+            where: { id: otpRecord.id },
+            data: { usedAt: new Date() }
+        });
+
+        const resetToken = jwt.sign(
+            { adminId: admin.id, purpose: "reset-password" },
+            process.env.JWT_SECRET_KEY!,
+            { expiresIn: "10m" }
+        );
+
+        return res.status(200).json({ message: "OTP verified successfully.", resetToken });
+    } catch (error: any) {
+        console.error("ADMIN VERIFY OTP ERROR:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+// ─── Reset Password (with reset token) ────────────────────────────────────────
+
+export const resetPassword = async (req: Request, res: Response) => {
+    try {
+        const { resetToken, newPassword } = req.body;
+
+        if (!resetToken || !newPassword) {
+            return res.status(400).json({ message: "Token and new password are required" });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: "Password must be at least 6 characters" });
+        }
+
+        let decoded: any;
+        try {
+            decoded = jwt.verify(resetToken, process.env.JWT_SECRET_KEY!);
+        } catch {
+            return res.status(400).json({ message: "Invalid or expired password reset token." });
+        }
+
+        if (!decoded || decoded.purpose !== "reset-password" || !decoded.adminId) {
+            return res.status(400).json({ message: "Invalid reset token payload." });
+        }
+
+        const admin = await prisma.admin.findUnique({ where: { id: decoded.adminId } });
+        if (!admin) {
+            return res.status(404).json({ message: "Admin not found." });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(newPassword, salt);
+
+        const newAuthProvider =
+            admin.authProvider === "GOOGLE" ? "EMAIL_AND_GOOGLE" : admin.authProvider;
+
+        await prisma.admin.update({
+            where: { id: admin.id },
+            data: { passwordHash, authProvider: newAuthProvider }
+        });
+
+        return res.status(200).json({
+            message: "Password updated successfully. Please log in with your new password."
+        });
+    } catch (error: any) {
+        console.error("ADMIN RESET PASSWORD ERROR:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
     }
 };

@@ -97,6 +97,7 @@ function App() {
 
             const syncRes = await axiosInstance.post('/seller/api/auth/google', {
               accessToken: session.access_token,
+              idToken: (session as any).id_token || undefined,
               provider: 'google',
               providerId: session.user.id,
               email: session.user.email,
@@ -105,6 +106,10 @@ function App() {
               lastName,
               avatarUrl: userMetadata.avatar_url || userMetadata.picture || '',
             });
+
+            if (syncRes.data?.token) {
+              localStorage.setItem('seller_token', syncRes.data.token);
+            }
 
             queryClient.setQueryData(['profile'], syncRes.data.user);
             queryClient.invalidateQueries({ queryKey: ['profile'] });
@@ -139,8 +144,8 @@ function App() {
       } else if (event === 'SIGNED_OUT') {
         try {
           await axiosInstance.post('/seller/api/auth/logout');
-        } catch (err) {
-          console.error('Backend signout error:', err);
+        } catch {
+          // Backend session may already be cleared or expired
         }
         queryClient.setQueryData(['profile'], null);
         queryClient.clear();

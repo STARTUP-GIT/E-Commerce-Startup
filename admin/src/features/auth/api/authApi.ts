@@ -93,4 +93,19 @@ export const authApi = {
     const response = await axiosInstance.post(`/api/admin/${id}/reset-password`, { password });
     return response.data;
   },
+
+  forgotPassword: async (email: string): Promise<{ message: string }> => {
+    const response = await axiosInstance.post('/api/admin/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  verifyOtp: async (payload: { email: string; otp: string }): Promise<{ message: string; resetToken: string }> => {
+    const response = await axiosInstance.post('/api/admin/auth/verify-otp', payload);
+    return response.data;
+  },
+
+  resetPassword: async (payload: { resetToken: string; newPassword: string }): Promise<{ message: string }> => {
+    const response = await axiosInstance.post('/api/admin/auth/reset-password', payload);
+    return response.data;
+  },
 };
