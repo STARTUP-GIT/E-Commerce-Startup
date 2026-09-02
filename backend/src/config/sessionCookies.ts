@@ -11,6 +11,7 @@ const cookieOptions = (isProduction: boolean) => ({
   httpOnly: true,
   secure: isProduction,
   sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+  ...(isProduction ? { partitioned: true } : {}),
 } as const);
 
 const maxAges: Record<CookieName, number> = {
@@ -43,6 +44,7 @@ export const setRefreshCookie = (res: Response, token: string) => {
     httpOnly: true,
     secure: isProduction,
     sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+    ...(isProduction ? { partitioned: true } : {}),
     maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
     path: '/',
   });
@@ -54,6 +56,7 @@ export const clearRefreshCookie = (res: Response) => {
     httpOnly: true,
     secure: isProduction,
     sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+    ...(isProduction ? { partitioned: true } : {}),
     path: '/',
   });
 };
