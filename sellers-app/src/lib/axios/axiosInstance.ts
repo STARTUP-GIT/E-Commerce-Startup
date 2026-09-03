@@ -33,16 +33,24 @@ axiosInstance.interceptors.request.use(
     // seller_token issued by /seller/api/auth/login|register.
     if (typeof window !== 'undefined') {
       let bearerToken: string | null = null;
+      let tokenSource: 'supabase' | 'seller_token' | 'none' = 'none';
 
       try {
         const { data } = await supabase.auth.getSession();
-        bearerToken = data.session?.access_token ?? null;
+        if (data.session?.access_token) {
+          bearerToken = data.session.access_token;
+          tokenSource = 'supabase';
+        }
       } catch {
         bearerToken = null;
       }
 
       if (!bearerToken) {
-        bearerToken = localStorage.getItem('seller_token');
+        const stored = localStorage.getItem('seller_token');
+        if (stored) {
+          bearerToken = stored;
+          tokenSource = 'seller_token';
+        }
       }
 
       if (bearerToken) {
@@ -51,6 +59,13 @@ axiosInstance.interceptors.request.use(
         // CDN strips the Authorization header.
         config.headers['x-seller-token'] = bearerToken;
       }
+
+      // Safe diagnostic — booleans only, never the token value.
+      console.log('[auth:request]', JSON.stringify({
+        url: `${config.baseURL ?? ''}${config.url ?? ''}`,
+        tokenSource,
+        hasAuthorization: !!bearerToken,
+      }));
     }
 
     return config;

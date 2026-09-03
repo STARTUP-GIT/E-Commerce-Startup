@@ -5,7 +5,6 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useShop } from '@/features/shop/hooks/useShop';
 import { supabase } from '@/lib/supabase';
 import axiosInstance from '@/lib/axios/axiosInstance';
-import { useConfirmStore } from '@/lib/store/confirmStore';
 import { useAuthBootstrapStore } from '@/lib/store/authBootstrapStore';
 import { GuestRoute, ProtectedRoute } from '@/router/guards';
 import { ToastContainer } from '@/shared/components/ToastContainer';
@@ -135,21 +134,16 @@ function App() {
           }
           setBootstrapped(true);
         } catch (err: any) {
-          console.error('Session synchronization error:', err);
-          await supabase.auth.signOut();
-          queryClient.setQueryData(['profile'], null);
-          queryClient.clear();
-          setBootstrapped(true);
-
-          useConfirmStore.getState().showAlert({
-            title: 'Portal Restriction',
-            message: err?.message || 'Verification failed. Please try another account.',
-            confirmText: 'Acknowledge',
+          // Sync failure must NOT destroy the Supabase session. The profile GET
+          // authenticates with the Supabase access_token (primary source), so
+          // wiping the session here is what caused production requests to reach
+          // the backend with no Authorization header. Keep the session so the
+          // interceptor can still attach the Supabase access_token, and complete
+          // bootstrap so the profile query proceeds.
+          console.error('[auth:bootstrap] Google sync failed (keeping Supabase session)', {
+            message: err?.message ?? 'unknown',
           });
-
-          if (window.location.pathname === '/auth/callback') {
-            window.location.href = '/login';
-          }
+          setBootstrapped(true);
         }
       } else if (event === 'SIGNED_OUT') {
         try {
