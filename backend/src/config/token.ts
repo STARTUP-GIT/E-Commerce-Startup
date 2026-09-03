@@ -1,7 +1,14 @@
 import jwt from 'jsonwebtoken';
 
-export const getJwtSecret = () =>
-  process.env.JWT_SECRET_KEY || process.env.JWT_SECRET || 'fallback_jwt_secret_key_change_in_prod';
+export const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET_KEY || process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error(
+      'Missing JWT secret. Set JWT_SECRET_KEY (production) or JWT_SECRET (development) before starting the server.'
+    );
+  }
+  return secret;
+};
 
 export const signAccessToken = (userId: string, expiresIn = '7d') => {
   return jwt.sign({ id: userId }, getJwtSecret(), { expiresIn: expiresIn as any });
