@@ -9,34 +9,23 @@ function useAuthReady() {
   const [ready, setReady] = useState(false);
   const bootstrapped = useAuthBootstrapStore((s) => s.bootstrapped);
 
-  // Wait until the Supabase session has been restored (which triggers the
-  // Google sync in App.tsx that stores the seller_token). We must not fire the
-  // profile GET before that, otherwise it 401s with no token and, for Google
-  // users, would wipe the session before the sync completes.
-  useEffect(() => {
-    let active = true;
-
-    const resolve = () => {
-      if (active) {
-        setReady(true);
-      }
-    };
-
-    supabase.auth
-      .getSession()
-      .then(() => resolve())
-      .catch(() => resolve());
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // If App.tsx explicitly marks the bootstrap complete (after the Google sync),
-  // consider ourselves ready immediately.
+  // The profile GET must not fire before the auth bootstrap completes. The
+  // bootstrap is orchestrated in App.tsx: it restores the Supabase session and,
+  // for Google users, syncs via POST /seller/api/auth/google which stores the
+  // seller_token in localStorage. Firing the profile GET before that stores the
+  // token results in a 401 (missing token) and the user is wrongly treated as
+  // logged out. Only bootstrapped=true guarantees the token has been written
+  // (or that there is definitively no session).
   useEffect(() => {
     if (bootstrapped && !ready) {
       setReady(true);
+    }
+  }, [bootstrapped, ready]);
+
+  // Reset readiness if a new bootstrap cycle begins (e.g. a sign-in/sign-out).
+  useEffect(() => {
+    if (!bootstrapped && ready) {
+      setReady(false);
     }
   }, [bootstrapped, ready]);
 
@@ -56,7 +45,7 @@ export function useAuth() {
       try {
         const res = await authApi.getProfile();
         return res.user;
-      } catch (err) {
+      } catch {
         // Return null if unauthenticated rather than throwing to avoid error states
         return null;
       }
