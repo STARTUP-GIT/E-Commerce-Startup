@@ -85,6 +85,12 @@ function App() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("[auth:bootstrap]", JSON.stringify({
+        event,
+        hasSession: !!session,
+        userId: session?.user?.id ?? null,
+        hasAccessToken: !!session?.access_token,
+      }));
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
         try {
           const profile = queryClient.getQueryData(['profile']);

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useConfirmStore } from '@/lib/store/confirmStore';
+import { supabase } from '@/lib/supabase';
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_API_URL || '',
@@ -20,19 +21,29 @@ axiosInstance.interceptors.request.use(
       config.headers['Content-Type'] = 'application/json';
     }
 
-    // Centralized authentication. The backend issues ONE kind of credential for
-    // the seller portal: the app-signed JWT returned by /seller/api/auth/login,
-    // /seller/api/auth/register, and /seller/api/auth/google. Every path stores
-    // that token in localStorage under `seller_token` (see useAuth / App.tsx).
+    // Centralized authentication. The Seller portal is authenticated by the
+    // Supabase session (Google OAuth). Every request that hits protected seller
+    // endpoints must carry the CURRENT Supabase access_token as a Bearer
+    // credential. The backend verifies this token against the Supabase project
+    // JWKS and resolves the Seller record via googleId (= Supabase user id).
     //
-    // We therefore always send `seller_token` as the Bearer credential. We must
-    // NOT prefer the raw Supabase access token: it has a short (~1h) lifetime and
-    // a stale/expired Supabase session would otherwise override the still-valid
-    // 7-day app JWT, producing 401s on /seller/api/auth/profile. The Supabase
-    // session is only used to bootstrap the Google sync; the app JWT it returns
-    // is the single auth source for every API request.
+    // We always await supabase.auth.getSession() so the token is read from the
+    // live (possibly just-restored) session, never from a stale cache. For
+    // email/password sellers (no Supabase session) we fall back to the app-signed
+    // seller_token issued by /seller/api/auth/login|register.
     if (typeof window !== 'undefined') {
-      const bearerToken = localStorage.getItem('seller_token');
+      let bearerToken: string | null = null;
+
+      try {
+        const { data } = await supabase.auth.getSession();
+        bearerToken = data.session?.access_token ?? null;
+      } catch {
+        bearerToken = null;
+      }
+
+      if (!bearerToken) {
+        bearerToken = localStorage.getItem('seller_token');
+      }
 
       if (bearerToken) {
         config.headers.Authorization = `Bearer ${bearerToken}`;

@@ -49,6 +49,16 @@ export const sellerAuth = async (req: Request, res: Response, next: NextFunction
 
     const token = headerToken || cookieToken;
 
+    // TEMPORARY SAFE DIAGNOSTICS — do not log any token value.
+    console.log("[sellerAuth:debug]", JSON.stringify({
+      path: req.originalUrl,
+      hasAuthorizationHeader: !!req.headers.authorization,
+      hasBearerToken: typeof req.headers.authorization === "string" && req.headers.authorization.startsWith("Bearer "),
+      hasXSellertoken: !!req.headers["x-seller-token"],
+      hasCookie: !!req.cookies?.seller_session,
+      tokenSource: headerToken ? "header" : (cookieToken ? "cookie" : "none"),
+    }));
+
     if (!token) {
       return res.status(401).json({ message: "Unauthorized - missing seller token" });
     }
