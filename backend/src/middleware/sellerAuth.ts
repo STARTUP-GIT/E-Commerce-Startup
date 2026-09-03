@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../config/prisma.js";
 import type { Request, Response, NextFunction } from "express";
 import { getJwtSecret, verifyAccessToken } from "../config/token.js";
+import { verifySupabaseAccessToken } from "../config/supabase.js";
 
 declare global {
   namespace Express {
@@ -9,6 +10,28 @@ declare global {
       sellerId?: string;
     }
   }
+}
+
+/**
+ * Resolve the Seller record from an authenticated identity.
+ *
+ * identity is the primary lookup value; email is an optional fallback used when
+ * authenticating with a Supabase access token (whose `sub` is the Supabase user
+ * id, which we store in Seller.googleId during Google sync).
+ */
+async function resolveSeller(identity: string, email?: string) {
+  const byId = await prisma.seller.findUnique({ where: { id: identity } });
+  if (byId) return byId;
+
+  const byGoogleId = await prisma.seller.findUnique({ where: { googleId: identity } });
+  if (byGoogleId) return byGoogleId;
+
+  if (email) {
+    const byEmail = await prisma.seller.findUnique({ where: { email } });
+    if (byEmail) return byEmail;
+  }
+
+  return null;
 }
 
 export const sellerAuth = async (req: Request, res: Response, next: NextFunction) => {
@@ -25,34 +48,41 @@ export const sellerAuth = async (req: Request, res: Response, next: NextFunction
       return res.status(401).json({ message: "Unauthorized - missing seller token" });
     }
 
-    let decoded: any;
+    let identity: string | null = null;
+    let fallbackEmail: string | undefined;
 
+    // 1) Try the app-signed JWT (returned by login / register / google sync).
     try {
-      decoded = verifyAccessToken(token);
-    } catch (err: any) {
+      const decoded: any = verifyAccessToken(token);
+      identity = decoded?.id || decoded?.userId || decoded?.sellerId || decoded?.sub || null;
+    } catch {
       try {
-        decoded = jwt.verify(token, getJwtSecret());
-      } catch (innerErr: any) {
-        console.warn("[sellerAuth] Token verification failed:", innerErr.message);
-        return res.status(401).json({
-          message: "JWT verification failed",
-        });
+        const decoded: any = jwt.verify(token, getJwtSecret());
+        identity = decoded?.id || decoded?.userId || decoded?.sellerId || decoded?.sub || null;
+      } catch {
+        identity = null;
       }
     }
 
-    const targetId = decoded.id || decoded.userId || decoded.sellerId || decoded.sub;
+    // 2) If not an app JWT, verify it as a Supabase user access token against
+    //    the SAME Supabase project (issuer = <SUPABASE_URL>/auth/v1).
+    if (!identity) {
+      try {
+        const supabasePayload: any = await verifySupabaseAccessToken(token);
+        identity = supabasePayload?.sub || supabasePayload?.user_id || null;
+        fallbackEmail = supabasePayload?.email || supabasePayload?.user_metadata?.email || undefined;
+      } catch (supabaseErr: any) {
+        console.warn("[sellerAuth] Supabase token verification failed:", supabaseErr?.message);
+      }
+    }
 
-    if (!targetId) {
+    if (!identity) {
       return res.status(401).json({
-        message: "Invalid token payload",
+        message: "JWT verification failed",
       });
     }
 
-    const seller = await prisma.seller.findUnique({
-      where: {
-        id: targetId,
-      },
-    });
+    const seller = await resolveSeller(identity, fallbackEmail);
 
     if (!seller) {
       return res.status(401).json({

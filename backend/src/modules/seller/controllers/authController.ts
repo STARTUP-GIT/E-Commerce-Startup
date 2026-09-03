@@ -2,43 +2,16 @@ import type { Request, Response } from 'express';
 import { prisma } from '../../../config/prisma.js'
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { importJWK, jwtVerify } from 'jose';
 import { signAccessToken } from '../../../config/token.js'
 import { setAuthCookie, clearAuthCookie, sellersessionCookie } from '../../../config/sessionCookies.js'
 import { AuthProvider } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
+import { verifySupabaseAccessToken } from '../../../config/supabase.js';
 import EmailService from '../../../services/email/email.service.js';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-let cachedSupabaseJwks: { keys: any[]; fetchedAt: number } | null = null;
-const JWKS_CACHE_TTL = 3600000; // 1 hour
-
-async function verifySupabaseJwt(token: string): Promise<any> {
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-    if (!supabaseUrl) throw new Error('Supabase URL not configured');
-
-    const jwksUrl = `${supabaseUrl.replace(/\/$/, '')}/.well-known/jwks.json`;
-
-    if (!cachedSupabaseJwks || Date.now() - cachedSupabaseJwks.fetchedAt > JWKS_CACHE_TTL) {
-        const res = await fetch(jwksUrl);
-        if (!res.ok) throw new Error(`Failed to fetch Supabase JWKS: ${res.status}`);
-        const data = await res.json() as { keys: any[] };
-        cachedSupabaseJwks = { keys: data.keys, fetchedAt: Date.now() };
-    }
-
-    const { payload } = await jwtVerify(
-        token,
-        async (header) => {
-            const key = cachedSupabaseJwks!.keys.find((k) => k.kid === header.kid);
-            if (!key) throw new Error(`No matching JWKS key for kid: ${header.kid}`);
-            return importJWK(key, key.alg);
-        },
-        { issuer: supabaseUrl.replace(/\/$/, '') + '/auth/v1' }
-    );
-
-    return payload;
-}
+const verifySupabaseJwt = (token: string) => verifySupabaseAccessToken(token);
 
 
 
