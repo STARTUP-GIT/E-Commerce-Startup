@@ -124,7 +124,7 @@ export const configureMiddlewares = (app: express.Express) => {
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'X-Seller-Token'],
         optionsSuccessStatus: 204,
     }));
     app.use(csrfOriginCheck);

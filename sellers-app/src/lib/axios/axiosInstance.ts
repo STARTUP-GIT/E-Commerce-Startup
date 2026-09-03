@@ -22,8 +22,13 @@ axiosInstance.interceptors.request.use(
 
     if (typeof window !== 'undefined') {
       const storedToken = localStorage.getItem('seller_token');
-      if (storedToken && !config.headers.Authorization) {
-        config.headers.Authorization = `Bearer ${storedToken}`;
+      if (storedToken) {
+        if (!config.headers.Authorization) {
+          config.headers.Authorization = `Bearer ${storedToken}`;
+        }
+        // Redundant header so the backend can authenticate even if a proxy or
+        // CDN strips the Authorization header.
+        config.headers['x-seller-token'] = storedToken;
       }
     }
 
