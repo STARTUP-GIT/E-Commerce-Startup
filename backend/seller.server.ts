@@ -54,11 +54,39 @@ app.use('/api/platform', platformRoute);
 
 configureErrorHandlers(app);
 
-const PORT = Number(process.env.SELLER_PORT || process.env.PORT || 3002);
+const PORT = Number(process.env.PORT || process.env.SELLER_PORT || 3002);
+// Render injects the port via process.env.PORT and requires the server to bind
+// on all interfaces (0.0.0.0), not just loopback, so the container health check
+// can reach it. Binding to 0.0.0.0 is safe and expected in a PaaS container.
+const HOST = process.env.HOST || '0.0.0.0';
+
 const server = http.createServer(app);
 
-server.listen(PORT, () => {
-    console.log(`Seller server is running on PORT : ${PORT}`);
+console.log('[SERVER_START] ' + JSON.stringify({
+    portConfigured: !!process.env.PORT,
+    host: HOST,
+    starting: true,
+}));
+
+server.listen(PORT, HOST, () => {
+    console.log(`[SERVER_READY] Seller server is running on ${HOST}:${PORT}`);
+});
+
+server.on('error', (err) => {
+    console.error('[SERVER_ERROR]', err?.message ?? err);
+    // A listen failure (EADDRINUSE/EACCES) before the socket is bound leaves the
+    // process alive with no open port, so a platform health/port scan times out
+    // instead of restarting us. Exit so the process supervisor restarts cleanly.
+    if (!server.listening) {
+        console.error('[SERVER_ERROR] Fatal listen error - exiting process.');
+        process.exit(1);
+    }
+});
+
+server.on('listening', () => {
+    const addr = server.address();
+    const boundPort = typeof addr === 'object' && addr ? addr.port : PORT;
+    console.log(`[SERVER_READY] listening on ${HOST}:${boundPort}`);
 });
 
 // Graceful Shutdown

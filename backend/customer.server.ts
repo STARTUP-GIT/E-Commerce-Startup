@@ -61,11 +61,29 @@ app.use('/api/platform', platformRoute);
 
 configureErrorHandlers(app);
 
-const PORT = Number(process.env.CUSTOMER_PORT || 3001);
+const PORT = Number(process.env.PORT || process.env.CUSTOMER_PORT || 3001);
+const HOST = process.env.HOST || '0.0.0.0';
 const server = http.createServer(app);
 
-server.listen(PORT, () => {
-    console.log(`Customer server is running on PORT : ${PORT}`);
+console.log('[SERVER_START] ' + JSON.stringify({
+    portConfigured: !!process.env.PORT,
+    host: HOST,
+    starting: true,
+}));
+
+server.listen(PORT, HOST, () => {
+    console.log(`[SERVER_READY] Customer server is running on ${HOST}:${PORT}`);
+});
+
+server.on('error', (err) => {
+    console.error('[SERVER_ERROR]', err?.message ?? err);
+    // A listen failure (EADDRINUSE/EACCES) before the socket is bound leaves the
+    // process alive with no open port, so a platform health/port scan times out
+    // instead of restarting us. Exit so the process supervisor restarts cleanly.
+    if (!server.listening) {
+        console.error('[SERVER_ERROR] Fatal listen error - exiting process.');
+        process.exit(1);
+    }
 });
 
 // Graceful Shutdown
