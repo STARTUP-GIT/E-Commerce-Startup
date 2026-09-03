@@ -1,15 +1,57 @@
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/authApi';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useAuthBootstrapStore } from '@/lib/store/authBootstrapStore';
+
+function useAuthReady() {
+  const [ready, setReady] = useState(false);
+  const bootstrapped = useAuthBootstrapStore((s) => s.bootstrapped);
+
+  // Wait until the Supabase session has been restored (which triggers the
+  // Google sync in App.tsx that stores the seller_token). We must not fire the
+  // profile GET before that, otherwise it 401s with no token and, for Google
+  // users, would wipe the session before the sync completes.
+  useEffect(() => {
+    let active = true;
+
+    const resolve = () => {
+      if (active) {
+        setReady(true);
+      }
+    };
+
+    supabase.auth
+      .getSession()
+      .then(() => resolve())
+      .catch(() => resolve());
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // If App.tsx explicitly marks the bootstrap complete (after the Google sync),
+  // consider ourselves ready immediately.
+  useEffect(() => {
+    if (bootstrapped && !ready) {
+      setReady(true);
+    }
+  }, [bootstrapped, ready]);
+
+  return ready;
+}
 
 export function useAuth() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const authReady = useAuthReady();
 
   // Profile Query: Single source of truth for auth state
   const profileQuery = useQuery({
     queryKey: ['profile'],
+    enabled: authReady, // Don't fire until the session bootstrap has settled
     queryFn: async () => {
       try {
         const res = await authApi.getProfile();
@@ -111,7 +153,7 @@ export function useAuth() {
   return {
     user: profileQuery.data ?? null,
     isAuthenticated: !!profileQuery.data,
-    isLoading: profileQuery.isLoading,
+    isLoading: !authReady || profileQuery.isLoading,
     isFetching: profileQuery.isFetching,
 
     login: loginMutation.mutateAsync,

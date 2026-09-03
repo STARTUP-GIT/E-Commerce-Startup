@@ -6,6 +6,7 @@ import { useShop } from '@/features/shop/hooks/useShop';
 import { supabase } from '@/lib/supabase';
 import axiosInstance from '@/lib/axios/axiosInstance';
 import { useConfirmStore } from '@/lib/store/confirmStore';
+import { useAuthBootstrapStore } from '@/lib/store/authBootstrapStore';
 import { GuestRoute, ProtectedRoute } from '@/router/guards';
 import { ToastContainer } from '@/shared/components/ToastContainer';
 import { ComingSoonDialog } from '@/components/ui/ComingSoonDialog';
@@ -80,6 +81,7 @@ function NoShopRequiredRoute() {
 function App() {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
+  const setBootstrapped = useAuthBootstrapStore((s) => s.setBootstrapped);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -125,11 +127,13 @@ function App() {
               window.location.href = '/dashboard';
             }
           }
+          setBootstrapped(true);
         } catch (err: any) {
           console.error('Session synchronization error:', err);
           await supabase.auth.signOut();
           queryClient.setQueryData(['profile'], null);
           queryClient.clear();
+          setBootstrapped(true);
 
           useConfirmStore.getState().showAlert({
             title: 'Portal Restriction',
@@ -149,6 +153,10 @@ function App() {
         }
         queryClient.setQueryData(['profile'], null);
         queryClient.clear();
+        setBootstrapped(true);
+      } else {
+        // No Supabase session (e.g. email/password login): nothing to restore.
+        setBootstrapped(true);
       }
     });
 
