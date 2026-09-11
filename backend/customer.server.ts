@@ -59,6 +59,12 @@ app.use('/api/platform', platformLayoutRoute);
 app.use('/users/api/platform', platformLayoutRoute);
 app.use('/api/platform', platformRoute);
 
+//health route
+app.get('/api/health', (req, res) => {
+    res.json({status:'online' , provider:'Groq' , models :'GROQ_MODELS'})
+});
+
+
 configureErrorHandlers(app);
 
 const PORT = Number(process.env.PORT || process.env.CUSTOMER_PORT || 3001);

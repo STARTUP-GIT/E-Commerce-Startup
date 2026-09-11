@@ -27,10 +27,11 @@ app.use('/users/api/platform', platformLayoutRoute);
 // Platform module routes — entirely independent of Admin/Seller/Customer modules.
 app.use('/api/platform', platformRoute);
 
-// Public health probe
-app.get('/api/platform/healthz', (_req, res) => {
-    res.status(200).json({ status: 'OK', service: 'platform', timestamp: new Date().toISOString() });
+//health route
+app.get('/api/health', (req, res) => {
+    res.json({status:'online' , provider:'Groq' , models :'GROQ_MODELS'})
 });
+
 
 configureErrorHandlers(app);
 
