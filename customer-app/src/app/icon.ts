@@ -20,7 +20,7 @@ export default async function GET() {
 
   if (BACKEND_URL) {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/branding/public`, {
+      const res = await fetch(`${BACKEND_URL}/api/branding/public?app=customer`, {
         cache: 'no-store',
       });
       if (res.ok) {

@@ -98,7 +98,7 @@ const BRANDING_ENDPOINTS = [
 export const fetchBranding = async (client: AxiosInstance): Promise<BrandingData> => {
   for (const url of BRANDING_ENDPOINTS) {
     try {
-      const res = await client.get(url);
+      const res = await client.get(url, { params: { app: 'customer' } });
       if (res?.data) return normalizeBranding(res.data);
     } catch {
       // Try the next endpoint; ultimately fall back to DEFAULT_BRANDING.

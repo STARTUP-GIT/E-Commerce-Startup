@@ -4,10 +4,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios/axiosInstance';
 import {
   DEFAULT_BRANDING,
+  DEFAULT_SELLER_BRANDING,
   fetchBranding,
   normalizeBranding,
 } from '@/lib/services/brandingService';
-import type { BrandingConfig } from '@/lib/services/brandingService';
+import type { BrandingApp, BrandingConfig } from '@/lib/services/brandingService';
 
 /** Admin-facing branding row (superset of the public BrandingConfig). */
 export interface AdminBranding extends BrandingConfig {
@@ -49,12 +50,15 @@ export interface BrandingPayload {
 }
 
 export const brandingApi = {
-  getBranding: async (): Promise<{ branding: AdminBranding }> => {
-    const response = await axiosInstance.get('/api/admin/settings/branding');
+  getBranding: async (app: BrandingApp = 'customer'): Promise<{ branding: AdminBranding }> => {
+    const response = await axiosInstance.get('/api/admin/settings/branding', { params: { app } });
     return response.data;
   },
-  updateBranding: async (payload: BrandingPayload): Promise<{ branding: AdminBranding; message: string }> => {
-    const response = await axiosInstance.put('/api/admin/settings/branding', payload);
+  updateBranding: async (
+    payload: BrandingPayload,
+    app: BrandingApp = 'customer'
+  ): Promise<{ branding: AdminBranding; message: string }> => {
+    const response = await axiosInstance.put('/api/admin/settings/branding', payload, { params: { app } });
     return response.data;
   },
 };
@@ -63,22 +67,26 @@ export const brandingApi = {
  * Display-only branding for ANY screen (including unauthenticated ones):
  * reads the public SSOT `GET /api/branding/public`.
  */
-export function useBranding() {
+export function useBranding(app: BrandingApp = 'customer') {
   const { data, isLoading, isError } = useQuery<BrandingConfig>({
-    queryKey: ['public-branding'],
-    queryFn: async () => normalizeBranding(await fetchBranding(axiosInstance)),
+    queryKey: ['public-branding', app],
+    queryFn: async () => normalizeBranding(await fetchBranding(axiosInstance, app)),
     staleTime: 60_000,
     refetchInterval: 120_000,
   });
 
-  return { branding: data || DEFAULT_BRANDING, isLoading, isError };
+  return {
+    branding: data || (app === 'seller' ? DEFAULT_SELLER_BRANDING : DEFAULT_BRANDING),
+    isLoading,
+    isError,
+  };
 }
 
 /** Editor branding for Admin → Branding (requires an authenticated admin). */
-export function useAdminBranding() {
+export function useAdminBranding(app: BrandingApp = 'customer') {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['admin-branding'],
-    queryFn: async () => (await brandingApi.getBranding()).branding,
+    queryKey: ['admin-branding', app],
+    queryFn: async () => (await brandingApi.getBranding(app)).branding,
     staleTime: 30_000,
     retry: false,
   });
@@ -86,10 +94,10 @@ export function useAdminBranding() {
   return { branding: data, isLoading, isError };
 }
 
-export function useUpdateBranding() {
+export function useUpdateBranding(app: BrandingApp = 'customer') {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: BrandingPayload) => brandingApi.updateBranding(payload),
+    mutationFn: (payload: BrandingPayload) => brandingApi.updateBranding(payload, app),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-branding'] });
       queryClient.invalidateQueries({ queryKey: ['public-branding'] });

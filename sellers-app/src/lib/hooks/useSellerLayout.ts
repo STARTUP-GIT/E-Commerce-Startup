@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios/axiosInstance';
-import { fetchBranding, normalizeBranding } from '@/lib/services/brandingService';
+import { DEFAULT_SELLER_BRANDING, fetchBranding, normalizeBranding } from '@/lib/services/brandingService';
 import type { BrandingConfig } from '@/lib/services/brandingService';
 
 export interface UiLayoutItem {
@@ -65,20 +65,28 @@ export function useSellerLayout() {
   // Public Branding query — single source of truth from the Admin-owned
   // branding endpoint (GET /api/branding/public, fallback GET /api/branding).
   const { data: brandingData, isLoading, isError } = useQuery<BrandingConfig>({
-    queryKey: ['public-branding'],
+    queryKey: ['public-branding', 'seller'],
     queryFn: async () => {
-      const branding = await fetchBranding(axiosInstance);
-      return normalizeBranding(branding);
+      const branding = await fetchBranding(axiosInstance, 'seller');
+      return normalizeBranding(branding, DEFAULT_SELLER_BRANDING);
     },
     staleTime: 10_000,
     refetchInterval: 15_000,
   });
 
-  const branding: BrandingConfig = brandingData ?? normalizeBranding(null);
+  const branding: BrandingConfig = brandingData ?? normalizeBranding(null, DEFAULT_SELLER_BRANDING);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && branding.name) {
-      document.title = branding.browserTitle || branding.name;
+      document.title = branding.browserTitle || branding.seoTitle || branding.name;
+      let descriptionMeta = document.querySelector<HTMLMetaElement>("meta[name='description']");
+      if (!descriptionMeta) {
+        descriptionMeta = document.createElement('meta');
+        descriptionMeta.name = 'description';
+        document.head.appendChild(descriptionMeta);
+      }
+      descriptionMeta.content = branding.seoDescription;
+
       const faviconUrl = branding.faviconUrl || branding.favicon;
       if (faviconUrl) {
         let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
@@ -90,7 +98,7 @@ export function useSellerLayout() {
         link.href = faviconUrl;
       }
     }
-  }, [branding.name, branding.browserTitle, branding.faviconUrl, branding.favicon]);
+  }, [branding.name, branding.browserTitle, branding.seoTitle, branding.seoDescription, branding.faviconUrl, branding.favicon]);
 
   return {
     branding,

@@ -18,6 +18,11 @@ enum AuthProvider {
   EMAIL_AND_GOOGLE
 }
 
+enum BrandingApp {
+  CUSTOMER
+  SELLER
+}
+
 enum OtpEntityType {
   CUSTOMER
   SELLER

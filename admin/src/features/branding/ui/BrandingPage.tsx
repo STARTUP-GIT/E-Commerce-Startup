@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePermissions } from '@/lib/hooks/usePermissions';
 import { useAdminBranding, useUpdateBranding, useBranding } from '@/lib/hooks/useBranding';
-import type { BrandingConfig } from '@/lib/services/brandingService';
+import type { BrandingApp, BrandingConfig } from '@/lib/services/brandingService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/Card';
 import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
@@ -67,20 +67,24 @@ const EMPTY_FORM: BrandingFormState = {
 export function BrandingPage() {
   const { can } = usePermissions();
   const { showToast } = useUIStore();
-  const { branding, isLoading } = useAdminBranding();
-  const { branding: publicBranding, isLoading: publicLoading } = useBranding();
-  const updateMutation = useUpdateBranding();
+  const [app, setApp] = useState<BrandingApp>('customer');
+  const { branding, isLoading } = useAdminBranding(app);
+  const { branding: publicBranding, isLoading: publicLoading } = useBranding(app);
+  const updateMutation = useUpdateBranding(app);
 
   const canView = can('branding.view');
   const canManage = can('branding.manage');
 
-  const [form, setForm] = useState<BrandingFormState>(EMPTY_FORM);
-  const seededRef = useRef(false);
+  const [forms, setForms] = useState<Partial<Record<BrandingApp, BrandingFormState>>>({});
+  const form = forms[app] ?? EMPTY_FORM;
 
   useEffect(() => {
-    if (branding && !seededRef.current) {
-      seededRef.current = true;
-      setForm({
+    if (branding) {
+      setForms((current) => {
+        if (current[app]) return current;
+        return {
+          ...current,
+          [app]: {
         brandName: branding.brandName ?? branding.name ?? '',
         shortName: branding.shortName ?? '',
         tagline: branding.tagline ?? '',
@@ -104,12 +108,22 @@ export function BrandingPage() {
         exploreShopsButtonText: branding.exploreShopsButtonText ?? '',
         browseProductsButtonText: branding.browseProductsButtonText ?? '',
         footerDescription: branding.footerDescription ?? '',
+          },
+        };
       });
     }
-  }, [branding]);
+  }, [app, branding]);
 
   const update = (key: keyof BrandingFormState) => (value: string) =>
-    setForm((f) => ({ ...f, [key]: value }));
+    setForms((current) => ({
+      ...current,
+      [app]: { ...(current[app] ?? EMPTY_FORM), [key]: value },
+    }));
+  const updateFields = (fields: Partial<BrandingFormState>) =>
+    setForms((current) => ({
+      ...current,
+      [app]: { ...(current[app] ?? EMPTY_FORM), ...fields },
+    }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,22 +144,44 @@ export function BrandingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white/95">Branding</h1>
-          <p className="text-xs text-white/45 mt-1">Customise your marketplace identity, SEO, and storefront hero content</p>
+          <p className="text-xs text-white/45 mt-1">
+            {app === 'customer'
+              ? 'Customise your customer marketplace identity, SEO, and storefront hero content'
+              : 'Customise your seller portal identity, SEO, and browser presentation'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {!canManage && (
             <span className="text-[10px] text-white/40 flex items-center gap-1"><Lock className="h-3 w-3" /> View only</span>
           )}
-          <Button type="submit" form="branding-form" size="sm" disabled={!canManage} isLoading={updateMutation.isPending}>
+          <Button type="submit" form="branding-form" size="sm" disabled={!canManage || isLoading || !branding || !forms[app]} isLoading={updateMutation.isPending}>
             <Save className="mr-2 h-3.5 w-3.5" /> {updateMutation.isPending ? 'Saving…' : 'Save Branding'}
           </Button>
         </div>
       </div>
 
+      <div className="flex items-center gap-2" role="group" aria-label="Choose marketplace app branding">
+        {(['customer', 'seller'] as const).map((targetApp) => (
+          <button
+            key={targetApp}
+            type="button"
+            aria-pressed={app === targetApp}
+            onClick={() => setApp(targetApp)}
+            className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+              app === targetApp
+                ? 'border-white/25 bg-white/10 text-white'
+                : 'border-white/10 bg-white/[0.02] text-white/50 hover:bg-white/[0.06] hover:text-white/80'
+            }`}
+          >
+            {targetApp === 'customer' ? 'Customer Marketplace' : 'Seller Portal'}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <form id="branding-form" onSubmit={handleSubmit} className="space-y-6">
-            {isLoading || !branding ? (
+            {isLoading || !branding || !forms[app] ? (
               <Card className="border border-white/5">
                 <CardContent className="p-6 space-y-3">
                   {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-11 w-full" />)}
@@ -172,8 +208,8 @@ export function BrandingPage() {
                       <ImageUploadField
                         folder="branding"
                         value={form.logoUrl}
-                        onChange={(r: UploadResult) => setForm((f) => ({ ...f, logoUrl: r.url, logoPublicId: r.publicId }))}
-                        onRemove={() => setForm((f) => ({ ...f, logoUrl: '/images/logo.png', logoPublicId: '' }))}
+                        onChange={(r: UploadResult) => updateFields({ logoUrl: r.url, logoPublicId: r.publicId })}
+                        onRemove={() => updateFields({ logoUrl: '/images/logo.png', logoPublicId: '' })}
                         maxBytes={2 * 1024 * 1024}
                         disabled={!canManage}
                       />
@@ -182,8 +218,8 @@ export function BrandingPage() {
                       <ImageUploadField
                         folder="branding"
                         value={form.faviconUrl}
-                        onChange={(r: UploadResult) => setForm((f) => ({ ...f, faviconUrl: r.url, faviconPublicId: r.publicId }))}
-                        onRemove={() => setForm((f) => ({ ...f, faviconUrl: '', faviconPublicId: '' }))}
+                        onChange={(r: UploadResult) => updateFields({ faviconUrl: r.url, faviconPublicId: r.publicId })}
+                        onRemove={() => updateFields({ faviconUrl: '', faviconPublicId: '' })}
                         maxBytes={1 * 1024 * 1024}
                         disabled={!canManage}
                       />
@@ -230,7 +266,7 @@ export function BrandingPage() {
                   </div>
                 </SectionCard>
 
-                <SectionCard icon={Store} title="Hero content" description="Text displayed on the customer storefront landing page">
+                {app === 'customer' && <SectionCard icon={Store} title="Hero content" description="Text displayed on the customer storefront landing page">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
                       <Field label="Hero badge">
@@ -266,14 +302,14 @@ export function BrandingPage() {
                       </Field>
                     </div>
                   </div>
-                </SectionCard>
+                </SectionCard>}
               </div>
             )}
           </form>
         </div>
 
         <div className="space-y-6">
-          <StorefrontPreview publicBranding={publicBranding} publicLoading={publicLoading} />
+          <StorefrontPreview app={app} publicBranding={publicBranding} publicLoading={publicLoading} />
         </div>
       </div>
     </div>
@@ -334,7 +370,7 @@ function PreviewImage({ src, label }: { src: string; label: string }) {
   );
 }
 
-function StorefrontPreview({ publicBranding, publicLoading }: { publicBranding: BrandingConfig; publicLoading: boolean }) {
+function StorefrontPreview({ app, publicBranding, publicLoading }: { app: BrandingApp; publicBranding: BrandingConfig; publicLoading: boolean }) {
   const name = publicBranding?.name || 'Marketplace';
   const logo = publicBranding?.logo || '';
   return (
@@ -342,7 +378,9 @@ function StorefrontPreview({ publicBranding, publicLoading }: { publicBranding: 
       <CardHeader className="border-b border-white/5 pb-4">
         <div className="flex items-center gap-2">
           <Eye className="h-4 w-4 text-white/60" />
-          <CardTitle className="text-xs font-bold text-white/90">What the storefront shows</CardTitle>
+          <CardTitle className="text-xs font-bold text-white/90">
+            What the {app === 'customer' ? 'storefront' : 'seller portal'} shows
+          </CardTitle>
         </div>
         <CardDescription className="text-[11px]">Public display branding (read-only)</CardDescription>
       </CardHeader>
@@ -372,9 +410,17 @@ function StorefrontPreview({ publicBranding, publicLoading }: { publicBranding: 
               <p className="text-sm text-white/80 truncate">{publicBranding?.browserTitle || name}</p>
             </div>
             <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 space-y-1.5">
-              <p className="text-[9px] uppercase tracking-wider text-white/30 font-bold">Hero</p>
-              <p className="text-xs text-white/60 line-clamp-2">{publicBranding?.heroBadge || '—'}</p>
-              <p className="text-xs text-white/60 truncate">{(publicBranding?.exploreShopsButtonText || 'Explore Shops') + ' · ' + (publicBranding?.browseProductsButtonText || 'Browse Products')}</p>
+              <p className="text-[9px] uppercase tracking-wider text-white/30 font-bold">
+                {app === 'customer' ? 'Hero' : 'Tagline'}
+              </p>
+              {app === 'customer' ? (
+                <>
+                  <p className="text-xs text-white/60 line-clamp-2">{publicBranding?.heroBadge || '—'}</p>
+                  <p className="text-xs text-white/60 truncate">{(publicBranding?.exploreShopsButtonText || 'Explore Shops') + ' · ' + (publicBranding?.browseProductsButtonText || 'Browse Products')}</p>
+                </>
+              ) : (
+                <p className="text-xs text-white/60 line-clamp-2">{publicBranding?.tagline || '—'}</p>
+              )}
             </div>
           </>
         )}

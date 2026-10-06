@@ -36,6 +36,8 @@ export interface BrandingConfig {
   updatedAt?: string;
 }
 
+export type BrandingApp = 'customer' | 'seller';
+
 export const DEFAULT_BRANDING: BrandingConfig = {
   name: 'Marketplace',
   marketplaceName: 'Marketplace',
@@ -59,15 +61,29 @@ export const DEFAULT_BRANDING: BrandingConfig = {
   browserTitle: 'Marketplace',
 };
 
+export const DEFAULT_SELLER_BRANDING: BrandingConfig = {
+  ...DEFAULT_BRANDING,
+  name: 'Marketplace Seller',
+  marketplaceName: 'Marketplace Seller',
+  tagline: 'Grow your store locally',
+  shortName: 'Seller',
+  seoTitle: 'Marketplace Seller',
+  seoDescription: 'Manage your shop, products, orders, and sales.',
+  browserTitle: 'Marketplace Seller',
+};
+
 const str = (value: unknown, fallback: string | undefined): string =>
   typeof value === 'string' && value.trim() !== '' ? value.trim() : (fallback || '');
 
-export const normalizeBranding = (d: any): BrandingConfig => {
-  const nameVal = d?.name || d?.marketplaceName || DEFAULT_BRANDING.name;
-  const logoVal = d?.logo || d?.logoUrl || DEFAULT_BRANDING.logo;
+export const normalizeBranding = (
+  d: any,
+  defaults: BrandingConfig = DEFAULT_BRANDING
+): BrandingConfig => {
+  const nameVal = d?.name || d?.marketplaceName || defaults.name;
+  const logoVal = d?.logo || d?.logoUrl || defaults.logo;
   const rawFavicon = d?.favicon || d?.faviconUrl || '';
   const faviconVal = rawFavicon && rawFavicon !== '/favicon.ico' ? rawFavicon : logoVal;
-  const taglineVal = str(d?.tagline, DEFAULT_BRANDING.tagline);
+  const taglineVal = str(d?.tagline, defaults.tagline);
   return {
     name: nameVal,
     marketplaceName: nameVal,
@@ -77,18 +93,18 @@ export const normalizeBranding = (d: any): BrandingConfig => {
     shortName: str(d?.shortName, nameVal),
     logoUrl: logoVal,
     faviconUrl: faviconVal,
-    heroBadge: str(d?.heroBadge, DEFAULT_BRANDING.heroBadge),
-    heroHeadingLine1: str(d?.heroHeadingLine1, DEFAULT_BRANDING.heroHeadingLine1),
-    heroHeadingLine2: str(d?.heroHeadingLine2, DEFAULT_BRANDING.heroHeadingLine2),
-    heroHeadingLine3: str(d?.heroHeadingLine3, DEFAULT_BRANDING.heroHeadingLine3),
-    heroDescription: str(d?.heroDescription, DEFAULT_BRANDING.heroDescription),
-    searchPlaceholder: str(d?.searchPlaceholder, DEFAULT_BRANDING.searchPlaceholder),
-    exploreShopsButtonText: str(d?.exploreShopsButtonText, DEFAULT_BRANDING.exploreShopsButtonText),
-    browseProductsButtonText: str(d?.browseProductsButtonText, DEFAULT_BRANDING.browseProductsButtonText),
-    footerDescription: str(d?.footerDescription, DEFAULT_BRANDING.footerDescription),
-    seoTitle: str(d?.seoTitle, DEFAULT_BRANDING.seoTitle),
-    seoDescription: str(d?.seoDescription, DEFAULT_BRANDING.seoDescription),
-    browserTitle: str(d?.browserTitle, DEFAULT_BRANDING.browserTitle),
+    heroBadge: str(d?.heroBadge, defaults.heroBadge),
+    heroHeadingLine1: str(d?.heroHeadingLine1, defaults.heroHeadingLine1),
+    heroHeadingLine2: str(d?.heroHeadingLine2, defaults.heroHeadingLine2),
+    heroHeadingLine3: str(d?.heroHeadingLine3, defaults.heroHeadingLine3),
+    heroDescription: str(d?.heroDescription, defaults.heroDescription),
+    searchPlaceholder: str(d?.searchPlaceholder, defaults.searchPlaceholder),
+    exploreShopsButtonText: str(d?.exploreShopsButtonText, defaults.exploreShopsButtonText),
+    browseProductsButtonText: str(d?.browseProductsButtonText, defaults.browseProductsButtonText),
+    footerDescription: str(d?.footerDescription, defaults.footerDescription),
+    seoTitle: str(d?.seoTitle, defaults.seoTitle),
+    seoDescription: str(d?.seoDescription, defaults.seoDescription),
+    browserTitle: str(d?.browserTitle, defaults.browserTitle),
     updatedAt: d?.updatedAt,
   };
 };
@@ -98,14 +114,18 @@ const BRANDING_ENDPOINTS = [
   '/api/branding',
 ];
 
-export const fetchBranding = async (client: AxiosInstance): Promise<BrandingConfig> => {
+export const fetchBranding = async (
+  client: AxiosInstance,
+  app: BrandingApp = 'customer'
+): Promise<BrandingConfig> => {
+  const defaults = app === 'seller' ? DEFAULT_SELLER_BRANDING : DEFAULT_BRANDING;
   for (const url of BRANDING_ENDPOINTS) {
     try {
-      const res = await client.get(url);
-      if (res?.data) return normalizeBranding(res.data);
+      const res = await client.get(url, { params: { app } });
+      if (res?.data) return normalizeBranding(res.data, defaults);
     } catch {
       // Try the next endpoint; ultimately fall back to DEFAULT_BRANDING.
     }
   }
-  return DEFAULT_BRANDING;
+  return defaults;
 };

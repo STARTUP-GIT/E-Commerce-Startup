@@ -1,13 +1,11 @@
 // =============================================================================
-// MarketplaceBranding — Admin-owned, single source of truth for the
-// marketplace brand used by the Customer app, Seller app and Admin panel.
-// -----------------------------------------------------------------------------
-// Single row (id = 1). Written by Admin → Branding, read (cached) by the
-// public GET /api/branding endpoint. Never contains per-shop data.
+// MarketplaceBranding — independent Admin-owned branding for each marketplace
+// application. Never contains per-shop branding.
 // =============================================================================
 
 model MarketplaceBranding {
-  id     Int    @id @default(1)
+  id        Int         @id @default(autoincrement())
+  app       BrandingApp @unique @default(CUSTOMER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

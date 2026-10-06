@@ -2,10 +2,10 @@ import { prisma } from "../../../config/prisma.js";
 import storageService from "../../storage/services/storage.service.js";
 
 /**
- * Marketplace branding — the single Admin-owned source of truth.
+ * Marketplace branding — independent Admin-owned configurations per app.
  *
  * Replaces the removed Platform app's branding store. Read by:
- *   - GET /api/branding (public)          → Customer, Seller, Admin frontends
+ *   - GET /api/branding (public)          → app-selected public configuration
  *   - Admin → Branding screen             → GET/PUT /api/admin/settings/branding
  *   - Server-side PDF invoices / emails   → getBrandingConfiguration()
  *
@@ -44,6 +44,8 @@ export interface BrandingConfiguration {
     updatedBy: string;
 }
 
+export type BrandingApp = "CUSTOMER" | "SELLER";
+
 export const DEFAULT_BRANDING: BrandingConfiguration = {
     name: "Marketplace",
     marketplaceName: "Marketplace",
@@ -72,18 +74,31 @@ export const DEFAULT_BRANDING: BrandingConfiguration = {
     updatedBy: "system"
 };
 
-const CACHE_TTL_MS = 15_000;
-let brandingCache: { value: BrandingConfiguration; expiresAt: number } | null = null;
+export const DEFAULT_SELLER_BRANDING: BrandingConfiguration = {
+    ...DEFAULT_BRANDING,
+    name: "Marketplace Seller",
+    marketplaceName: "Marketplace Seller",
+    brandName: "Marketplace Seller",
+    tagline: "Grow your store locally",
+    shortName: "Seller",
+    seoTitle: "Marketplace Seller",
+    seoDescription: "Manage your shop, products, orders, and sales.",
+    browserTitle: "Marketplace Seller"
+};
 
-export const invalidateBrandingCache = (): void => {
-    brandingCache = null;
+const CACHE_TTL_MS = 15_000;
+const brandingCache = new Map<BrandingApp, { value: BrandingConfiguration; expiresAt: number }>();
+
+export const invalidateBrandingCache = (app?: BrandingApp): void => {
+    if (app) brandingCache.delete(app);
+    else brandingCache.clear();
 };
 
 const str = (value: unknown, fallback: string): string =>
     typeof value === "string" && value.trim() !== "" ? value.trim() : fallback;
 
-const normalize = (row: any): BrandingConfiguration => {
-    const d = DEFAULT_BRANDING;
+const normalize = (row: any, defaults: BrandingConfiguration): BrandingConfiguration => {
+    const d = defaults;
     const name = str(row?.brandName, d.name);
     const logo = str(row?.logoUrl, d.logo);
     const rawFavicon = typeof row?.faviconUrl === "string" ? row.faviconUrl.trim() : "";
@@ -122,20 +137,19 @@ const normalize = (row: any): BrandingConfiguration => {
     };
 };
 
-export const getBrandingConfiguration = async (): Promise<BrandingConfiguration> => {
-    if (brandingCache && brandingCache.expiresAt > Date.now()) {
-        return brandingCache.value;
+export const getBrandingConfiguration = async (
+    app: BrandingApp = "CUSTOMER"
+): Promise<BrandingConfiguration> => {
+    const cached = brandingCache.get(app);
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.value;
     }
 
-    let row: any = null;
-    try {
-        row = await prisma.marketplaceBranding.findUnique({ where: { id: 1 } });
-    } catch (error) {
-        console.error("BRANDING READ FAILED (using defaults):", error);
-    }
+    const row = await prisma.marketplaceBranding.findUnique({ where: { app } });
 
-    const value = row ? normalize(row) : { ...DEFAULT_BRANDING };
-    brandingCache = { value, expiresAt: Date.now() + CACHE_TTL_MS };
+    const defaults = app === "SELLER" ? DEFAULT_SELLER_BRANDING : DEFAULT_BRANDING;
+    const value = row ? normalize(row, defaults) : { ...defaults };
+    brandingCache.set(app, { value, expiresAt: Date.now() + CACHE_TTL_MS });
     return value;
 };
 
@@ -175,10 +189,11 @@ const pick = <T>(...values: T[]): T | undefined =>
 
 export const saveBranding = async (
     input: BrandingUpdate,
-    adminId?: string
+    adminId?: string,
+    app: BrandingApp = "CUSTOMER"
 ): Promise<BrandingConfiguration> => {
-    const current = await getBrandingConfiguration();
-    const existing = await prisma.marketplaceBranding.findUnique({ where: { id: 1 } });
+    const current = await getBrandingConfiguration(app);
+    const existing = await prisma.marketplaceBranding.findUnique({ where: { app } });
 
     const brandName = str(
         pick(input.brandName, input.name, input.marketplaceName),
@@ -222,12 +237,12 @@ export const saveBranding = async (
     };
 
     await prisma.marketplaceBranding.upsert({
-        where: { id: 1 },
+        where: { app },
         update: data,
-        create: { id: 1, ...data }
+        create: { app, ...data }
     });
 
-    invalidateBrandingCache();
+    invalidateBrandingCache(app);
     const replacedPublicIds = [
         existing?.logoPublicId && existing.logoPublicId !== logoPublicId ? existing.logoPublicId : null,
         existing?.faviconPublicId && existing.faviconPublicId !== faviconPublicId ? existing.faviconPublicId : null
@@ -239,14 +254,14 @@ export const saveBranding = async (
             console.error("FAILED TO REMOVE REPLACED BRANDING IMAGE:", error);
         }
     }
-    return getBrandingConfiguration();
+    return getBrandingConfiguration(app);
 };
 
 /** Admin-facing payload (row-shaped, includes editable non-public fields). */
-export const getBrandingSettings = async () => {
+export const getBrandingSettings = async (app: BrandingApp = "CUSTOMER") => {
     const [branding, row] = await Promise.all([
-        getBrandingConfiguration(),
-        prisma.marketplaceBranding.findUnique({ where: { id: 1 } })
+        getBrandingConfiguration(app),
+        prisma.marketplaceBranding.findUnique({ where: { app } })
     ]);
     return {
         branding: {

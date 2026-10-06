@@ -135,7 +135,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <span className="font-black text-white text-xs tracking-tight block">
                 {branding?.name || 'Marketplace'}
               </span>
-              <span className="text-[8px] text-white/40 block font-bold -mt-1 uppercase tracking-wider">Seller Portal</span>
+              <span className="text-[8px] text-white/40 block font-bold -mt-1 uppercase tracking-wider">{branding?.tagline || 'Seller Portal'}</span>
             </div>
           </div>
 

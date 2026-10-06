@@ -34,7 +34,7 @@ const FALLBACK_METADATA: Metadata = {
 export async function generateMetadata(): Promise<Metadata> {
   if (!BACKEND_URL) return FALLBACK_METADATA;
   try {
-    const res = await fetch(`${BACKEND_URL}/api/branding/public`, {
+    const res = await fetch(`${BACKEND_URL}/api/branding/public?app=customer`, {
       cache: "no-store",
     });
     if (!res.ok) return FALLBACK_METADATA;

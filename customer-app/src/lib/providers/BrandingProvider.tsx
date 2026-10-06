@@ -22,7 +22,7 @@ const BrandingContext = createContext<{
 export function BrandingProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data, isLoading, refetch } = useQuery<BrandingData>({
-    queryKey: ['public-branding'],
+    queryKey: ['public-branding', 'customer'],
     queryFn: async () => {
       const branding = await fetchBranding(axiosInstance);
       return normalizeBranding(branding);
@@ -111,4 +111,3 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 export function useBranding() {
   return useContext(BrandingContext);
 }
-
