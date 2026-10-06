@@ -1,11 +1,13 @@
 "use client";
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { authApi } from '@/features/auth/api/authApi';
 import { SetupPage } from '@/features/auth/ui/SetupPage';
 
 export function SetupGuard({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['setup-status'],
     queryFn: authApi.getSetupStatus,
@@ -36,6 +38,10 @@ export function SetupGuard({ children }: { children: React.ReactNode }) {
         </button>
       </div>
     );
+  }
+
+  if (pathname === '/setup') {
+    return <SetupPage initialized={data.initialized} />;
   }
 
   // If the admin is not initialized, ignore any existing cookie/session and force the setup view

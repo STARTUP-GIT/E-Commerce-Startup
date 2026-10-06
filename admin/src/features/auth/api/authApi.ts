@@ -66,8 +66,16 @@ export const authApi = {
     return response.data;
   },
 
-  setupAdmin: async (payload: { name: string; email: string; password: string }): Promise<{ message: string }> => {
-    const response = await axiosInstance.post('/api/admin/auth/setup', payload);
+  setupAdmin: async (payload: {
+    name: string;
+    email: string;
+    password: string;
+    bootstrapSecret: string;
+  }): Promise<{ message: string }> => {
+    const { bootstrapSecret, ...adminDetails } = payload;
+    const response = await axiosInstance.post('/api/admin/auth/setup', adminDetails, {
+      headers: { 'x-admin-bootstrap-secret': bootstrapSecret },
+    });
     return response.data;
   },
 

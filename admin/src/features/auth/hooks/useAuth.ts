@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useUIStore } from '@/lib/store/uiStore';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import axiosInstance from '@/lib/axios/axiosInstance';
+import { isAxiosError } from 'axios';
 
 export function useAuth() {
   const queryClient = useQueryClient();
@@ -58,8 +59,12 @@ export function useAuth() {
 
       showToast('Welcome back, Admin!', 'success');
       router.push('/dashboard');
-    } catch (error: any) {
-      showToast(error.message || 'Login failed. Please verify credentials.', 'error');
+    } catch (error: unknown) {
+      const serverMessage = isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message
+        : undefined;
+      const errorMessage = error instanceof Error ? error.message : undefined;
+      showToast(serverMessage || errorMessage || 'Unable to sign in right now. Please try again later.', 'error');
       throw error;
     }
   };

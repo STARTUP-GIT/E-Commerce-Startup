@@ -16,71 +16,127 @@ const BACKEND_URL = (process.env.ADMIN_BACKEND_API_URL || process.env.BACKEND_AP
  * frontend origin.
  */
 export async function POST(req: NextRequest) {
+  let stage = 'request parsing';
   try {
     if (!BACKEND_URL) {
-      return NextResponse.json({ message: 'Backend URL not configured' }, { status: 500 });
+      return NextResponse.json(
+        { message: 'Unable to sign in right now. Please try again later.' },
+        { status: 500 }
+      );
     }
 
     const body = await req.json();
 
+    stage = 'backend request';
     const backendRes = await fetch(`${BACKEND_URL}/api/admin/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
 
-    const data = await backendRes.json();
+    stage = 'backend response parsing';
+    const responseText = await backendRes.text();
+    let data: { message?: unknown; admin?: unknown } | null = null;
+    try {
+      data = responseText ? JSON.parse(responseText) : null;
+    } catch {
+      console.error('[/api/admin/auth/login] Backend returned a non-JSON response', {
+        status: backendRes.status,
+        contentType: backendRes.headers.get('content-type'),
+      });
+      return NextResponse.json(
+        { message: 'Unable to sign in right now. Please try again later.' },
+        { status: backendRes.status >= 500 ? backendRes.status : 502 }
+      );
+    }
 
     if (!backendRes.ok) {
       return NextResponse.json(
-        { message: data?.message || 'Login failed' },
+        { message: getSafeLoginMessage(backendRes.status, data?.message) },
         { status: backendRes.status }
+      );
+    }
+
+    if (!data?.admin || typeof data.admin !== 'object') {
+      console.error('[/api/admin/auth/login] Backend returned an invalid success response');
+      return NextResponse.json(
+        { message: 'Unable to sign in right now. Please try again later.' },
+        { status: 502 }
       );
     }
 
     const response = NextResponse.json(data, { status: 200 });
 
-    // Extract admin_session from the backend Set-Cookie and re-emit it
-    // with correct attributes for this frontend's origin.
+    // Re-emit only the HttpOnly session cookies on the Admin frontend origin.
     const rawSetCookie = backendRes.headers.get('set-cookie');
-
+    const forwardedCookies = new Map<string, { value: string; maxAge?: number }>();
     if (rawSetCookie) {
-      const cookieEntries = splitSetCookieHeader(rawSetCookie);
-      for (const entry of cookieEntries) {
-        if (entry.trimStart().startsWith('admin_session=')) {
-          const parsed = parseCookieEntry(entry);
-          if (parsed) {
-            const isProduction = process.env.NODE_ENV === 'production';
-            response.cookies.set('admin_session', parsed.value, {
-              httpOnly: true,
-              secure: isProduction,
-              // 'lax' — the cookie is only consumed on the admin origin
-              // (Next.js rewrites proxy to the backend server-side), so
-              // SameSite=None would widen the CSRF surface.
-              sameSite: 'lax',
-              path: '/',
-              maxAge: parsed.maxAge ?? 60 * 60 * 24 * 60, // default 60 days
-            });
-          }
-          break;
+      for (const entry of splitSetCookieHeader(rawSetCookie)) {
+        const parsed = parseCookieEntry(entry);
+        if (parsed && (parsed.name === 'admin_session' || parsed.name === 'admin_refresh')) {
+          forwardedCookies.set(parsed.name, parsed);
         }
       }
-    } else {
-      console.warn('[/api/admin/auth/login] Backend did NOT return a Set-Cookie header');
+    }
+
+    const sessionCookie = forwardedCookies.get('admin_session');
+    if (!sessionCookie) {
+      console.error('[/api/admin/auth/login] Backend success response did not include an Admin session cookie');
+      return NextResponse.json(
+        { message: 'Unable to sign in right now. Please try again later.' },
+        { status: 502 }
+      );
+    }
+
+    const isProduction = process.env.NODE_ENV === 'production';
+    for (const [name, cookie] of forwardedCookies) {
+      response.cookies.set(name, cookie.value, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: cookie.maxAge ?? (name === 'admin_refresh' ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 60),
+      });
     }
 
     return response;
-  } catch (err: any) {
-    console.error('[/api/admin/auth/login] Error:', err?.message || err);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+  } catch (error: unknown) {
+    if (stage === 'request parsing' && error instanceof SyntaxError) {
+      return NextResponse.json(
+        { message: 'Email and password are required' },
+        { status: 400 }
+      );
+    }
+    console.error('[/api/admin/auth/login] Proxy failed', { stage, error });
+    return NextResponse.json(
+      { message: 'Unable to sign in right now. Please try again later.' },
+      { status: 500 }
+    );
   }
+}
+
+function getSafeLoginMessage(status: number, message: unknown): string {
+  const safeMessages = new Set([
+    'Email and password are required',
+    'Invalid email or password.',
+    'Your account is disabled. Please contact an administrator.',
+    'Too many requests, please try again later.',
+  ]);
+
+  if (typeof message === 'string' && safeMessages.has(message)) {
+    return message;
+  }
+  if (status === 401) {
+    return 'Invalid email or password.';
+  }
+  return 'Unable to sign in right now. Please try again later.';
 }
 
 function splitSetCookieHeader(raw: string): string[] {
   return raw.split(/,\s*(?=[a-zA-Z0-9_\-]+=)/);
 }
 
-function parseCookieEntry(entry: string): { value: string; maxAge?: number } | null {
+function parseCookieEntry(entry: string): { name: string; value: string; maxAge?: number } | null {
   const parts = entry.split(';').map((p) => p.trim());
   const nameValue = parts[0];
   if (!nameValue) return null;
@@ -95,5 +151,5 @@ function parseCookieEntry(entry: string): { value: string; maxAge?: number } | n
       if (!isNaN(parsed)) maxAge = parsed;
     }
   }
-  return { value, maxAge };
+  return { name: nameValue.slice(0, eqIndex), value, maxAge };
 }

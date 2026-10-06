@@ -8,7 +8,8 @@ export const loginSchema = z.object({
 export const setupSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  bootstrapSecret: z.string().min(1, 'One-time setup key is required'),
+  password: z.string().min(12, 'Password must be at least 12 characters'),
   confirmPassword: z.string().min(1, 'Please confirm your password'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',

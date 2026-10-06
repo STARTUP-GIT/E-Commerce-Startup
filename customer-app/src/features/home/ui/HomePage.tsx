@@ -163,22 +163,22 @@ export function HomePage() {
             {/* Search bar */}
             <form
               onSubmit={handleSearch}
-              className="flex flex-col xs:flex-row gap-1.5 sm:gap-2 max-w-[560px] mx-auto mb-6 sm:mb-10 bg-white/[0.05] border border-white/12 rounded-2xl p-1.5 sm:p-2 backdrop-blur-xl"
+              className="flex h-[52px] w-full max-w-[480px] items-center gap-2 mx-auto mb-6 sm:mb-10 bg-white/[0.04] border border-white/10 rounded-xl p-1.5 backdrop-blur-xl"
             >
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-0">
                 <Search
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/35"
                 />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder={branding.searchPlaceholder}
-                  className="w-full h-11 sm:h-13 pl-10 pr-4 bg-transparent border-none outline-none text-sm sm:text-base text-white placeholder:text-white/30 font-sans"
+                  className="w-full h-full min-w-0 pl-9 pr-2 bg-transparent border-none outline-none text-sm text-white placeholder:text-white/35 font-sans"
                 />
               </div>
               <button
                 type="submit"
-                className="h-10 sm:h-13 px-5 sm:px-7 rounded-xl border-none bg-white text-black text-sm sm:text-base font-extrabold cursor-pointer shrink-0 transition-opacity hover:opacity-90 w-full xs:w-auto"
+                className="h-10 shrink-0 px-[18px] rounded-lg border-none bg-white text-black text-sm font-bold cursor-pointer transition-opacity hover:opacity-90"
               >
                 Search
               </button>

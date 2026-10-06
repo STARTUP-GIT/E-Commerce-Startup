@@ -56,44 +56,49 @@ const TOP_ROLES = ["OWNER", "SUPER_ADMIN"];
 
 export const login = async (req: Request, res: Response) => {
     try {
-        const { email, password } = req.body;
+        const { email, password } = req.body ?? {};
 
-        if (!email || !password) {
+        if (typeof email !== "string" || typeof password !== "string" || !email.trim() || !password) {
             return res.status(400).json({ message: "Email and password are required" });
         }
 
-        const admin = await prisma.admin.findUnique({ where: { email } });
+        const normalizedEmail = email.trim().toLowerCase();
+        const admin = await prisma.admin.findUnique({ where: { email: normalizedEmail } });
 
-        if (!admin || !admin.isActive) {
-            return res.status(401).json({ message: "Invalid credentials" });
+        if (!admin) {
+            return res.status(401).json({ message: "Invalid email or password." });
+        }
+
+        if (!admin.isActive) {
+            return res.status(403).json({ message: "Your account is disabled. Please contact an administrator." });
         }
 
         if (!admin.passwordHash) {
-            return res.status(401).json({ message: "This account uses Google sign-in. Please sign in with Google." });
+            return res.status(401).json({ message: "Invalid email or password." });
         }
 
         const isMatch = await bcrypt.compare(password, admin.passwordHash);
         if (!isMatch) {
-            return res.status(401).json({ message: "Invalid credentials" });
+            return res.status(401).json({ message: "Invalid email or password." });
         }
 
         const accessToken = signAccessToken(admin.id);
-        setAuthCookie(res, "admin_session", accessToken);
-
         const refreshToken = signRefreshToken(admin.id);
         const refreshHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
 
-        await prisma.refreshToken.create({
-            data: { userId: admin.id, userType: "ADMIN", tokenHash: refreshHash, expiresAt }
-        });
+        await prisma.$transaction([
+            prisma.refreshToken.create({
+                data: { userId: admin.id, userType: "ADMIN", tokenHash: refreshHash, expiresAt }
+            }),
+            prisma.admin.update({
+                where: { id: admin.id },
+                data: { lastLoginAt: new Date() }
+            })
+        ]);
 
+        setAuthCookie(res, "admin_session", accessToken);
         setRefreshCookie(res, refreshToken);
-
-        await prisma.admin.update({
-            where: { id: admin.id },
-            data: { lastLoginAt: new Date() }
-        });
 
         return res.status(200).json({
             message: "Login successful",
@@ -106,9 +111,9 @@ export const login = async (req: Request, res: Response) => {
                 role: admin.role
             }
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("ADMIN LOGIN ERROR:", error);
-        return res.status(500).json({ message: getSafeErrorMessage(error) });
+        return res.status(500).json({ message: "Unable to sign in right now. Please try again later." });
     }
 };
 
@@ -187,61 +192,116 @@ export const getSetupStatus = async (req: Request, res: Response) => {
 
 export const setupFirstAdmin = async (req: Request, res: Response) => {
     try {
-        const count = await prisma.admin.count();
-        if (count > 0) {
-            return res.status(403).json({ message: "Admin already initialized." });
+        const configuredSecret = process.env.ADMIN_BOOTSTRAP_SECRET;
+        const suppliedSecret = req.get("x-admin-bootstrap-secret");
+        if (!configuredSecret || Buffer.byteLength(configuredSecret, "utf8") < 32) {
+            return res.status(503).json({ message: "Initial administrator setup is unavailable." });
         }
 
-        const { name, email, password } = req.body;
+        const { name, email, password } = req.body ?? {};
 
-        if (!name || !email || !password) {
+        if (typeof suppliedSecret !== "string" || !suppliedSecret) {
+            return res.status(403).json({ message: "Invalid setup credentials." });
+        }
+
+        const configuredDigest = crypto.createHash("sha256").update(configuredSecret).digest();
+        const suppliedDigest = crypto.createHash("sha256").update(suppliedSecret).digest();
+        if (!crypto.timingSafeEqual(configuredDigest, suppliedDigest)) {
+            return res.status(403).json({ message: "Invalid setup credentials." });
+        }
+
+        if (typeof name !== "string" || typeof email !== "string" || typeof password !== "string") {
             return res.status(400).json({ message: "Name, email, and password are required" });
         }
-        if (password.length < 6) {
-            return res.status(400).json({ message: "Password must be at least 6 characters" });
+
+        const normalizedName = name.trim();
+        const normalizedEmail = email.trim().toLowerCase();
+        if (!normalizedName || normalizedName.length > 201 || normalizedEmail.length > 320) {
+            return res.status(400).json({ message: "Enter a valid name and email address." });
+        }
+        if (password.length < 12 || Buffer.byteLength(password, "utf8") > 72) {
+            return res.status(400).json({ message: "Password must be 12 to 72 bytes long." });
         }
 
         const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-        if (!emailRegex.test(email)) {
+        if (!emailRegex.test(normalizedEmail)) {
             return res.status(400).json({ message: "Invalid email format" });
         }
 
-        const salt = await bcrypt.genSalt(10);
+        const salt = await bcrypt.genSalt(12);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        const nameParts = name.trim().split(/\s+/);
+        const nameParts = normalizedName.split(/\s+/);
         const firstName = nameParts[0];
         const lastName = nameParts.slice(1).join(" ") || "";
-        const superAdminRoleId = await resolveAdminRoleId("SUPER_ADMIN");
+        if (firstName.length > 100 || lastName.length > 100) {
+            return res.status(400).json({ message: "Name is too long." });
+        }
 
-        const newAdmin = await prisma.admin.create({
-            data: {
-                email: email.trim().toLowerCase(),
-                passwordHash,
-                firstName,
-                lastName,
-                isSuperAdmin: true,
-                role: "SUPER_ADMIN",
-                ...(superAdminRoleId ? { roleId: superAdminRoleId } : {}),
-                isActive: true,
-                authProvider: "EMAIL"
+        const newAdmin = await prisma.$transaction(async (tx) => {
+            await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('admin_initial_bootstrap'))`;
+
+            if (await tx.admin.count() > 0) {
+                return null;
             }
+
+            const superAdminRole = await tx.adminRole.findUnique({
+                where: { name: "SUPER_ADMIN" },
+                select: { id: true }
+            });
+            if (!superAdminRole) {
+                throw new Error("Required SUPER_ADMIN role is not configured.");
+            }
+
+            return tx.admin.create({
+                data: {
+                    email: normalizedEmail,
+                    passwordHash,
+                    firstName,
+                    lastName,
+                    isSuperAdmin: true,
+                    role: "SUPER_ADMIN",
+                    roleId: superAdminRole.id,
+                    isActive: true,
+                    authProvider: "EMAIL"
+                },
+                select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    isSuperAdmin: true,
+                    role: true
+                }
+            });
+        });
+
+        if (!newAdmin) {
+            return res.status(409).json({ message: "Administrator setup has already been completed." });
+        }
+
+        await logAdminAction({
+            adminId: newAdmin.id,
+            actionType: AdminActionType.ADMIN_CREATED,
+            targetType: "Admin",
+            targetId: newAdmin.id,
+            description: "Initial Super Admin account created through the one-time bootstrap flow.",
+            newValue: {
+                email: newAdmin.email,
+                role: newAdmin.role,
+                isSuperAdmin: newAdmin.isSuperAdmin
+            },
+            ipAddress: req.ip,
+            userAgent: req.get("user-agent")
         });
 
         return res.status(201).json({
             message: "Super Admin created successfully",
-            admin: {
-                id: newAdmin.id,
-                email: newAdmin.email,
-                firstName: newAdmin.firstName,
-                lastName: newAdmin.lastName,
-                isSuperAdmin: newAdmin.isSuperAdmin,
-                role: newAdmin.role
-            }
+            admin: newAdmin
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("SETUP FIRST ADMIN ERROR:", error);
-        return res.status(500).json({ message: getSafeErrorMessage(error) });
+        return res.status(500).json({ message: "Unable to complete administrator setup right now." });
     }
 };
 
