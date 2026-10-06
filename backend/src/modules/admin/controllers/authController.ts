@@ -192,6 +192,10 @@ export const getSetupStatus = async (req: Request, res: Response) => {
 
 export const setupFirstAdmin = async (req: Request, res: Response) => {
     try {
+        if (await prisma.admin.count() > 0) {
+            return res.status(409).json({ message: "Administrator setup has already been completed." });
+        }
+
         const configuredSecret = process.env.ADMIN_BOOTSTRAP_SECRET;
         const suppliedSecret = req.get("x-admin-bootstrap-secret");
         if (!configuredSecret || Buffer.byteLength(configuredSecret, "utf8") < 32) {

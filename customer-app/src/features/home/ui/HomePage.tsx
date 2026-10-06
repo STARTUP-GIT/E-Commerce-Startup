@@ -117,7 +117,7 @@ export function HomePage() {
       return (
         <section
           key={sectionId}
-          className="relative overflow-hidden bg-[#080808] flex flex-col items-center justify-center py-10 sm:py-24 px-4 sm:px-6 min-h-[calc(100dvh-56px)]"
+          className="relative overflow-hidden bg-[#080808] flex flex-col items-center justify-start pt-8 pb-12 sm:justify-center sm:py-24 px-4 sm:px-6 min-h-[calc(100dvh-56px)]"
         >
           {/* Grid lines */}
           <div
@@ -139,13 +139,13 @@ export function HomePage() {
           <div className="max-w-[900px] w-full text-center relative z-10 animate-fade-up">
 
             {/* Eyebrow badge */}
-            <div className="inline-flex items-center gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white/[0.06] border border-white/10 text-xs sm:text-xs font-bold tracking-widest text-white/65 uppercase mb-5 sm:mb-10">
+            <div className="inline-flex max-w-full items-center gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white/[0.06] border border-white/10 text-[11px] sm:text-xs font-bold tracking-widest text-white/65 uppercase mb-3.5 sm:mb-10">
               <span className="w-1.5 h-1.5 rounded-full bg-white/70 inline-block animate-pulse" />
               {branding.heroBadge}
             </div>
 
             {/* Headline — Responsive */}
-            <h1 className="text-[clamp(2.25rem,10vw,3.5rem)] sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.98] tracking-tight text-white mb-5 sm:mb-8">
+            <h1 className="text-[clamp(2.625rem,11.5vw,3rem)] sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.98] tracking-tight text-white mb-4 sm:mb-8">
               {branding.heroHeadingLine1}<br />
               <span
                 className="bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent"
@@ -156,14 +156,14 @@ export function HomePage() {
             </h1>
 
             {/* Subheading */}
-            <p className="text-sm sm:text-base md:text-lg text-white/55 max-w-[560px] mx-auto mb-6 sm:mb-12 leading-relaxed font-normal">
+            <p className="text-[13px] sm:text-base md:text-lg text-white/55 max-w-[560px] mx-auto mb-5 sm:mb-12 leading-[1.5] sm:leading-relaxed font-normal">
               {branding.heroDescription}
             </p>
 
             {/* Search bar */}
             <form
               onSubmit={handleSearch}
-              className="flex h-[52px] w-full max-w-[480px] items-center gap-2 mx-auto mb-6 sm:mb-10 bg-white/[0.04] border border-white/10 rounded-xl p-1.5 backdrop-blur-xl"
+              className="flex h-12 sm:h-[52px] w-full max-w-[360px] sm:max-w-[480px] items-center gap-1.5 sm:gap-2 mx-auto mb-4 sm:mb-10 bg-white/[0.04] border border-white/10 rounded-xl p-1 sm:p-1.5 backdrop-blur-xl"
             >
               <div className="relative flex-1 min-w-0">
                 <Search
@@ -178,7 +178,7 @@ export function HomePage() {
               </div>
               <button
                 type="submit"
-                className="h-10 shrink-0 px-[18px] rounded-lg border-none bg-white text-black text-sm font-bold cursor-pointer transition-opacity hover:opacity-90"
+                className="h-[38px] sm:h-10 shrink-0 px-3.5 sm:px-[18px] rounded-lg border-none bg-white text-black text-xs sm:text-sm font-bold cursor-pointer transition-opacity hover:opacity-90"
               >
                 Search
               </button>
@@ -186,16 +186,16 @@ export function HomePage() {
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-4 justify-center items-center w-full">
-              <Link href="/shops" className="w-full sm:w-auto">
+              <Link href="/shops" className="w-full max-w-[220px] sm:w-auto sm:max-w-none">
                 <button
-                  className="w-full sm:w-auto h-11 sm:h-14 px-6 sm:px-8 rounded-xl bg-white text-black font-extrabold text-sm sm:text-base cursor-pointer flex items-center justify-center gap-2.5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                  className="w-full sm:w-auto h-11 sm:h-14 px-4 sm:px-8 rounded-xl bg-white text-black font-bold sm:font-extrabold text-xs sm:text-base cursor-pointer flex items-center justify-center gap-2.5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
                 >
                   {branding.exploreShopsButtonText} <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </Link>
-              <Link href="/products" className="w-full sm:w-auto">
+              <Link href="/products" className="w-full max-w-[220px] sm:w-auto sm:max-w-none">
                 <button
-                  className="w-full sm:w-auto h-11 sm:h-14 px-6 sm:px-8 rounded-xl bg-transparent text-white/85 border border-white/20 font-bold text-sm sm:text-base cursor-pointer transition-all hover:bg-white/10 hover:border-white/40 hover:text-white"
+                  className="w-full sm:w-auto h-11 sm:h-14 px-4 sm:px-8 rounded-xl bg-transparent text-white/85 border border-white/20 font-bold text-xs sm:text-base cursor-pointer transition-all hover:bg-white/10 hover:border-white/40 hover:text-white"
                 >
                   {branding.browseProductsButtonText}
                 </button>
