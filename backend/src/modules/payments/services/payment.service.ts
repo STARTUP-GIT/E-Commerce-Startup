@@ -227,7 +227,7 @@ export const calculateTotals = async (params: {
     // 5. Platform Fee (Fixed Amount from Settings, default 10)
     let platformFeeTotal = 10;
     try {
-        const settingsRow = await prisma.platformSetting.findUnique({ where: { id: 1 } });
+        const settingsRow = await prisma.marketplaceSetting.findUnique({ where: { id: 1 } });
         if (settingsRow) {
             const data = settingsRow.data as any;
             if (data && typeof data.platformFee === 'number') {

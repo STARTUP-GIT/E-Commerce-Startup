@@ -12,10 +12,10 @@ import { Link } from 'react-router-dom';
 import { GoogleButton } from './GoogleButton';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 
-import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+import { useSellerLayout } from '@/lib/hooks/useSellerLayout';
 
 export function RegisterPage() {
-  const { branding } = usePlatformLayout();
+  const { branding } = useSellerLayout();
   const { register: registerSeller, isRegistering } = useAuth();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 

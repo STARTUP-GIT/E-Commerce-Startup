@@ -43,10 +43,10 @@ function StatCard({
   return content;
 }
 
-import { usePlatformBranding } from '@/lib/hooks/usePlatformBranding';
+import { useBranding } from '@/lib/hooks/useBranding';
 
 export function DashboardPage() {
-  const { branding } = usePlatformBranding();
+  const { branding } = useBranding();
   const { admin } = useAuth();
   const { data: dashboard, isLoading: isDashboardLoading } = useDashboard();
   const { data: monthlyRevenue, isLoading: isMonthlyLoading } = useMonthlyRevenue();
@@ -217,7 +217,7 @@ export function DashboardPage() {
               { label: 'Review Open Reports', href: '/reports', color: 'text-white/60' },
               { label: 'Process Refunds', href: '/payments', color: 'text-white/60' },
               { label: 'Broadcast Notification', href: '/notifications', color: 'text-white/60' },
-              { label: 'Update Platform Settings', href: '/settings', color: 'text-white/60' },
+              { label: 'Update Marketplace Settings', href: '/settings', color: 'text-white/60' },
             ].map(({ label, href, color }) => (
               <Link
                 key={href}

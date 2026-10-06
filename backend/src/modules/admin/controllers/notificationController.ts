@@ -2,6 +2,76 @@ import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 import { NotificationType, NotificationChannel } from "@prisma/client";
 
+const DUPLICATE_WINDOW_MS = 60 * 1000;
+
+const RECIPIENT_COLUMNS: Record<string, string> = {
+    CUSTOMER: "customerId",
+    SELLER: "sellerId",
+    DELIVERY_PARTNER: "deliveryPartnerId",
+    ADMIN: "adminId"
+};
+
+export const listNotifications = async (req: Request, res: Response) => {
+    try {
+        const { type, userType, search, page = 1, limit = 10 } = req.query;
+
+        const whereClause: any = {};
+        if (type) whereClause.type = String(type);
+
+        if (userType) {
+            const key = RECIPIENT_COLUMNS[String(userType).toUpperCase()];
+            if (!key) return res.status(400).json({ message: "Invalid userType" });
+            whereClause[key] = { not: null };
+        }
+
+        if (search && String(search).trim()) {
+            const contains = { contains: String(search).trim(), mode: "insensitive" as const };
+            whereClause.OR = [{ title: { ...contains } }, { body: { ...contains } }];
+        }
+
+        const skip = (Number(page) - 1) * Number(limit);
+        const take = Number(limit);
+
+        const [notifications, total] = await prisma.$transaction([
+            prisma.notification.findMany({
+                where: whereClause,
+                select: {
+                    id: true,
+                    type: true,
+                    channel: true,
+                    status: true,
+                    title: true,
+                    body: true,
+                    sentAt: true,
+                    readAt: true,
+                    createdAt: true,
+                    customerId: true,
+                    sellerId: true,
+                    deliveryPartnerId: true,
+                    adminId: true
+                },
+                orderBy: { createdAt: "desc" },
+                skip,
+                take
+            }),
+            prisma.notification.count({ where: whereClause })
+        ]);
+
+        return res.status(200).json({
+            notifications,
+            pagination: {
+                total,
+                page: Number(page),
+                limit: Number(limit),
+                pages: Math.ceil(total / Number(limit))
+            }
+        });
+    } catch (error: any) {
+        console.error("LIST NOTIFICATIONS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
 export const sendNotification = async (req: Request, res: Response) => {
     try {
         const { recipientId, recipientRole, title, body, type, channel } = req.body;
@@ -19,12 +89,23 @@ export const sendNotification = async (req: Request, res: Response) => {
             sentAt: new Date()
         };
 
-        if (recipientRole === "CUSTOMER") data.customerId = recipientId;
-        else if (recipientRole === "SELLER") data.sellerId = recipientId;
-        else if (recipientRole === "DELIVERY_PARTNER") data.deliveryPartnerId = recipientId;
-        else if (recipientRole === "ADMIN") data.adminId = recipientId;
+        const recipientColumn = RECIPIENT_COLUMNS[String(recipientRole).toUpperCase()];
+        if (recipientColumn) data[recipientColumn] = recipientId;
         else {
             return res.status(400).json({ message: "Invalid recipientRole" });
+        }
+
+        const duplicate = await prisma.notification.findFirst({
+            where: {
+                type: data.type,
+                title,
+                body,
+                [recipientColumn]: recipientId,
+                createdAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) }
+            }
+        });
+        if (duplicate) {
+            return res.status(409).json({ message: "An identical notification was sent in the last minute." });
         }
 
         const notification = await prisma.notification.create({
@@ -141,6 +222,35 @@ export const broadcastNotification = async (req: Request, res: Response) => {
             });
         } else {
             return res.status(400).json({ message: "Invalid targetGroup" });
+        }
+
+        const scopeWhere: any = {};
+        if (targetGroup === "CUSTOMERS") {
+            scopeWhere.customerId = { not: null };
+        } else if (targetGroup === "SELLERS") {
+            scopeWhere.sellerId = { not: null };
+        } else if (targetGroup === "EVERYONE") {
+            scopeWhere.OR = [
+                { customerId: { not: null } },
+                { sellerId: { not: null } },
+                { deliveryPartnerId: { not: null } }
+            ];
+        } else if (targetGroup === "SELECTED") {
+            const selectedColumn = RECIPIENT_COLUMNS[String(selectedRole).toUpperCase()];
+            if (selectedColumn) scopeWhere[selectedColumn] = { not: null };
+        }
+
+        const duplicate = await prisma.notification.findFirst({
+            where: {
+                type: nType,
+                title,
+                body,
+                createdAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) },
+                ...scopeWhere
+            }
+        });
+        if (duplicate) {
+            return res.status(409).json({ message: "An identical notification was sent in the last minute." });
         }
 
         if (notificationsData.length > 0) {

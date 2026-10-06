@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useUIStore } from '@/lib/store/uiStore';
+import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard,
   Users,
@@ -25,17 +26,30 @@ import {
   Menu,
   ChevronRight,
   ShieldAlert,
+  ShieldCheck,
   UserCircle,
   UserCog,
   Grid,
+  Palette,
+  FileText,
+  LifeBuoy,
+  RotateCcw,
+  BadgeCheck,
+  Gavel,
+  Wallet,
+  KeyRound,
+  MonitorSmartphone,
+  Download,
 } from 'lucide-react';
 import { Badge } from '@/shared/components/Badge';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 
-import { usePlatformBranding } from '@/lib/hooks/usePlatformBranding';
+import { useBranding } from '@/lib/hooks/useBranding';
+import { usePermissions } from '@/lib/hooks/usePermissions';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { branding } = usePlatformBranding();
+  const { branding } = useBranding();
+  const { can } = usePermissions();
   const { admin, logout, isLoading } = useAuth();
   const { sidebarOpen, toggleSidebar } = useUIStore();
   const pathname = usePathname();
@@ -53,33 +67,76 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Analytics', path: '/analytics', icon: TrendingUp },
-    { name: 'Sellers', path: '/sellers', icon: Users },
-    { name: 'Customers', path: '/customers', icon: UserCheck },
-    { name: 'Shops', path: '/shops', icon: Store },
-    { name: 'Packing Fee Requests', path: '/packing-fee-requests', icon: CreditCard },
-    { name: 'Products', path: '/products', icon: Box },
-    { name: `${branding?.shortName || branding?.name || 'Marketplace'} Categories`, path: '/categories', icon: Grid },
-    { name: 'Orders', path: '/orders', icon: ShoppingBag },
-    { name: 'Payments', path: '/payments', icon: CreditCard },
-    { name: 'Payment Methods', path: '/payment-methods', icon: CreditCard },
-    { name: 'Delivery Methods', path: '/delivery-methods', icon: Truck },
-    { name: 'Delivery', path: '/delivery', icon: Truck },
-    { name: 'Districts (Cities)', path: '/karnataka/districts', icon: MapPin },
-    { name: 'States', path: '/states', icon: MapPin },
-    { name: 'Reports', path: '/reports', icon: AlertTriangle },
-    { name: 'Notifications', path: '/notifications', icon: Bell },
-    { name: 'Coupons', path: '/coupons', icon: Tag },
-    { name: 'Settings', path: '/settings', icon: Settings },
-    { name: 'Audit Logs', path: '/audit-logs', icon: FileSpreadsheet },
-    { name: 'My Profile', path: '/profile', icon: UserCircle },
-    ...(admin?.isSuperAdmin ? [{ name: 'Admin Management', path: '/admin-management', icon: UserCog }] : []),
+  interface NavItem {
+    name: string;
+    path: string;
+    icon: LucideIcon;
+    group: string;
+    permission?: string;
+  }
+
+  const navItems: NavItem[] = [
+    // Overview
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, group: 'Overview', permission: 'dashboard.view' },
+    { name: 'Analytics', path: '/analytics', icon: TrendingUp, group: 'Overview', permission: 'analytics.view' },
+
+    // Customers
+    { name: 'Customers', path: '/customers', icon: UserCheck, group: 'Customers', permission: 'customers.view' },
+    { name: 'Sessions & Devices', path: '/sessions', icon: MonitorSmartphone, group: 'Customers', permission: 'sessions.view' },
+    { name: 'Support Tickets', path: '/support-tickets', icon: LifeBuoy, group: 'Customers', permission: 'support.view' },
+
+    // Sellers
+    { name: 'Sellers', path: '/sellers', icon: Users, group: 'Sellers', permission: 'sellers.view' },
+    { name: 'Shops', path: '/shops', icon: Store, group: 'Sellers', permission: 'sellers.view' },
+    { name: 'Seller Verifications', path: '/seller-verifications', icon: BadgeCheck, group: 'Sellers', permission: 'sellers.view' },
+    { name: 'Seller Strikes', path: '/seller-strikes', icon: Gavel, group: 'Sellers', permission: 'sellers.view' },
+    { name: 'Seller Payouts', path: '/seller-payouts', icon: Wallet, group: 'Sellers', permission: 'payments.view' },
+
+    // Catalog & Content
+    { name: 'Products', path: '/products', icon: Box, group: 'Catalog & Content', permission: 'moderation.view' },
+    { name: 'Categories', path: '/categories', icon: Grid, group: 'Catalog & Content', permission: 'catalog.view' },
+    { name: 'Content Management', path: '/content', icon: FileText, group: 'Catalog & Content', permission: 'content.view' },
+    { name: 'States', path: '/states', icon: MapPin, group: 'Catalog & Content', permission: 'catalog.view' },
+    { name: 'Districts / Cities', path: '/karnataka/districts', icon: MapPin, group: 'Catalog & Content', permission: 'catalog.view' },
+
+    // Orders
+    { name: 'Orders', path: '/orders', icon: ShoppingBag, group: 'Orders', permission: 'orders.view' },
+    { name: 'Returns', path: '/returns', icon: RotateCcw, group: 'Orders', permission: 'orders.view' },
+    { name: 'Delivery', path: '/delivery', icon: Truck, group: 'Orders', permission: 'delivery.view' },
+    { name: 'Packing Fee Requests', path: '/packing-fee-requests', icon: CreditCard, group: 'Orders', permission: 'orders.view' },
+
+    // Finance
+    { name: 'Payments & Transactions', path: '/payments', icon: CreditCard, group: 'Finance', permission: 'payments.view' },
+    { name: 'Payment Methods', path: '/payment-methods', icon: CreditCard, group: 'Finance', permission: 'settings.view' },
+    { name: 'Delivery Methods', path: '/delivery-methods', icon: Truck, group: 'Finance', permission: 'settings.view' },
+
+    // Marketing
+    { name: 'Coupons', path: '/coupons', icon: Tag, group: 'Marketing', permission: 'coupons.view' },
+    { name: 'Notifications', path: '/notifications', icon: Bell, group: 'Marketing', permission: 'notifications.view' },
+
+    // Moderation
+    { name: 'Moderation Queue', path: '/moderation', icon: ShieldCheck, group: 'Moderation', permission: 'moderation.view' },
+
+    // Reports
+    { name: 'Reports', path: '/reports', icon: AlertTriangle, group: 'Reports', permission: 'reports.view' },
+    { name: 'Exports', path: '/exports', icon: Download, group: 'Reports', permission: 'reports.export' },
+
+    // Administration
+    { name: 'Admin Management', path: '/admin-management', icon: UserCog, group: 'Administration', permission: 'admin.users.manage' },
+    { name: 'Roles & Permissions', path: '/roles', icon: KeyRound, group: 'Administration', permission: 'admin.roles.manage' },
+    { name: 'Audit Logs', path: '/audit-logs', icon: FileSpreadsheet, group: 'Administration', permission: 'audit_logs.view' },
+    { name: 'Branding', path: '/branding', icon: Palette, group: 'Administration', permission: 'branding.view' },
+    { name: 'Settings', path: '/settings', icon: Settings, group: 'Administration', permission: 'settings.view' },
+    { name: 'My Profile', path: '/profile', icon: UserCircle, group: 'Administration' },
   ];
 
+  const visibleNavItems = navItems.filter((item) => !item.permission || can(item.permission));
+  const navGroups = Array.from(new Set(visibleNavItems.map((item) => item.group)));
+
   const activePageName = () => {
-    const matched = navItems.find((item) => pathname.startsWith(item.path));
+    const matched =
+      visibleNavItems.find((item) => pathname.startsWith(item.path)) ||
+      navItems.find((item) => pathname.startsWith(item.path));
     return matched ? matched.name : 'System';
   };
 
@@ -128,25 +185,36 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Nav links */}
-          <nav className="flex-1 px-4 py-3 space-y-0.5 overflow-y-auto">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname.startsWith(item.path);
-              return (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                    isActive
-                      ? 'bg-white/10 text-white border border-white/15 shadow-sm'
-                      : 'text-white/60 hover:text-white/95 hover:bg-white/[0.03] border border-transparent'
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
+          <nav className="flex-1 px-4 py-3 overflow-y-auto space-y-4">
+            {navGroups.map((group) => (
+              <div key={group}>
+                <span className="px-3 block mb-1 text-[9px] font-black uppercase tracking-[0.15em] text-white/30">
+                  {group}
+                </span>
+                <div className="space-y-0.5">
+                  {visibleNavItems
+                    .filter((item) => item.group === group)
+                    .map((item) => {
+                      const Icon = item.icon;
+                      const isActive = pathname.startsWith(item.path);
+                      return (
+                        <Link
+                          key={item.path}
+                          href={item.path}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                            isActive
+                              ? 'bg-white/10 text-white border border-white/15 shadow-sm'
+                              : 'text-white/60 hover:text-white/95 hover:bg-white/[0.03] border border-transparent'
+                          }`}
+                        >
+                          <Icon className="h-4 w-4 shrink-0" />
+                          <span className="truncate">{item.name}</span>
+                        </Link>
+                      );
+                    })}
+                </div>
+              </div>
+            ))}
           </nav>
 
           {/* User info & Logout */}

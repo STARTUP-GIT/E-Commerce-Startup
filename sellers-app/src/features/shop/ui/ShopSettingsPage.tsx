@@ -294,8 +294,8 @@ export function ShopSettingsPage() {
 
         <Card className="border border-white/10 bg-gradient-to-br from-purple-500/10 via-transparent to-emerald-500/10">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-bold text-white/90">Platform Configuration (Read Only)</CardTitle>
-            <CardDescription className="text-xs text-white/50">Platform parameters configured by administrative team</CardDescription>
+            <CardTitle className="text-sm font-bold text-white/90">Marketplace Configuration (Read Only)</CardTitle>
+            <CardDescription className="text-xs text-white/50">Marketplace parameters configured by the administrative team</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2 text-xs">
             <div className="rounded-2xl border border-white/10 bg-black/20 p-3 flex flex-col justify-between">
@@ -556,7 +556,7 @@ export function ShopSettingsPage() {
               <ShieldCheck className="h-4 w-4 text-purple-400" />
               <span>Shop Status</span>
             </CardTitle>
-            <CardDescription>Your shop's current standing on the platform</CardDescription>
+            <CardDescription>Your shop's current standing on the marketplace</CardDescription>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/5 gap-3">
@@ -892,7 +892,7 @@ export function ShopSettingsPage() {
           isOpen={isRequestModalOpen}
           onClose={() => setIsRequestModalOpen(false)}
           title="Request Packing Fee Approval"
-          description="Submit a request to Platform Administration to enable customer packing fees for your shop."
+          description="Submit a request to the admin team to enable customer packing fees for your shop."
         >
           <form onSubmit={handleRequestSubmit} className="space-y-4 pt-2">
             {requestError && (

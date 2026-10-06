@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { adminAuth } from "../../../middleware/adminAuth.js";
+import { requirePermission } from "../../../middleware/requirePermission.js";
 import {
     getPayments,
     getPayment,
@@ -14,12 +15,12 @@ const router = Router();
 
 router.use(adminAuth);
 
-router.get("/", getPayments);
-router.get("/refunds", getRefunds);
-router.get("/revenue", getPlatformRevenue);
-router.get("/commissions", getSellerCommissionHistory);
-router.get("/:id", getPayment);
-router.patch("/:id/approve-refund", approveRefund);
-router.patch("/:id/reject-refund", rejectRefund);
+router.get("/", requirePermission("payments.view"), getPayments);
+router.get("/refunds", requirePermission("payments.view"), getRefunds);
+router.get("/revenue", requirePermission("payments.view"), getPlatformRevenue);
+router.get("/commissions", requirePermission("payments.view"), getSellerCommissionHistory);
+router.get("/:id", requirePermission("payments.view"), getPayment);
+router.patch("/:id/approve-refund", requirePermission("payments.refund"), approveRefund);
+router.patch("/:id/reject-refund", requirePermission("payments.refund"), rejectRefund);
 
 export default router;

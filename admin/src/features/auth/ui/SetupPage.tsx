@@ -14,10 +14,10 @@ import { useUIStore } from '@/lib/store/uiStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
-import { usePlatformBranding } from '@/lib/hooks/usePlatformBranding';
+import { useBranding } from '@/lib/hooks/useBranding';
 
 export function SetupPage() {
-  const { branding } = usePlatformBranding();
+  const { branding } = useBranding();
   const { showToast } = useUIStore();
   const queryClient = useQueryClient();
   const router = useRouter();

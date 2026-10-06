@@ -23,7 +23,7 @@ import {
 import { Badge } from '@/shared/components/Badge';
 
 import { useConfirmStore } from '@/lib/store/confirmStore';
-import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+import { useSellerLayout } from '@/lib/hooks/useSellerLayout';
 
 const getIconForItem = (path?: string) => {
   switch (path) {
@@ -64,7 +64,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const showConfirm = useConfirmStore((state) => state.showConfirm);
-  const { sidebar, branding } = usePlatformLayout();
+  const { sidebar, branding } = useSellerLayout();
 
   const handleLogout = () => {
     showConfirm({

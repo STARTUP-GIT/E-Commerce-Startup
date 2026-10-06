@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { adminAuth } from "../../../middleware/adminAuth.js";
+import { requirePermission } from "../../../middleware/requirePermission.js";
 import {
     getOrders,
     getOrder,
@@ -14,12 +15,12 @@ const router = Router();
 
 router.use(adminAuth);
 
-router.get("/", getOrders);
-router.get("/seller-orders", getSellerOrders);
-router.get("/:id", getOrder);
-router.get("/:id/timeline", getOrderTimeline);
-router.patch("/:id/status", updateOrderStatus);
-router.patch("/:id/cancel", cancelOrder);
-router.patch("/:id/refund", refundOrder);
+router.get("/", requirePermission("orders.view"), getOrders);
+router.get("/seller-orders", requirePermission("orders.view"), getSellerOrders);
+router.get("/:id", requirePermission("orders.view"), getOrder);
+router.get("/:id/timeline", requirePermission("orders.view"), getOrderTimeline);
+router.patch("/:id/status", requirePermission("orders.manage"), updateOrderStatus);
+router.patch("/:id/cancel", requirePermission("orders.manage"), cancelOrder);
+router.patch("/:id/refund", requirePermission("orders.manage"), refundOrder);
 
 export default router;

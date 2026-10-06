@@ -640,8 +640,8 @@ export const updateProfile = async (req: Request, res: Response) => {
         });
 
         // Add address if address data is provided
-        const platformSetting = await prisma.platformSetting.findUnique({ where: { id: 1 } });
-        const settingsData = platformSetting?.data as any;
+        const marketplaceSetting = await prisma.marketplaceSetting.findUnique({ where: { id: 1 } });
+        const settingsData = marketplaceSetting?.data as any;
         const districtRequired = settingsData?.districtRequired !== false;
 
         const isCityValid = districtRequired ? (city && String(city).trim().length > 0) : true;

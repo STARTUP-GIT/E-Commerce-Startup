@@ -12,10 +12,10 @@ import { ShieldCheck, Mail, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 
-import { usePlatformBranding } from '@/lib/hooks/usePlatformBranding';
+import { useBranding } from '@/lib/hooks/useBranding';
 
 export function LoginPage() {
-  const { branding } = usePlatformBranding();
+  const { branding } = useBranding();
   const { login, isLoggingIn } = useAuth();
 
   const loginForm = useForm<LoginInput>({

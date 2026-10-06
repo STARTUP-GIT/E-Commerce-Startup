@@ -1,7 +1,7 @@
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import { COLORS, FONT, safe, formatDate, currencyShort } from "../../shared/utils/pdfHelpers.js";
-import { getPlatformBranding } from "../../platform/services/settingsService.js";
+import { getBrandingConfiguration } from "../../admin/services/brandingService.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -127,7 +127,7 @@ function drawDivider(doc: PDFKit.PDFDocument, y: number, left: number, width: nu
 // ---------------------------------------------------------------------------
 
 export async function generateShippingLabelPdf(data: ShippingLabelData): Promise<PDFKit.PDFDocument> {
-    const branding = await getPlatformBranding();
+    const branding = await getBrandingConfiguration();
     const mktName = branding.name || branding.marketplaceName || "Marketplace";
     const domain = `${mktName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
     const supportEmail = `support@${domain}`;

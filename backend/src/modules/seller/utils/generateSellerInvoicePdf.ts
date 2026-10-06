@@ -1,6 +1,6 @@
 import PDFDocument from "pdfkit";
 import { COLORS, FONT, MARGIN, CONTENT_W, PAGE_H, currency, safe, formatDate, formatDateTime, formatStatus, statusColor, drawRoundedRect, drawLabelValue, drawKV } from "../../shared/utils/pdfHelpers.js";
-import { getPlatformBranding } from "../../platform/services/settingsService.js";
+import { getBrandingConfiguration } from "../../admin/services/brandingService.js";
 
 // ---------------------------------------------------------------------------
 // Types — mirror the shape returned by the seller orders controller
@@ -67,7 +67,7 @@ export interface SellerInvoiceData {
 // ---------------------------------------------------------------------------
 
 export async function generateSellerInvoicePdf(data: SellerInvoiceData): Promise<PDFKit.PDFDocument> {
-    const branding = await getPlatformBranding();
+    const branding = await getBrandingConfiguration();
     const mktName = branding.name || branding.marketplaceName || "Marketplace";
     const domain = `${mktName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
     const supportEmail = `support@${domain}`;

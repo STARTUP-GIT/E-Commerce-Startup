@@ -72,8 +72,19 @@ import sellerDeliveryRoute from './modules/delivery/routes/sellerDeliveryRoute.j
 import adminDeliveryRoute from './modules/delivery/routes/adminDeliveryRoute.js';
 import deliveryWebhook from './modules/delivery/webhooks/deliveryWebhook.js';
 import storageRoute from './modules/storage/routes/storage.routes.js';
-import platformLayoutRoute from './modules/platform/routes/layoutRoute.js';
-import platformRoute from './modules/platform/routes/index.js';
+import { publicBrandingRouter, adminBrandingRouter } from './modules/admin/routes/brandingRoute.js';
+import adminRolesRoute from './modules/admin/routes/rolesRoute.js';
+import adminSessionRoute from './modules/admin/routes/sessionRoute.js';
+import adminSupportTicketRoute from './modules/admin/routes/supportTicketRoute.js';
+import { adminContentRouter, publicContentRouter } from './modules/admin/routes/contentRoute.js';
+import adminReturnRoute from './modules/admin/routes/returnRoute.js';
+import adminSellerVerificationRoute from './modules/admin/routes/sellerVerificationRoute.js';
+import adminSellerStrikeRoute from './modules/admin/routes/sellerStrikeRoute.js';
+import adminSellerPayoutRoute from './modules/admin/routes/sellerPayoutRoute.js';
+import adminExportRoute from './modules/admin/routes/exportRoute.js';
+import { ensureDefaultRoles } from './modules/admin/services/permissionService.js';
+
+ensureDefaultRoles().catch((err) => console.error('[RBAC] Role bootstrap failed:', err));
 
 export const configureMiddlewares = (app: express.Express) => {
     if (process.env.NODE_ENV?.toLowerCase() === 'production') {
@@ -197,6 +208,7 @@ app.use('/api/admin/notifications', adminLimiter, adminNotificationRoute);
 app.use('/api/admin/reports', adminLimiter, adminReportRoute);
 app.use('/api/admin/coupons', adminLimiter, adminCouponRoute);
 app.use('/api/admin/settings', adminLimiter, adminSettingsRoute);
+app.use('/api/admin/settings/branding', adminLimiter, adminBrandingRouter);
 app.use('/api/admin/logs', adminLimiter, adminLogRoute);
 app.use('/api/admin/cities', adminLimiter, adminCityRoute);
 app.use('/api/admin/states', adminLimiter, adminStateRoute);
@@ -210,12 +222,25 @@ app.use('/api/admin', adminLimiter, adminDeliveryRoute);
 app.use('/', deliveryWebhook);
 app.use('/api/storage', storageRoute);
 
-// Platform SSOT routes (public sync APIs for Customer, Seller, Platform)
-app.use('/platform', platformLayoutRoute);
-app.use('/api/platform', platformLayoutRoute);
-app.use('/users/api/platform', platformLayoutRoute);
-app.use('/seller/api/platform', platformLayoutRoute);
-app.use('/api/platform', platformRoute);
+
+// Admin: roles, sessions, support tickets, CMS, returns, seller centre, exports
+app.use('/api/admin/roles', adminLimiter, adminRolesRoute);
+app.use('/api/admin/sessions', adminLimiter, adminSessionRoute);
+app.use('/api/admin/support-tickets', adminLimiter, adminSupportTicketRoute);
+app.use('/api/admin/content', adminLimiter, adminContentRouter);
+app.use('/api/admin/returns', adminLimiter, adminReturnRoute);
+app.use('/api/admin/seller-verifications', adminLimiter, adminSellerVerificationRoute);
+app.use('/api/admin/seller-strikes', adminLimiter, adminSellerStrikeRoute);
+app.use('/api/admin/seller-payouts', adminLimiter, adminSellerPayoutRoute);
+app.use('/api/admin/exports', adminLimiter, adminExportRoute);
+
+// Public content blocks (Customer app home banners / promos)
+app.use('/api/content/public', publicContentRouter);
+
+// Marketplace branding (public SSOT for Customer, Seller and Admin frontends)
+app.use('/api/branding', publicBrandingRouter);
+app.use('/users/api/branding', publicBrandingRouter);
+app.use('/seller/api/branding', publicBrandingRouter);
 
 configureErrorHandlers(app);
 

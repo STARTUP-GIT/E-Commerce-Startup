@@ -1,6 +1,6 @@
 # E-Commerce-Startup
 
-Multi-service e-commerce platform: customer, seller, admin, platform, delivery, and payment backend APIs plus their frontends.
+Multi-service e-commerce marketplace: customer, seller, admin, delivery, and payment backend APIs plus their frontends.
 
 ## Backend services
 
@@ -13,7 +13,6 @@ All services live in `backend/` and share one Prisma schema (`backend/prisma/`):
 | Admin | `backend/admin.server.ts` | 3003 |
 | Delivery | `backend/delivery.server.ts` | 3004 |
 | Payment | `backend/payment.server.ts` | 3005 |
-| Platform | `backend/platform.server.ts` | 3006 |
 
 ## Database (Neon + Prisma)
 
@@ -41,7 +40,7 @@ npm run build
 Run a service:
 
 ```bash
-npm run start:customer   # or seller / admin / platform / delivery / payment
+npm run start:customer   # or seller / admin / delivery / payment
 ```
 
 ## Render deployment
@@ -72,7 +71,6 @@ Each service deploys from the `backend/` directory with build command `npm run b
 | `CUSTOMER_FRONTEND_URL` | yes | CORS |
 | `SELLER_FRONTEND_URL` | yes | CORS |
 | `ADMIN_FRONTEND_URL` | yes | CORS |
-| `PLATFORM_FRONTEND_URL` | no | CORS |
 | `CORS_ORIGINS` | no | comma-separated override of the above |
 | `DELIVERY_PROVIDER` | no | default `PORTER` |
 | `PORTER_API_KEY` | yes* | if `DELIVERY_PROVIDER=PORTER` |

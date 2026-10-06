@@ -7,8 +7,18 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../../
 import { setAuthCookie, clearAuthCookie, setRefreshCookie, clearRefreshCookie } from "../../../config/sessionCookies.js";
 import { OAuth2Client } from "google-auth-library";
 import EmailService from "../../../services/email/email.service.js";
+import { logAdminAction } from "../utils/actionLogger.js";
+import { AdminActionType } from "@prisma/client";
+import {
+    hasPermission,
+    getAdminPermissions,
+    invalidatePermissionCache
+} from "../services/permissionService.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+/** Role names that always carry unrestricted (Super Admin) access. */
+const TOP_ROLES = ["OWNER", "SUPER_ADMIN"];
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 
@@ -222,6 +232,8 @@ export const getProfile = async (req: Request, res: Response) => {
                 isSuperAdmin: true,
                 isActive: true,
                 role: true,
+                roleId: true,
+                adminRole: { select: { name: true, displayName: true } },
                 authProvider: true,
                 lastLoginAt: true,
                 createdAt: true
@@ -232,7 +244,16 @@ export const getProfile = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Admin profile not found" });
         }
 
-        return res.status(200).json({ admin });
+        const { adminRole, ...rest } = admin;
+        const permissions = await getAdminPermissions(adminId);
+
+        return res.status(200).json({
+            admin: {
+                ...rest,
+                roleName: adminRole?.name ?? rest.role,
+                permissions
+            }
+        });
     } catch (error: any) {
         console.error("ADMIN GET PROFILE ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
@@ -466,11 +487,15 @@ export const googleOAuth = async (req: Request, res: Response) => {
 export const listAdmins = async (req: Request, res: Response) => {
     try {
         const caller = await prisma.admin.findUnique({ where: { id: req.adminId } });
-        if (!caller || !caller.isSuperAdmin) {
+        if (!caller) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        const allowed = caller.isSuperAdmin || (await hasPermission(caller.id, "admin.users.manage"));
+        if (!allowed) {
             return res.status(403).json({ message: "Forbidden: Super Admin access required." });
         }
 
-        const admins = await prisma.admin.findMany({
+        const rows = await prisma.admin.findMany({
             orderBy: { createdAt: "desc" },
             select: {
                 id: true,
@@ -482,11 +507,18 @@ export const listAdmins = async (req: Request, res: Response) => {
                 isActive: true,
                 isSuperAdmin: true,
                 role: true,
+                roleId: true,
+                adminRole: { select: { name: true, displayName: true } },
                 lastLoginAt: true,
                 createdAt: true,
                 authProvider: true
             }
         });
+
+        const admins = rows.map(({ adminRole, ...rest }) => ({
+            ...rest,
+            roleName: adminRole?.name ?? rest.role
+        }));
 
         return res.status(200).json({ admins });
     } catch (error: any) {
@@ -500,18 +532,37 @@ export const listAdmins = async (req: Request, res: Response) => {
 export const createAdmin = async (req: Request, res: Response) => {
     try {
         const caller = await prisma.admin.findUnique({ where: { id: req.adminId } });
-        if (!caller || !caller.isSuperAdmin) {
+        if (!caller) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        const allowed = caller.isSuperAdmin || (await hasPermission(caller.id, "admin.users.manage"));
+        if (!allowed) {
             return res.status(403).json({ message: "Forbidden: Super Admin access required." });
         }
 
-        const { name, email, password, role } = req.body;
-        if (!name || !email || !role) {
+        const { name, email, password, role, roleId } = req.body;
+        if (!name || !email || !(role || roleId)) {
             return res.status(400).json({ message: "Name, email, and role are required." });
         }
 
         const existing = await prisma.admin.findUnique({ where: { email } });
         if (existing) {
             return res.status(409).json({ message: "Admin account with this email already exists." });
+        }
+
+        let roleRow = null;
+        if (roleId) {
+            roleRow = await prisma.adminRole.findUnique({ where: { id: String(roleId) } });
+        } else if (role) {
+            roleRow = await prisma.adminRole.findUnique({ where: { name: String(role).toUpperCase() } });
+        }
+        if (!roleRow) {
+            return res.status(400).json({ message: "Unknown role." });
+        }
+
+        const isSuper = TOP_ROLES.includes(roleRow.name);
+        if (isSuper && !caller.isSuperAdmin) {
+            return res.status(403).json({ message: "Forbidden: Super Admin access required." });
         }
 
         let passwordHash: string | null = null;
@@ -526,7 +577,6 @@ export const createAdmin = async (req: Request, res: Response) => {
         const parts = (name as string).trim().split(/\s+/);
         const firstName = parts[0] || "";
         const lastName = parts.slice(1).join(" ") || "";
-        const isSuper = role === "SUPER_ADMIN";
 
         const admin = await prisma.admin.create({
             data: {
@@ -535,10 +585,23 @@ export const createAdmin = async (req: Request, res: Response) => {
                 firstName,
                 lastName,
                 isSuperAdmin: isSuper,
-                role,
+                role: roleRow.name,
+                roleId: roleRow.id,
                 isActive: true,
                 authProvider: "EMAIL"
             }
+        });
+
+        await logAdminAction({
+            adminId: caller.id,
+            actionType: AdminActionType.ADMIN_CREATED,
+            targetType: "Admin",
+            targetId: admin.id,
+            description: `Admin account '${admin.email}' created with role ${roleRow.name}`,
+            previousValue: null,
+            newValue: { email: admin.email, role: roleRow.name, roleId: roleRow.id },
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"]
         });
 
         return res.status(201).json({
@@ -549,7 +612,9 @@ export const createAdmin = async (req: Request, res: Response) => {
                 firstName: admin.firstName,
                 lastName: admin.lastName,
                 isSuperAdmin: admin.isSuperAdmin,
-                role: admin.role
+                role: admin.role,
+                roleId: admin.roleId,
+                roleName: roleRow.name
             }
         });
     } catch (error: any) {
@@ -593,6 +658,20 @@ export const updateAdminStatus = async (req: Request, res: Response) => {
             data: { isActive }
         });
 
+        invalidatePermissionCache(id);
+
+        await logAdminAction({
+            adminId: caller.id,
+            actionType: AdminActionType.ADMIN_STATUS_CHANGED,
+            targetType: "Admin",
+            targetId: id,
+            description: `Admin status changed to ${isActive ? "active" : "disabled"}`,
+            previousValue: { isActive: target.isActive },
+            newValue: { isActive: admin.isActive },
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"]
+        });
+
         return res.status(200).json({
             message: `Admin status updated to ${isActive ? "active" : "disabled"}.`,
             admin: { id: admin.id, isActive: admin.isActive }
@@ -613,9 +692,9 @@ export const updateAdminRole = async (req: Request, res: Response) => {
         }
 
         const id = req.params.id as string;
-        const { role } = req.body;
+        const { role, roleId } = req.body;
 
-        if (!role) {
+        if (!role && !roleId) {
             return res.status(400).json({ message: "Role is required." });
         }
 
@@ -624,7 +703,17 @@ export const updateAdminRole = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Admin account not found." });
         }
 
-        const isSuper = role === "SUPER_ADMIN";
+        let roleRow = null;
+        if (roleId) {
+            roleRow = await prisma.adminRole.findUnique({ where: { id: String(roleId) } });
+        } else if (role) {
+            roleRow = await prisma.adminRole.findUnique({ where: { name: String(role).toUpperCase() } });
+        }
+        if (!roleRow) {
+            return res.status(400).json({ message: "Unknown role." });
+        }
+
+        const isSuper = TOP_ROLES.includes(roleRow.name);
 
         if (!isSuper && target.isSuperAdmin && target.isActive) {
             const activeSuperAdmins = await prisma.admin.count({
@@ -637,12 +726,32 @@ export const updateAdminRole = async (req: Request, res: Response) => {
 
         const admin = await prisma.admin.update({
             where: { id },
-            data: { role, isSuperAdmin: isSuper }
+            data: { role: roleRow.name, roleId: roleRow.id, isSuperAdmin: isSuper }
+        });
+
+        invalidatePermissionCache(target.id);
+
+        await logAdminAction({
+            adminId: caller.id,
+            actionType: AdminActionType.ADMIN_UPDATED,
+            targetType: "Admin",
+            targetId: id,
+            description: `Role changed to ${roleRow.name}`,
+            previousValue: { role: target.role },
+            newValue: { role: roleRow.name },
+            ipAddress: req.ip,
+            userAgent: req.headers["user-agent"]
         });
 
         return res.status(200).json({
             message: "Admin role updated successfully.",
-            admin: { id: admin.id, role: admin.role, isSuperAdmin: admin.isSuperAdmin }
+            admin: {
+                id: admin.id,
+                role: admin.role,
+                roleId: admin.roleId,
+                roleName: roleRow.name,
+                isSuperAdmin: admin.isSuperAdmin
+            }
         });
     } catch (error: any) {
         console.error("UPDATE ADMIN ROLE ERROR:", error);

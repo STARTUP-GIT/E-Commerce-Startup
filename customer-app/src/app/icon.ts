@@ -15,19 +15,20 @@ const resolveUrl = (value?: string): string | null => {
 };
 
 export default async function GET() {
-  let iconUrl: string | null = null;
+  // Default favicon: the marketplace logo served by the backend.
+  let iconUrl: string | null = resolveUrl('/images/logo.png');
 
   if (BACKEND_URL) {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/platform/branding/public`, {
+      const res = await fetch(`${BACKEND_URL}/api/branding/public`, {
         cache: 'no-store',
       });
       if (res.ok) {
         const b = await res.json();
-        iconUrl = resolveUrl(b?.favicon || b?.faviconUrl || b?.logo || b?.logoUrl);
+        iconUrl = resolveUrl(b?.favicon || b?.faviconUrl || b?.logo || b?.logoUrl) ?? iconUrl;
       }
     } catch {
-      // Fall through to no icon.
+      // Fall through to the default logo.
     }
   }
 

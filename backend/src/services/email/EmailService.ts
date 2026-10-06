@@ -4,7 +4,7 @@ import { renderOtpTemplate } from './templates/otp.template.js';
 import { renderForgotPasswordTemplate } from './templates/forgotPassword.template.js';
 import { renderVerificationTemplate } from './templates/emailVerification.template.js';
 import { renderWelcomeTemplate } from './templates/welcome.template.js';
-import { getPlatformBranding } from '../../modules/platform/services/settingsService.js';
+import { getBrandingConfiguration } from '../../modules/admin/services/brandingService.js';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM;
@@ -31,7 +31,7 @@ const adminFrontendUrl = resolveUrl(process.env.ADMIN_FRONTEND_URL || process.en
 
 class EmailService {
   private static async resolveBranding(): Promise<{ marketplaceName: string; logoUrl?: string }> {
-    const branding = await getPlatformBranding().catch(() => null);
+    const branding = await getBrandingConfiguration().catch(() => null);
     return {
       marketplaceName: branding?.marketplaceName || branding?.name || 'Marketplace',
       logoUrl: branding?.logo || branding?.logoUrl || undefined,

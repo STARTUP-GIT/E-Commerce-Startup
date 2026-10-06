@@ -1,0 +1,45 @@
+// =============================================================================
+// ContentBlock — CMS-style customer-facing content managed from Admin.
+// -----------------------------------------------------------------------------
+// Controlled content slots (banners, promos, category/store promotions).
+// This is intentionally NOT a generic drag-and-drop page builder.
+// =============================================================================
+
+enum ContentPlacement {
+  HOME_HERO
+  HOME_BANNER
+  HOME_STRIP
+  CATEGORY_PROMO
+  STORE_PROMO
+  ANNOUNCEMENT
+  FOOTER
+  OTHER
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model ContentBlock {
+  id         String           @id @default(cuid())
+  title      String           @db.VarChar(200)
+  subtitle   String?          @db.VarChar(300)
+  body       String?          @db.Text
+  imageUrl   String?          @db.VarChar(2048)
+  linkUrl    String?          @db.VarChar(2048)
+  placement  ContentPlacement @default(HOME_BANNER)
+  status     ContentStatus    @default(DRAFT)
+  sortOrder  Int              @default(0)
+  visibleFrom DateTime?
+  visibleTo   DateTime?
+  createdById String?         @db.VarChar(30)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([placement, status])
+  @@index([status, sortOrder])
+  @@index([createdAt])
+  @@map("content_blocks")
+}

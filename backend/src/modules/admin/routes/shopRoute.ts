@@ -14,20 +14,23 @@ import {
     getPackingFeeRequests
 } from "../controllers/shopController.js";
 import { adminAuth } from "../../../middleware/adminAuth.js";
+import { requirePermission } from "../../../middleware/requirePermission.js";
 
 const router = Router();
 
-router.get("/shops", adminAuth, getShops);
-router.get("/packing-fee/requests", adminAuth, getPackingFeeRequests);
-router.get("/shops/:id", adminAuth, getShop);
-router.delete("/shops/:id", adminAuth, deleteShop);
-router.patch("/shops/:id/approve-packing", adminAuth, approvePackingPermission);
-router.patch("/shops/:id/reject-packing", adminAuth, rejectPackingPermission);
-router.patch("/shops/:id/revoke-packing", adminAuth, revokePackingPermission);
-router.patch("/shops/:id/approve", adminAuth, approveShop);
-router.patch("/shops/:id/reject", adminAuth, rejectShop);
-router.patch("/shops/:id/suspend", adminAuth, suspendShop);
-router.patch("/shops/:id/disable", adminAuth, disableShop);
-router.put("/shops/:id/config", adminAuth, updateShopConfig);
+router.use(adminAuth);
+
+router.get("/shops", requirePermission("sellers.view"), getShops);
+router.get("/packing-fee/requests", requirePermission("sellers.view"), getPackingFeeRequests);
+router.get("/shops/:id", requirePermission("sellers.view"), getShop);
+router.delete("/shops/:id", requirePermission("sellers.manage"), deleteShop);
+router.patch("/shops/:id/approve-packing", requirePermission("sellers.manage"), approvePackingPermission);
+router.patch("/shops/:id/reject-packing", requirePermission("sellers.manage"), rejectPackingPermission);
+router.patch("/shops/:id/revoke-packing", requirePermission("sellers.manage"), revokePackingPermission);
+router.patch("/shops/:id/approve", requirePermission("sellers.manage"), approveShop);
+router.patch("/shops/:id/reject", requirePermission("sellers.manage"), rejectShop);
+router.patch("/shops/:id/suspend", requirePermission("sellers.manage"), suspendShop);
+router.patch("/shops/:id/disable", requirePermission("sellers.manage"), disableShop);
+router.put("/shops/:id/config", requirePermission("sellers.manage"), updateShopConfig);
 
 export default router;

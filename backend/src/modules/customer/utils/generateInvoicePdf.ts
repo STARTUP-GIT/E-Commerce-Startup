@@ -1,6 +1,6 @@
 import PDFDocument from "pdfkit";
 import { COLORS, FONT, MARGIN, CONTENT_W, PAGE_H, currency, safe, formatDate, formatDateTime, formatStatus, statusColor, drawRoundedRect, drawLabelValue, drawKV } from "../../shared/utils/pdfHelpers.js";
-import { getPlatformBranding } from "../../platform/services/settingsService.js";
+import { getBrandingConfiguration } from "../../admin/services/brandingService.js";
 
 // ---------------------------------------------------------------------------
 // Types — mirror the shapes returned by the Prisma query in the controller
@@ -124,7 +124,7 @@ interface InvoiceOrder {
 // ---------------------------------------------------------------------------
 
 export async function generateInvoicePdf(order: InvoiceOrder): Promise<PDFKit.PDFDocument> {
-    const branding = await getPlatformBranding();
+    const branding = await getBrandingConfiguration();
     const mktName = branding.marketplaceName || "Marketplace";
     const mktLogo = order.marketplaceLogoUrl || branding.logoUrl || branding.logo;
 

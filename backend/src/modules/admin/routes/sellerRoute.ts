@@ -15,21 +15,24 @@ import {
     deactivateSeller
 } from "../controllers/sellerController.js";
 import { adminAuth } from "../../../middleware/adminAuth.js";
+import { requirePermission } from "../../../middleware/requirePermission.js";
 
 const router = Router();
 
-router.get("/sellers", adminAuth, getSellers);
-router.get("/sellers/:id", adminAuth, getSeller);
-router.patch("/sellers/:id/ban", adminAuth, banSeller);
-router.patch("/sellers/:id/unban", adminAuth, unbanSeller);
-router.patch("/sellers/:id/suspend", adminAuth, suspendSeller);
-router.patch("/sellers/:id/restore", adminAuth, restoreSeller);
-router.patch("/sellers/:id/activate", adminAuth, activateSeller);
-router.patch("/sellers/:id/deactivate", adminAuth, deactivateSeller);
-router.delete("/sellers/:id", adminAuth, deleteSeller);
-router.get("/sellers/:id/shop", adminAuth, getSellerShop);
-router.get("/sellers/:id/orders", adminAuth, getSellerOrders);
-router.get("/sellers/:id/products", adminAuth, getSellerProducts);
-router.get("/sellers/:id/analytics", adminAuth, getSellerAnalytics);
+router.use(adminAuth);
+
+router.get("/sellers", requirePermission("sellers.view"), getSellers);
+router.get("/sellers/:id", requirePermission("sellers.view"), getSeller);
+router.patch("/sellers/:id/ban", requirePermission("sellers.manage"), banSeller);
+router.patch("/sellers/:id/unban", requirePermission("sellers.manage"), unbanSeller);
+router.patch("/sellers/:id/suspend", requirePermission("sellers.manage"), suspendSeller);
+router.patch("/sellers/:id/restore", requirePermission("sellers.manage"), restoreSeller);
+router.patch("/sellers/:id/activate", requirePermission("sellers.manage"), activateSeller);
+router.patch("/sellers/:id/deactivate", requirePermission("sellers.manage"), deactivateSeller);
+router.delete("/sellers/:id", requirePermission("sellers.manage"), deleteSeller);
+router.get("/sellers/:id/shop", requirePermission("sellers.view"), getSellerShop);
+router.get("/sellers/:id/orders", requirePermission("sellers.view"), getSellerOrders);
+router.get("/sellers/:id/products", requirePermission("sellers.view"), getSellerProducts);
+router.get("/sellers/:id/analytics", requirePermission("sellers.view"), getSellerAnalytics);
 
 export default router;

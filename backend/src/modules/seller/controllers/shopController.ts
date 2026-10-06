@@ -100,8 +100,8 @@ export const createShop = async (req: Request,res: Response) => {
         }
 
         // Fetch settings config
-        const platformSetting = await prisma.platformSetting.findUnique({ where: { id: 1 } });
-        const settingsData = platformSetting?.data as any;
+        const marketplaceSetting = await prisma.marketplaceSetting.findUnique({ where: { id: 1 } });
+        const settingsData = marketplaceSetting?.data as any;
         const districtRequired = settingsData?.districtRequired !== false; // default to true
 
         if (districtRequired) {
@@ -697,7 +697,7 @@ export const getActiveStates = async (req: Request, res: Response) => {
         const states = dbStates.filter(s => s.isActive).map(s => s.name);
         
         // Get settings
-        const settingsRow = await prisma.platformSetting.findUnique({ where: { id: 1 } });
+        const settingsRow = await prisma.marketplaceSetting.findUnique({ where: { id: 1 } });
         const settings = settingsRow?.data as any;
         const districtRequired = settings?.districtRequired !== false;
         
@@ -781,8 +781,8 @@ export const updateShop = async (req: Request, res: Response) => {
                 });
             }
 
-            const platformSetting = await prisma.platformSetting.findUnique({ where: { id: 1 } });
-            const settingsData = platformSetting?.data as any;
+            const marketplaceSetting = await prisma.marketplaceSetting.findUnique({ where: { id: 1 } });
+            const settingsData = marketplaceSetting?.data as any;
             const districtRequired = settingsData?.districtRequired !== false;
 
             if (districtRequired) {

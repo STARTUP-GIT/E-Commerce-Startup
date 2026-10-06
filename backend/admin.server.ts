@@ -34,11 +34,21 @@ import adminCategoryRoute from './src/modules/admin/routes/categoryRoute.js';
 import adminPaymentMethodRoute from './src/modules/admin/routes/paymentMethodRoute.js';
 import adminDeliveryMethodRoute from './src/modules/admin/routes/deliveryMethodRoute.js';
 import adminDeliveryRoute from './src/modules/delivery/routes/adminDeliveryRoute.js';
-import platformLayoutRoute from './src/modules/platform/routes/layoutRoute.js';
-import platformRoute from './src/modules/platform/routes/index.js';
+import { publicBrandingRouter, adminBrandingRouter } from './src/modules/admin/routes/brandingRoute.js';
+import adminRolesRoute from './src/modules/admin/routes/rolesRoute.js';
+import adminSessionRoute from './src/modules/admin/routes/sessionRoute.js';
+import adminSupportTicketRoute from './src/modules/admin/routes/supportTicketRoute.js';
+import { adminContentRouter, publicContentRouter } from './src/modules/admin/routes/contentRoute.js';
+import adminReturnRoute from './src/modules/admin/routes/returnRoute.js';
+import adminSellerVerificationRoute from './src/modules/admin/routes/sellerVerificationRoute.js';
+import adminSellerStrikeRoute from './src/modules/admin/routes/sellerStrikeRoute.js';
+import adminSellerPayoutRoute from './src/modules/admin/routes/sellerPayoutRoute.js';
+import adminExportRoute from './src/modules/admin/routes/exportRoute.js';
+import { ensureDefaultRoles } from './src/modules/admin/services/permissionService.js';
 import { ensureDefaultPaymentMethods } from './src/modules/admin/controllers/paymentMethodController.js';
 import { ensureDefaultDeliveryMethods } from './src/modules/admin/controllers/deliveryMethodController.js';
 
+ensureDefaultRoles().catch(err => console.error("Auto-seed admin roles failed:", err));
 ensureDefaultPaymentMethods().catch(err => console.error("Auto-seed payment methods failed:", err));
 ensureDefaultDeliveryMethods().catch(err => console.error("Auto-seed delivery methods failed:", err));
 
@@ -60,6 +70,22 @@ app.use('/api/admin/notifications', adminLimiter, adminNotificationRoute);
 app.use('/api/admin/reports', adminLimiter, adminReportRoute);
 app.use('/api/admin/coupons', adminLimiter, adminCouponRoute);
 app.use('/api/admin/settings', adminLimiter, adminSettingsRoute);
+app.use('/api/admin/settings/branding', adminLimiter, adminBrandingRouter);
+
+// Admin: roles, sessions, support tickets, CMS, returns, seller centre, exports
+app.use('/api/admin/roles', adminLimiter, adminRolesRoute);
+app.use('/api/admin/sessions', adminLimiter, adminSessionRoute);
+app.use('/api/admin/support-tickets', adminLimiter, adminSupportTicketRoute);
+app.use('/api/admin/content', adminLimiter, adminContentRouter);
+app.use('/api/admin/returns', adminLimiter, adminReturnRoute);
+app.use('/api/admin/seller-verifications', adminLimiter, adminSellerVerificationRoute);
+app.use('/api/admin/seller-strikes', adminLimiter, adminSellerStrikeRoute);
+app.use('/api/admin/seller-payouts', adminLimiter, adminSellerPayoutRoute);
+app.use('/api/admin/exports', adminLimiter, adminExportRoute);
+
+// Public content blocks (Customer app home banners / promos)
+app.use('/api/content/public', publicContentRouter);
+app.use('/api/branding', publicBrandingRouter);
 app.use('/api/admin/logs', adminLimiter, adminLogRoute);
 app.use('/api/admin/cities', adminLimiter, adminCityRoute);
 app.use('/api/admin/states', adminLimiter, adminStateRoute);
@@ -69,10 +95,6 @@ app.use('/api/admin/delivery-methods', adminLimiter, adminDeliveryMethodRoute);
 app.use('/api/admin', adminLimiter, adminDeliveryRoute);
 
 // Platform SSOT routes (public sync APIs for Customer, Seller, Platform)
-app.use('/platform', platformLayoutRoute);
-app.use('/api/platform', platformLayoutRoute);
-app.use('/users/api/platform', platformLayoutRoute);
-app.use('/api/platform', platformRoute);
 
 //health route
 app.get('/api/health', (req, res) => {

@@ -13,7 +13,7 @@ import { shopListApi } from '@/features/shops/shop-list/api/shopListApi';
 import { useLocationStore } from '@/lib/store/locationStore';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
 import { BrandLogo } from './BrandLogo';
-import { usePlatformLayout, UiLayoutItem } from '@/lib/hooks/usePlatformLayout';
+import { useSiteLayout, UiLayoutItem } from '@/lib/hooks/useSiteLayout';
 
 // ─── Shop Names Marquee ───────────────────────────────────────────────────────
 
@@ -137,7 +137,7 @@ export function Navbar() {
     staleTime: 2 * 60_000,
   });
   const unreadCount = notifData?.notifications?.filter((n: any) => !n.isRead).length || 0;
-  const { navbar: dynamicNavbar, branding, isFeatureEnabled } = usePlatformLayout();
+  const { navbar: dynamicNavbar } = useSiteLayout();
 
   return (
     <header className="sticky top-0 z-40 w-full">

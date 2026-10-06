@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { adminAuth } from "../../../middleware/adminAuth.js";
+import { requirePermission } from "../../../middleware/requirePermission.js";
 import {
     getAdminLogs,
     getLoginHistory,
@@ -10,8 +11,8 @@ const router = Router();
 
 router.use(adminAuth);
 
-router.get("/", getAdminLogs);
-router.get("/login-history", getLoginHistory);
-router.get("/audit", getAuditLogs);
+router.get("/", requirePermission("audit_logs.view"), getAdminLogs);
+router.get("/login-history", requirePermission("audit_logs.view"), getLoginHistory);
+router.get("/audit", requirePermission("audit_logs.view"), getAuditLogs);
 
 export default router;

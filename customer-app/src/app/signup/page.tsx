@@ -6,7 +6,7 @@ import { BrandLogo } from '@/shared/components/BrandLogo';
 
 export const metadata = {
   title: 'Create Account',
-  description: 'Join the platform to discover local artisans, custom 3D prints, and handcrafted goods.',
+  description: 'Join Marketplace to discover local artisans, custom 3D prints, and handcrafted goods.',
 };
 
 export default function SignupPage() {

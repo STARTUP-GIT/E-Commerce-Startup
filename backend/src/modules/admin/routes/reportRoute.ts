@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { adminAuth } from "../../../middleware/adminAuth.js";
+import { requirePermission } from "../../../middleware/requirePermission.js";
 import {
     getReportedProducts,
     getReportedShops,
@@ -11,9 +12,9 @@ const router = Router();
 
 router.use(adminAuth);
 
-router.get("/products", getReportedProducts);
-router.get("/shops", getReportedShops);
-router.patch("/:id/resolve", resolveReport);
-router.delete("/:id", deleteReport);
+router.get("/products", requirePermission("reports.view"), getReportedProducts);
+router.get("/shops", requirePermission("reports.view"), getReportedShops);
+router.patch("/:id/resolve", requirePermission("moderation.manage"), resolveReport);
+router.delete("/:id", requirePermission("moderation.manage"), deleteReport);
 
 export default router;

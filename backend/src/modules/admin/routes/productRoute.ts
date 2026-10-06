@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { adminAuth } from "../../../middleware/adminAuth.js";
+import { requirePermission } from "../../../middleware/requirePermission.js";
 import {
     getProducts,
     getProduct,
@@ -14,12 +15,12 @@ const router = Router();
 
 router.use(adminAuth);
 
-router.get("/", getProducts);
-router.get("/reported", getReportedProducts);
-router.get("/:id", getProduct);
-router.delete("/:id", deleteProduct);
-router.patch("/:id/restore", restoreProduct);
-router.patch("/:id/hide", hideProduct);
-router.patch("/:id/unhide", unhideProduct);
+router.get("/", requirePermission("moderation.view"), getProducts);
+router.get("/reported", requirePermission("moderation.view"), getReportedProducts);
+router.get("/:id", requirePermission("moderation.view"), getProduct);
+router.delete("/:id", requirePermission("moderation.manage"), deleteProduct);
+router.patch("/:id/restore", requirePermission("moderation.manage"), restoreProduct);
+router.patch("/:id/hide", requirePermission("moderation.manage"), hideProduct);
+router.patch("/:id/unhide", requirePermission("moderation.manage"), unhideProduct);
 
 export default router;

@@ -1,11 +1,11 @@
 // =============================================================================
 // SHARED BRANDING SERVICE (Single Source of Truth)
 // -----------------------------------------------------------------------------
-// Platform owns branding. Every frontend reads the SAME public endpoint:
-//   GET /api/platform/branding/public   (primary)
-//   GET /api/platform/public/branding   (fallback)
-//   GET /platform/branding              (legacy fallback)
-// If every endpoint fails we fall back to the default below. Never crashes.
+// Branding is owned by Admin and served by the branding endpoint:
+//   GET /api/branding/public   (primary)
+//   GET /api/branding          (fallback)
+// Both return identical public JSON with no auth. If every endpoint fails we
+// fall back to the default below. Never crashes.
 // =============================================================================
 
 import type { AxiosInstance } from 'axios';
@@ -91,11 +91,7 @@ export const normalizeBranding = (d: any): BrandingConfig => {
   };
 };
 
-const BRANDING_ENDPOINTS = [
-  '/api/platform/branding/public',
-  '/api/platform/public/branding',
-  '/platform/branding',
-];
+const BRANDING_ENDPOINTS = ['/api/branding/public', '/api/branding'];
 
 export const fetchBranding = async (client: AxiosInstance): Promise<BrandingConfig> => {
   for (const url of BRANDING_ENDPOINTS) {

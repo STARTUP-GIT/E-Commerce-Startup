@@ -1,14 +1,55 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 
+const parseDate = (value: unknown, field: string): { date?: Date; error?: string } => {
+    if (!value) return {};
+    const d = new Date(String(value));
+    if (isNaN(d.getTime())) return { error: `Invalid \`${field}\` date` };
+    return { date: d };
+};
+
+/** Shared filters for the AdminAction-backed endpoints. */
+const buildLogWhere = (query: Record<string, any>): { where?: any; error?: string } => {
+    const { adminId, actionType, targetType, targetId, search, from, to } = query;
+    const where: any = {};
+
+    if (adminId) where.adminId = String(adminId);
+    if (actionType) where.actionType = String(actionType);
+    if (targetType) where.targetType = String(targetType);
+    if (targetId) where.targetId = String(targetId);
+
+    if (search && String(search).trim()) {
+        where.description = { contains: String(search).trim(), mode: "insensitive" as const };
+    }
+
+    const fromDate = parseDate(from, "from");
+    if (fromDate.error) return { error: fromDate.error };
+    const toDate = parseDate(to, "to");
+    if (toDate.error) return { error: toDate.error };
+
+    if (fromDate.date || toDate.date) {
+        where.performedAt = {};
+        if (fromDate.date) where.performedAt.gte = fromDate.date;
+        if (toDate.date) where.performedAt.lte = toDate.date;
+    }
+
+    return { where };
+};
+
 export const getAdminLogs = async (req: Request, res: Response) => {
     try {
         const { page = 1, limit = 20 } = req.query;
+
+        const { where, error } = buildLogWhere(req.query as Record<string, any>);
+        if (error) return res.status(400).json({ message: error });
+        const whereClause = where ?? {};
+
         const skip = (Number(page) - 1) * Number(limit);
         const take = Number(limit);
 
         const [logs, total] = await prisma.$transaction([
             prisma.adminAction.findMany({
+                where: whereClause,
                 include: {
                     admin: { select: { id: true, email: true, firstName: true, lastName: true } }
                 },
@@ -16,7 +57,7 @@ export const getAdminLogs = async (req: Request, res: Response) => {
                 skip,
                 take
             }),
-            prisma.adminAction.count()
+            prisma.adminAction.count({ where: whereClause })
         ]);
 
         return res.status(200).json({
@@ -56,12 +97,11 @@ export const getLoginHistory = async (req: Request, res: Response) => {
 
 export const getAuditLogs = async (req: Request, res: Response) => {
     try {
-        const { actionType, targetType, targetId, page = 1, limit = 20 } = req.query;
+        const { page = 1, limit = 20 } = req.query;
 
-        const whereClause: any = {};
-        if (actionType) whereClause.actionType = String(actionType);
-        if (targetType) whereClause.targetType = String(targetType);
-        if (targetId) whereClause.targetId = String(targetId);
+        const { where, error } = buildLogWhere(req.query as Record<string, any>);
+        if (error) return res.status(400).json({ message: error });
+        const whereClause = where ?? {};
 
         const skip = (Number(page) - 1) * Number(limit);
         const take = Number(limit);

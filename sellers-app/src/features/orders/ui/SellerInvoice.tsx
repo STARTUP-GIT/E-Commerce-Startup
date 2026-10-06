@@ -24,10 +24,10 @@ function RowValue({ children, className = '' }: { children: React.ReactNode; cla
   );
 }
 
-import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+import { useSellerLayout } from '@/lib/hooks/useSellerLayout';
 
 export function SellerInvoice({ order, className = '' }: SellerInvoiceProps) {
-  const { branding } = usePlatformLayout();
+  const { branding } = useSellerLayout();
   const mktName = branding?.name || branding?.marketplaceName || 'Marketplace';
   const domain = `${mktName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
   const supportEmail = `support@${domain}`;

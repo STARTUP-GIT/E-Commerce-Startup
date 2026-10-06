@@ -29,8 +29,7 @@ import customerCategoryRoute from './src/modules/customer/routes/categoryRoute.j
 import customerLocationRoute from './src/modules/customer/routes/locationRoute.js';
 import corePaymentRoutes from './src/modules/payments/routes/paymentRoute.js';
 import storageRoute from './src/modules/storage/routes/storage.routes.js';
-import platformLayoutRoute from './src/modules/platform/routes/layoutRoute.js';
-import platformRoute from './src/modules/platform/routes/index.js';
+import { publicBrandingRouter } from './src/modules/admin/routes/brandingRoute.js';
 
 const app = express();
 configureMiddlewares(app);
@@ -53,11 +52,9 @@ app.use('/customer/api/location', customerLocationRoute);
 app.use('/', corePaymentRoutes);
 app.use('/api/storage', storageRoute);
 
-// Platform SSOT routes (public sync APIs for Customer, Seller, Platform)
-app.use('/platform', platformLayoutRoute);
-app.use('/api/platform', platformLayoutRoute);
-app.use('/users/api/platform', platformLayoutRoute);
-app.use('/api/platform', platformRoute);
+// Marketplace branding (public SSOT)
+app.use('/api/branding', publicBrandingRouter);
+app.use('/users/api/branding', publicBrandingRouter);
 
 //health route
 app.get('/api/health', (req, res) => {

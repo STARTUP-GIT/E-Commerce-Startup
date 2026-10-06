@@ -4,7 +4,7 @@ import { AdminActionType } from "@prisma/client";
 import { prisma } from "../../../config/prisma.js";
 import { invalidatePublicCache } from "../../../middleware/cache.js";
 
-export interface PlatformSettings {
+export interface MarketplaceSettings {
     gstPercentage: number;
     platformFee: number;
     packingRules: {
@@ -21,7 +21,7 @@ export interface PlatformSettings {
     districtRequired: boolean;
 }
 
-const DEFAULT_SETTINGS: PlatformSettings = {
+const DEFAULT_SETTINGS: MarketplaceSettings = {
     gstPercentage: 18,
     platformFee: 10,
     packingRules: {
@@ -38,24 +38,24 @@ const DEFAULT_SETTINGS: PlatformSettings = {
     districtRequired: true
 };
 
-const getPlatformSettings = async (): Promise<PlatformSettings> => {
-    const row = await prisma.platformSetting.findUnique({ where: { id: 1 } });
+const getMarketplaceSettings = async (): Promise<MarketplaceSettings> => {
+    const row = await prisma.marketplaceSetting.findUnique({ where: { id: 1 } });
     if (!row) return DEFAULT_SETTINGS;
     try {
-        const data = row.data as unknown as PlatformSettings;
+        const data = row.data as unknown as MarketplaceSettings;
         return { ...DEFAULT_SETTINGS, ...data };
     } catch (e) {
         return DEFAULT_SETTINGS;
     }
 };
 
-const savePlatformSettings = async (settings: PlatformSettings): Promise<void> => {
-    await prisma.platformSetting.upsert({ where: { id: 1 }, update: { data: settings as any }, create: { id: 1, data: settings as any } });
+const saveMarketplaceSettings = async (settings: MarketplaceSettings): Promise<void> => {
+    await prisma.marketplaceSetting.upsert({ where: { id: 1 }, update: { data: settings as any }, create: { id: 1, data: settings as any } });
 };
 
 export const getSettings = async (req: Request, res: Response) => {
     try {
-        const settings = await getPlatformSettings();
+        const settings = await getMarketplaceSettings();
         return res.status(200).json({ settings });
     } catch (error: any) {
         console.error("GET SETTINGS ERROR:", error);
@@ -66,10 +66,10 @@ export const getSettings = async (req: Request, res: Response) => {
 export const updateSettings = async (req: Request, res: Response) => {
     try {
         const adminId = req.adminId!;
-        const previous = await getPlatformSettings();
+        const previous = await getMarketplaceSettings();
         const updated = { ...previous, ...req.body };
 
-        await savePlatformSettings(updated);
+        await saveMarketplaceSettings(updated);
 
         invalidatePublicCache();
 
@@ -102,13 +102,13 @@ export const updateGST = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "gstPercentage is required" });
         }
 
-        const previous = await getPlatformSettings();
+        const previous = await getMarketplaceSettings();
         const updated = {
             ...previous,
             gstPercentage: Number(gstPercentage)
         };
 
-        await savePlatformSettings(updated);
+        await saveMarketplaceSettings(updated);
 
         invalidatePublicCache();
 
@@ -141,13 +141,13 @@ export const updatePlatformFee = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "platformFee is required" });
         }
 
-        const previous = await getPlatformSettings();
+        const previous = await getMarketplaceSettings();
         const updated = {
             ...previous,
             platformFee: Number(platformFee)
         };
 
-        await savePlatformSettings(updated);
+        await saveMarketplaceSettings(updated);
 
         invalidatePublicCache();
 
@@ -176,7 +176,7 @@ export const updatePackingRules = async (req: Request, res: Response) => {
         const adminId = req.adminId!;
         const { maxPercentage, maxAmount } = req.body;
 
-        const previous = await getPlatformSettings();
+        const previous = await getMarketplaceSettings();
         const updated = {
             ...previous,
             packingRules: {
@@ -185,7 +185,7 @@ export const updatePackingRules = async (req: Request, res: Response) => {
             }
         };
 
-        await savePlatformSettings(updated);
+        await saveMarketplaceSettings(updated);
 
         invalidatePublicCache();
 
@@ -218,7 +218,7 @@ export const updatePaymentGateway = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "selected gateway name is required" });
         }
 
-        const previous = await getPlatformSettings();
+        const previous = await getMarketplaceSettings();
         const updated = {
             ...previous,
             paymentGateway: {
@@ -226,7 +226,7 @@ export const updatePaymentGateway = async (req: Request, res: Response) => {
             }
         };
 
-        await savePlatformSettings(updated);
+        await saveMarketplaceSettings(updated);
 
         invalidatePublicCache();
 
@@ -255,7 +255,7 @@ export const updateOrderSettings = async (req: Request, res: Response) => {
         const adminId = req.adminId!;
         const { autoConfirm, deliveryCharge } = req.body;
 
-        const previous = await getPlatformSettings();
+        const previous = await getMarketplaceSettings();
         const updated = {
             ...previous,
             orderSettings: {
@@ -264,7 +264,7 @@ export const updateOrderSettings = async (req: Request, res: Response) => {
             }
         };
 
-        await savePlatformSettings(updated);
+        await saveMarketplaceSettings(updated);
 
         invalidatePublicCache();
 

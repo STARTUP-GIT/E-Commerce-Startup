@@ -7,8 +7,8 @@ validateEnv();
 import { seedKarnatakaDistricts } from './src/config/seedDistricts.js';
 seedKarnatakaDistricts().catch(console.error);
 
-import { syncPlatformDefaults } from './src/modules/platform/services/syncService.js';
-syncPlatformDefaults().catch((err) => console.error('[platform] Platform sync failed on startup:', err));
+import { ensureDefaultRoles } from './src/modules/admin/services/permissionService.js';
+ensureDefaultRoles().catch((err) => console.error('[RBAC] Role bootstrap failed:', err));
 
 import http from 'http';
 import app from './src/app.js';

@@ -30,7 +30,7 @@ import {
   Store,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+import { useSellerLayout } from '@/lib/hooks/useSellerLayout';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -38,7 +38,7 @@ export function DashboardPage() {
   const { metrics, chartData, isLoadingMetrics } = useAnalytics();
   const { orders, isLoading: isLoadingOrders } = useOrders();
   const navigate = useNavigate();
-  const { dashboardCards, quickActions, branding } = usePlatformLayout();
+  const { dashboardCards, quickActions, branding } = useSellerLayout();
   const marketplaceName = branding?.marketplaceName || 'the marketplace';
 
   const recentOrders = orders.slice(0, 5);

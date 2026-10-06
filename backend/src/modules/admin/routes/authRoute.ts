@@ -19,6 +19,7 @@ import {
     resetPassword
 } from "../controllers/authController.js";
 import { adminAuth } from "../../../middleware/adminAuth.js";
+import { requirePermission } from "../../../middleware/requirePermission.js";
 import {
     loginLimiter,
     registerLimiter,
@@ -47,11 +48,11 @@ router.get("/profile", adminAuth, getProfile);
 router.put("/profile", adminAuth, updateProfile);
 router.put("/profile/password", adminAuth, updatePassword);
 
-// ─── Protected: Admin Management (Super Admin only) ───────────────────────────
-router.get("/list", adminAuth, listAdmins);
-router.post("/", adminAuth, createAdmin);
-router.patch("/:id/status", adminAuth, updateAdminStatus);
-router.patch("/:id/role", adminAuth, updateAdminRole);
-router.post("/:id/reset-password", adminAuth, resetAdminPassword);
+// ─── Protected: Admin Management (permission gated) ───────────────────────────
+router.get("/list", adminAuth, requirePermission("admin.users.manage"), listAdmins);
+router.post("/", adminAuth, requirePermission("admin.users.manage"), createAdmin);
+router.patch("/:id/status", adminAuth, requirePermission("admin.users.manage"), updateAdminStatus);
+router.patch("/:id/role", adminAuth, requirePermission("admin.roles.manage"), updateAdminRole);
+router.post("/:id/reset-password", adminAuth, requirePermission("admin.users.manage"), resetAdminPassword);
 
 export default router;

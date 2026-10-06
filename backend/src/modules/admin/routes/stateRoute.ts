@@ -6,12 +6,15 @@ import {
     deleteState
 } from "../controllers/stateController.js";
 import { adminAuth } from "../../../middleware/adminAuth.js";
+import { requirePermission } from "../../../middleware/requirePermission.js";
 
 const router = Router();
 
-router.post("/", adminAuth, createState);
-router.get("/", adminAuth, getStates);
-router.put("/:id", adminAuth, updateState);
-router.delete("/:id", adminAuth, deleteState);
+router.use(adminAuth);
+
+router.post("/", requirePermission("catalog.manage"), createState);
+router.get("/", requirePermission("catalog.view"), getStates);
+router.put("/:id", requirePermission("catalog.manage"), updateState);
+router.delete("/:id", requirePermission("catalog.manage"), deleteState);
 
 export default router;

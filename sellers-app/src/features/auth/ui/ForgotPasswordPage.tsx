@@ -30,10 +30,10 @@ type RequestInput = z.infer<typeof requestSchema>;
 type OtpInput = z.infer<typeof otpSchema>;
 type ResetInput = z.infer<typeof resetSchema>;
 
-import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+import { useSellerLayout } from '@/lib/hooks/useSellerLayout';
 
 export function ForgotPasswordPage() {
-  const { branding } = usePlatformLayout();
+  const { branding } = useSellerLayout();
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading] = useState(false);

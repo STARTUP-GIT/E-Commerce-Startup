@@ -69,13 +69,16 @@ const nextConfig: NextConfig = {
         source: '/api/customer/logout',
         destination: '/api/customer/logout',
       },
+      // ── Admin-owned branding (single source of truth) ────────────────────
+      // Explicit rules so /api/branding never falls through to the
+      // /api/:path* catch-all (which would send it to /users/api/branding).
       {
-        source: '/platform/:path*',
-        destination: `${backendUrl.replace(/\/$/, '')}/platform/:path*`,
+        source: '/api/branding',
+        destination: `${backendUrl.replace(/\/$/, '')}/api/branding`,
       },
       {
-        source: '/api/platform/:path*',
-        destination: `${backendUrl.replace(/\/$/, '')}/api/platform/:path*`,
+        source: '/api/branding/:path*',
+        destination: `${backendUrl.replace(/\/$/, '')}/api/branding/:path*`,
       },
       {
         // Everything else under /api/** → backend

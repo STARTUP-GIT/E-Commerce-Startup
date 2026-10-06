@@ -5,9 +5,41 @@ import { AdminActionType } from "@prisma/client";
 
 export const getPayments = async (req: Request, res: Response) => {
     try {
-        const { status, page = 1, limit = 10 } = req.query;
+        const { status, method, search, from, to, page = 1, limit = 10 } = req.query;
         const whereClause: any = {};
         if (status) whereClause.status = String(status);
+        if (method) whereClause.method = String(method);
+
+        if (search && String(search).trim()) {
+            const term = String(search).trim();
+            const contains = { contains: term, mode: "insensitive" as const };
+            whereClause.OR = [
+                { id: { ...contains } },
+                { gatewayPaymentId: { ...contains } },
+                { gatewayOrderId: { ...contains } },
+                { invoiceNumber: { ...contains } },
+                { order: { orderNumber: { ...contains } } },
+                { customer: { email: { ...contains } } },
+                { customer: { username: { ...contains } } },
+                { customer: { firstName: { ...contains } } },
+                { customer: { lastName: { ...contains } } }
+            ];
+        }
+
+        if (from || to) {
+            const createdAt: any = {};
+            if (from) {
+                const fromDate = new Date(String(from));
+                if (isNaN(fromDate.getTime())) return res.status(400).json({ message: "Invalid `from` date" });
+                createdAt.gte = fromDate;
+            }
+            if (to) {
+                const toDate = new Date(String(to));
+                if (isNaN(toDate.getTime())) return res.status(400).json({ message: "Invalid `to` date" });
+                createdAt.lte = toDate;
+            }
+            whereClause.createdAt = createdAt;
+        }
 
         const skip = (Number(page) - 1) * Number(limit);
         const take = Number(limit);

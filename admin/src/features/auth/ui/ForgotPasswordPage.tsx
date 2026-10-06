@@ -11,7 +11,7 @@ import { Button } from '@/shared/components/Button';
 import { ShieldCheck, Mail, Lock, KeyRound, ArrowLeft, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { usePlatformBranding } from '@/lib/hooks/usePlatformBranding';
+import { useBranding } from '@/lib/hooks/useBranding';
 import { useUIStore } from '@/lib/store/uiStore';
 
 const emailSchema = z.object({
@@ -37,7 +37,7 @@ type PasswordInput = z.infer<typeof passwordSchema>;
 type Step = 'email' | 'otp' | 'password' | 'success';
 
 export function ForgotPasswordPage() {
-  const { branding } = usePlatformBranding();
+  const { branding } = useBranding();
   const { showToast } = useUIStore();
   const [step, setStep] = useState<Step>('email');
   const [resetToken, setResetToken] = useState('');

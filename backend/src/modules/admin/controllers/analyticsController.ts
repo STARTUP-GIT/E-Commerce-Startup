@@ -144,6 +144,58 @@ export const getDashboard = async (req: Request, res: Response) => {
             take: 5
         });
 
+        // 12. Workload / finance counters (additive)
+        const [
+            pendingSellers,
+            pendingProducts,
+            pendingVerifications,
+            pendingReturns,
+            openTickets,
+            newCustomersThisMonth,
+            newSellersThisMonth,
+            revenueTodayAgg,
+            revenueThisMonthAgg,
+            refundsThisMonth,
+            pendingPayoutAgg
+        ] = await Promise.all([
+            // SellerStatus has no PENDING member: DISABLED is the "awaiting
+            // approval" bucket this dashboard has always counted as pending.
+            prisma.seller.count({ where: { status: "DISABLED" } }),
+            prisma.product.count({ where: { status: "PENDING_APPROVAL" } }),
+            prisma.sellerVerification.count({ where: { status: "PENDING" } }),
+            prisma.returnRequest.count({ where: { status: { in: ["REQUESTED", "PENDING_REVIEW"] } } }),
+            prisma.supportTicket.count({
+                where: { status: { in: ["OPEN", "IN_PROGRESS", "WAITING_ON_CUSTOMER", "WAITING_ON_SELLER"] } }
+            }),
+            prisma.customer.count({ where: { createdAt: { gte: monthStart } } }),
+            prisma.seller.count({ where: { createdAt: { gte: monthStart } } }),
+            prisma.order.aggregate({
+                where: {
+                    createdAt: { gte: todayStart },
+                    status: { not: "CANCELLED" }
+                },
+                _sum: { grandTotal: true }
+            }),
+            prisma.order.aggregate({
+                where: {
+                    createdAt: { gte: monthStart },
+                    status: { not: "CANCELLED" }
+                },
+                _sum: { grandTotal: true }
+            }),
+            prisma.payment.count({
+                where: { status: "REFUNDED", refundedAt: { gte: monthStart } }
+            }),
+            prisma.sellerPayout.aggregate({
+                where: { status: "PENDING" },
+                _sum: { amount: true }
+            })
+        ]);
+
+        const revenueToday = Number(revenueTodayAgg._sum.grandTotal || 0);
+        const revenueThisMonth = Number(revenueThisMonthAgg._sum.grandTotal || 0);
+        const pendingPayoutAmount = Number(pendingPayoutAgg._sum.amount || 0);
+
         return res.status(200).json({
             sellersCount,
             totalCustomers,
@@ -162,7 +214,18 @@ export const getDashboard = async (req: Request, res: Response) => {
             recentOrders,
             recentSellers,
             recentCustomers,
-            lowStockProducts
+            lowStockProducts,
+            pendingSellers,
+            pendingProducts,
+            pendingVerifications,
+            pendingReturns,
+            openTickets,
+            newCustomersThisMonth,
+            newSellersThisMonth,
+            revenueToday,
+            revenueThisMonth,
+            refundsThisMonth,
+            pendingPayoutAmount
         });
     } catch (error: any) {
         console.error("DASHBOARD ERROR:", error);

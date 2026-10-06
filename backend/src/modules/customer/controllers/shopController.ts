@@ -235,7 +235,7 @@ export const getActiveStates = async (req: Request, res: Response) => {
         const states = dbStates.filter(s => s.isActive).map(s => s.name);
         
         // Get settings
-        const settingsRow = await prisma.platformSetting.findUnique({ where: { id: 1 } });
+        const settingsRow = await prisma.marketplaceSetting.findUnique({ where: { id: 1 } });
         const settings = settingsRow?.data as any;
         const districtRequired = settings?.districtRequired !== false;
         

@@ -14,7 +14,7 @@ import {
   Users, Clock, ShieldCheck, ChevronRight, Grid3X3,
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePlatformLayout } from '@/lib/hooks/usePlatformLayout';
+import { useSiteLayout } from '@/lib/hooks/useSiteLayout';
 
 const valueProps = [
   { icon: Users,       title: 'Support Local Crafters', desc: 'Every purchase goes directly to independent local makers in your area.' },
@@ -95,7 +95,7 @@ export function HomePage() {
   const { data: session } = useSession();
   const [search, setSearch] = useState('');
   const { shops, isLoading: shopsLoading } = useShopList();
-  const { homepageSections, branding, isFeatureEnabled } = usePlatformLayout();
+  const { homepageSections, branding } = useSiteLayout();
   const marketplaceName = branding?.name || branding?.marketplaceName || 'Marketplace';
 
 
@@ -208,55 +208,53 @@ export function HomePage() {
             </p>
 
             {/* Search bar */}
-            {isFeatureEnabled('SEARCH') && (
-              <form
-                onSubmit={handleSearch}
-                style={{
-                  display: 'flex', gap: '8px',
-                  maxWidth: '560px', margin: '0 auto 40px',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: '16px',
-                  padding: '8px',
-                  WebkitBackdropFilter: 'blur(20px)',
-                  backdropFilter: 'blur(20px)',
-                }}
-              >
-                <div style={{ position: 'relative', flex: 1 }}>
-                  <Search
-                    style={{
-                      position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
-                      width: 18, height: 18, color: 'rgba(255,255,255,0.3)',
-                    }}
-                  />
-                  <input
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder={branding.searchPlaceholder}
-                    style={{
-                      width: '100%', height: '52px', paddingLeft: '44px', paddingRight: '16px',
-                      background: 'transparent', border: 'none', outline: 'none',
-                      fontSize: '15px', color: '#fff', fontFamily: 'inherit',
-                    }}
-                  />
-                </div>
-                <button
-                  type="submit"
+            <form
+              onSubmit={handleSearch}
+              style={{
+                display: 'flex', gap: '8px',
+                maxWidth: '560px', margin: '0 auto 40px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '16px',
+                padding: '8px',
+                WebkitBackdropFilter: 'blur(20px)',
+                backdropFilter: 'blur(20px)',
+              }}
+            >
+              <div style={{ position: 'relative', flex: 1 }}>
+                <Search
                   style={{
-                    height: '52px', padding: '0 28px',
-                    borderRadius: '12px', border: 'none',
-                    background: '#ffffff', color: '#000',
-                    fontSize: '15px', fontWeight: 800,
-                    cursor: 'pointer', flexShrink: 0,
-                    transition: 'opacity 0.15s',
+                    position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+                    width: 18, height: 18, color: 'rgba(255,255,255,0.3)',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-                >
-                  Search
-                </button>
-              </form>
-            )}
+                />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder={branding.searchPlaceholder}
+                  style={{
+                    width: '100%', height: '52px', paddingLeft: '44px', paddingRight: '16px',
+                    background: 'transparent', border: 'none', outline: 'none',
+                    fontSize: '15px', color: '#fff', fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+              <button
+                type="submit"
+                style={{
+                  height: '52px', padding: '0 28px',
+                  borderRadius: '12px', border: 'none',
+                  background: '#ffffff', color: '#000',
+                  fontSize: '15px', fontWeight: 800,
+                  cursor: 'pointer', flexShrink: 0,
+                  transition: 'opacity 0.15s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
+                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+              >
+                Search
+              </button>
+            </form>
 
             {/* CTAs */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center' }}>
@@ -399,7 +397,7 @@ export function HomePage() {
       );
     }
 
-    if ((key.includes('custom') || key.includes('promotional') || key.includes('prints')) && isFeatureEnabled('CUSTOM_PRINTING')) {
+    if (key.includes('custom') || key.includes('promotional') || key.includes('prints')) {
       return (
         <section key={sectionId} style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px 100px' }}>
           <div
