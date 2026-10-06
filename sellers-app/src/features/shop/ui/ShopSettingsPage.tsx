@@ -760,37 +760,65 @@ export function ShopSettingsPage() {
                   <div className="h-10 w-full skeleton-glass" />
                 </div>
               ) : bankAccounts.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Holder</TableHead>
-                      <TableHead>Bank / Account</TableHead>
-                      <TableHead>IFSC</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <>
+                  {/* ── MOBILE VIEW: BANK ACCOUNT CARDS (< md) ── */}
+                  <div className="block md:hidden space-y-3">
                     {bankAccounts.map((acct) => (
-                      <TableRow key={acct.id}>
-                        <TableCell className="font-semibold text-white/90 text-xs">
-                          {acct.accountHolderName}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          <span className="block">{acct.bankName}</span>
-                          <span className="block text-[10px] text-white/30">
-                            •••• {acct.accountNumber.slice(-4)}
+                      <div key={acct.id} className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-white/90 text-xs">
+                            {acct.accountHolderName}
                           </span>
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{acct.ifscCode}</TableCell>
-                        <TableCell>
                           <Badge variant={acct.isVerified ? 'success' : 'secondary'} className="text-[8px] py-0">
                             {acct.isVerified ? 'Verified' : 'Pending'}
                           </Badge>
-                        </TableCell>
-                      </TableRow>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-white/60">
+                          <span>{acct.bankName}</span>
+                          <span className="font-mono text-white/40">•••• {acct.accountNumber.slice(-4)}</span>
+                        </div>
+                        <div className="text-[10px] font-mono text-white/40">
+                          IFSC: {acct.ifscCode}
+                        </div>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+
+                  {/* ── DESKTOP VIEW: TABLE (>= md) ── */}
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Holder</TableHead>
+                          <TableHead>Bank / Account</TableHead>
+                          <TableHead>IFSC</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bankAccounts.map((acct) => (
+                          <TableRow key={acct.id}>
+                            <TableCell className="font-semibold text-white/90 text-xs">
+                              {acct.accountHolderName}
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              <span className="block">{acct.bankName}</span>
+                              <span className="block text-[10px] text-white/30">
+                                •••• {acct.accountNumber.slice(-4)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">{acct.ifscCode}</TableCell>
+                            <TableCell>
+                              <Badge variant={acct.isVerified ? 'success' : 'secondary'} className="text-[8px] py-0">
+                                {acct.isVerified ? 'Verified' : 'Pending'}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               ) : (
                 <div className="text-center py-10 space-y-2.5">
                   <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-white/30">

@@ -283,7 +283,7 @@ export function DashboardPage() {
             </div>
 
             {/* Recent orders */}
-            <Card className="border border-white/5">
+            <Card className="border border-white/5 overflow-hidden">
               <CardHeader className="border-b border-white/5 pb-4 flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-xs font-bold text-white/90">Recent Incoming Orders</CardTitle>
@@ -300,36 +300,69 @@ export function DashboardPage() {
                     <Skeleton className="h-8 w-full" />
                   </div>
                 ) : recentOrders.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Order ID</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead>Placed At</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                  <>
+                    {/* ── MOBILE VIEW: RECENT ORDER CARDS (< md) ── */}
+                    <div className="block md:hidden p-4 space-y-3">
                       {recentOrders.map((ord) => (
-                        <TableRow key={ord.id} className="cursor-pointer" onClick={() => navigate(`/orders/${ord.id}`)}>
-                          <TableCell className="font-bold text-white/90 text-xs">
-                            {ord.order.orderNumber}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={ordersService.getStatusColor(ord.status)} className="text-[7.5px] py-0">
-                              {ord.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-xs font-semibold text-white/80">
-                            {productService.formatPrice(ord.totalPrice)}
-                          </TableCell>
-                          <TableCell className="text-xs text-white/40">
-                            {ordersService.formatDate(ord.createdAt)}
-                          </TableCell>
-                        </TableRow>
+                        <div
+                          key={ord.id}
+                          className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] flex items-center justify-between gap-3 cursor-pointer hover:bg-white/[0.04] transition-all"
+                          onClick={() => navigate(`/orders/${ord.id}`)}
+                        >
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-white/95 text-xs">{ord.order.orderNumber}</span>
+                              <Badge variant={ordersService.getStatusColor(ord.status)} className="text-[7.5px] py-0 px-1.5 uppercase">
+                                {ord.status}
+                              </Badge>
+                            </div>
+                            <span className="text-[10px] text-white/40 block">
+                              {ordersService.formatDate(ord.createdAt)}
+                            </span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-xs font-bold text-white/90 block">
+                              {productService.formatPrice(ord.totalPrice)}
+                            </span>
+                          </div>
+                        </div>
                       ))}
-                    </TableBody>
-                  </Table>
+                    </div>
+
+                    {/* ── DESKTOP VIEW: TABLE (>= md) ── */}
+                    <div className="hidden md:block">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Order ID</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Price</TableHead>
+                            <TableHead>Placed At</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {recentOrders.map((ord) => (
+                            <TableRow key={ord.id} className="cursor-pointer" onClick={() => navigate(`/orders/${ord.id}`)}>
+                              <TableCell className="font-bold text-white/90 text-xs">
+                                {ord.order.orderNumber}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={ordersService.getStatusColor(ord.status)} className="text-[7.5px] py-0">
+                                  {ord.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs font-semibold text-white/80">
+                                {productService.formatPrice(ord.totalPrice)}
+                              </TableCell>
+                              <TableCell className="text-xs text-white/40">
+                                {ordersService.formatDate(ord.createdAt)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
                 ) : (
                   <div className="text-center py-10 space-y-2.5">
                     <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-white/30">

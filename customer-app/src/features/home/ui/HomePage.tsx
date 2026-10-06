@@ -117,22 +117,12 @@ export function HomePage() {
       return (
         <section
           key={sectionId}
-          style={{
-            minHeight: 'calc(100dvh - 64px)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-            overflow: 'hidden',
-            padding: '80px 24px 80px',
-            background: '#080808',
-          }}
+          className="relative overflow-hidden bg-[#080808] flex flex-col items-center justify-center py-16 sm:py-24 px-4 sm:px-6 min-h-[calc(100dvh-64px)]"
         >
           {/* Grid lines */}
           <div
+            className="absolute inset-0 pointer-events-none"
             style={{
-              position: 'absolute', inset: 0, pointerEvents: 'none',
               backgroundImage: `linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
                                linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)`,
               backgroundSize: '80px 80px',
@@ -140,53 +130,25 @@ export function HomePage() {
           />
           {/* White glow blob top */}
           <div
-            className="orb-1"
+            className="orb-1 absolute top-[-150px] sm:top-[-200px] left-1/2 -translate-x-1/2 w-[320px] xs:w-[500px] sm:w-[900px] h-[300px] sm:h-[600px] rounded-full pointer-events-none"
             style={{
-              position: 'absolute', top: '-200px', left: '50%', transform: 'translateX(-50%)',
-              width: '900px', height: '600px',
-              borderRadius: '50%',
               background: 'radial-gradient(ellipse, rgba(255,255,255,0.06) 0%, transparent 70%)',
-              pointerEvents: 'none',
             }}
           />
 
-          <div style={{ maxWidth: '900px', width: '100%', textAlign: 'center', position: 'relative', zIndex: 10 }} className="animate-fade-up">
+          <div className="max-w-[900px] w-full text-center relative z-10 animate-fade-up">
 
             {/* Eyebrow badge */}
-            <div
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '10px',
-                padding: '10px 20px', borderRadius: '100px',
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.10)',
-                fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em',
-                color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase',
-                marginBottom: '40px',
-              }}
-            >
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'rgba(255,255,255,0.7)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+            <div className="inline-flex items-center gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white/[0.06] border border-white/10 text-[10px] sm:text-xs font-bold tracking-widest text-white/55 uppercase mb-6 sm:mb-10">
+              <span className="w-1.5 h-1.5 rounded-full bg-white/70 inline-block animate-pulse" />
               {branding.heroBadge}
             </div>
 
-            {/* Headline — BIG */}
-            <h1
-              style={{
-                fontSize: 'clamp(3.5rem, 10vw, 8rem)',
-                fontWeight: 900,
-                lineHeight: 0.9,
-                letterSpacing: '-0.04em',
-                color: '#ffffff',
-                marginBottom: '32px',
-              }}
-            >
+            {/* Headline — Responsive */}
+            <h1 className="text-3xl xs:text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-none tracking-tight text-white mb-6 sm:mb-8">
               {branding.heroHeadingLine1}<br />
               <span
-                style={{
-                  background: 'linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.4) 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                }}
+                className="bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent"
               >
                 {branding.heroHeadingLine2}
               </span><br />
@@ -194,96 +156,46 @@ export function HomePage() {
             </h1>
 
             {/* Subheading */}
-            <p
-              style={{
-                fontSize: 'clamp(1rem, 2vw, 1.25rem)',
-                color: 'rgba(255,255,255,0.42)',
-                maxWidth: '560px',
-                margin: '0 auto 48px',
-                lineHeight: 1.7,
-                fontWeight: 400,
-              }}
-            >
+            <p className="text-sm sm:text-base md:text-lg text-white/45 max-w-[560px] mx-auto mb-8 sm:mb-12 leading-relaxed font-normal">
               {branding.heroDescription}
             </p>
 
             {/* Search bar */}
             <form
               onSubmit={handleSearch}
-              style={{
-                display: 'flex', gap: '8px',
-                maxWidth: '560px', margin: '0 auto 40px',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '16px',
-                padding: '8px',
-                WebkitBackdropFilter: 'blur(20px)',
-                backdropFilter: 'blur(20px)',
-              }}
+              className="flex flex-col xs:flex-row gap-2 max-w-[560px] mx-auto mb-8 sm:mb-10 bg-white/[0.05] border border-white/12 rounded-2xl p-2 backdrop-blur-xl"
             >
-              <div style={{ position: 'relative', flex: 1 }}>
+              <div className="relative flex-1">
                 <Search
-                  style={{
-                    position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
-                    width: 18, height: 18, color: 'rgba(255,255,255,0.3)',
-                  }}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30"
                 />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder={branding.searchPlaceholder}
-                  style={{
-                    width: '100%', height: '52px', paddingLeft: '44px', paddingRight: '16px',
-                    background: 'transparent', border: 'none', outline: 'none',
-                    fontSize: '15px', color: '#fff', fontFamily: 'inherit',
-                  }}
+                  className="w-full h-11 sm:h-13 pl-10 pr-4 bg-transparent border-none outline-none text-sm sm:text-base text-white placeholder:text-white/30 font-sans"
                 />
               </div>
               <button
                 type="submit"
-                style={{
-                  height: '52px', padding: '0 28px',
-                  borderRadius: '12px', border: 'none',
-                  background: '#ffffff', color: '#000',
-                  fontSize: '15px', fontWeight: 800,
-                  cursor: 'pointer', flexShrink: 0,
-                  transition: 'opacity 0.15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                className="h-11 sm:h-13 px-5 sm:px-7 rounded-xl border-none bg-white text-black text-sm sm:text-base font-extrabold cursor-pointer shrink-0 transition-opacity hover:opacity-90 w-full xs:w-auto"
               >
                 Search
               </button>
             </form>
 
             {/* CTAs */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center' }}>
-              <Link href="/shops">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center items-center w-full">
+              <Link href="/shops" className="w-full sm:w-auto">
                 <button
-                  style={{
-                    height: '56px', padding: '0 32px', borderRadius: '14px',
-                    background: '#fff', color: '#000', border: 'none',
-                    fontSize: '15px', fontWeight: 800, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '10px',
-                    transition: 'transform 0.15s, box-shadow 0.15s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(255,255,255,0.15)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+                  className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-8 rounded-xl bg-white text-black font-extrabold text-sm sm:text-base cursor-pointer flex items-center justify-center gap-2.5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
                 >
-                  {branding.exploreShopsButtonText} <ArrowRight style={{ width: 18, height: 18 }} />
+                  {branding.exploreShopsButtonText} <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </Link>
-              <Link href="/products">
+              <Link href="/products" className="w-full sm:w-auto">
                 <button
-                  style={{
-                    height: '56px', padding: '0 32px', borderRadius: '14px',
-                    background: 'transparent', color: 'rgba(255,255,255,0.8)',
-                    border: '1px solid rgba(255,255,255,0.18)',
-                    fontSize: '15px', fontWeight: 700, cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; e.currentTarget.style.color = '#fff'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
+                  className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-8 rounded-xl bg-transparent text-white/85 border border-white/20 font-bold text-sm sm:text-base cursor-pointer transition-all hover:bg-white/10 hover:border-white/40 hover:text-white"
                 >
                   {branding.browseProductsButtonText}
                 </button>
@@ -296,46 +208,37 @@ export function HomePage() {
 
     if (key.includes('categories') || key.includes('featured-products')) {
       return (
-        <section key={sectionId} style={{ maxWidth: '1400px', margin: '0 auto', padding: '100px 24px' }}>
+        <section key={sectionId} className="max-w-[1400px] mx-auto px-4 sm:px-6 py-16 sm:py-24">
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '48px' }}>
+          <div className="flex items-end justify-between mb-8 sm:mb-12">
             <div>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '12px' }}>Browse by</p>
-              <h2 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1 }}>Categories</h2>
+              <p className="text-[10px] sm:text-xs font-bold text-white/30 uppercase tracking-widest mb-2">Browse by</p>
+              <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-none">Categories</h2>
             </div>
             <Link href="/categories">
-              <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                className="hover:text-white transition-colors">
-                View all <ArrowRight style={{ width: 15, height: 15 }} />
+              <span className="text-xs sm:text-sm font-bold text-white/35 flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors">
+                View all <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </span>
             </Link>
           </div>
 
-          <div className="flex flex-wrap justify-center" style={{ gap: '12px' }}>
+          <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
             {homeCategories.slice(0, 12).map((cat: any) => (
-              <Link key={cat.id} href={`/products?category=${cat.id}`} className="group block w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(25%-9px)] lg:w-[calc(20%-9.6px)] xl:w-[calc(16.667%-10px)]">
+              <Link key={cat.id} href={`/products?category=${cat.id}`} className="group block w-[calc(50%-6px)] sm:w-[calc(33.333%-11px)] md:w-[calc(25%-12px)] lg:w-[calc(20%-13px)] xl:w-[calc(16.667%-14px)]">
                 <div
-                  className="glass-card glass-hover"
-                  style={{ padding: '28px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '16px' }}
+                  className="glass-card glass-hover p-4 sm:p-7 flex flex-col items-center text-center gap-3 sm:gap-4 h-full"
                 >
                   <div
-                    className="group-hover:bg-white group-hover:scale-110 transition-all duration-200"
-                    style={{
-                      width: '56px', height: '56px', borderRadius: '16px',
-                      background: 'rgba(255,255,255,0.08)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      overflow: 'hidden',
-                    }}
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/[0.08] flex items-center justify-center overflow-hidden group-hover:bg-white group-hover:scale-110 transition-all duration-200"
                   >
                     {cat.imageUrl ? (
-                      <img src={cat.imageUrl} alt={cat.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} className="group-hover:opacity-90 transition-opacity" />
+                      <img src={cat.imageUrl} alt={cat.name} loading="lazy" className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" />
                     ) : (
-                      <Grid3X3 className="group-hover:text-black transition-colors" style={{ width: 24, height: 24, color: 'rgba(255,255,255,0.75)' }} />
+                      <Grid3X3 className="h-5 w-5 sm:h-6 sm:w-6 text-white/75 group-hover:text-black transition-colors" />
                     )}
                   </div>
                   <span
-                    style={{ fontSize: '14px', fontWeight: 800, color: 'rgba(255,255,255,0.8)', lineHeight: 1.3 }}
-                    className="group-hover:text-white transition-colors"
+                    className="text-xs sm:text-sm font-extrabold text-white/80 leading-snug group-hover:text-white transition-colors line-clamp-2"
                   >
                     {cat.name}
                   </span>
@@ -349,48 +252,47 @@ export function HomePage() {
 
     if (key.includes('shops') || key.includes('nearby') || key.includes('offers') || key.includes('creators')) {
       return (
-        <section key={sectionId} style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px 100px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '48px' }}>
+        <section key={sectionId} className="max-w-[1280px] mx-auto px-4 sm:px-6 pb-16 sm:pb-24">
+          <div className="flex items-end justify-between mb-8 sm:mb-12">
             <div>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '12px' }}>Handpicked</p>
-              <h2 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1 }}>Featured Creators</h2>
+              <p className="text-[10px] sm:text-xs font-bold text-white/30 uppercase tracking-widest mb-2">Handpicked</p>
+              <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-none">Featured Creators</h2>
             </div>
             <Link href="/shops">
-              <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                className="hover:text-white transition-colors">
-                All Shops <ArrowRight style={{ width: 15, height: 15 }} />
+              <span className="text-xs sm:text-sm font-bold text-white/35 flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors">
+                All Shops <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </span>
             </Link>
           </div>
 
           {shopsLoading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="glass-card overflow-hidden flex flex-col">
                   <div className="relative flex-shrink-0">
-                    <Skeleton style={{ height: '180px', borderRadius: '0' }} />
-                    <div style={{ position: 'absolute', bottom: 0, left: '24px', transform: 'translateY(50%)', zIndex: 2 }}>
-                      <Skeleton style={{ width: '56px', height: '56px', borderRadius: '14px' }} />
+                    <Skeleton className="h-40 sm:h-44 rounded-none" />
+                    <div className="absolute bottom-0 left-6 translate-y-1/2 z-10">
+                      <Skeleton className="h-14 w-14 rounded-xl" />
                     </div>
                   </div>
-                  <div style={{ padding: '24px', paddingTop: '36px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <Skeleton style={{ height: '20px', width: '55%' }} />
-                    <Skeleton style={{ height: '14px', width: '90%' }} />
-                    <Skeleton style={{ height: '14px', width: '75%' }} />
+                  <div className="p-6 pt-9 flex flex-col gap-2.5">
+                    <Skeleton className="h-5 w-7/12" />
+                    <Skeleton className="h-3.5 w-11/12" />
+                    <Skeleton className="h-3.5 w-3/4" />
                   </div>
                 </div>
               ))}
             </div>
           ) : shops.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {shops.slice(0, 6).map((shop, i) => (
                 <ShopCard key={shop.id} shop={shop} index={i} />
               ))}
             </div>
           ) : (
-            <div className="glass-card" style={{ padding: '80px', textAlign: 'center' }}>
-              <Store style={{ width: 48, height: 48, color: 'rgba(255,255,255,0.18)', margin: '0 auto 16px' }} />
-              <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.35)' }}>No shops available yet.</p>
+            <div className="glass-card p-12 sm:p-20 text-center">
+              <Store className="h-12 w-12 text-white/20 mx-auto mb-4" />
+              <p className="text-sm sm:text-base text-white/35">No shops available yet.</p>
             </div>
           )}
         </section>
@@ -399,52 +301,42 @@ export function HomePage() {
 
     if (key.includes('custom') || key.includes('promotional') || key.includes('prints')) {
       return (
-        <section key={sectionId} style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px 100px' }}>
+        <section key={sectionId} className="max-w-[1280px] mx-auto px-4 sm:px-6 pb-16 sm:pb-24">
           <div
-            className="glass-card"
-            style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(48px, 8vw, 80px)' }}
+            className="glass-card p-6 sm:p-12 md:p-16 relative overflow-hidden"
           >
             {/* Grid bg */}
-            <div style={{
-              position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.03,
+            <div className="absolute inset-0 pointer-events-none opacity-5" style={{
               backgroundImage: `linear-gradient(rgba(255,255,255,0.9) 1px, transparent 1px),
                                linear-gradient(90deg, rgba(255,255,255,0.9) 1px, transparent 1px)`,
               backgroundSize: '48px 48px',
             }} />
 
-            <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '48px' }}>
-              <div style={{ maxWidth: '540px' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: '16px' }}>
+            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-8 md:gap-12">
+              <div className="max-w-[540px]">
+                <p className="text-[10px] sm:text-xs font-bold text-white/30 uppercase tracking-widest mb-3">
                   Made Just for You
                 </p>
-                <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 3rem)', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: '20px' }}>
+                <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight mb-4">
                   Need Something<br />One-of-a-Kind?
                 </h2>
-                <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.42)', lineHeight: 1.7, marginBottom: '28px' }}>
+                <p className="text-xs sm:text-sm text-white/45 leading-relaxed mb-6">
                   Commission anything custom — from 3D-printed parts to tailored clothing, bespoke artwork, or personalised gifts. Local makers, real results.
                 </p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+                <div className="flex flex-wrap gap-4 sm:gap-6">
                   {['Verify designs', 'Local creators', 'Track production'].map(s => (
-                    <span key={s} style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'rgba(255,255,255,0.45)', display: 'inline-block' }} />
+                    <span key={s} className="text-xs sm:text-sm text-white/45 font-semibold flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/45 inline-block" />
                       {s}
                     </span>
                   ))}
                 </div>
               </div>
-              <Link href="/custom-orders" style={{ flexShrink: 0 }}>
+              <Link href="/custom-orders" className="w-full md:w-auto shrink-0">
                 <button
-                  style={{
-                    height: '60px', padding: '0 40px', borderRadius: '16px',
-                    background: '#fff', color: '#000', border: 'none',
-                    fontSize: '16px', fontWeight: 800, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '12px',
-                    transition: 'transform 0.15s, opacity 0.15s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.opacity = '0.88'; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.opacity = '1'; }}
+                  className="w-full md:w-auto h-13 sm:h-15 px-8 rounded-xl bg-white text-black font-extrabold text-sm sm:text-base cursor-pointer flex items-center justify-center gap-3 transition-transform hover:-translate-y-0.5 hover:opacity-90"
                 >
-                  <Printer style={{ width: 20, height: 20 }} />
+                  <Printer className="h-5 w-5" />
                   Start a Custom Order
                 </button>
               </Link>

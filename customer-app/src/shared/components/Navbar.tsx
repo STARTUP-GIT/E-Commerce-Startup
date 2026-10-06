@@ -143,13 +143,13 @@ export function Navbar() {
     <header className="sticky top-0 z-40 w-full">
       {/* Main bar */}
       <div className="glass border-b border-white/[0.08] backdrop-blur-xl bg-black/60">
-        <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-3 sm:px-6">
 
           {/* Logo + Location */}
-          <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-shrink">
+          <div className="flex items-center gap-1.5 sm:gap-4 min-w-0 flex-shrink">
             <BrandLogo />
 
-            {/* Location selector - hidden on very small screens, shown as icon-only */}
+            {/* Location selector */}
             {(() => {
               const activeAddress = profile?.user?.addresses?.find((a: any) => a.id === selectedAddressId) || 
                                     profile?.user?.addresses?.find((a: any) => a.isDefault) || 
@@ -157,14 +157,14 @@ export function Navbar() {
               return (
                 <button
                   onClick={() => setAddressSelectorOpen(true)}
-                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/15 text-[9px] sm:text-[10px] lg:text-xs font-bold text-white/80 transition-all cursor-pointer shadow-sm select-none text-left max-w-[160px] xs:max-w-[200px] sm:max-w-none"
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/15 text-[9px] sm:text-[10px] lg:text-xs font-bold text-white/80 transition-all cursor-pointer shadow-sm select-none text-left max-w-[110px] xs:max-w-[160px] sm:max-w-none shrink"
                 >
                   <div className="flex flex-col min-w-0 leading-tight">
-                    <span className="hidden xs:flex text-[9px] sm:text-[10px] text-white/45 font-medium truncate max-w-[120px] sm:max-w-[150px] items-center gap-1">
+                    <span className="hidden xs:flex text-[8px] sm:text-[10px] text-white/45 font-medium truncate max-w-[100px] sm:max-w-[150px] items-center gap-1">
                       <span>📍</span>
                       <span className="truncate">{activeAddress ? activeAddress.fullName : (session?.user?.name || 'Guest')}</span>
                     </span>
-                    <span className="text-[10px] sm:text-[11px] text-white/90 truncate max-w-[130px] xs:max-w-[160px] sm:max-w-[185px] font-extrabold mt-0.5">
+                    <span className="text-[9px] sm:text-[11px] text-white/90 truncate max-w-[85px] xs:max-w-[130px] sm:max-w-[185px] font-extrabold mt-0.5">
                       {activeAddress
                         ? `${activeAddress.city}, ${activeAddress.state}`
                         : `${selectedDistrict || 'Select'}, ${selectedState || 'Location'}`}
@@ -190,85 +190,85 @@ export function Navbar() {
           </nav>
 
           {/* Right Actions */}
-          <div className="flex items-center gap-1.5">
-            {session ? (
-              <>
-                {/* Bell */}
-                <Link href="/notifications" className="relative flex h-9 w-9 items-center justify-center rounded-lg text-white/55 hover:text-white hover:bg-white/[0.07] transition-all">
-                  <Bell className="h-4.5 w-4.5" />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[8px] font-black text-black">
-                      {unreadCount}
-                    </span>
-                  )}
-                </Link>
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            {/* Desktop Bell (Hidden on mobile header, included in mobile drawer) */}
+            {session && (
+              <Link href="/notifications" className="hidden md:flex relative h-9 w-9 items-center justify-center rounded-lg text-white/55 hover:text-white hover:bg-white/[0.07] transition-all">
+                <Bell className="h-4.5 w-4.5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[8px] font-black text-black">
+                    {unreadCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
-                {/* Cart */}
+            {/* Cart Button */}
+            <button
+              onClick={() => setCartOpen(true)}
+              className="relative flex h-9 w-9 items-center justify-center rounded-lg text-white/55 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
+            >
+              <ShoppingCart className="h-4.5 w-4.5" />
+              {cartCount > 0 && (
+                <span className="absolute top-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[8px] font-black text-black">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+
+            {/* User Dropdown (Desktop) */}
+            {session ? (
+              <div className="relative hidden md:block ml-1 pl-2 border-l border-white/[0.08]">
                 <button
-                  onClick={() => setCartOpen(true)}
-                  className="relative flex h-9 w-9 items-center justify-center rounded-lg text-white/55 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
+                  ref={refs.setReference}
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.07] transition-all cursor-pointer"
                 >
-                  <ShoppingCart className="h-4.5 w-4.5" />
-                  {cartCount > 0 && (
-                    <span className="absolute top-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[8px] font-black text-black">
-                      {cartCount}
-                    </span>
-                  )}
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full overflow-hidden ring-1 ring-white/20 bg-white/10">
+                    {session.user?.image
+                      ? <img src={session.user.image} alt="" className="h-full w-full object-cover" />
+                      : <User className="h-3.5 w-3.5 text-white/80" />
+                    }
+                  </div>
+                  <span className="text-xs font-semibold text-white/75 max-w-[90px] truncate">
+                    {session.user?.name || 'Account'}
+                  </span>
                 </button>
 
-                {/* User Dropdown */}
-                <div className="relative ml-1 pl-2 border-l border-white/[0.08]">
-                  <button
-                    ref={refs.setReference}
-                    onClick={() => setMenuOpen(!menuOpen)}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.07] transition-all cursor-pointer"
-                  >
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full overflow-hidden ring-1 ring-white/20 bg-white/10">
-                      {session.user?.image
-                        ? <img src={session.user.image} alt="" className="h-full w-full object-cover" />
-                        : <User className="h-3.5 w-3.5 text-white/80" />
-                      }
-                    </div>
-                    <span className="hidden sm:inline text-xs font-semibold text-white/75 max-w-[90px] truncate">
-                      {session.user?.name || 'Account'}
-                    </span>
-                  </button>
-
-                  {menuOpen && typeof window !== 'undefined' && createPortal(
-                    <>
-                      <div className="fixed inset-0 z-[9998]" onClick={() => setMenuOpen(false)} />
-                      <div ref={refs.setFloating} className="z-[9999] w-52 glass-card p-1.5 animate-in fade-in slide-in-from-top-1 duration-100"
-                        style={floatingStyles}>
-                        <div className="px-3 py-2.5 border-b border-white/[0.07] mb-1">
-                          <p className="text-xs font-bold text-white truncate">{session.user?.name}</p>
-                          <p className="text-[10px] text-white/40 truncate mt-0.5">{session.user?.email}</p>
-                        </div>
-                        {[
-                          { href: '/profile', icon: User, label: 'My Profile' },
-                          { href: '/orders', icon: LayoutDashboard, label: 'My Orders' },
-                          { href: '/wishlist', icon: ShoppingCart, label: 'My Wishlist' },
-                        ].map(({ href, icon: Icon, label }) => (
-                          <Link key={href} href={href} onClick={() => setMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium text-white/60 hover:text-white hover:bg-white/[0.06] rounded-lg transition-all">
-                            <Icon className="h-3.5 w-3.5" />
-                            {label}
-                          </Link>
-                        ))}
-                        <div className="border-t border-white/[0.07] mt-1 pt-1">
-                          <button onClick={() => { setMenuOpen(false); signOut(); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer text-left">
-                            <LogOut className="h-3.5 w-3.5" />
-                            Sign Out
-                          </button>
-                        </div>
+                {menuOpen && typeof window !== 'undefined' && createPortal(
+                  <>
+                    <div className="fixed inset-0 z-[9998]" onClick={() => setMenuOpen(false)} />
+                    <div ref={refs.setFloating} className="z-[9999] w-52 glass-card p-1.5 animate-in fade-in slide-in-from-top-1 duration-100"
+                      style={floatingStyles}>
+                      <div className="px-3 py-2.5 border-b border-white/[0.07] mb-1">
+                        <p className="text-xs font-bold text-white truncate">{session.user?.name}</p>
+                        <p className="text-[10px] text-white/40 truncate mt-0.5">{session.user?.email}</p>
                       </div>
-                    </>,
-                    document.body
-                  )}
-                </div>
-              </>
+                      {[
+                        { href: '/profile', icon: User, label: 'My Profile' },
+                        { href: '/orders', icon: LayoutDashboard, label: 'My Orders' },
+                        { href: '/wishlist', icon: ShoppingCart, label: 'My Wishlist' },
+                      ].map(({ href, icon: Icon, label }) => (
+                        <Link key={href} href={href} onClick={() => setMenuOpen(false)}
+                          className="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium text-white/60 hover:text-white hover:bg-white/[0.06] rounded-lg transition-all">
+                          <Icon className="h-3.5 w-3.5" />
+                          {label}
+                        </Link>
+                      ))}
+                      <div className="border-t border-white/[0.07] mt-1 pt-1">
+                        <button onClick={() => { setMenuOpen(false); signOut(); }}
+                          className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer text-left">
+                          <LogOut className="h-3.5 w-3.5" />
+                          Sign Out
+                        </button>
+                      </div>
+                    </div>
+                  </>,
+                  document.body
+                )}
+              </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="hidden md:flex items-center gap-2">
                 <Link href="/login">
                   <button className="h-9 px-4 rounded-lg text-sm font-medium text-white/60 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer">
                     Sign In
@@ -284,8 +284,9 @@ export function Navbar() {
 
             {/* Mobile menu toggle */}
             <button
-              className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer ml-1"
+              className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
               onClick={() => setMobileNavOpen(!mobileNavOpen)}
+              aria-label="Toggle Navigation Menu"
             >
               {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -294,13 +295,64 @@ export function Navbar() {
 
         {/* Mobile Nav Drawer */}
         {mobileNavOpen && (
-          <div className="md:hidden border-t border-white/[0.08] bg-black/80 backdrop-blur-xl px-4 py-3 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
-            {dynamicNavbar.map((item) => (
-              <Link key={item.id} href={item.path || '/'} onClick={() => setMobileNavOpen(false)}
-                className="flex items-center px-4 py-3 rounded-xl text-sm font-medium text-white/65 hover:text-white hover:bg-white/[0.07] transition-all">
-                {item.name}
-              </Link>
-            ))}
+          <div className="md:hidden border-t border-white/[0.08] bg-black/95 backdrop-blur-2xl px-4 py-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-150 max-h-[80vh] overflow-y-auto">
+            {session ? (
+              <div className="px-3 py-3 rounded-xl bg-white/[0.04] border border-white/10 mb-2 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-white truncate">{session.user?.name}</p>
+                  <p className="text-[10px] text-white/40 truncate">{session.user?.email}</p>
+                </div>
+                <Link href="/profile" onClick={() => setMobileNavOpen(false)} className="text-[10px] font-bold text-purple-400 hover:underline">
+                  Profile
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <Link href="/login" onClick={() => setMobileNavOpen(false)}>
+                  <button className="w-full h-10 rounded-xl text-xs font-bold text-white bg-white/10 border border-white/15">
+                    Sign In
+                  </button>
+                </Link>
+                <Link href="/signup" onClick={() => setMobileNavOpen(false)}>
+                  <button className="w-full h-10 rounded-xl text-xs font-bold btn-primary">
+                    Sign Up
+                  </button>
+                </Link>
+              </div>
+            )}
+
+            {/* Primary Nav Items */}
+            <div className="space-y-1 border-b border-white/[0.08] pb-3">
+              {dynamicNavbar.map((item) => (
+                <Link key={item.id} href={item.path || '/'} onClick={() => setMobileNavOpen(false)}
+                  className="flex items-center px-3 py-2.5 rounded-xl text-xs font-medium text-white/75 hover:text-white hover:bg-white/[0.07] transition-all">
+                  {item.name}
+                </Link>
+              ))}
+            </div>
+
+            {/* Account Quick Links if logged in */}
+            {session && (
+              <div className="space-y-1 pt-1">
+                {[
+                  { href: '/profile', icon: User, label: 'My Profile' },
+                  { href: '/orders', icon: LayoutDashboard, label: 'My Orders' },
+                  { href: '/wishlist', icon: ShoppingCart, label: 'My Wishlist' },
+                  { href: '/notifications', icon: Bell, label: `Notifications ${unreadCount > 0 ? `(${unreadCount})` : ''}` },
+                ].map(({ href, icon: Icon, label }) => (
+                  <Link key={href} href={href} onClick={() => setMobileNavOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-white/60 hover:text-white hover:bg-white/[0.06] transition-all">
+                    <Icon className="h-4 w-4" />
+                    <span>{label}</span>
+                  </Link>
+                ))}
+                <button onClick={() => { setMobileNavOpen(false); signOut(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-400 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer text-left mt-2">
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

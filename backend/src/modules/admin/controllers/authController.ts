@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+﻿import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
@@ -16,6 +16,37 @@ import {
 } from "../services/permissionService.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+const getSafeErrorMessage = (error: unknown): string => {
+    const fallback = "Something went wrong. Please try again later.";
+
+    if (error instanceof Error && error.message) {
+        const normalized = error.message.replace(/\s+/g, " ").trim();
+        if (!normalized) return fallback;
+
+        const exposesPrismaError = /Invalid `prisma\.|PrismaClientKnownRequestError|P2002|P2025|P1001|PostgreSQL|column .* does not exist|database error|stack trace/i.test(normalized);
+        if (exposesPrismaError) {
+            return fallback;
+        }
+
+        return normalized;
+    }
+
+    if (typeof error === "string" && error.trim()) {
+        const normalized = error.trim().replace(/\s+/g, " ");
+        if (/Invalid `prisma\.|PrismaClientKnownRequestError|P2002|P2025|P1001|PostgreSQL|column .* does not exist|database error|stack trace/i.test(normalized)) {
+            return fallback;
+        }
+        return normalized;
+    }
+
+    return fallback;
+};
+
+const resolveAdminRoleId = async (roleName: string): Promise<string | null> => {
+    const role = await prisma.adminRole.findUnique({ where: { name: roleName } });
+    return role?.id ?? null;
+};
 
 /** Role names that always carry unrestricted (Super Admin) access. */
 const TOP_ROLES = ["OWNER", "SUPER_ADMIN"];
@@ -76,7 +107,7 @@ export const login = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error("ADMIN LOGIN ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: getSafeErrorMessage(error) });
     }
 };
 
@@ -95,7 +126,7 @@ export const logout = async (req: Request, res: Response) => {
         return res.status(200).json({ message: "Logged out successfully" });
     } catch (error: any) {
         console.error("ADMIN LOGOUT ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: getSafeErrorMessage(error) });
     }
 };
 
@@ -147,7 +178,7 @@ export const getSetupStatus = async (req: Request, res: Response) => {
         return res.status(200).json({ initialized: count > 0 });
     } catch (error: any) {
         console.error("GET SETUP STATUS ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: getSafeErrorMessage(error) });
     }
 };
 
@@ -180,6 +211,7 @@ export const setupFirstAdmin = async (req: Request, res: Response) => {
         const nameParts = name.trim().split(/\s+/);
         const firstName = nameParts[0];
         const lastName = nameParts.slice(1).join(" ") || "";
+        const superAdminRoleId = await resolveAdminRoleId("SUPER_ADMIN");
 
         const newAdmin = await prisma.admin.create({
             data: {
@@ -189,6 +221,7 @@ export const setupFirstAdmin = async (req: Request, res: Response) => {
                 lastName,
                 isSuperAdmin: true,
                 role: "SUPER_ADMIN",
+                ...(superAdminRoleId ? { roleId: superAdminRoleId } : {}),
                 isActive: true,
                 authProvider: "EMAIL"
             }
@@ -207,7 +240,7 @@ export const setupFirstAdmin = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error("SETUP FIRST ADMIN ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: getSafeErrorMessage(error) });
     }
 };
 
@@ -256,7 +289,7 @@ export const getProfile = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error("ADMIN GET PROFILE ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: getSafeErrorMessage(error) });
     }
 };
 
@@ -309,7 +342,7 @@ export const updateProfile = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error("ADMIN UPDATE PROFILE ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: getSafeErrorMessage(error) });
     }
 };
 
@@ -358,7 +391,7 @@ export const updatePassword = async (req: Request, res: Response) => {
         return res.status(200).json({ message: "Password updated successfully" });
     } catch (error: any) {
         console.error("ADMIN UPDATE PASSWORD ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: getSafeErrorMessage(error) });
     }
 };
 
@@ -428,6 +461,7 @@ export const googleOAuth = async (req: Request, res: Response) => {
         let admin = await prisma.admin.findUnique({ where: { email } });
 
         if (count === 0) {
+            const superAdminRoleId = await resolveAdminRoleId("SUPER_ADMIN");
             admin = await prisma.admin.create({
                 data: {
                     email,
@@ -438,6 +472,7 @@ export const googleOAuth = async (req: Request, res: Response) => {
                     authProvider: "GOOGLE",
                     isSuperAdmin: true,
                     role: "SUPER_ADMIN",
+                    ...(superAdminRoleId ? { roleId: superAdminRoleId } : {}),
                     isActive: true
                 }
             });
@@ -478,7 +513,7 @@ export const googleOAuth = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error("ADMIN GOOGLE OAUTH ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: getSafeErrorMessage(error) });
     }
 };
 
@@ -523,7 +558,7 @@ export const listAdmins = async (req: Request, res: Response) => {
         return res.status(200).json({ admins });
     } catch (error: any) {
         console.error("LIST ADMINS ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: getSafeErrorMessage(error) });
     }
 };
 
@@ -619,7 +654,7 @@ export const createAdmin = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error("CREATE ADMIN ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: getSafeErrorMessage(error) });
     }
 };
 
@@ -678,7 +713,7 @@ export const updateAdminStatus = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error("UPDATE ADMIN STATUS ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: getSafeErrorMessage(error) });
     }
 };
 
@@ -755,7 +790,7 @@ export const updateAdminRole = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error("UPDATE ADMIN ROLE ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: getSafeErrorMessage(error) });
     }
 };
 
@@ -794,7 +829,7 @@ export const resetAdminPassword = async (req: Request, res: Response) => {
         return res.status(200).json({ message: "Admin password reset successfully." });
     } catch (error: any) {
         console.error("RESET ADMIN PASSWORD ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: getSafeErrorMessage(error) });
     }
 };
 
@@ -966,3 +1001,4 @@ export const resetPassword = async (req: Request, res: Response) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
+

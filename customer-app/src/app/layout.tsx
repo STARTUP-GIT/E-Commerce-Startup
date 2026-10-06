@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import ReactQueryProvider from "@/lib/providers/ReactQueryProvider";
@@ -16,6 +16,12 @@ const inter = Inter({
 });
 
 const BACKEND_URL = process.env.BACKEND_API_URL?.replace(/\/$/, "");
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 const FALLBACK_METADATA: Metadata = {
   title: {

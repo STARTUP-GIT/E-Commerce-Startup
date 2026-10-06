@@ -273,12 +273,12 @@ ALTER TYPE "AdminActionType" ADD VALUE IF NOT EXISTS 'SELLER_VERIFICATION_REVIEW
 --     - audit_trails : Platform audit log (Admin uses admin_actions)
 -- ─────────────────────────────────────────────────────────────────────────────
 
-DROP TABLE "_PlatformRolePermissions";
-DROP TABLE "platform_permissions";
-DROP TABLE "platform_roles";
-DROP TABLE "platform_users";
-DROP TABLE "features";
-DROP TABLE "audit_trails";
+DROP TABLE IF EXISTS "_PlatformRolePermissions" CASCADE;
+DROP TABLE IF EXISTS "platform_permissions" CASCADE;
+DROP TABLE IF EXISTS "platform_roles" CASCADE;
+DROP TABLE IF EXISTS "platform_users" CASCADE;
+DROP TABLE IF EXISTS "features" CASCADE;
+DROP TABLE IF EXISTS "audit_trails" CASCADE;
 
-DROP TYPE "PlatformUserStatus";
-DROP TYPE "PlatformRoleType";
+DROP TYPE IF EXISTS "PlatformUserStatus" CASCADE;
+DROP TYPE IF EXISTS "PlatformRoleType" CASCADE;

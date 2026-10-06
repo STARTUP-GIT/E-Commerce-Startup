@@ -99,18 +99,18 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex noise-bg">
+    <div className="min-h-screen bg-background text-foreground flex noise-bg relative overflow-x-hidden">
       {/* Sidebar Backdrop Overlay for Mobile */}
       {sidebarOpen && (
         <div
           onClick={toggleSidebar}
-          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden cursor-pointer"
+          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm md:hidden cursor-pointer"
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 border-r border-white/5 bg-[#07070a]/90 backdrop-blur-md transition-transform duration-300 md:translate-x-0 md:static ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 max-w-[85vw] border-r border-white/5 bg-[#07070a]/95 md:bg-[#07070a]/90 backdrop-blur-md transition-transform duration-300 md:translate-x-0 md:static shrink-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -141,7 +141,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
           {/* Shop Selector / Indicator */}
           {shop && (
-            <div className="p-4 mx-4 my-3 rounded-xl bg-white/[0.02] border border-white/5">
+            <div className="p-3.5 mx-3.5 my-3 rounded-xl bg-white/[0.02] border border-white/5">
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
                   {shop.logoUrl ? (
@@ -163,7 +163,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           )}
 
           {/* Nav links */}
-          <nav className="flex-1 px-4 py-3 space-y-1 overflow-y-auto">
+          <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
             {sidebar.map((item) => {
               const Icon = getIconForItem(item.path);
               const itemPath = item.path || '/dashboard';
@@ -181,6 +181,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <NavLink
                   key={item.id || itemPath}
                   to={itemPath}
+                  onClick={() => {
+                    if (window.innerWidth < 768 && sidebarOpen) {
+                      toggleSidebar();
+                    }
+                  }}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
                       isActive
@@ -199,7 +204,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           {/* User info & Logout */}
           <div className="p-4 border-t border-white/5 bg-white/[0.01]">
             <div className="flex items-center gap-3 mb-3">
-              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-purple-900/60 to-indigo-900/60 flex items-center justify-center text-xs font-bold text-white ring-1 ring-white/10">
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-purple-900/60 to-indigo-900/60 flex items-center justify-center text-xs font-bold text-white ring-1 ring-white/10 shrink-0">
                 {user?.firstName?.[0] || 'S'}
               </div>
               <div className="min-w-0 flex-1">
@@ -296,7 +301,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         )}
 
         {/* Content Body */}
-        <main className="flex-1 p-6 overflow-y-auto">{children}</main>
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto min-w-0">{children}</main>
       </div>
     </div>
   );

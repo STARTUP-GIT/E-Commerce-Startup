@@ -229,7 +229,7 @@ export function ProductListPage() {
         </div>
 
         {/* Product Catalog list */}
-        <Card className="border border-white/5">
+        <Card className="border border-white/5 overflow-hidden">
           <CardContent className="p-0">
             {isLoading ? (
               <div className="p-6 space-y-3">
@@ -247,81 +247,157 @@ export function ProductListPage() {
                 </Button>
               </div>
             ) : filteredProducts.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[80px]">Image</TableHead>
-                    <TableHead>Product Name</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Stock Level</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                {/* ── MOBILE VIEW: PRODUCT CARDS (< md) ── */}
+                <div className="block md:hidden p-4 space-y-4">
                   {filteredProducts.map((prod) => (
-                    <TableRow key={prod.id}>
-                      <TableCell>
-                        <div className="h-11 w-11 rounded-lg border border-white/10 overflow-hidden bg-white/5 flex items-center justify-center">
+                    <div
+                      key={prod.id}
+                      className="p-4 rounded-xl border border-white/10 bg-white/[0.02] space-y-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="h-14 w-14 rounded-xl border border-white/10 overflow-hidden bg-white/5 flex items-center justify-center shrink-0">
                           {prod.imageUrl ? (
                             <img src={prod.imageUrl} alt={prod.name} loading="lazy" className="h-full w-full object-cover" />
                           ) : (
-                            <Package className="h-5 w-5 text-white/30" />
+                            <Package className="h-6 w-6 text-white/30" />
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell className="font-semibold text-white/95 text-xs">{prod.name}</TableCell>
-                      <TableCell className="text-xs font-bold text-white/80">
-                        {productService.formatPrice(prod.price)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-white/90">{prod.stockQuantity} units</span>
-                          {prod.stockQuantity <= 0 ? (
-                            <Badge variant="destructive" className="text-[7.5px] py-0 px-1.5 font-extrabold">
-                              Out of Stock
-                            </Badge>
-                          ) : prod.stockQuantity <= 10 ? (
-                            <Badge variant="default" className="text-[7.5px] py-0 px-1.5 font-extrabold bg-yellow-500/20 text-yellow-400 border-none">
-                              Low Stock
-                            </Badge>
-                          ) : (
-                            <Badge variant="success" className="text-[7.5px] py-0 px-1.5 font-extrabold">
-                              In Stock
-                            </Badge>
-                          )}
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <h4 className="font-bold text-white/95 text-xs truncate">{prod.name}</h4>
+                          <span className="text-xs font-bold text-purple-400 block">
+                            {productService.formatPrice(prod.price)}
+                          </span>
+                          <div className="flex items-center gap-2 pt-0.5">
+                            <span className="text-[10px] text-white/60 font-medium">{prod.stockQuantity} units</span>
+                            {prod.stockQuantity <= 0 ? (
+                              <Badge variant="destructive" className="text-[7.5px] py-0 px-1.5 font-extrabold">
+                                Out of Stock
+                              </Badge>
+                            ) : prod.stockQuantity <= 10 ? (
+                              <Badge variant="default" className="text-[7.5px] py-0 px-1.5 font-extrabold bg-yellow-500/20 text-yellow-400 border-none">
+                                Low Stock
+                              </Badge>
+                            ) : (
+                              <Badge variant="success" className="text-[7.5px] py-0 px-1.5 font-extrabold">
+                                In Stock
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 rounded-lg"
-                            onClick={() => {
-                              setSelectedProduct(prod);
-                              setValueEdit('productprice', prod.price);
-                              setValueEdit('productquantity', prod.stockQuantity);
-                              setValueEdit('imageKey', prod.imageUrl);
-                              setValueEdit('categoryId', prod.categoryId || '');
-                              setIsEditOpen(true);
-                            }}
-                          >
-                            <Edit2 className="h-3.5 w-3.5 text-white/70" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            className="h-8 w-8 rounded-lg bg-red-500/10 border-red-500/20 hover:bg-red-500/20"
-                            onClick={() => handleDelete(prod.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 px-3 text-xs font-semibold"
+                          onClick={() => {
+                            setSelectedProduct(prod);
+                            setValueEdit('productprice', prod.price);
+                            setValueEdit('productquantity', prod.stockQuantity);
+                            setValueEdit('imageKey', prod.imageUrl);
+                            setValueEdit('categoryId', prod.categoryId || '');
+                            setIsEditOpen(true);
+                          }}
+                        >
+                          <Edit2 className="h-3.5 w-3.5 mr-1.5 text-white/70" />
+                          <span>Edit Product</span>
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-9 px-3 text-xs font-semibold bg-red-500/10 border-red-500/20 hover:bg-red-500/20"
+                          onClick={() => handleDelete(prod.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                          <span>Delete</span>
+                        </Button>
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+
+                {/* ── DESKTOP VIEW: TABLE (>= md) ── */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[80px]">Image</TableHead>
+                        <TableHead>Product Name</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Stock Level</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredProducts.map((prod) => (
+                        <TableRow key={prod.id}>
+                          <TableCell>
+                            <div className="h-11 w-11 rounded-lg border border-white/10 overflow-hidden bg-white/5 flex items-center justify-center">
+                              {prod.imageUrl ? (
+                                <img src={prod.imageUrl} alt={prod.name} loading="lazy" className="h-full w-full object-cover" />
+                              ) : (
+                                <Package className="h-5 w-5 text-white/30" />
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-semibold text-white/95 text-xs">{prod.name}</TableCell>
+                          <TableCell className="text-xs font-bold text-white/80">
+                            {productService.formatPrice(prod.price)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-white/90">{prod.stockQuantity} units</span>
+                              {prod.stockQuantity <= 0 ? (
+                                <Badge variant="destructive" className="text-[7.5px] py-0 px-1.5 font-extrabold">
+                                  Out of Stock
+                                </Badge>
+                              ) : prod.stockQuantity <= 10 ? (
+                                <Badge variant="default" className="text-[7.5px] py-0 px-1.5 font-extrabold bg-yellow-500/20 text-yellow-400 border-none">
+                                  Low Stock
+                                </Badge>
+                              ) : (
+                                <Badge variant="success" className="text-[7.5px] py-0 px-1.5 font-extrabold">
+                                  In Stock
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-lg"
+                                onClick={() => {
+                                  setSelectedProduct(prod);
+                                  setValueEdit('productprice', prod.price);
+                                  setValueEdit('productquantity', prod.stockQuantity);
+                                  setValueEdit('imageKey', prod.imageUrl);
+                                  setValueEdit('categoryId', prod.categoryId || '');
+                                  setIsEditOpen(true);
+                                }}
+                              >
+                                <Edit2 className="h-3.5 w-3.5 text-white/70" />
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                className="h-8 w-8 rounded-lg bg-red-500/10 border-red-500/20 hover:bg-red-500/20"
+                                onClick={() => handleDelete(prod.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             ) : (
               <div className="text-center py-16 space-y-3">
                 <div className="h-12 w-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-white/30">
