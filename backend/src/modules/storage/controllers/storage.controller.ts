@@ -35,7 +35,7 @@ class StorageController {
 
       return res.status(500).json({
         success: false,
-        message: error.message || "Image upload failed.",
+        message: "Unable to upload image. Please try again.",
       });
     }
   }
@@ -187,7 +187,7 @@ class StorageController {
 
       return res.status(500).json({
         success: false,
-        message: error.message || "Replace failed.",
+        message: "Unable to upload image. Please try again.",
       });
     }
   }

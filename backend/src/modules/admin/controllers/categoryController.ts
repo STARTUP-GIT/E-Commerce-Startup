@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 import { invalidatePublicCache } from "../../../middleware/cache.js";
+import storageService from "../../storage/services/storage.service.js";
 
 // Helper to generate a slug
 const generateSlug = (name: string) => {
@@ -13,7 +14,7 @@ const generateSlug = (name: string) => {
 
 export const createCategory = async (req: Request, res: Response) => {
     try {
-        const { name, description, isActive, sortOrder, imageUrl } = req.body;
+        const { name, description, isActive, sortOrder, imageUrl, imagePublicId } = req.body;
         if (!name?.trim()) {
             return res.status(400).json({ message: "Category name is required" });
         }
@@ -32,6 +33,7 @@ export const createCategory = async (req: Request, res: Response) => {
                 slug,
                 description: description ? description.trim() : null,
                 imageUrl: imageUrl || null,
+                imagePublicId: imagePublicId || null,
                 sortOrder: sortOrder !== undefined ? Number(sortOrder) : 0,
                 isActive: isActive !== undefined ? !!isActive : true
             }
@@ -42,7 +44,7 @@ export const createCategory = async (req: Request, res: Response) => {
         return res.status(201).json({ message: "Category created successfully", category });
     } catch (error: any) {
         console.error("CREATE CATEGORY ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to create category. Please try again." });
     }
 };
 
@@ -54,14 +56,14 @@ export const getCategories = async (req: Request, res: Response) => {
         return res.status(200).json({ categories });
     } catch (error: any) {
         console.error("GET CATEGORIES ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to load categories. Please try again." });
     }
 };
 
 export const updateCategory = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const { name, description, isActive, sortOrder, imageUrl } = req.body;
+        const { name, description, isActive, sortOrder, imageUrl, imagePublicId } = req.body;
 
         if (!id) {
             return res.status(400).json({ message: "Category ID is required" });
@@ -99,18 +101,28 @@ export const updateCategory = async (req: Request, res: Response) => {
         if (imageUrl !== undefined) {
             data.imageUrl = imageUrl || null;
         }
+        if (imagePublicId !== undefined) {
+            data.imagePublicId = imagePublicId || null;
+        }
 
         const updated = await prisma.category.update({
             where: { id },
             data
         });
+        if (existing.imagePublicId && existing.imagePublicId !== updated.imagePublicId) {
+            try {
+                await storageService.deleteImage({ publicId: existing.imagePublicId });
+            } catch (error) {
+                console.error("FAILED TO REMOVE REPLACED CATEGORY IMAGE:", error);
+            }
+        }
 
         invalidatePublicCache();
 
         return res.status(200).json({ message: "Category updated successfully", category: updated });
     } catch (error: any) {
         console.error("UPDATE CATEGORY ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to update category. Please try again." });
     }
 };
 
@@ -142,7 +154,7 @@ export const updateCategoryStatus = async (req: Request, res: Response) => {
         return res.status(200).json({ message: "Category status updated successfully", category: updated });
     } catch (error: any) {
         console.error("PATCH CATEGORY STATUS ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to update category status. Please try again." });
     }
 };
 
@@ -164,10 +176,17 @@ export const deleteCategory = async (req: Request, res: Response) => {
         }
 
         await prisma.category.delete({ where: { id } });
+        if (existing.imagePublicId) {
+            try {
+                await storageService.deleteImage({ publicId: existing.imagePublicId });
+            } catch (error) {
+                console.error("FAILED TO REMOVE DELETED CATEGORY IMAGE:", error);
+            }
+        }
         invalidatePublicCache();
         return res.status(200).json({ message: "Category deleted successfully" });
     } catch (error: any) {
         console.error("DELETE CATEGORY ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to delete category. Please try again." });
     }
 };

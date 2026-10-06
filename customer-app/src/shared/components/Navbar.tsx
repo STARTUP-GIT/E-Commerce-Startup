@@ -6,14 +6,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useUIStore } from '@/lib/store/uiStore';
-import { ShoppingBag, ShoppingCart, Bell, User, LayoutDashboard, LogOut, Store, Menu, X, MapPin } from 'lucide-react';
+import { ShoppingCart, Bell, User, LayoutDashboard, LogOut, Store, Menu, X } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios/axiosInstance';
 import { shopListApi } from '@/features/shops/shop-list/api/shopListApi';
 import { useLocationStore } from '@/lib/store/locationStore';
 import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react';
+import type { ProfileResponse } from '@/features/auth/profile/api/profileApi';
 import { BrandLogo } from './BrandLogo';
-import { useSiteLayout, UiLayoutItem } from '@/lib/hooks/useSiteLayout';
+import { useSiteLayout } from '@/lib/hooks/useSiteLayout';
 
 // ─── Shop Names Marquee ───────────────────────────────────────────────────────
 
@@ -55,6 +56,32 @@ function ShopMarquee() {
   );
 }
 
+// ─── Location Chip ────────────────────────────────────────────────────────────
+
+function LocationChip({ profile, short }: { profile: ProfileResponse | undefined; short?: boolean }) {
+  const { selectedAddressId, selectedDistrict, selectedState, setAddressSelectorOpen } = useLocationStore();
+
+  const activeAddress =
+    profile?.user?.addresses?.find((address) => address.id === selectedAddressId) ||
+    profile?.user?.addresses?.find((address) => address.isDefault) ||
+    profile?.user?.addresses?.[0];
+
+  const city = activeAddress?.city || selectedDistrict || 'Select';
+  const state = activeAddress?.state || selectedState || 'Location';
+  const label = short ? city : `${city}, ${state}`;
+
+  return (
+    <button
+      onClick={() => setAddressSelectorOpen(true)}
+      className="flex items-center gap-1 px-2.5 py-1 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/15 text-[10px] font-bold text-white/80 transition-all cursor-pointer shadow-sm select-none whitespace-nowrap shrink-0"
+    >
+      <span>📍</span>
+      <span className="truncate max-w-[100px]">{label}</span>
+      <span className="text-[8px] text-white/30">▼</span>
+    </button>
+  );
+}
+
 // ─── Main Navbar ──────────────────────────────────────────────────────────────
 
 export function Navbar() {
@@ -68,6 +95,7 @@ export function Navbar() {
   // Close dropdown on route change
   useEffect(() => {
     setMenuOpen(false);
+    setMobileNavOpen(false);
   }, [pathname]);
 
   // Close dropdown on Escape key
@@ -80,6 +108,16 @@ export function Navbar() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [menuOpen]);
 
+  // Prevent body scroll when mobile nav is open
+  useEffect(() => {
+    if (mobileNavOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileNavOpen]);
+
   const { refs, floatingStyles } = useFloating({
     open: menuOpen,
     placement: 'bottom-end',
@@ -87,24 +125,19 @@ export function Navbar() {
     whileElementsMounted: autoUpdate,
   });
 
-  const {
-    selectedState,
-    selectedDistrict,
-    selectedAddressId,
-    setLocation,
-    setAddressSelectorOpen,
-  } = useLocationStore();
+  const { setLocation } = useLocationStore();
 
-  const { data: profile } = useQuery({
+  const { data: profile } = useQuery<ProfileResponse>({
     queryKey: ['profile'],
     queryFn: async () => (await axiosInstance.get('/api/auth/profile')).data,
     enabled: !!session,
   });
 
   // Load default address from profile if not set yet
+  const { selectedAddressId } = useLocationStore();
   useEffect(() => {
     if (session && profile?.user?.addresses?.length) {
-      const defaultAddr = profile.user.addresses.find((a: any) => a.isDefault) || profile.user.addresses[0];
+      const defaultAddr = profile.user.addresses.find((address) => address.isDefault) || profile.user.addresses[0];
       if (defaultAddr && !selectedAddressId) {
         setLocation(defaultAddr.id, defaultAddr.state, defaultAddr.city);
       }
@@ -112,6 +145,7 @@ export function Navbar() {
   }, [session, profile, selectedAddressId, setLocation]);
 
   // Invalidate queries when location changes
+  const { selectedDistrict, selectedState } = useLocationStore();
   useEffect(() => {
     if (selectedDistrict && selectedState) {
       queryClient.invalidateQueries({ queryKey: ['shops'] });
@@ -122,187 +156,185 @@ export function Navbar() {
     }
   }, [selectedDistrict, selectedState, queryClient]);
 
-  const { data: cartData } = useQuery({
+  const { data: cartData } = useQuery<{ cart?: { items?: Array<{ quantity: number }> } }>({
     queryKey: ['cart'],
     queryFn: async () => (await axiosInstance.get('/api/cart')).data,
     enabled: !!session,
     staleTime: 60_000,
   });
-  const cartCount = cartData?.cart?.items?.reduce((a: number, i: any) => a + i.quantity, 0) || 0;
+  const cartCount = cartData?.cart?.items?.reduce((total, item) => total + item.quantity, 0) || 0;
 
-  const { data: notifData } = useQuery({
+  const { data: notifData } = useQuery<{ notifications?: Array<{ isRead: boolean }> }>({
     queryKey: ['notifications'],
     queryFn: async () => (await axiosInstance.get('/api/notifications')).data,
     enabled: !!session,
     staleTime: 2 * 60_000,
   });
-  const unreadCount = notifData?.notifications?.filter((n: any) => !n.isRead).length || 0;
+  const unreadCount = notifData?.notifications?.filter((notification) => !notification.isRead).length || 0;
+
   const { navbar: dynamicNavbar } = useSiteLayout();
 
   return (
     <header className="sticky top-0 z-40 w-full">
       {/* Main bar */}
       <div className="glass border-b border-white/[0.08] backdrop-blur-xl bg-black/60">
-        <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-3 sm:px-6">
+        <div className="max-w-[1800px] mx-auto px-3 sm:px-4 lg:px-6">
+          <div className="flex h-14 sm:h-16 items-center gap-2 sm:gap-3">
 
-          {/* Logo + Location */}
-          <div className="flex items-center gap-1.5 sm:gap-4 min-w-0 flex-shrink">
-            <BrandLogo />
+            {/* ── Brand (logo + name) ── shrink-0 so it never collapses */}
+            <div className="flex items-center shrink-0 min-w-0">
+              <BrandLogo
+                textClassName="block max-w-[calc(100vw-140px)] truncate text-[13px] sm:text-base 2xl:text-lg font-black tracking-tight text-white"
+                logoSizeClassName="h-8 w-8"
+              />
+            </div>
 
-            {/* Location selector */}
-            {(() => {
-              const activeAddress = profile?.user?.addresses?.find((a: any) => a.id === selectedAddressId) || 
-                                    profile?.user?.addresses?.find((a: any) => a.isDefault) || 
-                                    profile?.user?.addresses?.[0];
-              return (
-                <button
-                  onClick={() => setAddressSelectorOpen(true)}
-                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/15 text-[9px] sm:text-[10px] lg:text-xs font-bold text-white/80 transition-all cursor-pointer shadow-sm select-none text-left max-w-[110px] xs:max-w-[160px] sm:max-w-none shrink"
+            {/* ── Location chip: desktop only (hidden on mobile to save space) ── */}
+            <div className="hidden 2xl:flex shrink-0">
+              <LocationChip profile={profile} />
+            </div>
+
+            {/* ── Desktop Navigation — grows to fill available space ── */}
+            <nav className="hidden 2xl:flex items-center justify-center gap-0.5 flex-1 min-w-0">
+              {dynamicNavbar.map((item) => (
+                <Link
+                  key={item.id}
+                  href={item.path || '/'}
+                  className="px-3 py-2 rounded-lg text-[13px] font-medium text-white/55 hover:text-white hover:bg-white/[0.07] transition-all duration-150 whitespace-nowrap"
                 >
-                  <div className="flex flex-col min-w-0 leading-tight">
-                    <span className="hidden xs:flex text-[8px] sm:text-[10px] text-white/45 font-medium truncate max-w-[100px] sm:max-w-[150px] items-center gap-1">
-                      <span>📍</span>
-                      <span className="truncate">{activeAddress ? activeAddress.fullName : (session?.user?.name || 'Guest')}</span>
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+
+            {/* ── Medium breakpoint: spacer to push actions right ── */}
+            <div className="hidden sm:block 2xl:hidden flex-1" />
+
+            {/* ── Right Actions ── */}
+            <div className="flex items-center gap-1 sm:gap-1.5 ml-auto shrink-0">
+
+              {/* Desktop Bell */}
+              {session && (
+                <Link
+                  href="/notifications"
+                  className="hidden 2xl:flex relative h-9 w-9 items-center justify-center rounded-lg text-white/55 hover:text-white hover:bg-white/[0.07] transition-all"
+                >
+                  <Bell className="h-4.5 w-4.5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[8px] font-black text-black">
+                      {unreadCount}
                     </span>
-                    <span className="text-[9px] sm:text-[11px] text-white/90 truncate max-w-[85px] xs:max-w-[130px] sm:max-w-[185px] font-extrabold mt-0.5">
-                      {activeAddress
-                        ? `${activeAddress.city}, ${activeAddress.state}`
-                        : `${selectedDistrict || 'Select'}, ${selectedState || 'Location'}`}
-                    </span>
-                  </div>
-                  <span className="text-[7px] sm:text-[8px] text-white/30 ml-0.5 align-middle shrink-0">▼</span>
-                </button>
-              );
-            })()}
-          </div>
-
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {dynamicNavbar.map((item) => (
-              <Link
-                key={item.id}
-                href={item.path || '/'}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-white/55 hover:text-white hover:bg-white/[0.07] transition-all duration-150"
-              >
-                {item.name}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Right Actions */}
-          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-            {/* Desktop Bell (Hidden on mobile header, included in mobile drawer) */}
-            {session && (
-              <Link href="/notifications" className="hidden md:flex relative h-9 w-9 items-center justify-center rounded-lg text-white/55 hover:text-white hover:bg-white/[0.07] transition-all">
-                <Bell className="h-4.5 w-4.5" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[8px] font-black text-black">
-                    {unreadCount}
-                  </span>
-                )}
-              </Link>
-            )}
-
-            {/* Cart Button */}
-            <button
-              onClick={() => setCartOpen(true)}
-              className="relative flex h-9 w-9 items-center justify-center rounded-lg text-white/55 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
-            >
-              <ShoppingCart className="h-4.5 w-4.5" />
-              {cartCount > 0 && (
-                <span className="absolute top-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[8px] font-black text-black">
-                  {cartCount}
-                </span>
+                  )}
+                </Link>
               )}
-            </button>
 
-            {/* User Dropdown (Desktop) */}
-            {session ? (
-              <div className="relative hidden md:block ml-1 pl-2 border-l border-white/[0.08]">
-                <button
-                  ref={refs.setReference}
-                  onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.07] transition-all cursor-pointer"
-                >
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full overflow-hidden ring-1 ring-white/20 bg-white/10">
-                    {session.user?.image
-                      ? <img src={session.user.image} alt="" className="h-full w-full object-cover" />
-                      : <User className="h-3.5 w-3.5 text-white/80" />
-                    }
-                  </div>
-                  <span className="text-xs font-semibold text-white/75 max-w-[90px] truncate">
-                    {session.user?.name || 'Account'}
+              {/* Cart Button */}
+              <button
+                onClick={() => setCartOpen(true)}
+                className="relative flex h-9 w-9 items-center justify-center rounded-lg text-white/55 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
+              >
+                <ShoppingCart className="h-4.5 w-4.5" />
+                {cartCount > 0 && (
+                  <span className="absolute top-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[8px] font-black text-black">
+                    {cartCount}
                   </span>
-                </button>
-
-                {menuOpen && typeof window !== 'undefined' && createPortal(
-                  <>
-                    <div className="fixed inset-0 z-[9998]" onClick={() => setMenuOpen(false)} />
-                    <div ref={refs.setFloating} className="z-[9999] w-52 glass-card p-1.5 animate-in fade-in slide-in-from-top-1 duration-100"
-                      style={floatingStyles}>
-                      <div className="px-3 py-2.5 border-b border-white/[0.07] mb-1">
-                        <p className="text-xs font-bold text-white truncate">{session.user?.name}</p>
-                        <p className="text-[10px] text-white/40 truncate mt-0.5">{session.user?.email}</p>
-                      </div>
-                      {[
-                        { href: '/profile', icon: User, label: 'My Profile' },
-                        { href: '/orders', icon: LayoutDashboard, label: 'My Orders' },
-                        { href: '/wishlist', icon: ShoppingCart, label: 'My Wishlist' },
-                      ].map(({ href, icon: Icon, label }) => (
-                        <Link key={href} href={href} onClick={() => setMenuOpen(false)}
-                          className="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium text-white/60 hover:text-white hover:bg-white/[0.06] rounded-lg transition-all">
-                          <Icon className="h-3.5 w-3.5" />
-                          {label}
-                        </Link>
-                      ))}
-                      <div className="border-t border-white/[0.07] mt-1 pt-1">
-                        <button onClick={() => { setMenuOpen(false); signOut(); }}
-                          className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer text-left">
-                          <LogOut className="h-3.5 w-3.5" />
-                          Sign Out
-                        </button>
-                      </div>
-                    </div>
-                  </>,
-                  document.body
                 )}
-              </div>
-            ) : (
-              <div className="hidden md:flex items-center gap-2">
-                <Link href="/login">
-                  <button className="h-9 px-4 rounded-lg text-sm font-medium text-white/60 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer">
-                    Sign In
-                  </button>
-                </Link>
-                <Link href="/signup">
-                  <button className="h-9 px-4 rounded-xl text-sm font-bold btn-primary cursor-pointer">
-                    Sign Up
-                  </button>
-                </Link>
-              </div>
-            )}
+              </button>
 
-            {/* Mobile menu toggle */}
-            <button
-              className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
-              onClick={() => setMobileNavOpen(!mobileNavOpen)}
-              aria-label="Toggle Navigation Menu"
-            >
-              {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
+              {/* User Dropdown — desktop only */}
+              {session ? (
+                <div className="relative hidden 2xl:block ml-1 pl-2 border-l border-white/[0.08]">
+                  <button
+                    ref={refs.setReference}
+                    onClick={() => setMenuOpen(!menuOpen)}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.07] transition-all cursor-pointer"
+                  >
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full overflow-hidden ring-1 ring-white/20 bg-white/10">
+                      {session.user?.image
+                        ? <img src={session.user.image} alt="" className="h-full w-full object-cover" />
+                        : <User className="h-3.5 w-3.5 text-white/80" />
+                      }
+                    </div>
+                    <span className="text-xs font-semibold text-white/75 max-w-[80px] truncate">
+                      {session.user?.name || 'Account'}
+                    </span>
+                  </button>
+
+                  {menuOpen && typeof window !== 'undefined' && createPortal(
+                    <>
+                      <div className="fixed inset-0 z-[9998]" onClick={() => setMenuOpen(false)} />
+                      <div ref={refs.setFloating} className="z-[9999] w-52 glass-card p-1.5 animate-in fade-in slide-in-from-top-1 duration-100"
+                        style={floatingStyles}>
+                        <div className="px-3 py-2.5 border-b border-white/[0.07] mb-1">
+                          <p className="text-xs font-bold text-white truncate">{session.user?.name}</p>
+                          <p className="text-[10px] text-white/40 truncate mt-0.5">{session.user?.email}</p>
+                        </div>
+                        {[
+                          { href: '/profile', icon: User, label: 'My Profile' },
+                          { href: '/orders', icon: LayoutDashboard, label: 'My Orders' },
+                          { href: '/wishlist', icon: ShoppingCart, label: 'My Wishlist' },
+                        ].map(({ href, icon: Icon, label }) => (
+                          <Link key={href} href={href} onClick={() => setMenuOpen(false)}
+                            className="flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium text-white/60 hover:text-white hover:bg-white/[0.06] rounded-lg transition-all">
+                            <Icon className="h-3.5 w-3.5" />
+                            {label}
+                          </Link>
+                        ))}
+                        <div className="border-t border-white/[0.07] mt-1 pt-1">
+                          <button onClick={() => { setMenuOpen(false); signOut(); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer text-left">
+                            <LogOut className="h-3.5 w-3.5" />
+                            Sign Out
+                          </button>
+                        </div>
+                      </div>
+                    </>,
+                    document.body
+                  )}
+                </div>
+              ) : (
+                <div className="hidden 2xl:flex items-center gap-2">
+                  <Link href="/login">
+                    <button className="h-9 px-4 rounded-lg text-sm font-medium text-white/60 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer">
+                      Sign In
+                    </button>
+                  </Link>
+                  <Link href="/signup">
+                    <button className="h-9 px-4 rounded-xl text-sm font-bold btn-primary cursor-pointer">
+                      Sign Up
+                    </button>
+                  </Link>
+                </div>
+              )}
+
+              {/* Mobile / tablet menu toggle — shown below lg */}
+              <button
+                className="2xl:hidden flex h-9 w-9 items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
+                onClick={() => setMobileNavOpen(!mobileNavOpen)}
+                aria-label="Toggle Navigation Menu"
+              >
+                {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Mobile Nav Drawer */}
+        {/* Mobile / tablet Nav Drawer — used when the full desktop navigation does not fit */}
         {mobileNavOpen && (
-          <div className="md:hidden border-t border-white/[0.08] bg-black/95 backdrop-blur-2xl px-4 py-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-150 max-h-[80vh] overflow-y-auto">
+          <div className="2xl:hidden border-t border-white/[0.08] bg-black/95 backdrop-blur-2xl px-4 py-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-150 max-h-[calc(100dvh-56px)] overflow-y-auto">
+
+            {/* Location — moved into mobile menu */}
+            <div className="pb-3 border-b border-white/[0.08]">
+              <LocationChip profile={profile} />
+            </div>
+
             {session ? (
               <div className="px-3 py-3 rounded-xl bg-white/[0.04] border border-white/10 mb-2 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-white truncate">{session.user?.name}</p>
                   <p className="text-[10px] text-white/40 truncate">{session.user?.email}</p>
                 </div>
-                <Link href="/profile" onClick={() => setMobileNavOpen(false)} className="text-[10px] font-bold text-purple-400 hover:underline">
+                <Link href="/profile" onClick={() => setMobileNavOpen(false)} className="text-[10px] font-bold text-purple-400 hover:underline ml-3 shrink-0">
                   Profile
                 </Link>
               </div>
@@ -322,32 +354,32 @@ export function Navbar() {
             )}
 
             {/* Primary Nav Items */}
-            <div className="space-y-1 border-b border-white/[0.08] pb-3">
+            <div className="space-y-0.5 border-b border-white/[0.08] pb-3">
               {dynamicNavbar.map((item) => (
                 <Link key={item.id} href={item.path || '/'} onClick={() => setMobileNavOpen(false)}
-                  className="flex items-center px-3 py-2.5 rounded-xl text-xs font-medium text-white/75 hover:text-white hover:bg-white/[0.07] transition-all">
+                  className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-white/75 hover:text-white hover:bg-white/[0.07] transition-all">
                   {item.name}
                 </Link>
               ))}
             </div>
 
-            {/* Account Quick Links if logged in */}
+            {/* Account Quick Links */}
             {session && (
-              <div className="space-y-1 pt-1">
+              <div className="space-y-0.5 pt-1">
                 {[
                   { href: '/profile', icon: User, label: 'My Profile' },
                   { href: '/orders', icon: LayoutDashboard, label: 'My Orders' },
                   { href: '/wishlist', icon: ShoppingCart, label: 'My Wishlist' },
-                  { href: '/notifications', icon: Bell, label: `Notifications ${unreadCount > 0 ? `(${unreadCount})` : ''}` },
+                  { href: '/notifications', icon: Bell, label: `Notifications${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
                 ].map(({ href, icon: Icon, label }) => (
                   <Link key={href} href={href} onClick={() => setMobileNavOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-white/60 hover:text-white hover:bg-white/[0.06] transition-all">
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/[0.06] transition-all">
                     <Icon className="h-4 w-4" />
                     <span>{label}</span>
                   </Link>
                 ))}
                 <button onClick={() => { setMobileNavOpen(false); signOut(); }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-red-400 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer text-left mt-2">
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer text-left mt-2">
                   <LogOut className="h-4 w-4" />
                   <span>Sign Out</span>
                 </button>

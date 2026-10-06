@@ -117,7 +117,7 @@ export function HomePage() {
       return (
         <section
           key={sectionId}
-          className="relative overflow-hidden bg-[#080808] flex flex-col items-center justify-center py-16 sm:py-24 px-4 sm:px-6 min-h-[calc(100dvh-64px)]"
+          className="relative overflow-hidden bg-[#080808] flex flex-col items-center justify-center py-10 sm:py-24 px-4 sm:px-6 min-h-[calc(100dvh-56px)]"
         >
           {/* Grid lines */}
           <div
@@ -139,13 +139,13 @@ export function HomePage() {
           <div className="max-w-[900px] w-full text-center relative z-10 animate-fade-up">
 
             {/* Eyebrow badge */}
-            <div className="inline-flex items-center gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white/[0.06] border border-white/10 text-[10px] sm:text-xs font-bold tracking-widest text-white/55 uppercase mb-6 sm:mb-10">
+            <div className="inline-flex items-center gap-2 px-3 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white/[0.06] border border-white/10 text-xs sm:text-xs font-bold tracking-widest text-white/65 uppercase mb-5 sm:mb-10">
               <span className="w-1.5 h-1.5 rounded-full bg-white/70 inline-block animate-pulse" />
               {branding.heroBadge}
             </div>
 
             {/* Headline — Responsive */}
-            <h1 className="text-3xl xs:text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-none tracking-tight text-white mb-6 sm:mb-8">
+            <h1 className="text-[clamp(2.25rem,10vw,3.5rem)] sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.98] tracking-tight text-white mb-5 sm:mb-8">
               {branding.heroHeadingLine1}<br />
               <span
                 className="bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent"
@@ -156,14 +156,14 @@ export function HomePage() {
             </h1>
 
             {/* Subheading */}
-            <p className="text-sm sm:text-base md:text-lg text-white/45 max-w-[560px] mx-auto mb-8 sm:mb-12 leading-relaxed font-normal">
+            <p className="text-sm sm:text-base md:text-lg text-white/55 max-w-[560px] mx-auto mb-6 sm:mb-12 leading-relaxed font-normal">
               {branding.heroDescription}
             </p>
 
             {/* Search bar */}
             <form
               onSubmit={handleSearch}
-              className="flex flex-col xs:flex-row gap-2 max-w-[560px] mx-auto mb-8 sm:mb-10 bg-white/[0.05] border border-white/12 rounded-2xl p-2 backdrop-blur-xl"
+              className="flex flex-col xs:flex-row gap-1.5 sm:gap-2 max-w-[560px] mx-auto mb-6 sm:mb-10 bg-white/[0.05] border border-white/12 rounded-2xl p-1.5 sm:p-2 backdrop-blur-xl"
             >
               <div className="relative flex-1">
                 <Search
@@ -178,24 +178,24 @@ export function HomePage() {
               </div>
               <button
                 type="submit"
-                className="h-11 sm:h-13 px-5 sm:px-7 rounded-xl border-none bg-white text-black text-sm sm:text-base font-extrabold cursor-pointer shrink-0 transition-opacity hover:opacity-90 w-full xs:w-auto"
+                className="h-10 sm:h-13 px-5 sm:px-7 rounded-xl border-none bg-white text-black text-sm sm:text-base font-extrabold cursor-pointer shrink-0 transition-opacity hover:opacity-90 w-full xs:w-auto"
               >
                 Search
               </button>
             </form>
 
             {/* CTAs */}
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center items-center w-full">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-4 justify-center items-center w-full">
               <Link href="/shops" className="w-full sm:w-auto">
                 <button
-                  className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-8 rounded-xl bg-white text-black font-extrabold text-sm sm:text-base cursor-pointer flex items-center justify-center gap-2.5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                  className="w-full sm:w-auto h-11 sm:h-14 px-6 sm:px-8 rounded-xl bg-white text-black font-extrabold text-sm sm:text-base cursor-pointer flex items-center justify-center gap-2.5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
                 >
                   {branding.exploreShopsButtonText} <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </Link>
               <Link href="/products" className="w-full sm:w-auto">
                 <button
-                  className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-8 rounded-xl bg-transparent text-white/85 border border-white/20 font-bold text-sm sm:text-base cursor-pointer transition-all hover:bg-white/10 hover:border-white/40 hover:text-white"
+                  className="w-full sm:w-auto h-11 sm:h-14 px-6 sm:px-8 rounded-xl bg-transparent text-white/85 border border-white/20 font-bold text-sm sm:text-base cursor-pointer transition-all hover:bg-white/10 hover:border-white/40 hover:text-white"
                 >
                   {branding.browseProductsButtonText}
                 </button>
@@ -387,13 +387,13 @@ export function HomePage() {
                 Join {marketplaceName} free — browse local sellers, follow your favourite shops, and get anything delivered or picked up nearby.
               </p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-              <Link href="/signup">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flexShrink: 1, maxWidth: '100%' }}>
+              <Link href="/signup" style={{ maxWidth: '100%' }}>
                 <button
                   style={{
-                    height: '56px', padding: '0 32px', borderRadius: '14px',
+                    height: '48px', padding: '0 22px', borderRadius: '14px',
                     background: '#000', color: '#fff', border: 'none',
-                    fontSize: '15px', fontWeight: 800, cursor: 'pointer',
+                    fontSize: '14px', fontWeight: 800, cursor: 'pointer',
                     transition: 'opacity 0.15s',
                   }}
                   onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
@@ -402,13 +402,13 @@ export function HomePage() {
                   Create Account
                 </button>
               </Link>
-              <Link href="/login">
+              <Link href="/login" style={{ maxWidth: '100%' }}>
                 <button
                   style={{
-                    height: '56px', padding: '0 32px', borderRadius: '14px',
+                    height: '48px', padding: '0 22px', borderRadius: '14px',
                     background: 'transparent', color: '#000',
                     border: '1.5px solid rgba(0,0,0,0.2)',
-                    fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+                    fontSize: '14px', fontWeight: 700, cursor: 'pointer',
                     transition: 'all 0.15s',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.35)'; }}

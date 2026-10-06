@@ -12,6 +12,8 @@ import type { BrandingConfig } from '@/lib/services/brandingService';
 /** Admin-facing branding row (superset of the public BrandingConfig). */
 export interface AdminBranding extends BrandingConfig {
   brandName: string;
+  logoPublicId?: string | null;
+  faviconPublicId?: string | null;
   primaryColor?: string;
   secondaryColor?: string;
   supportEmail?: string;
@@ -25,7 +27,9 @@ export interface BrandingPayload {
   shortName?: string;
   tagline?: string;
   logoUrl?: string;
+  logoPublicId?: string | null;
   faviconUrl?: string;
+  faviconPublicId?: string | null;
   browserTitle?: string;
   seoTitle?: string;
   seoDescription?: string;

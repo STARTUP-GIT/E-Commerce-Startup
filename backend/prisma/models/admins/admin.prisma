@@ -6,6 +6,7 @@ model Admin {
   lastName     String    @db.VarChar(100)
   phone        String?   @db.VarChar(20)
   avatarUrl    String?   @db.VarChar(2048)
+  avatarPublicId String? @db.VarChar(255)
   isActive     Boolean   @default(true)
   isSuperAdmin Boolean   @default(false)
   lastLoginAt  DateTime?

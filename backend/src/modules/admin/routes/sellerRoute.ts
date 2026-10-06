@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
     getSellers,
     getSeller,
+    searchSellers,
     banSeller,
     unbanSeller,
     deleteSeller,
@@ -21,18 +22,19 @@ const router = Router();
 
 router.use(adminAuth);
 
-router.get("/sellers", requirePermission("sellers.view"), getSellers);
-router.get("/sellers/:id", requirePermission("sellers.view"), getSeller);
-router.patch("/sellers/:id/ban", requirePermission("sellers.manage"), banSeller);
-router.patch("/sellers/:id/unban", requirePermission("sellers.manage"), unbanSeller);
-router.patch("/sellers/:id/suspend", requirePermission("sellers.manage"), suspendSeller);
-router.patch("/sellers/:id/restore", requirePermission("sellers.manage"), restoreSeller);
-router.patch("/sellers/:id/activate", requirePermission("sellers.manage"), activateSeller);
-router.patch("/sellers/:id/deactivate", requirePermission("sellers.manage"), deactivateSeller);
-router.delete("/sellers/:id", requirePermission("sellers.manage"), deleteSeller);
-router.get("/sellers/:id/shop", requirePermission("sellers.view"), getSellerShop);
-router.get("/sellers/:id/orders", requirePermission("sellers.view"), getSellerOrders);
-router.get("/sellers/:id/products", requirePermission("sellers.view"), getSellerProducts);
-router.get("/sellers/:id/analytics", requirePermission("sellers.view"), getSellerAnalytics);
+router.get("/search", requirePermission("sellers.manage"), searchSellers);
+router.get("/", requirePermission("sellers.view"), getSellers);
+router.get("/:id", requirePermission("sellers.view"), getSeller);
+router.patch("/:id/ban", requirePermission("sellers.manage"), banSeller);
+router.patch("/:id/unban", requirePermission("sellers.manage"), unbanSeller);
+router.patch("/:id/suspend", requirePermission("sellers.manage"), suspendSeller);
+router.patch("/:id/restore", requirePermission("sellers.manage"), restoreSeller);
+router.patch("/:id/activate", requirePermission("sellers.manage"), activateSeller);
+router.patch("/:id/deactivate", requirePermission("sellers.manage"), deactivateSeller);
+router.delete("/:id", requirePermission("sellers.manage"), deleteSeller);
+router.get("/:id/shop", requirePermission("sellers.view"), getSellerShop);
+router.get("/:id/orders", requirePermission("sellers.view"), getSellerOrders);
+router.get("/:id/products", requirePermission("sellers.view"), getSellerProducts);
+router.get("/:id/analytics", requirePermission("sellers.view"), getSellerAnalytics);
 
 export default router;

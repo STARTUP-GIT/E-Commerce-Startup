@@ -7,6 +7,7 @@ export interface AdminProfile {
   lastName: string;
   phone?: string | null;
   avatarUrl?: string | null;
+  avatarPublicId?: string | null;
   isSuperAdmin: boolean;
   isActive?: boolean;
   role?: string;
@@ -40,7 +41,8 @@ export const authApi = {
   updateProfile: async (payload: {
     name?: string;
     phone?: string;
-    avatarUrl?: string;
+    avatarUrl?: string | null;
+    avatarPublicId?: string | null;
   }): Promise<{ message: string; admin: AdminProfile }> => {
     const response = await axiosInstance.put('/api/admin/profile', payload);
     return response.data;

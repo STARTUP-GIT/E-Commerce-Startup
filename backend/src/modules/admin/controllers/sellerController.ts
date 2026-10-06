@@ -4,6 +4,48 @@ import { logAdminAction } from "../utils/actionLogger.js";
 import { AdminActionType } from "@prisma/client";
 import { sanitizeSeller } from "../../../utils/sanitize.js";
 
+// ─── Seller Search (human-friendly; for admin UI selectors) ──────────────────
+
+export const searchSellers = async (req: Request, res: Response) => {
+    try {
+        const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+
+        const sellers = await prisma.seller.findMany({
+            where: q ? {
+                OR: [
+                    { email: { contains: q, mode: "insensitive" } },
+                    { firstName: { contains: q, mode: "insensitive" } },
+                    { lastName: { contains: q, mode: "insensitive" } },
+                    { username: { contains: q, mode: "insensitive" } },
+                    { shop: { name: { contains: q, mode: "insensitive" } } },
+                ],
+            } : {},
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                shop: { select: { name: true } },
+            },
+            take: 15,
+            orderBy: { firstName: "asc" },
+        });
+
+        const result = sellers.map((s) => ({
+            id: s.id,
+            name: `${s.firstName} ${s.lastName}`.trim(),
+            email: s.email,
+            shopName: s.shop?.name ?? null,
+        }));
+
+        return res.status(200).json({ sellers: result });
+    } catch (error: any) {
+        console.error("SEARCH SELLERS ERROR:", error);
+        return res.status(500).json({ message: "Unable to load sellers. Please try again." });
+    }
+};
+
+
 export const getSellers = async (req: Request, res: Response) => {
     try {
         const { search, status, page = 1, limit = 10 } = req.query;

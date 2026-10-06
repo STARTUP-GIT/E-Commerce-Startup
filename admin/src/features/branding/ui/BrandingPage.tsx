@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/sha
 import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
+import { ImageUploadField, type UploadResult } from '@/shared/components/ImageUploadField';
 import { useUIStore } from '@/lib/store/uiStore';
 import { Eye, Image as ImageIcon, Lock, Monitor, Palette, Save, ShieldAlert, Store } from 'lucide-react';
 
@@ -16,7 +17,9 @@ interface BrandingFormState {
   shortName: string;
   tagline: string;
   logoUrl: string;
+  logoPublicId: string;
   faviconUrl: string;
+  faviconPublicId: string;
   browserTitle: string;
   seoTitle: string;
   seoDescription: string;
@@ -40,7 +43,9 @@ const EMPTY_FORM: BrandingFormState = {
   shortName: '',
   tagline: '',
   logoUrl: '',
+  logoPublicId: '',
   faviconUrl: '',
+  faviconPublicId: '',
   browserTitle: '',
   seoTitle: '',
   seoDescription: '',
@@ -80,7 +85,9 @@ export function BrandingPage() {
         shortName: branding.shortName ?? '',
         tagline: branding.tagline ?? '',
         logoUrl: branding.logoUrl ?? '',
+        logoPublicId: branding.logoPublicId ?? '',
         faviconUrl: branding.faviconUrl ?? '',
+        faviconPublicId: branding.faviconPublicId ?? '',
         browserTitle: branding.browserTitle ?? '',
         seoTitle: branding.seoTitle ?? '',
         seoDescription: branding.seoDescription ?? '',
@@ -109,8 +116,8 @@ export function BrandingPage() {
     try {
       await updateMutation.mutateAsync(form);
       showToast('Branding updated', 'success');
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to update branding', 'error');
+    } catch {
+      showToast('Unable to save branding. Please try again.', 'error');
     }
   };
 
@@ -161,13 +168,25 @@ export function BrandingPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Field label="Logo URL" hint="Shown in headers and the storefront preview">
-                      <Input value={form.logoUrl} onChange={(e) => update('logoUrl')(e.target.value)} placeholder="https://example.com/logo.png" />
-                      <PreviewImage src={form.logoUrl} label="Logo preview" />
+                    <Field label="Logo" hint="Shown in headers and the storefront preview">
+                      <ImageUploadField
+                        folder="branding"
+                        value={form.logoUrl}
+                        onChange={(r: UploadResult) => setForm((f) => ({ ...f, logoUrl: r.url, logoPublicId: r.publicId }))}
+                        onRemove={() => setForm((f) => ({ ...f, logoUrl: '/images/logo.png', logoPublicId: '' }))}
+                        maxBytes={2 * 1024 * 1024}
+                        disabled={!canManage}
+                      />
                     </Field>
-                    <Field label="Favicon URL" hint="Leaving favicon empty falls back to your logo">
-                      <Input value={form.faviconUrl} onChange={(e) => update('faviconUrl')(e.target.value)} placeholder="https://example.com/favicon.ico" />
-                      <PreviewImage src={form.faviconUrl || form.logoUrl} label="Favicon preview" />
+                    <Field label="Favicon" hint="Leaving favicon empty falls back to your logo">
+                      <ImageUploadField
+                        folder="branding"
+                        value={form.faviconUrl}
+                        onChange={(r: UploadResult) => setForm((f) => ({ ...f, faviconUrl: r.url, faviconPublicId: r.publicId }))}
+                        onRemove={() => setForm((f) => ({ ...f, faviconUrl: '', faviconPublicId: '' }))}
+                        maxBytes={1 * 1024 * 1024}
+                        disabled={!canManage}
+                      />
                     </Field>
                   </div>
                 </SectionCard>

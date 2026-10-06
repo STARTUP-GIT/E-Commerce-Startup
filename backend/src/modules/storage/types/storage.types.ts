@@ -11,7 +11,9 @@ export type UploadFolder =
   | "packing-proof"
   | "reviews"
   | "categories"
-  | "banners";
+  | "banners"
+  | "branding"
+  | "admin-profile";
 
 export interface UploadImageRequest {
   folder: UploadFolder;

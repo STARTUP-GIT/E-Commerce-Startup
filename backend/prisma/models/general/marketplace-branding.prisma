@@ -15,7 +15,9 @@ model MarketplaceBranding {
   shortName     String? @db.VarChar(80)
   tagline       String? @db.VarChar(300)
   logoUrl       String  @default("/images/logo.png") @db.VarChar(2048)
+  logoPublicId  String? @db.VarChar(255)
   faviconUrl    String? @db.VarChar(2048)
+  faviconPublicId String? @db.VarChar(255)
   browserTitle  String? @db.VarChar(200)
 
   seoTitle       String? @db.VarChar(200)

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { authApi } from "@/features/auth/api/authApi";
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,7 +13,6 @@ import {
   Calendar,
   Clock,
   Key,
-  Upload,
   Save,
   X,
   CheckCircle,
@@ -22,6 +21,7 @@ import {
   EyeOff,
   Edit3,
 } from "lucide-react";
+import { ImageUploadField, type UploadResult } from "@/shared/components/ImageUploadField";
 
 function formatDate(val?: string | null) {
   if (!val) return "—";
@@ -51,12 +51,14 @@ export default function ProfilePage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarPublicId, setAvatarPublicId] = useState("");
   const [saving, setSaving] = useState(false);
 
   const startEdit = () => {
     setName(`${admin?.firstName ?? ""} ${admin?.lastName ?? ""}`.trim());
     setPhone(admin?.phone ?? "");
     setAvatarUrl(admin?.avatarUrl ?? "");
+    setAvatarPublicId(admin?.avatarPublicId ?? "");
     setEditing(true);
   };
 
@@ -65,12 +67,17 @@ export default function ProfilePage() {
   const saveProfile = async () => {
     setSaving(true);
     try {
-      await authApi.updateProfile({ name, phone: phone || undefined, avatarUrl: avatarUrl || undefined });
+      await authApi.updateProfile({
+        name,
+        phone: phone || undefined,
+        avatarUrl: avatarUrl || null,
+        avatarPublicId: avatarPublicId || null,
+      });
       await queryClient.invalidateQueries({ queryKey: ["profile"] });
       showToast("Profile updated successfully.", "success");
       setEditing(false);
-    } catch (e: any) {
-      showToast(e?.response?.data?.message || "Failed to update profile.", "error");
+    } catch {
+      showToast("Unable to update profile. Please try again.", "error");
     } finally {
       setSaving(false);
     }
@@ -200,13 +207,19 @@ export default function ProfilePage() {
                     className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-white/25 focus:bg-white/[0.06] transition-all"
                   />
                 </div>
-                <div className="md:col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-white/50">Avatar URL</label>
-                  <input
+                <div className="md:col-span-2">
+                  <ImageUploadField
+                    label="Profile Image"
+                    folder="admin-profile"
                     value={avatarUrl}
-                    onChange={(e) => setAvatarUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-white/25 focus:bg-white/[0.06] transition-all"
+                    onChange={(image: UploadResult) => {
+                      setAvatarUrl(image.url);
+                      setAvatarPublicId(image.publicId);
+                    }}
+                    onRemove={() => {
+                      setAvatarUrl("");
+                      setAvatarPublicId("");
+                    }}
                   />
                 </div>
               </div>

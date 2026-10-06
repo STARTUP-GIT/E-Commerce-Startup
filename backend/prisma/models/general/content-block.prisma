@@ -28,6 +28,7 @@ model ContentBlock {
   subtitle   String?          @db.VarChar(300)
   body       String?          @db.Text
   imageUrl   String?          @db.VarChar(2048)
+  imagePublicId String?        @db.VarChar(255)
   linkUrl    String?          @db.VarChar(2048)
   placement  ContentPlacement @default(HOME_BANNER)
   status     ContentStatus    @default(DRAFT)

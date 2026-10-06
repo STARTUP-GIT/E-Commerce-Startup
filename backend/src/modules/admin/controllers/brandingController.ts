@@ -17,7 +17,7 @@ export const getPublicBranding = async (_req: Request, res: Response) => {
         return res.status(200).json(branding);
     } catch (error: any) {
         console.error("GET PUBLIC BRANDING ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to load branding. Please try again." });
     }
 };
 
@@ -27,7 +27,7 @@ export const getAdminBranding = async (_req: Request, res: Response) => {
         return res.status(200).json(await getBrandingSettings());
     } catch (error: any) {
         console.error("GET BRANDING ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to load branding. Please try again." });
     }
 };
 
@@ -59,6 +59,6 @@ export const updateAdminBranding = async (req: Request, res: Response) => {
         return res.status(200).json({ branding, message: "Branding updated" });
     } catch (error: any) {
         console.error("UPDATE BRANDING ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to save branding. Please try again." });
     }
 };

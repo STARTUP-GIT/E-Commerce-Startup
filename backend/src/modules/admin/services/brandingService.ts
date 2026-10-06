@@ -1,4 +1,5 @@
 import { prisma } from "../../../config/prisma.js";
+import storageService from "../../storage/services/storage.service.js";
 
 /**
  * Marketplace branding — the single Admin-owned source of truth.
@@ -146,8 +147,10 @@ export interface BrandingUpdate {
     shortName?: string;
     tagline?: string;
     logoUrl?: string;
+    logoPublicId?: string | null;
     logo?: string;
     faviconUrl?: string;
+    faviconPublicId?: string | null;
     favicon?: string;
     browserTitle?: string;
     seoTitle?: string;
@@ -175,6 +178,7 @@ export const saveBranding = async (
     adminId?: string
 ): Promise<BrandingConfiguration> => {
     const current = await getBrandingConfiguration();
+    const existing = await prisma.marketplaceBranding.findUnique({ where: { id: 1 } });
 
     const brandName = str(
         pick(input.brandName, input.name, input.marketplaceName),
@@ -183,13 +187,21 @@ export const saveBranding = async (
     const logoUrl = str(pick(input.logoUrl, input.logo), current.logoUrl);
     const faviconRaw = pick(input.faviconUrl, input.favicon);
     const faviconUrl = faviconRaw === "" ? null : (faviconRaw ?? current.faviconUrl);
+    const logoPublicId = input.logoPublicId === undefined
+        ? existing?.logoPublicId ?? null
+        : input.logoPublicId || null;
+    const faviconPublicId = input.faviconPublicId === undefined
+        ? existing?.faviconPublicId ?? null
+        : input.faviconPublicId || null;
 
     const data = {
         brandName,
         shortName: str(input.shortName, current.shortName),
         tagline: str(input.tagline, current.tagline),
         logoUrl,
+        logoPublicId,
         faviconUrl,
+        faviconPublicId,
         browserTitle: str(input.browserTitle, current.browserTitle),
         seoTitle: str(input.seoTitle, current.seoTitle),
         seoDescription: str(input.seoDescription, current.seoDescription),
@@ -216,11 +228,31 @@ export const saveBranding = async (
     });
 
     invalidateBrandingCache();
+    const replacedPublicIds = [
+        existing?.logoPublicId && existing.logoPublicId !== logoPublicId ? existing.logoPublicId : null,
+        existing?.faviconPublicId && existing.faviconPublicId !== faviconPublicId ? existing.faviconPublicId : null
+    ].filter((publicId): publicId is string => Boolean(publicId));
+    for (const publicId of replacedPublicIds) {
+        try {
+            await storageService.deleteImage({ publicId });
+        } catch (error) {
+            console.error("FAILED TO REMOVE REPLACED BRANDING IMAGE:", error);
+        }
+    }
     return getBrandingConfiguration();
 };
 
 /** Admin-facing payload (row-shaped, includes editable non-public fields). */
 export const getBrandingSettings = async () => {
-    const branding = await getBrandingConfiguration();
-    return { branding };
+    const [branding, row] = await Promise.all([
+        getBrandingConfiguration(),
+        prisma.marketplaceBranding.findUnique({ where: { id: 1 } })
+    ]);
+    return {
+        branding: {
+            ...branding,
+            logoPublicId: row?.logoPublicId ?? null,
+            faviconPublicId: row?.faviconPublicId ?? null
+        }
+    };
 };

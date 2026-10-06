@@ -3,6 +3,7 @@ import { AdminActionType, ContentPlacement, ContentStatus } from "@prisma/client
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../config/prisma.js";
 import { logAdminAction } from "../utils/actionLogger.js";
+import storageService from "../../storage/services/storage.service.js";
 
 const isPlacement = (value: unknown): value is ContentPlacement =>
     typeof value === "string" &&
@@ -75,7 +76,7 @@ export const getBlocks = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error("GET CONTENT BLOCKS ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to load content blocks. Please try again." });
     }
 };
 
@@ -87,6 +88,7 @@ export const createBlock = async (req: Request, res: Response) => {
             subtitle,
             body,
             imageUrl,
+            imagePublicId,
             linkUrl,
             placement,
             status,
@@ -120,6 +122,7 @@ export const createBlock = async (req: Request, res: Response) => {
                 subtitle: typeof subtitle === "string" ? subtitle : null,
                 body: typeof body === "string" ? body : null,
                 imageUrl: typeof imageUrl === "string" ? imageUrl : null,
+                imagePublicId: typeof imagePublicId === "string" ? imagePublicId : null,
                 linkUrl: typeof linkUrl === "string" ? linkUrl : null,
                 placement: (placement as ContentPlacement) ?? undefined,
                 status: (status as ContentStatus) ?? undefined,
@@ -145,7 +148,7 @@ export const createBlock = async (req: Request, res: Response) => {
         return res.status(201).json({ block });
     } catch (error: any) {
         console.error("CREATE CONTENT BLOCK ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to save content block. Please try again." });
     }
 };
 
@@ -162,6 +165,7 @@ export const updateBlock = async (req: Request, res: Response) => {
             subtitle,
             body,
             imageUrl,
+            imagePublicId,
             linkUrl,
             placement,
             status,
@@ -194,6 +198,7 @@ export const updateBlock = async (req: Request, res: Response) => {
         if (subtitle !== undefined) data.subtitle = typeof subtitle === "string" ? subtitle : null;
         if (body !== undefined) data.body = typeof body === "string" ? body : null;
         if (imageUrl !== undefined) data.imageUrl = typeof imageUrl === "string" ? imageUrl : null;
+        if (imagePublicId !== undefined) data.imagePublicId = typeof imagePublicId === "string" ? imagePublicId : null;
         if (linkUrl !== undefined) data.linkUrl = typeof linkUrl === "string" ? linkUrl : null;
         if (placement !== undefined) data.placement = placement as ContentPlacement;
         if (status !== undefined) data.status = status as ContentStatus;
@@ -206,6 +211,13 @@ export const updateBlock = async (req: Request, res: Response) => {
         }
 
         const block = await prisma.contentBlock.update({ where: { id: blockId }, data });
+        if (existing.imagePublicId && existing.imagePublicId !== block.imagePublicId) {
+            try {
+                await storageService.deleteImage({ publicId: existing.imagePublicId });
+            } catch (error) {
+                console.error("FAILED TO REMOVE REPLACED CONTENT IMAGE:", error);
+            }
+        }
 
         await logAdminAction({
             adminId,
@@ -232,7 +244,7 @@ export const updateBlock = async (req: Request, res: Response) => {
         return res.status(200).json({ block });
     } catch (error: any) {
         console.error("UPDATE CONTENT BLOCK ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to save content block. Please try again." });
     }
 };
 
@@ -275,7 +287,7 @@ export const updateBlockStatus = async (req: Request, res: Response) => {
         return res.status(200).json({ block });
     } catch (error: any) {
         console.error("UPDATE CONTENT BLOCK STATUS ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to update content status. Please try again." });
     }
 };
 
@@ -288,6 +300,13 @@ export const deleteBlock = async (req: Request, res: Response) => {
         if (!existing) return res.status(404).json({ message: "Content block not found." });
 
         await prisma.contentBlock.delete({ where: { id: blockId } });
+        if (existing.imagePublicId) {
+            try {
+                await storageService.deleteImage({ publicId: existing.imagePublicId });
+            } catch (error) {
+                console.error("FAILED TO REMOVE DELETED CONTENT IMAGE:", error);
+            }
+        }
 
         await logAdminAction({
             adminId,
@@ -308,7 +327,7 @@ export const deleteBlock = async (req: Request, res: Response) => {
         return res.status(200).json({ message: "Content block deleted" });
     } catch (error: any) {
         console.error("DELETE CONTENT BLOCK ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to delete content block. Please try again." });
     }
 };
 
@@ -351,6 +370,6 @@ export const getPublicBlocks = async (req: Request, res: Response) => {
         return res.status(200).json({ blocks });
     } catch (error: any) {
         console.error("GET PUBLIC CONTENT BLOCKS ERROR:", error);
-        return res.status(500).json({ message: error.message || "Internal Server Error" });
+        return res.status(500).json({ message: "Unable to load content. Please try again." });
     }
 };

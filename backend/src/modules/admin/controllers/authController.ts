@@ -9,6 +9,7 @@ import { OAuth2Client } from "google-auth-library";
 import EmailService from "../../../services/email/email.service.js";
 import { logAdminAction } from "../utils/actionLogger.js";
 import { AdminActionType } from "@prisma/client";
+import storageService from "../../storage/services/storage.service.js";
 import {
     hasPermission,
     getAdminPermissions,
@@ -262,6 +263,7 @@ export const getProfile = async (req: Request, res: Response) => {
                 lastName: true,
                 phone: true,
                 avatarUrl: true,
+                avatarPublicId: true,
                 isSuperAdmin: true,
                 isActive: true,
                 role: true,
@@ -302,7 +304,7 @@ export const updateProfile = async (req: Request, res: Response) => {
             return res.status(401).json({ message: "Unauthorized" });
         }
 
-        const { name, firstName: bodyFirstName, lastName: bodyLastName, phone, avatarUrl } = req.body;
+        const { name, firstName: bodyFirstName, lastName: bodyLastName, phone, avatarUrl, avatarPublicId } = req.body;
 
         let firstName: string | undefined = bodyFirstName;
         let lastName: string | undefined = bodyLastName;
@@ -313,13 +315,18 @@ export const updateProfile = async (req: Request, res: Response) => {
             lastName = nameParts.slice(1).join(" ") || "";
         }
 
+        const previous = await prisma.admin.findUnique({
+            where: { id: adminId },
+            select: { avatarPublicId: true }
+        });
         const updatedAdmin = await prisma.admin.update({
             where: { id: adminId },
             data: {
                 ...(firstName !== undefined ? { firstName } : {}),
                 ...(lastName !== undefined ? { lastName } : {}),
                 ...(phone !== undefined ? { phone } : {}),
-                ...(avatarUrl !== undefined ? { avatarUrl } : {})
+                ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+                ...(avatarPublicId !== undefined ? { avatarPublicId: avatarPublicId || null } : {})
             },
             select: {
                 id: true,
@@ -328,6 +335,7 @@ export const updateProfile = async (req: Request, res: Response) => {
                 lastName: true,
                 phone: true,
                 avatarUrl: true,
+                avatarPublicId: true,
                 isSuperAdmin: true,
                 isActive: true,
                 role: true,
@@ -335,6 +343,14 @@ export const updateProfile = async (req: Request, res: Response) => {
                 updatedAt: true
             }
         });
+
+        if (previous?.avatarPublicId && previous.avatarPublicId !== updatedAdmin.avatarPublicId) {
+            try {
+                await storageService.deleteImage({ publicId: previous.avatarPublicId });
+            } catch (error) {
+                console.error("FAILED TO REMOVE REPLACED ADMIN AVATAR:", error);
+            }
+        }
 
         return res.status(200).json({
             message: "Profile updated successfully",
@@ -1001,4 +1017,3 @@ export const resetPassword = async (req: Request, res: Response) => {
         return res.status(500).json({ message: "Internal Server Error" });
     }
 };
-

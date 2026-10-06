@@ -47,6 +47,7 @@ import adminExportRoute from './src/modules/admin/routes/exportRoute.js';
 import { ensureDefaultRoles } from './src/modules/admin/services/permissionService.js';
 import { ensureDefaultPaymentMethods } from './src/modules/admin/controllers/paymentMethodController.js';
 import { ensureDefaultDeliveryMethods } from './src/modules/admin/controllers/deliveryMethodController.js';
+import storageRoute from './src/modules/storage/routes/storage.routes.js';
 
 ensureDefaultRoles().catch(err => console.error("Auto-seed admin roles failed:", err));
 ensureDefaultPaymentMethods().catch(err => console.error("Auto-seed payment methods failed:", err));
@@ -71,6 +72,7 @@ app.use('/api/admin/reports', adminLimiter, adminReportRoute);
 app.use('/api/admin/coupons', adminLimiter, adminCouponRoute);
 app.use('/api/admin/settings', adminLimiter, adminSettingsRoute);
 app.use('/api/admin/settings/branding', adminLimiter, adminBrandingRouter);
+app.use('/api/storage', storageRoute);
 
 // Admin: roles, sessions, support tickets, CMS, returns, seller centre, exports
 app.use('/api/admin/roles', adminLimiter, adminRolesRoute);

@@ -4,7 +4,18 @@ import { prisma } from "../../../config/prisma.js";
 export const getAllCategories = async (req: Request, res: Response) => {
     try {
         const categories = await prisma.category.findMany({
-            orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
+            orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+            select: {
+                id: true,
+                name: true,
+                slug: true,
+                description: true,
+                imageUrl: true,
+                parentId: true,
+                level: true,
+                sortOrder: true,
+                isActive: true
+            }
         });
         return res.status(200).json({ categories });
     } catch (error: any) {
@@ -17,7 +28,18 @@ export const getAllowedCategories = async (req: Request, res: Response) => {
     try {
         const categories = await prisma.category.findMany({
             where: { isActive: true },
-            orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
+            orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+            select: {
+                id: true,
+                name: true,
+                slug: true,
+                description: true,
+                imageUrl: true,
+                parentId: true,
+                level: true,
+                sortOrder: true,
+                isActive: true
+            }
         });
         return res.status(200).json({ categories });
     } catch (error: any) {

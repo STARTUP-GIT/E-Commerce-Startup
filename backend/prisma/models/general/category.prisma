@@ -8,6 +8,7 @@ model Category {
   slug        String   @unique @db.VarChar(170)
   description String?  @db.Text
   imageUrl    String?  @db.VarChar(2048)
+  imagePublicId String? @db.VarChar(255)
   parentId    String?
   level       Int      @default(0)
   sortOrder   Int      @default(0)

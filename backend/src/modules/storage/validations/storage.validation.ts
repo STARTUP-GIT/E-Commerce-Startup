@@ -130,10 +130,28 @@ export const validateFolder = (
 ): void => {
   const { folder } = req.body;
 
-  if (!folder || typeof folder !== "string") {
+  const allowedFolders = [
+    "products",
+    "product-gallery",
+    "seller-profile",
+    "customer-profile",
+    "shop-logo",
+    "shop-banner",
+    "gst-documents",
+    "identity-documents",
+    "delivery-proof",
+    "packing-proof",
+    "reviews",
+    "categories",
+    "banners",
+    "branding",
+    "admin-profile",
+  ];
+
+  if (!folder || typeof folder !== "string" || !allowedFolders.includes(folder)) {
     res.status(400).json({
       success: false,
-      message: "Folder is required.",
+      message: "A valid upload folder is required.",
     });
     return;
   }

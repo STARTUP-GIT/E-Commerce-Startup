@@ -36,13 +36,11 @@ class StorageService {
     file: Express.Multer.File,
     folder: UploadFolder
   ) {
-    const uploaded = await cloudinaryService.uploadImage(file.path, {
-      folder,
-    });
-
-    await this.removeTempFile(file.path);
-
-    return uploaded;
+    try {
+      return await cloudinaryService.uploadImage(file.path, { folder });
+    } finally {
+      await this.removeTempFile(file.path);
+    }
   }
 
   /**
@@ -104,16 +102,15 @@ class StorageService {
     file: Express.Multer.File,
     data: ReplaceImageRequest
   ) {
-    const uploaded =
-      await cloudinaryService.replaceImage(
+    try {
+      return await cloudinaryService.replaceImage(
         data.oldPublicId,
         file.path,
         data.folder
       );
-
-    await this.removeTempFile(file.path);
-
-    return uploaded;
+    } finally {
+      await this.removeTempFile(file.path);
+    }
   }
 
   /**

@@ -22,6 +22,7 @@ export interface ContentBlock {
   subtitle?: string;
   body?: string;
   imageUrl?: string;
+  imagePublicId?: string | null;
   linkUrl?: string;
   placement: ContentPlacement;
   status: ContentStatus;
@@ -37,7 +38,8 @@ export interface ContentBlockPayload {
   title: string;
   subtitle?: string;
   body?: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
+  imagePublicId?: string | null;
   linkUrl?: string;
   placement: ContentPlacement;
   status: ContentStatus;

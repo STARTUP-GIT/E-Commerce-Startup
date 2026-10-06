@@ -9,8 +9,9 @@ import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { useUIStore } from '@/lib/store/uiStore';
-import { Grid, Plus, Trash2, Edit2, GripVertical, ImageUp } from 'lucide-react';
+import { Grid, Plus, Trash2, Edit2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import { ImageUploadField, type UploadResult } from '@/shared/components/ImageUploadField';
 
 export function CategoriesPage() {
   const queryClient = useQueryClient();
@@ -27,8 +28,8 @@ export function CategoriesPage() {
 
   const categories = data?.categories ?? data?.data ?? data ?? [];
 
-  const createForm = useForm({ defaultValues: { name: '', description: '', imageUrl: '', sortOrder: 0, isActive: true } });
-  const editForm = useForm({ defaultValues: { name: '', description: '', imageUrl: '', sortOrder: 0 } });
+  const createForm = useForm({ defaultValues: { name: '', description: '', imageUrl: '', imagePublicId: '', sortOrder: 0, isActive: true } });
+  const editForm = useForm({ defaultValues: { name: '', description: '', imageUrl: '', imagePublicId: '', sortOrder: 0 } });
 
   const createMutation = useMutation({
     mutationFn: (v: any) => categoryApi.createCategory(v),
@@ -38,7 +39,7 @@ export function CategoriesPage() {
       createForm.reset();
       setShowForm(false);
     },
-    onError: (e: any) => showToast(e.response?.data?.message || e.message, 'error'),
+    onError: () => showToast('Unable to create category. Please try again.', 'error'),
   });
 
   const statusMutation = useMutation({
@@ -47,7 +48,7 @@ export function CategoriesPage() {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       showToast('Category status updated.', 'success');
     },
-    onError: (e: any) => showToast(e.response?.data?.message || e.message, 'error'),
+    onError: () => showToast('Unable to update category status. Please try again.', 'error'),
   });
 
   const updateMutation = useMutation({
@@ -58,7 +59,7 @@ export function CategoriesPage() {
       setShowEditModal(false);
       setEditingCategory(null);
     },
-    onError: (e: any) => showToast(e.response?.data?.message || e.message, 'error'),
+    onError: () => showToast('Unable to update category. Please try again.', 'error'),
   });
 
   const deleteMutation = useMutation({
@@ -67,7 +68,7 @@ export function CategoriesPage() {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       showToast('Category deleted successfully.', 'info');
     },
-    onError: (e: any) => showToast(e.response?.data?.message || e.message, 'error'),
+    onError: () => showToast('Unable to delete category. Please try again.', 'error'),
   });
 
   const handleEditClick = (cat: any) => {
@@ -76,6 +77,7 @@ export function CategoriesPage() {
       name: cat.name,
       description: cat.description || '',
       imageUrl: cat.imageUrl || '',
+      imagePublicId: cat.imagePublicId || '',
       sortOrder: cat.sortOrder ?? 0,
     });
     setShowEditModal(true);
@@ -109,8 +111,19 @@ export function CategoriesPage() {
                   <Input placeholder="e.g., Devices, gadgets, and accessories" {...createForm.register('description')} />
                 </div>
                 <div className="space-y-1.5 flex-1 font-sans">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Icon/Image URL (Optional)</label>
-                  <Input placeholder="https://example.com/icon.png" {...createForm.register('imageUrl')} />
+                  <ImageUploadField
+                    label="Category Image (Optional)"
+                    folder="categories"
+                    value={createForm.watch('imageUrl')}
+                    onChange={(image: UploadResult) => {
+                      createForm.setValue('imageUrl', image.url, { shouldDirty: true });
+                      createForm.setValue('imagePublicId', image.publicId, { shouldDirty: true });
+                    }}
+                    onRemove={() => {
+                      createForm.setValue('imageUrl', '', { shouldDirty: true });
+                      createForm.setValue('imagePublicId', '', { shouldDirty: true });
+                    }}
+                  />
                 </div>
                 <div className="space-y-1.5 flex-1 font-sans">
                   <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Display Order</label>
@@ -213,8 +226,19 @@ export function CategoriesPage() {
                 <Input {...editForm.register('description')} />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Icon/Image URL (Optional)</label>
-                <Input placeholder="https://example.com/icon.png" {...editForm.register('imageUrl')} />
+                <ImageUploadField
+                  label="Category Image (Optional)"
+                  folder="categories"
+                  value={editForm.watch('imageUrl')}
+                  onChange={(image: UploadResult) => {
+                    editForm.setValue('imageUrl', image.url, { shouldDirty: true });
+                    editForm.setValue('imagePublicId', image.publicId, { shouldDirty: true });
+                  }}
+                  onRemove={() => {
+                    editForm.setValue('imageUrl', '', { shouldDirty: true });
+                    editForm.setValue('imagePublicId', '', { shouldDirty: true });
+                  }}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Display Order</label>

@@ -24,6 +24,8 @@ export const STORAGE_FOLDERS: Record<string, UploadFolder> = {
   CATEGORIES: "categories",
 
   BANNERS: "banners",
+  BRANDING: "branding",
+  ADMIN_PROFILE: "admin-profile",
 } as const;
 
 /**
