@@ -62,7 +62,7 @@ export function LoginPage() {
             )}
           </div>
           <h1 className="text-2xl font-extrabold text-white text-gradient">{branding?.name || 'Marketplace'}</h1>
-          <p className="text-xs text-white/40 mt-1 uppercase tracking-widest font-semibold">Seller Portal</p>
+          <p className="text-xs text-white/40 mt-1 uppercase tracking-widest font-semibold">{branding?.tagline || 'Your local marketplace'}</p>
         </div>
 
         <Card className="border border-white/10 shadow-2xl">

@@ -163,7 +163,7 @@ export function ForgotPasswordPage() {
           )}
         </div>
         <h2 className="text-center text-3xl font-extrabold tracking-tight text-white">
-          {branding?.name || 'Marketplace'} Seller Portal
+          {branding?.name || 'Marketplace'}
         </h2>
         <p className="mt-1 text-center text-xs text-white/40 uppercase tracking-widest font-semibold">
           Password Recovery Wizard

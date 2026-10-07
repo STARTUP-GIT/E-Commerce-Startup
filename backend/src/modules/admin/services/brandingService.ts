@@ -46,6 +46,20 @@ export interface BrandingConfiguration {
 
 export type BrandingApp = "CUSTOMER" | "SELLER";
 
+const SINGLE_BRANDING_APP: BrandingApp = "CUSTOMER";
+
+const resolveCanonicalBrandingApp = async (requestedApp: BrandingApp = SINGLE_BRANDING_APP) => {
+    const preferredApp = requestedApp === "SELLER" ? SINGLE_BRANDING_APP : requestedApp;
+    const customerRow = await prisma.marketplaceBranding.findUnique({ where: { app: "CUSTOMER" } });
+    const sellerRow = await prisma.marketplaceBranding.findUnique({ where: { app: "SELLER" } });
+    const existingRow = customerRow ?? sellerRow ?? null;
+    return {
+        requestedApp: preferredApp,
+        canonicalApp: customerRow ? "CUSTOMER" : (existingRow?.app ?? preferredApp),
+        existingRow
+    };
+};
+
 export const DEFAULT_BRANDING: BrandingConfiguration = {
     name: "Marketplace",
     marketplaceName: "Marketplace",
@@ -140,16 +154,21 @@ const normalize = (row: any, defaults: BrandingConfiguration): BrandingConfigura
 export const getBrandingConfiguration = async (
     app: BrandingApp = "CUSTOMER"
 ): Promise<BrandingConfiguration> => {
-    const cached = brandingCache.get(app);
+    const { canonicalApp } = await resolveCanonicalBrandingApp(app);
+    const cacheKey = canonicalApp;
+    const cached = brandingCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
         return cached.value;
     }
 
-    const row = await prisma.marketplaceBranding.findUnique({ where: { app } });
+    const row = await prisma.marketplaceBranding.findFirst({
+        where: { app: { in: ["CUSTOMER", "SELLER"] } },
+        orderBy: [{ app: "asc" }]
+    });
 
-    const defaults = app === "SELLER" ? DEFAULT_SELLER_BRANDING : DEFAULT_BRANDING;
+    const defaults = DEFAULT_BRANDING;
     const value = row ? normalize(row, defaults) : { ...defaults };
-    brandingCache.set(app, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+    brandingCache.set(cacheKey, { value, expiresAt: Date.now() + CACHE_TTL_MS });
     return value;
 };
 
@@ -192,8 +211,9 @@ export const saveBranding = async (
     adminId?: string,
     app: BrandingApp = "CUSTOMER"
 ): Promise<BrandingConfiguration> => {
-    const current = await getBrandingConfiguration(app);
-    const existing = await prisma.marketplaceBranding.findUnique({ where: { app } });
+    const { canonicalApp, existingRow } = await resolveCanonicalBrandingApp(app);
+    const current = await getBrandingConfiguration(canonicalApp);
+    const existing = existingRow ?? await prisma.marketplaceBranding.findUnique({ where: { app: canonicalApp } });
 
     const brandName = str(
         pick(input.brandName, input.name, input.marketplaceName),
@@ -237,12 +257,14 @@ export const saveBranding = async (
     };
 
     await prisma.marketplaceBranding.upsert({
-        where: { app },
+        where: { app: canonicalApp },
         update: data,
-        create: { app, ...data }
+        create: { app: canonicalApp, ...data }
     });
 
-    invalidateBrandingCache(app);
+    invalidateBrandingCache(canonicalApp);
+    invalidateBrandingCache("CUSTOMER");
+    invalidateBrandingCache("SELLER");
     const replacedPublicIds = [
         existing?.logoPublicId && existing.logoPublicId !== logoPublicId ? existing.logoPublicId : null,
         existing?.faviconPublicId && existing.faviconPublicId !== faviconPublicId ? existing.faviconPublicId : null
@@ -254,14 +276,15 @@ export const saveBranding = async (
             console.error("FAILED TO REMOVE REPLACED BRANDING IMAGE:", error);
         }
     }
-    return getBrandingConfiguration(app);
+    return getBrandingConfiguration(canonicalApp);
 };
 
 /** Admin-facing payload (row-shaped, includes editable non-public fields). */
 export const getBrandingSettings = async (app: BrandingApp = "CUSTOMER") => {
+    const { canonicalApp } = await resolveCanonicalBrandingApp(app);
     const [branding, row] = await Promise.all([
-        getBrandingConfiguration(app),
-        prisma.marketplaceBranding.findUnique({ where: { app } })
+        getBrandingConfiguration(canonicalApp),
+        prisma.marketplaceBranding.findUnique({ where: { app: canonicalApp } })
     ]);
     return {
         branding: {

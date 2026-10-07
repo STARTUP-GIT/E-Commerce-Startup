@@ -59,13 +59,6 @@ export const DEFAULT_BRANDING: BrandingConfig = {
 
 export const DEFAULT_SELLER_BRANDING: BrandingConfig = {
   ...DEFAULT_BRANDING,
-  name: 'Marketplace Seller',
-  marketplaceName: 'Marketplace Seller',
-  tagline: 'Grow your store locally',
-  shortName: 'Seller',
-  seoTitle: 'Marketplace Seller',
-  seoDescription: 'Manage your shop, products, orders, and sales.',
-  browserTitle: 'Marketplace Seller',
 };
 
 const str = (value: unknown, fallback: string | undefined): string =>

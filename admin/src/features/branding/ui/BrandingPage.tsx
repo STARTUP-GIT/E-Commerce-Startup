@@ -67,7 +67,7 @@ const EMPTY_FORM: BrandingFormState = {
 export function BrandingPage() {
   const { can } = usePermissions();
   const { showToast } = useUIStore();
-  const [app, setApp] = useState<BrandingApp>('customer');
+  const app: BrandingApp = 'customer';
   const { branding, isLoading } = useAdminBranding(app);
   const { branding: publicBranding, isLoading: publicLoading } = useBranding(app);
   const updateMutation = useUpdateBranding(app);
@@ -160,22 +160,8 @@ export function BrandingPage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2" role="group" aria-label="Choose marketplace app branding">
-        {(['customer', 'seller'] as const).map((targetApp) => (
-          <button
-            key={targetApp}
-            type="button"
-            aria-pressed={app === targetApp}
-            onClick={() => setApp(targetApp)}
-            className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
-              app === targetApp
-                ? 'border-white/25 bg-white/10 text-white'
-                : 'border-white/10 bg-white/[0.02] text-white/50 hover:bg-white/[0.06] hover:text-white/80'
-            }`}
-          >
-            {targetApp === 'customer' ? 'Customer Marketplace' : 'Seller Portal'}
-          </button>
-        ))}
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs font-medium text-white/70">
+        Marketplace Branding (single source of truth for Customer and Seller)
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
