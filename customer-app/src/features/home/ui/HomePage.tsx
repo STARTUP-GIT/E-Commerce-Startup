@@ -108,7 +108,7 @@ export function HomePage() {
       return (
         <section
           key={sectionId}
-          className="relative overflow-hidden bg-[#080808] flex flex-col items-center justify-start pt-8 pb-12 sm:justify-center sm:py-20 px-4 sm:px-6"
+          className="relative overflow-hidden bg-[#080808] flex flex-col items-center justify-start pt-6 pb-4 sm:justify-center sm:pt-10 sm:pb-6 px-4 sm:px-6 min-h-[68vh] sm:min-h-[calc(100dvh-120px)]"
         >
           {/* Grid lines */}
           <div
@@ -175,9 +175,9 @@ export function HomePage() {
 
     if (key.includes('categories') || key.includes('featured-products')) {
       return (
-        <section key={sectionId} className="max-w-[1400px] mx-auto px-4 sm:px-6 py-16 sm:py-24">
+        <section key={sectionId} className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 sm:py-10">
           {/* Header */}
-          <div className="flex items-end justify-between mb-8 sm:mb-12">
+          <div className="flex items-end justify-between mb-6 sm:mb-8">
             <div>
               <p className="text-[10px] sm:text-xs font-bold text-white/30 uppercase tracking-widest mb-2">Browse by</p>
               <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-none">Categories</h2>
