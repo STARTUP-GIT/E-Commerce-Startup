@@ -108,7 +108,7 @@ export function HomePage() {
       return (
         <section
           key={sectionId}
-          className="relative overflow-hidden bg-[#080808] flex flex-col items-center justify-start px-4 py-[clamp(1.5rem,5svh,3rem)] sm:justify-center sm:px-6 sm:py-10 min-h-[calc(100svh-5rem)] sm:min-h-[calc(100svh-6rem)]"
+          className="relative overflow-hidden bg-[#080808] flex flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-10 min-h-[calc(100dvh-5rem)] sm:min-h-[calc(100dvh-6rem)]"
         >
           {/* Grid lines */}
           <div
@@ -127,7 +127,7 @@ export function HomePage() {
             }}
           />
 
-          <div className="max-w-[900px] w-full flex flex-1 flex-col justify-between text-center relative z-10 animate-fade-up sm:flex-initial sm:justify-center">
+          <div className="max-w-[900px] w-full text-center relative z-10 animate-fade-up">
 
             <div>
               {/* Eyebrow badge */}
@@ -137,7 +137,7 @@ export function HomePage() {
               </div>
 
               {/* Headline — Responsive */}
-              <h1 className="text-[clamp(2.5rem,12.5vw,3.5rem)] max-[340px]:text-[2.25rem] max-[340px]:leading-[0.95] sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.96] tracking-tight text-white mb-6 sm:mb-8">
+              <h1 className="text-[clamp(2.625rem,12vw,3rem)] max-[340px]:text-[2.375rem] max-[340px]:leading-[0.98] sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.98] tracking-tight text-white mb-0 sm:mb-8">
                 {branding.heroHeadingLine1}<br />
                 <span
                   className="bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent"
@@ -149,20 +149,20 @@ export function HomePage() {
             </div>
 
             {/* Subheading */}
-            <p className="text-sm sm:text-base md:text-lg text-white/55 max-w-[560px] mx-auto leading-[1.5] max-[340px]:leading-[1.4] sm:leading-relaxed font-normal sm:mb-12">
+            <p className="mt-6 text-sm sm:text-base md:text-lg text-white/55 max-w-[22rem] sm:max-w-[560px] mx-auto leading-[1.5] max-[340px]:leading-[1.4] sm:leading-relaxed font-normal sm:mt-0 sm:mb-12">
               {branding.heroDescription}
             </p>
 
             {/* CTAs */}
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center items-center w-full">
-              <Link href="/shops" className="w-56 sm:w-auto">
+            <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center items-center w-full sm:mt-0">
+              <Link href="/shops" className="w-[min(13.5rem,calc(100vw-2rem))] sm:w-auto">
                 <button
                   className="w-full sm:w-auto h-11 sm:h-14 px-4 sm:px-8 rounded-xl bg-white text-black font-bold sm:font-extrabold text-[13px] sm:text-base cursor-pointer flex items-center justify-center gap-2.5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
                 >
                   {branding.exploreShopsButtonText} <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </Link>
-              <Link href="/products" className="w-56 sm:w-auto">
+              <Link href="/products" className="w-[min(13.5rem,calc(100vw-2rem))] sm:w-auto">
                 <button
                   className="w-full sm:w-auto h-11 sm:h-14 px-4 sm:px-8 rounded-xl bg-transparent text-white/85 border border-white/20 font-bold text-[13px] sm:text-base cursor-pointer transition-all hover:bg-white/10 hover:border-white/40 hover:text-white"
                 >
