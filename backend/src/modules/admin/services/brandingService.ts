@@ -46,59 +46,65 @@ export interface BrandingConfiguration {
 
 export type BrandingApp = "CUSTOMER" | "SELLER";
 
-const SINGLE_BRANDING_APP: BrandingApp = "CUSTOMER";
-
-const resolveCanonicalBrandingApp = async (requestedApp: BrandingApp = SINGLE_BRANDING_APP) => {
-    const preferredApp = requestedApp === "SELLER" ? SINGLE_BRANDING_APP : requestedApp;
-    const customerRow = await prisma.marketplaceBranding.findUnique({ where: { app: "CUSTOMER" } });
-    const sellerRow = await prisma.marketplaceBranding.findUnique({ where: { app: "SELLER" } });
-    const existingRow = customerRow ?? sellerRow ?? null;
-    return {
-        requestedApp: preferredApp,
-        canonicalApp: customerRow ? "CUSTOMER" : (existingRow?.app ?? preferredApp),
-        existingRow
-    };
+const appDefaults: Record<BrandingApp, BrandingConfiguration> = {
+    CUSTOMER: {
+        name: "Marketplace",
+        marketplaceName: "Marketplace",
+        brandName: "Marketplace",
+        logo: "/images/logo.png",
+        favicon: "/images/logo.png",
+        tagline: "Your local marketplace for everything",
+        shortName: "Marketplace",
+        logoUrl: "/images/logo.png",
+        faviconUrl: "/images/logo.png",
+        heroBadge: "The Local Marketplace for Everything",
+        heroHeadingLine1: "Buy Anything.",
+        heroHeadingLine2: "From Anyone.",
+        heroHeadingLine3: "Near You.",
+        heroDescription:
+            "Marketplace is your local marketplace for everything — fashion, tech, food, prints, crafts, and beyond. Discover creators. Support neighbours.",
+        searchPlaceholder: "Search products, shops on Marketplace…",
+        exploreShopsButtonText: "Explore Shops",
+        browseProductsButtonText: "Browse Products",
+        footerDescription:
+            "Discover local craft creators, purchase unique handmade items, and order custom-made 3D prints directly from makers on Marketplace.",
+        seoTitle: "Marketplace",
+        seoDescription: "Discover local artisans, handcrafted items, and custom products.",
+        browserTitle: "Marketplace",
+        updatedAt: new Date(0).toISOString(),
+        updatedBy: "system"
+    },
+    SELLER: {
+        name: "Marketplace Seller",
+        marketplaceName: "Marketplace Seller",
+        brandName: "Marketplace Seller",
+        logo: "/images/logo.png",
+        favicon: "/images/logo.png",
+        tagline: "Grow your store locally",
+        shortName: "Seller",
+        logoUrl: "/images/logo.png",
+        faviconUrl: "/images/logo.png",
+        heroBadge: "The Local Marketplace for Everything",
+        heroHeadingLine1: "Sell Anything.",
+        heroHeadingLine2: "From Your Shop.",
+        heroHeadingLine3: "Locally.",
+        heroDescription:
+            "Marketplace Seller helps you manage your shop, products, orders, and sales from one place.",
+        searchPlaceholder: "Search your products and orders…",
+        exploreShopsButtonText: "Manage Shop",
+        browseProductsButtonText: "View Orders",
+        footerDescription:
+            "Manage your store, track orders, and grow your business with Marketplace Seller.",
+        seoTitle: "Marketplace Seller",
+        seoDescription: "Manage your shop, products, orders, and sales.",
+        browserTitle: "Marketplace Seller",
+        updatedAt: new Date(0).toISOString(),
+        updatedBy: "system"
+    }
 };
 
-export const DEFAULT_BRANDING: BrandingConfiguration = {
-    name: "Marketplace",
-    marketplaceName: "Marketplace",
-    brandName: "Marketplace",
-    logo: "/images/logo.png",
-    favicon: "/images/logo.png",
-    tagline: "Your local marketplace for everything",
-    shortName: "Marketplace",
-    logoUrl: "/images/logo.png",
-    faviconUrl: "/images/logo.png",
-    heroBadge: "The Local Marketplace for Everything",
-    heroHeadingLine1: "Buy Anything.",
-    heroHeadingLine2: "From Anyone.",
-    heroHeadingLine3: "Near You.",
-    heroDescription:
-        "Marketplace is your local marketplace for everything — fashion, tech, food, prints, crafts, and beyond. Discover creators. Support neighbours.",
-    searchPlaceholder: "Search products, shops on Marketplace…",
-    exploreShopsButtonText: "Explore Shops",
-    browseProductsButtonText: "Browse Products",
-    footerDescription:
-        "Discover local craft creators, purchase unique handmade items, and order custom-made 3D prints directly from makers on Marketplace.",
-    seoTitle: "Marketplace",
-    seoDescription: "Discover local artisans, handcrafted items, and custom products.",
-    browserTitle: "Marketplace",
-    updatedAt: new Date(0).toISOString(),
-    updatedBy: "system"
-};
-
-export const DEFAULT_SELLER_BRANDING: BrandingConfiguration = {
-    ...DEFAULT_BRANDING,
-    name: "Marketplace Seller",
-    marketplaceName: "Marketplace Seller",
-    brandName: "Marketplace Seller",
-    tagline: "Grow your store locally",
-    shortName: "Seller",
-    seoTitle: "Marketplace Seller",
-    seoDescription: "Manage your shop, products, orders, and sales.",
-    browserTitle: "Marketplace Seller"
-};
+export const DEFAULT_BRANDING: BrandingConfiguration = appDefaults.CUSTOMER;
+export const DEFAULT_SELLER_BRANDING: BrandingConfiguration = appDefaults.SELLER;
 
 const CACHE_TTL_MS = 15_000;
 const brandingCache = new Map<BrandingApp, { value: BrandingConfiguration; expiresAt: number }>();
@@ -116,9 +122,7 @@ const normalize = (row: any, defaults: BrandingConfiguration): BrandingConfigura
     const name = str(row?.brandName, d.name);
     const logo = str(row?.logoUrl, d.logo);
     const rawFavicon = typeof row?.faviconUrl === "string" ? row.faviconUrl.trim() : "";
-    // Never ship a framework-default favicon: fall back to the brand logo.
-    const favicon =
-        rawFavicon && rawFavicon !== "/favicon.ico" ? rawFavicon : logo;
+    const favicon = rawFavicon && rawFavicon !== "/favicon.ico" ? rawFavicon : logo;
 
     return {
         name,
@@ -154,19 +158,14 @@ const normalize = (row: any, defaults: BrandingConfiguration): BrandingConfigura
 export const getBrandingConfiguration = async (
     app: BrandingApp = "CUSTOMER"
 ): Promise<BrandingConfiguration> => {
-    const { canonicalApp } = await resolveCanonicalBrandingApp(app);
-    const cacheKey = canonicalApp;
+    const cacheKey = app;
     const cached = brandingCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
         return cached.value;
     }
 
-    const row = await prisma.marketplaceBranding.findFirst({
-        where: { app: { in: ["CUSTOMER", "SELLER"] } },
-        orderBy: [{ app: "asc" }]
-    });
-
-    const defaults = DEFAULT_BRANDING;
+    const row = await prisma.marketplaceBranding.findUnique({ where: { app } });
+    const defaults = app === "SELLER" ? DEFAULT_SELLER_BRANDING : DEFAULT_BRANDING;
     const value = row ? normalize(row, defaults) : { ...defaults };
     brandingCache.set(cacheKey, { value, expiresAt: Date.now() + CACHE_TTL_MS });
     return value;
@@ -211,9 +210,8 @@ export const saveBranding = async (
     adminId?: string,
     app: BrandingApp = "CUSTOMER"
 ): Promise<BrandingConfiguration> => {
-    const { canonicalApp, existingRow } = await resolveCanonicalBrandingApp(app);
-    const current = await getBrandingConfiguration(canonicalApp);
-    const existing = existingRow ?? await prisma.marketplaceBranding.findUnique({ where: { app: canonicalApp } });
+    const current = await getBrandingConfiguration(app);
+    const existing = await prisma.marketplaceBranding.findUnique({ where: { app } });
 
     const brandName = str(
         pick(input.brandName, input.name, input.marketplaceName),
@@ -257,14 +255,12 @@ export const saveBranding = async (
     };
 
     await prisma.marketplaceBranding.upsert({
-        where: { app: canonicalApp },
+        where: { app },
         update: data,
-        create: { app: canonicalApp, ...data }
+        create: { app, ...data }
     });
 
-    invalidateBrandingCache(canonicalApp);
-    invalidateBrandingCache("CUSTOMER");
-    invalidateBrandingCache("SELLER");
+    invalidateBrandingCache(app);
     const replacedPublicIds = [
         existing?.logoPublicId && existing.logoPublicId !== logoPublicId ? existing.logoPublicId : null,
         existing?.faviconPublicId && existing.faviconPublicId !== faviconPublicId ? existing.faviconPublicId : null
@@ -276,15 +272,14 @@ export const saveBranding = async (
             console.error("FAILED TO REMOVE REPLACED BRANDING IMAGE:", error);
         }
     }
-    return getBrandingConfiguration(canonicalApp);
+    return getBrandingConfiguration(app);
 };
 
 /** Admin-facing payload (row-shaped, includes editable non-public fields). */
 export const getBrandingSettings = async (app: BrandingApp = "CUSTOMER") => {
-    const { canonicalApp } = await resolveCanonicalBrandingApp(app);
     const [branding, row] = await Promise.all([
-        getBrandingConfiguration(canonicalApp),
-        prisma.marketplaceBranding.findUnique({ where: { app: canonicalApp } })
+        getBrandingConfiguration(app),
+        prisma.marketplaceBranding.findUnique({ where: { app } })
     ]);
     return {
         branding: {

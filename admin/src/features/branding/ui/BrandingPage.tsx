@@ -67,7 +67,8 @@ const EMPTY_FORM: BrandingFormState = {
 export function BrandingPage() {
   const { can } = usePermissions();
   const { showToast } = useUIStore();
-  const app: BrandingApp = 'customer';
+  const [selectedApp, setSelectedApp] = useState<BrandingApp>('customer');
+  const app = selectedApp;
   const { branding, isLoading } = useAdminBranding(app);
   const { branding: publicBranding, isLoading: publicLoading } = useBranding(app);
   const updateMutation = useUpdateBranding(app);
@@ -79,12 +80,11 @@ export function BrandingPage() {
   const form = forms[app] ?? EMPTY_FORM;
 
   useEffect(() => {
-    if (branding) {
-      setForms((current) => {
-        if (current[app]) return current;
-        return {
-          ...current,
-          [app]: {
+    if (!branding) return;
+
+    setForms((current) => ({
+      ...current,
+      [app]: {
         brandName: branding.brandName ?? branding.name ?? '',
         shortName: branding.shortName ?? '',
         tagline: branding.tagline ?? '',
@@ -108,10 +108,8 @@ export function BrandingPage() {
         exploreShopsButtonText: branding.exploreShopsButtonText ?? '',
         browseProductsButtonText: branding.browseProductsButtonText ?? '',
         footerDescription: branding.footerDescription ?? '',
-          },
-        };
-      });
-    }
+      },
+    }));
   }, [app, branding]);
 
   const update = (key: keyof BrandingFormState) => (value: string) =>
@@ -160,8 +158,21 @@ export function BrandingPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs font-medium text-white/70">
-        Marketplace Branding (single source of truth for Customer and Seller)
+      <div className="flex flex-wrap gap-2">
+        {(['customer', 'seller'] as BrandingApp[]).map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => setSelectedApp(option)}
+            className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
+              app === option
+                ? 'border-orange-400/60 bg-orange-500/10 text-orange-100'
+                : 'border-white/10 bg-white/[0.02] text-white/60 hover:text-white/80'
+            }`}
+          >
+            {option === 'customer' ? 'Customer Branding' : 'Seller Branding'}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

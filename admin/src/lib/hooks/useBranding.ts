@@ -49,39 +49,34 @@ export interface BrandingPayload {
   footerDescription?: string;
 }
 
-const resolveBrandingApp = (app: BrandingApp = 'customer'): BrandingApp => app === 'seller' ? 'customer' : app;
-
 export const brandingApi = {
   getBranding: async (app: BrandingApp = 'customer'): Promise<{ branding: AdminBranding }> => {
-    const resolvedApp = resolveBrandingApp(app);
-    const response = await axiosInstance.get('/api/admin/settings/branding', { params: { app: resolvedApp } });
+    const response = await axiosInstance.get('/api/admin/settings/branding', { params: { app } });
     return response.data;
   },
   updateBranding: async (
     payload: BrandingPayload,
     app: BrandingApp = 'customer'
   ): Promise<{ branding: AdminBranding; message: string }> => {
-    const resolvedApp = resolveBrandingApp(app);
-    const response = await axiosInstance.put('/api/admin/settings/branding', payload, { params: { app: resolvedApp } });
+    const response = await axiosInstance.put('/api/admin/settings/branding', payload, { params: { app } });
     return response.data;
   },
 };
 
 /**
  * Display-only branding for ANY screen (including unauthenticated ones):
- * reads the public SSOT `GET /api/branding/public`.
+ * reads the public `GET /api/branding/public` for the requested app.
  */
 export function useBranding(app: BrandingApp = 'customer') {
-  const resolvedApp = resolveBrandingApp(app);
   const { data, isLoading, isError } = useQuery<BrandingConfig>({
-    queryKey: ['public-branding', resolvedApp],
-    queryFn: async () => normalizeBranding(await fetchBranding(axiosInstance, resolvedApp)),
+    queryKey: ['public-branding', app],
+    queryFn: async () => normalizeBranding(await fetchBranding(axiosInstance, app)),
     staleTime: 60_000,
     refetchInterval: 120_000,
   });
 
   return {
-    branding: data || DEFAULT_BRANDING,
+    branding: data || (app === 'seller' ? DEFAULT_SELLER_BRANDING : DEFAULT_BRANDING),
     isLoading,
     isError,
   };
@@ -89,10 +84,9 @@ export function useBranding(app: BrandingApp = 'customer') {
 
 /** Editor branding for Admin → Branding (requires an authenticated admin). */
 export function useAdminBranding(app: BrandingApp = 'customer') {
-  const resolvedApp = resolveBrandingApp(app);
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['admin-branding', resolvedApp],
-    queryFn: async () => (await brandingApi.getBranding(resolvedApp)).branding,
+    queryKey: ['admin-branding', app],
+    queryFn: async () => (await brandingApi.getBranding(app)).branding,
     staleTime: 30_000,
     retry: false,
   });
@@ -102,12 +96,11 @@ export function useAdminBranding(app: BrandingApp = 'customer') {
 
 export function useUpdateBranding(app: BrandingApp = 'customer') {
   const queryClient = useQueryClient();
-  const resolvedApp = resolveBrandingApp(app);
   return useMutation({
-    mutationFn: (payload: BrandingPayload) => brandingApi.updateBranding(payload, resolvedApp),
+    mutationFn: (payload: BrandingPayload) => brandingApi.updateBranding(payload, app),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-branding'] });
-      queryClient.invalidateQueries({ queryKey: ['public-branding'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-branding', app] });
+      queryClient.invalidateQueries({ queryKey: ['public-branding', app] });
     },
   });
 }
