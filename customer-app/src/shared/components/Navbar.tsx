@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useUIStore } from '@/lib/store/uiStore';
-import { ShoppingCart, Bell, User, LayoutDashboard, LogOut, Store, Menu, X } from 'lucide-react';
+import { ShoppingCart, Bell, User, LayoutDashboard, LogOut, Store, Menu, X, Search, ArrowLeft, ArrowRight } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios/axiosInstance';
 import { shopListApi } from '@/features/shops/shop-list/api/shopListApi';
@@ -88,9 +88,13 @@ export function Navbar() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const setCartOpen = useUIStore((state) => state.setCartOpen);
+  const searchOpen = useUIStore((state) => state.searchOpen);
+  const setSearchOpen = useUIStore((state) => state.setSearchOpen);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const pathname = usePathname();
+  const router = useRouter();
 
   // Close dropdown on route change
   useEffect(() => {
@@ -108,15 +112,24 @@ export function Navbar() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [menuOpen]);
 
-  // Prevent body scroll when mobile nav is open
   useEffect(() => {
-    if (mobileNavOpen) {
+    if (!searchOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSearchOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [searchOpen, setSearchOpen]);
+
+  // Prevent body scroll while either full-screen navigation panel is open
+  useEffect(() => {
+    if (mobileNavOpen || searchOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
-  }, [mobileNavOpen]);
+  }, [mobileNavOpen, searchOpen]);
 
   const { refs, floatingStyles } = useFloating({
     open: menuOpen,
@@ -184,7 +197,7 @@ export function Navbar() {
             {/* ── Brand (logo + name) ── shrink-0 so it never collapses */}
             <div className="flex items-center shrink-0 min-w-0">
               <BrandLogo
-                textClassName="block max-w-[calc(100vw-140px)] truncate text-[13px] sm:text-base 2xl:text-lg font-black tracking-tight text-white"
+                textClassName="block max-w-[calc(100vw-180px)] truncate text-[13px] sm:text-base 2xl:text-lg font-black tracking-tight text-white"
                 logoSizeClassName="h-8 w-8"
               />
             </div>
@@ -212,6 +225,19 @@ export function Navbar() {
 
             {/* ── Right Actions ── */}
             <div className="flex items-center gap-1 sm:gap-1.5 ml-auto shrink-0">
+
+              {/* Search */}
+              <button
+                onClick={() => {
+                  setMobileNavOpen(false);
+                  setSearchOpen(true);
+                }}
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-white/55 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
+                aria-label="Search products"
+                aria-expanded={searchOpen}
+              >
+                <Search className="h-5 w-5 2xl:h-[19px] 2xl:w-[19px]" />
+              </button>
 
               {/* Desktop Bell */}
               {session && (
@@ -388,6 +414,68 @@ export function Navbar() {
           </div>
         )}
       </div>
+
+      {searchOpen && typeof window !== 'undefined' && createPortal(
+        <>
+          <button
+            type="button"
+            aria-label="Close search"
+            onClick={() => setSearchOpen(false)}
+            className="fixed inset-0 z-[100] bg-black/70 sm:bg-black/35"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Search products"
+            className="fixed inset-0 z-[101] bg-[#080808] p-3 sm:inset-auto sm:top-[4.5rem] sm:right-4 sm:w-[min(28rem,calc(100vw-2rem))] sm:rounded-2xl sm:border sm:border-white/10 sm:bg-[#111] sm:p-3 sm:shadow-2xl"
+          >
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                const query = searchQuery.trim();
+                if (!query) return;
+                setSearchOpen(false);
+                router.push(`/products?q=${encodeURIComponent(query)}`);
+              }}
+              className="flex h-12 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-2 sm:h-11"
+            >
+              <button
+                type="button"
+                onClick={() => setSearchOpen(false)}
+                aria-label="Back"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white/60 hover:bg-white/[0.07] sm:hidden"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <Search className="h-5 w-5 shrink-0 text-white/40" />
+              <input
+                autoFocus
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search products..."
+                aria-label="Search products"
+                className="h-full min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
+              />
+              <button
+                type="button"
+                onClick={() => setSearchOpen(false)}
+                aria-label="Close search"
+                className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/50 hover:bg-white/[0.07] sm:flex"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <button
+                type="submit"
+                aria-label="Submit search"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-black hover:bg-white/85"
+              >
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
+        </>,
+        document.body
+      )}
 
       {/* Shop ticker */}
       <ShopMarquee />

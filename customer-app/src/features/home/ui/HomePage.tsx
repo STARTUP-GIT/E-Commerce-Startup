@@ -1,7 +1,5 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios/axiosInstance';
@@ -9,7 +7,7 @@ import { useShopList } from '@/features/shops/shop-list/hooks/useShopList';
 import { shopListService } from '@/features/shops/shop-list/services/shopListService';
 import { Skeleton } from '@/shared/components/Skeleton';
 import {
-  Search, ArrowRight, MapPin, Store, Printer,
+  ArrowRight, MapPin, Store, Printer,
   Paintbrush, Home as HomeIcon, Shirt, Cpu,
   Users, Clock, ShieldCheck, ChevronRight, Grid3X3,
 } from 'lucide-react';
@@ -91,9 +89,7 @@ function ShopCard({ shop, index }: { shop: any; index: number }) {
 }
 
 export function HomePage() {
-  const router = useRouter();
   const { data: session } = useSession();
-  const [search, setSearch] = useState('');
   const { shops, isLoading: shopsLoading } = useShopList();
   const { homepageSections, branding } = useSiteLayout();
   const marketplaceName = branding?.name || branding?.marketplaceName || 'Marketplace';
@@ -106,18 +102,13 @@ export function HomePage() {
   });
   const homeCategories = categoriesData?.categories || [];
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (search.trim()) router.push(`/products?q=${encodeURIComponent(search.trim())}`);
-  };
-
   const renderSection = (sectionId: string) => {
     const key = sectionId.toLowerCase();
     if (key.includes('hero')) {
       return (
         <section
           key={sectionId}
-          className="relative overflow-hidden bg-[#080808] flex flex-col items-center justify-start pt-8 pb-0 sm:justify-center sm:py-24 px-4 sm:px-6 min-h-[min(620px,calc(100dvh-92px))] sm:min-h-[calc(100dvh-56px)]"
+          className="relative overflow-hidden bg-[#080808] flex flex-col items-center justify-start pt-8 pb-12 sm:justify-center sm:py-20 px-4 sm:px-6"
         >
           {/* Grid lines */}
           <div
@@ -156,36 +147,12 @@ export function HomePage() {
             </h1>
 
             {/* Subheading */}
-            <p className="text-[13px] sm:text-base md:text-lg text-white/55 max-w-[560px] mx-auto mb-[clamp(1.5rem,3.5dvh,1.75rem)] sm:mb-12 leading-[1.5] max-[340px]:leading-[1.4] sm:leading-relaxed font-normal">
+            <p className="text-[13px] sm:text-base md:text-lg text-white/55 max-w-[560px] mx-auto mb-8 sm:mb-12 leading-[1.5] max-[340px]:leading-[1.4] sm:leading-relaxed font-normal">
               {branding.heroDescription}
             </p>
 
-            {/* Search bar */}
-            <form
-              onSubmit={handleSearch}
-              className="flex h-12 sm:h-[52px] w-full max-w-[360px] sm:max-w-[480px] items-center gap-1.5 sm:gap-2 mx-auto mt-0 sm:mt-0 sm:mb-10 bg-white/[0.04] border border-white/[0.12] sm:border-white/10 rounded-[13px] sm:rounded-xl p-1 sm:p-1.5 backdrop-blur-xl"
-            >
-              <div className="relative flex-1 min-w-0">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/35"
-                />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder={branding.searchPlaceholder}
-                  className="w-full h-full min-w-0 pl-9 pr-2 bg-transparent border-none outline-none text-[13px] sm:text-sm text-ellipsis text-white placeholder:text-white/35 font-sans"
-                />
-              </div>
-              <button
-                type="submit"
-                className="h-10 w-[84px] sm:w-auto shrink-0 px-0 sm:px-[18px] rounded-lg border-none bg-white text-black text-[13px] sm:text-sm font-bold cursor-pointer transition-opacity hover:opacity-90"
-              >
-                Search
-              </button>
-            </form>
-
             {/* CTAs */}
-            <div className="mt-[clamp(2rem,5dvh,2.75rem)] max-[340px]:mt-8 sm:mt-0 flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center items-center w-full">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center items-center w-full">
               <Link href="/shops" className="w-[min(220px,calc(100vw-64px))] sm:w-auto">
                 <button
                   className="w-full sm:w-auto h-11 sm:h-14 px-4 sm:px-8 rounded-xl bg-white text-black font-bold sm:font-extrabold text-[13px] sm:text-base cursor-pointer flex items-center justify-center gap-2.5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
