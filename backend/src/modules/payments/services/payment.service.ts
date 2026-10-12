@@ -224,26 +224,37 @@ export const calculateTotals = async (params: {
         shippingTotal = 0;
     }
 
-    // 5. Platform Fee (Fixed Amount from Settings, default 10)
+    // 5. Platform Fee & GST (from authoritative database Settings)
     let platformFeeTotal = 10;
+    let gstPercentage = parseFloat(process.env.GST_PERCENTAGE || "18");
+
     try {
         const settingsRow = await prisma.marketplaceSetting.findUnique({ where: { id: 1 } });
-        if (settingsRow) {
+        if (settingsRow && settingsRow.data) {
             const data = settingsRow.data as any;
-            if (data && typeof data.platformFee === 'number') {
-                platformFeeTotal = data.platformFee;
-            } else if (data && data.platformFee && typeof data.platformFee.fixedAmount === 'number') {
-                platformFeeTotal = data.platformFee.fixedAmount;
+
+            // Check if platform fee is enabled
+            const isFeeEnabled = data.platformFeeEnabled !== false;
+            if (!isFeeEnabled) {
+                platformFeeTotal = 0;
+            } else if (typeof data.platformFee === 'number') {
+                platformFeeTotal = Math.max(0, data.platformFee);
+            } else if (data.platformFee && typeof data.platformFee.fixedAmount === 'number') {
+                platformFeeTotal = Math.max(0, data.platformFee.fixedAmount);
+            }
+
+            // Read authoritative GST percentage
+            if (typeof data.gstPercentage === 'number' && !isNaN(data.gstPercentage)) {
+                gstPercentage = data.gstPercentage;
             }
         }
     } catch (e) {
-        console.error("Error reading platform fee from settings, using default:", e);
+        console.error("Error reading platform settings, using defaults:", e);
     }
 
-    // 6. GST Calculation (18% on discounted subtotal + packing + shipping + platform fee)
+    // 6. GST Calculation on discounted subtotal + packing + shipping + platform fee
     const subtotalAfterDiscount = Math.max(0, productSubtotal - discountTotal);
     const taxableValue = subtotalAfterDiscount + packingFeeTotal + shippingTotal + platformFeeTotal;
-    const gstPercentage = parseFloat(process.env.GST_PERCENTAGE || "18");
     const gstAmount = (taxableValue * gstPercentage) / 100;
 
     // 7. Grand Total

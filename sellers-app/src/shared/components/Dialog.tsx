@@ -29,14 +29,14 @@ export function Dialog({ isOpen, onClose, title, description, children, classNam
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/75 backdrop-blur-sm"
           />
 
           {/* Dialog Content */}
@@ -46,7 +46,7 @@ export function Dialog({ isOpen, onClose, title, description, children, classNam
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={cn(
-              'relative z-10 w-full max-w-lg rounded-2xl glass p-6 shadow-2xl border border-white/10 flex flex-col max-h-[90vh]',
+              'relative z-10 w-full max-w-lg rounded-2xl glass p-6 shadow-2xl border border-white/10 flex flex-col max-h-[calc(100dvh-2.5rem)]',
               className
             )}
           >

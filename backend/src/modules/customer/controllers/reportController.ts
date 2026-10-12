@@ -11,11 +11,71 @@ export const createCustomerReport = async (req: Request, res: Response) => {
             return res.status(401).json({ message: "Authentication required" });
         }
 
-        const { targetType = "SELLER", targetId, category, reason, description, attachments = [] } = req.body;
+        const {
+            targetType = "SELLER",
+            targetId,
+            orderId,
+            productId,
+            sellerId,
+            shopId,
+            category,
+            reason,
+            description,
+            attachments = [],
+            attachmentUrls = []
+        } = req.body;
 
-        if (!targetId || !category || !reason || !description) {
-            return res.status(400).json({ message: "targetId, category, reason, and description are required." });
+        if (!category || !reason || !description) {
+            return res.status(400).json({ message: "category, reason, and description are required." });
         }
+
+        let resolvedTargetType = targetType as ReportTargetType;
+        let resolvedTargetId = targetId;
+
+        if (orderId || resolvedTargetType === "ORDER") {
+            resolvedTargetType = ReportTargetType.ORDER;
+            const orderRef = String(orderId || targetId);
+
+            // AUTHORIZATION CHECK: Order must belong to this customer
+            const customerOrder = await prisma.order.findFirst({
+                where: {
+                    customerId,
+                    OR: [
+                        { id: orderRef },
+                        { orderNumber: orderRef }
+                    ]
+                }
+            });
+            if (!customerOrder) {
+                return res.status(403).json({
+                    message: "You can only report orders that belong to your account."
+                });
+            }
+            resolvedTargetId = customerOrder.id;
+        } else if (productId || resolvedTargetType === "PRODUCT") {
+            resolvedTargetType = ReportTargetType.PRODUCT;
+            resolvedTargetId = String(productId || targetId);
+            const product = await prisma.product.findUnique({
+                where: { id: resolvedTargetId }
+            });
+            if (!product) {
+                return res.status(404).json({ message: "Product not found." });
+            }
+        } else if (shopId || resolvedTargetType === "SHOP") {
+            resolvedTargetType = ReportTargetType.SHOP;
+            resolvedTargetId = String(shopId || targetId);
+        } else if (sellerId || resolvedTargetType === "SELLER") {
+            resolvedTargetType = ReportTargetType.SELLER;
+            resolvedTargetId = String(sellerId || targetId);
+        }
+
+        if (!resolvedTargetId) {
+            return res.status(400).json({ message: "A valid target (Order, Product, or Seller) must be selected." });
+        }
+
+        const finalAttachments = Array.isArray(attachmentUrls) && attachmentUrls.length > 0
+            ? attachmentUrls
+            : (Array.isArray(attachments) ? attachments : []);
 
         const reportNumber = `REP-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -24,12 +84,12 @@ export const createCustomerReport = async (req: Request, res: Response) => {
                 data: {
                     reportNumber,
                     customerId,
-                    targetType: targetType as ReportTargetType,
-                    targetId: String(targetId),
+                    targetType: resolvedTargetType,
+                    targetId: String(resolvedTargetId),
                     category: category.trim(),
                     reason: reason.trim(),
                     description: description.trim(),
-                    attachments: Array.isArray(attachments) ? attachments : [],
+                    attachments: finalAttachments,
                     status: CaseReportStatus.PENDING,
                     priority: SupportTicketPriority.MEDIUM,
                     receivedAt: new Date()

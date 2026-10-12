@@ -14,6 +14,7 @@ router.use(sellerAuth);
 
 router.get("/", getSellerConversations);
 router.post("/", startSellerConversation);
+router.get("/:id", getSellerConversationMessages);
 router.get("/:id/messages", getSellerConversationMessages);
 router.post("/:id/messages", sendSellerMessage);
 router.post("/:id/read", markSellerConversationRead);

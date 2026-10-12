@@ -13,7 +13,10 @@ export type UploadFolder =
   | "categories"
   | "banners"
   | "branding"
-  | "admin-profile";
+  | "admin-profile"
+  | "reports"
+  | "evidence"
+  | "support";
 
 export interface UploadImageRequest {
   folder: UploadFolder;

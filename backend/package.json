@@ -16,7 +16,7 @@
     "start:admin": "node dist/admin.server.js",
     "start:delivery": "node dist/delivery.server.js",
     "start:payment": "node dist/payment.server.js",
-    "test": "node ./tests/runTests.cjs && node ./tests/logger.test.cjs && node ./tests/productionAudit.test.cjs && node ./tests/enforcementAndFinancial.test.cjs"
+    "test": "node ./tests/runTests.cjs && node ./tests/logger.test.cjs && node ./tests/productionAudit.test.cjs && node ./tests/enforcementAndFinancial.test.cjs && node ./tests/platformFeeAndMessaging.test.cjs"
   },
   "prisma": {
     "schema": "prisma/"

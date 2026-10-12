@@ -69,7 +69,28 @@ export const getCustomerConversations = async (req: Request, res: Response) => {
 export const startCustomerConversation = async (req: Request, res: Response) => {
     try {
         const customerId = req.customerId!;
-        const { subject, relatedEntityType, relatedEntityId, initialMessage, attachments = [] } = req.body;
+        const { subject, category, relatedEntityType, relatedEntityId, orderId, initialMessage, attachments = [] } = req.body;
+
+        let resolvedEntityType = relatedEntityType || (orderId ? "ORDER" : null);
+        let resolvedEntityId = relatedEntityId || orderId || null;
+
+        if (resolvedEntityType === "ORDER" && resolvedEntityId) {
+            const verifiedOrder = await prisma.order.findFirst({
+                where: {
+                    customerId,
+                    OR: [
+                        { id: resolvedEntityId },
+                        { orderNumber: resolvedEntityId }
+                    ]
+                },
+                select: { id: true, orderNumber: true }
+            });
+
+            if (!verifiedOrder) {
+                return res.status(403).json({ message: "You are not authorized to reference this order, or it does not exist." });
+            }
+            resolvedEntityId = verifiedOrder.id;
+        }
 
         const customer = await prisma.customer.findUnique({
             where: { id: customerId },
@@ -78,14 +99,19 @@ export const startCustomerConversation = async (req: Request, res: Response) => 
 
         const senderName = customer ? `${customer.firstName || "Customer"} ${customer.lastName || ""}`.trim() : "Customer";
 
+        let finalSubject = subject ? subject.trim() : "Customer Support";
+        if (category && !finalSubject.toLowerCase().includes(category.toLowerCase())) {
+            finalSubject = `[${category}] ${finalSubject}`;
+        }
+
         const conversation = await prisma.$transaction(async (tx) => {
             const conv = await tx.conversation.create({
                 data: {
                     type: ConversationType.CUSTOMER_ADMIN,
                     customerId,
-                    subject: subject ? subject.trim() : "Customer Support",
-                    relatedEntityType: relatedEntityType || null,
-                    relatedEntityId: relatedEntityId || null,
+                    subject: finalSubject,
+                    relatedEntityType: resolvedEntityType || null,
+                    relatedEntityId: resolvedEntityId || null,
                     status: ConversationStatus.OPEN,
                     lastMessageAt: new Date()
                 }
@@ -98,7 +124,7 @@ export const startCustomerConversation = async (req: Request, res: Response) => 
                         senderType: MessageSenderType.CUSTOMER,
                         senderId: customerId,
                         senderName,
-                        message: initialMessage ? initialMessage.trim() : "",
+                        message: initialMessage ? initialMessage.trim() : (attachments.length > 0 ? "Attached files" : ""),
                         attachments: Array.isArray(attachments) ? attachments : [],
                         isInternal: false
                     }
@@ -167,7 +193,7 @@ export const getCustomerConversationMessages = async (req: Request, res: Respons
             }
         });
 
-        return res.status(200).json({ conversation: conv, messages });
+        return res.status(200).json({ conversation: { ...conv, messages }, messages });
     } catch (error: any) {
         console.error("GET CUSTOMER MESSAGES ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
@@ -193,6 +219,16 @@ export const sendCustomerMessage = async (req: Request, res: Response) => {
 
         if (!message && (!attachments || attachments.length === 0)) {
             return res.status(400).json({ message: "Message or attachment is required" });
+        }
+
+        // Idempotency check: if message with this clientMessageId was already saved, return it safely
+        if (clientMessageId) {
+            const existing = await prisma.conversationMessage.findFirst({
+                where: { conversationId: id, clientMessageId }
+            });
+            if (existing) {
+                return res.status(200).json({ message: existing });
+            }
         }
 
         const customer = await prisma.customer.findUnique({

@@ -14,7 +14,10 @@ export type UploadFolder =
   | "packing-proof"
   | "reviews"
   | "categories"
-  | "banners";
+  | "banners"
+  | "reports"
+  | "evidence"
+  | "support";
 
 export interface PresignedUrlResponse {
   success: boolean;
@@ -77,6 +80,54 @@ class StorageService {
     });
 
     return { key: response.data.data.publicId, url: response.data.data.url };
+  }
+
+  /**
+   * Upload document (PDF, DOC, etc.)
+   */
+  async uploadDocument(
+    file: File,
+    folder: UploadFolder = "reports",
+    onProgress?: (progressEvent: any) => void
+  ): Promise<{ key: string; url: string }> {
+    const formData = new FormData();
+    formData.append("document", file);
+    formData.append("folder", folder);
+
+    const response = await axiosInstance.post<{
+      success: boolean;
+      data: { publicId: string; url: string };
+    }>("/api/storage/document", formData, {
+      onUploadProgress: onProgress,
+    });
+
+    return { key: response.data.data.publicId, url: response.data.data.url };
+  }
+
+  /**
+   * Intelligently upload either an image or a document to Cloudinary
+   */
+  async uploadEvidenceFile(
+    file: File,
+    folder: UploadFolder = "reports",
+    onProgress?: (progressEvent: any) => void
+  ): Promise<{ key: string; url: string; name: string; size: number; type: string }> {
+    const isDoc = file.type === "application/pdf" || 
+                  file.type === "application/msword" || 
+                  file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+                  file.name.endsWith(".pdf");
+
+    const result = isDoc
+      ? await this.uploadDocument(file, folder, onProgress)
+      : await this.uploadFile(file, folder, onProgress);
+
+    return {
+      key: result.key,
+      url: result.url,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    };
   }
 
   /**

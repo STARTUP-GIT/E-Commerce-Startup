@@ -128,28 +128,33 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       >
         <div className="flex flex-col h-full">
           {/* Brand Logo */}
-          <div className="h-16 flex items-center px-6 border-b border-white/5 gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white overflow-hidden shrink-0">
+          <NavLink
+            to="/dashboard"
+            className="h-16 flex items-center px-5 border-b border-white/5 gap-3 hover:bg-white/[0.02] transition-colors"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white overflow-hidden shrink-0 shadow-md">
               {branding?.logo && branding.logo.trim() !== '' ? (
                 <img
                   src={branding.logo}
-                  alt={branding.name || 'Marketplace'}
+                  alt={branding.name || 'Seller Portal'}
                   className="h-full w-full object-cover"
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = 'none';
                   }}
                 />
               ) : (
-                <ShoppingBag className="h-4 w-4 text-black" />
+                <ShoppingBag className="h-4 w-4 text-white" />
               )}
             </div>
-            <div>
-              <span className="font-black text-white text-xs tracking-tight block">
-                {branding?.name || 'Marketplace'}
+            <div className="min-w-0">
+              <span className="font-bold text-white text-xs tracking-tight block truncate">
+                {branding?.name ? `${branding.name} Seller` : 'Seller Portal'}
               </span>
-              <span className="text-[8px] text-white/40 block font-bold -mt-1 uppercase tracking-wider">{branding?.tagline || 'Your local marketplace'}</span>
+              <span className="text-[9px] text-white/40 block font-medium truncate tracking-wide">
+                {branding?.tagline || 'Merchant Center'}
+              </span>
             </div>
-          </div>
+          </NavLink>
 
           {/* Shop Selector / Indicator */}
           {shop && (
@@ -252,13 +257,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="flex items-center gap-1.5 text-xs text-white/40 font-semibold">
-              <span>{branding?.name || 'Marketplace'}</span>
-              <ChevronRight className="h-3 w-3" />
-              <span className="text-white/80 capitalize">
-                {location.pathname.replace('/', '').replace('-', ' ') || 'Dashboard'}
+            <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs font-medium">
+              <NavLink
+                to="/dashboard"
+                className="text-white/40 hover:text-purple-400 font-semibold transition-colors flex items-center gap-1"
+              >
+                <span>{branding?.name || 'Sante'} Seller Portal</span>
+              </NavLink>
+              <ChevronRight className="h-3 w-3 text-white/20 shrink-0" />
+              <span className="text-white/90 font-bold capitalize select-none" aria-current="page">
+                {location.pathname === '/dashboard' || location.pathname === '/'
+                  ? 'Overview'
+                  : location.pathname.replace(/^\//, '').split('/')[0].replace(/-/g, ' ')}
               </span>
-            </div>
+            </nav>
           </div>
 
           <div className="flex items-center gap-4">

@@ -18,7 +18,8 @@ import {
   Paperclip,
   User,
   Shield,
-  Circle
+  Circle,
+  FileText
 } from 'lucide-react';
 
 export default function CustomerConversationsPage() {
@@ -285,17 +286,17 @@ export default function CustomerConversationsPage() {
                 {isDetailLoading ? (
                   <Skeleton className="h-full w-full bg-slate-800/20" />
                 ) : (
-                  currentConv.messages?.map((msg: any) => {
+                  (currentConv.messages || detailData?.messages || []).map((msg: any) => {
                     const isAdmin = msg.senderType === 'ADMIN';
                     const isInternalMsg = msg.isInternal;
 
                     return (
                       <div
-                        key={msg.id}
+                        key={msg.id || msg.clientMessageId}
                         className={`flex flex-col ${isAdmin ? 'items-end' : 'items-start'} max-w-full`}
                       >
                         <div
-                          className={`max-w-[75%] rounded-xl p-3 text-xs shadow-sm space-y-1 ${
+                          className={`max-w-[75%] rounded-xl p-3 text-xs shadow-sm space-y-2 ${
                             isInternalMsg
                               ? 'bg-amber-950/50 border border-amber-800/60 text-amber-200'
                               : isAdmin
@@ -308,9 +309,30 @@ export default function CustomerConversationsPage() {
                               {isInternalMsg && '🔒 Confidential Agent Note • '}
                               {msg.senderName || msg.senderType}
                             </span>
-                            <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <div className="flex items-center gap-1">
+                              <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              {isAdmin && <CheckCheck className="h-3 w-3 text-indigo-200" />}
+                            </div>
                           </div>
-                          <p className="whitespace-pre-wrap leading-relaxed">{msg.message}</p>
+                          {msg.message && <p className="whitespace-pre-wrap leading-relaxed">{msg.message}</p>}
+
+                          {msg.attachments && msg.attachments.length > 0 && (
+                            <div className="space-y-1 pt-1 border-t border-white/10">
+                              {msg.attachments.map((attUrl: string, idx: number) => {
+                                const isImg = attUrl.match(/\.(jpeg|jpg|png|webp|avif)($|\?)/i);
+                                return isImg ? (
+                                  <a key={idx} href={attUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-white/10">
+                                    <img src={attUrl} alt="evidence" className="max-h-40 rounded-lg object-cover" />
+                                  </a>
+                                ) : (
+                                  <a key={idx} href={attUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 p-1.5 rounded bg-black/20 text-[11px] text-indigo-300 hover:underline">
+                                    <FileText className="h-3.5 w-3.5" />
+                                    <span className="truncate">Attachment Document</span>
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );

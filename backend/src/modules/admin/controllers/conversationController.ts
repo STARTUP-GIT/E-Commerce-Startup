@@ -131,6 +131,16 @@ export const sendAdminMessage = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Message or attachment is required" });
         }
 
+        // Idempotency check: if message with this clientMessageId was already saved, return it safely
+        if (clientMessageId) {
+            const existing = await prisma.conversationMessage.findFirst({
+                where: { conversationId: id, clientMessageId }
+            });
+            if (existing) {
+                return res.status(200).json({ message: existing });
+            }
+        }
+
         const admin = await prisma.admin.findUnique({
             where: { id: adminId },
             select: { firstName: true, lastName: true }

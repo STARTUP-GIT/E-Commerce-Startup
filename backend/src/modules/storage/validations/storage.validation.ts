@@ -146,6 +146,9 @@ export const validateFolder = (
     "banners",
     "branding",
     "admin-profile",
+    "reports",
+    "evidence",
+    "support",
   ];
 
   if (!folder || typeof folder !== "string" || !allowedFolders.includes(folder)) {

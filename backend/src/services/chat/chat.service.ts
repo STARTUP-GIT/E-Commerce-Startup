@@ -108,6 +108,12 @@ async function authenticateToken(
     }
 }
 
+function extractCookie(cookieHeader: string | undefined, name: string): string | null {
+    if (!cookieHeader) return null;
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+    return match ? decodeURIComponent(match[1]) : null;
+}
+
 let wssInstance: WebSocketServer | null = null;
 
 export function setupChatWebSocketServer(httpServer: HttpServer) {
@@ -135,8 +141,32 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
 
     wss.on("connection", async (ws: WebSocket, req) => {
         const url = new URL(req.url || "", `http://${req.headers.host || "localhost"}`);
-        const token = url.searchParams.get("token");
+        let token = url.searchParams.get("token");
         const role = url.searchParams.get("role") || undefined;
+
+        // Auto-extract token from cookies if not in searchParams
+        if (!token && req.headers.cookie) {
+            if (role === "customer") {
+                token = extractCookie(req.headers.cookie, "customer_session") || extractCookie(req.headers.cookie, "customer_token");
+            } else if (role === "seller") {
+                token = extractCookie(req.headers.cookie, "seller_session") || extractCookie(req.headers.cookie, "seller_access_token");
+            } else if (role === "admin") {
+                token = extractCookie(req.headers.cookie, "admin_session") || extractCookie(req.headers.cookie, "admin_access_token");
+            }
+
+            if (!token) {
+                token = extractCookie(req.headers.cookie, "customer_session") ||
+                        extractCookie(req.headers.cookie, "seller_session") ||
+                        extractCookie(req.headers.cookie, "admin_session") ||
+                        extractCookie(req.headers.cookie, "accessToken") ||
+                        extractCookie(req.headers.cookie, "token");
+            }
+        }
+
+        // Auto-extract from Authorization header
+        if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+            token = req.headers.authorization.split(" ")[1];
+        }
 
         let authData: { actorType: "ADMIN" | "SELLER" | "CUSTOMER"; actorId: string; actorName: string } | null = null;
 
@@ -146,7 +176,7 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
 
         const client: AuthenticatedClient = {
             ws,
-            actorType: authData?.actorType || "CUSTOMER",
+            actorType: authData?.actorType || (role === "admin" ? "ADMIN" : role === "seller" ? "SELLER" : "CUSTOMER"),
             actorId: authData?.actorId || "",
             actorName: authData?.actorName || "",
             subscribedConversations: new Set(),
