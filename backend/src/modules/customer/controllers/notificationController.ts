@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { prisma } from "../../../config/prisma.js";
+import { notificationService } from "../../../services/notification/notification.service.js";
 
 export const getNotifications = async (req: Request, res: Response) => {
     try {
@@ -10,22 +10,45 @@ export const getNotifications = async (req: Request, res: Response) => {
             });
         }
 
-        const notifications = await prisma.notification.findMany({
-            where: {
-                customerId
-            },
-            orderBy: {
-                createdAt: "desc"
-            }
+        const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+        const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+        const unreadOnly = req.query.unreadOnly === "true";
+
+        const result = await notificationService.listNotifications("CUSTOMER", customerId, {
+            page,
+            limit,
+            unreadOnly
         });
 
         return res.status(200).json({
-            count: notifications.length,
-            notifications
+            count: result.total,
+            unreadCount: result.unreadCount,
+            page: result.page,
+            limit: result.limit,
+            totalPages: result.totalPages,
+            notifications: result.notifications
         });
-
     } catch (error) {
         console.error("GET CUSTOMER NOTIFICATIONS ERROR:", error);
+        return res.status(500).json({
+            message: "Internal Server Error"
+        });
+    }
+};
+
+export const getUnreadCount = async (req: Request, res: Response) => {
+    try {
+        const customerId = req.customerId;
+        if (!customerId) {
+            return res.status(401).json({
+                message: "Unauthorized"
+            });
+        }
+
+        const unreadCount = await notificationService.getUnreadCount("CUSTOMER", customerId);
+        return res.status(200).json({ unreadCount });
+    } catch (error) {
+        console.error("GET CUSTOMER UNREAD COUNT ERROR:", error);
         return res.status(500).json({
             message: "Internal Server Error"
         });
@@ -49,34 +72,18 @@ export const markNotificationRead = async (req: Request, res: Response) => {
             });
         }
 
-        const notification = await prisma.notification.findFirst({
-            where: {
-                id: notificationId as string,
-                customerId
-            }
-        });
+        const updated = await notificationService.markRead("CUSTOMER", customerId, notificationId as string);
 
-        if (!notification) {
+        if (!updated) {
             return res.status(404).json({
                 message: "Notification not found"
             });
         }
 
-        const updated = await prisma.notification.update({
-            where: {
-                id: notificationId as string
-            },
-            data: {
-                status: "READ",
-                readAt: new Date()
-            }
-        });
-
         return res.status(200).json({
             message: "Notification marked as read",
             notification: updated
         });
-
     } catch (error) {
         console.error("MARK CUSTOMER NOTIFICATION READ ERROR:", error);
         return res.status(500).json({
@@ -94,23 +101,12 @@ export const markAllNotificationsRead = async (req: Request, res: Response) => {
             });
         }
 
-        await prisma.notification.updateMany({
-            where: {
-                customerId,
-                status: {
-                    not: "READ"
-                }
-            },
-            data: {
-                status: "READ",
-                readAt: new Date()
-            }
-        });
+        const result = await notificationService.markAllRead("CUSTOMER", customerId);
 
         return res.status(200).json({
-            message: "All notifications marked as read"
+            message: "All notifications marked as read",
+            count: result.count
         });
-
     } catch (error) {
         console.error("MARK ALL CUSTOMER NOTIFICATIONS READ ERROR:", error);
         return res.status(500).json({
@@ -136,29 +132,17 @@ export const deleteNotification = async (req: Request, res: Response) => {
             });
         }
 
-        const notification = await prisma.notification.findFirst({
-            where: {
-                id: notificationId as string,
-                customerId
-            }
-        });
+        const deleted = await notificationService.deleteNotification("CUSTOMER", customerId, notificationId as string);
 
-        if (!notification) {
+        if (!deleted) {
             return res.status(404).json({
                 message: "Notification not found"
             });
         }
 
-        await prisma.notification.delete({
-            where: {
-                id: notificationId as string
-            }
-        });
-
         return res.status(200).json({
             message: "Notification deleted successfully"
         });
-
     } catch (error) {
         console.error("DELETE CUSTOMER NOTIFICATION ERROR:", error);
         return res.status(500).json({

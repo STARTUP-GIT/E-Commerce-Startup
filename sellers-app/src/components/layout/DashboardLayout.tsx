@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useShop } from '@/features/shop/hooks/useShop';
 import { useUIStore } from '@/lib/store/uiStore';
@@ -14,7 +14,6 @@ import {
   Star,
   Settings,
   LogOut,
-  Bell,
   Menu,
   ChevronRight,
   AlertTriangle,
@@ -28,6 +27,9 @@ import { Badge } from '@/shared/components/Badge';
 
 import { useConfirmStore } from '@/lib/store/confirmStore';
 import { useSellerLayout } from '@/lib/hooks/useSellerLayout';
+import { SellerNotificationDropdown } from '@/features/notifications/ui/SellerNotificationDropdown';
+import { useSidebarBadges } from '@/features/notifications/hooks/useNotifications';
+import type { SidebarBadges } from '@/features/notifications/api/notificationApi';
 
 const getIconForItem = (path?: string) => {
   switch (path) {
@@ -69,14 +71,42 @@ const getIconForItem = (path?: string) => {
   }
 };
 
+const getBadgeForItem = (path: string | undefined, badges: SidebarBadges): number => {
+  switch (path) {
+    case '/orders':
+    case '/seller/orders':
+      return badges.orders;
+    case '/custom-orders':
+      return badges.customRequests;
+    case '/payouts':
+      return badges.payouts;
+    case '/reviews':
+      return badges.reviews;
+    case '/enforcement':
+      return badges.compliance;
+    case '/policies':
+      return badges.policies;
+    case '/commission-statements':
+      return badges.commissionStatements;
+    case '/support-chat':
+      return badges.support;
+    case '/shop':
+      return badges.shop;
+    case '/notifications':
+      return badges.notifications;
+    default:
+      return 0;
+  }
+};
+
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { shop } = useShop();
   const { sidebarOpen, toggleSidebar } = useUIStore();
-  const navigate = useNavigate();
   const location = useLocation();
   const showConfirm = useConfirmStore((state) => state.showConfirm);
   const { sidebar, branding } = useSellerLayout();
+  const { badges } = useSidebarBadges();
   const [logoError, setLogoError] = React.useState(false);
 
   React.useEffect(() => {
@@ -209,6 +239,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
               if (!isAllowed) return null;
 
+              const badgeCount = getBadgeForItem(itemPath, badges);
+
               return (
                 <NavLink
                   key={item.id || itemPath}
@@ -226,8 +258,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     }`
                   }
                 >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.name}</span>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{item.name}</span>
+                  {badgeCount > 0 && (
+                    <span className="ml-auto flex items-center justify-center min-w-[18px] h-4.5 px-1.5 text-[10px] font-extrabold rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 shrink-0">
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </span>
+                  )}
                 </NavLink>
               );
             })}
@@ -293,14 +330,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </div>
             )}
 
-            {/* Notification trigger */}
-            <button
-              onClick={() => navigate('/notifications')}
-              className="relative p-2 rounded-xl glass hover:border-white/20 text-white/70 hover:text-white transition-all cursor-pointer"
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse" />
-            </button>
+            {/* Notification trigger dropdown */}
+            <SellerNotificationDropdown />
           </div>
         </header>
 

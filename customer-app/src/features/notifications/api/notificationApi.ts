@@ -5,13 +5,29 @@ export interface Notification {
   type: string;
   title: string;
   body: string;
+  message?: string;
   isRead: boolean;
+  data?: any;
+  route?: string | null;
   createdAt: string;
 }
 
+export interface NotificationResponse {
+  count: number;
+  unreadCount: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  notifications: Notification[];
+}
+
 export const notificationApi = {
-  getNotifications: async (): Promise<{ notifications: Notification[] }> => {
-    const response = await axiosInstance.get('/api/notifications');
+  getNotifications: async (params?: { page?: number; limit?: number; unreadOnly?: boolean }): Promise<NotificationResponse> => {
+    const response = await axiosInstance.get('/api/notifications', { params });
+    return response.data;
+  },
+  getUnreadCount: async (): Promise<{ unreadCount: number }> => {
+    const response = await axiosInstance.get('/api/notifications/unread-count');
     return response.data;
   },
   markAllRead: async (): Promise<any> => {

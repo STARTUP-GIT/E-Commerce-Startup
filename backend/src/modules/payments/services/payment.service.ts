@@ -78,10 +78,6 @@ export const calculateTotals = async (params: {
         });
     }
 
-    if (!cart || cart.items.length === 0) {
-        throw new Error("Cart is empty");
-    }
-
     let shippingCity = "";
     if (shippingAddressId) {
         const address = await prisma.customerAddress.findUnique({
@@ -90,15 +86,33 @@ export const calculateTotals = async (params: {
         if (!address) {
             throw new Error("Shipping address not found");
         }
-        shippingCity = address.city.trim().toLowerCase();
+        shippingCity = (address.district || address.city).trim().toLowerCase();
 
-        // Verify shipping city is active
+        // Verify shipping location is serviceable against configured State and District/City
+        const stateRecord = await prisma.state.findFirst({
+            where: { name: { equals: address.state.trim(), mode: "insensitive" as const }, isActive: true }
+        });
+        if (!stateRecord) {
+            throw new Error(`Delivery is not currently available at your location (${address.city || address.district}, ${address.state}). Coming soon to your area.`);
+        }
+
         const activeCity = await prisma.city.findFirst({
-            where: { name: { equals: address.city.trim(), mode: "insensitive" }, isActive: true }
+            where: {
+                state: { equals: stateRecord.name, mode: "insensitive" as const },
+                OR: [
+                    { name: { equals: address.city.trim(), mode: "insensitive" as const } },
+                    ...(address.district ? [{ name: { equals: address.district.trim(), mode: "insensitive" as const } }] : []),
+                ],
+                isActive: true
+            }
         });
         if (!activeCity) {
-            throw new Error(`We do not operate in shipping city: ${address.city}`);
+            throw new Error(`Delivery is not currently available at your location (${address.city || address.district}, ${address.state}). Coming soon to your area.`);
         }
+    }
+
+    if (!cart || cart.items.length === 0) {
+        throw new Error("Cart is empty");
     }
 
     let productSubtotal = 0;
@@ -125,17 +139,31 @@ export const calculateTotals = async (params: {
         if (!shopAddress) {
             throw new Error(`Seller shop address not found for product '${product.name}'`);
         }
-        const shopCity = shopAddress.city.trim().toLowerCase();
+        const shopCity = (shopAddress.district || shopAddress.city).trim().toLowerCase();
+
+        const sellerStateRecord = await prisma.state.findFirst({
+            where: { name: { equals: shopAddress.state.trim(), mode: "insensitive" as const }, isActive: true }
+        });
+        if (!sellerStateRecord) {
+            throw new Error(`Shop of product '${product.name}' is located in an inactive state: ${shopAddress.state}`);
+        }
 
         const activeShopCity = await prisma.city.findFirst({
-            where: { name: { equals: shopAddress.city.trim(), mode: "insensitive" }, isActive: true }
+            where: {
+                state: { equals: sellerStateRecord.name, mode: "insensitive" as const },
+                OR: [
+                    { name: { equals: shopAddress.city.trim(), mode: "insensitive" as const } },
+                    ...(shopAddress.district ? [{ name: { equals: shopAddress.district.trim(), mode: "insensitive" as const } }] : []),
+                ],
+                isActive: true
+            }
         });
         if (!activeShopCity) {
-            throw new Error(`Shop of product '${product.name}' is located in an inactive city: ${shopAddress.city}`);
+            throw new Error(`Shop of product '${product.name}' is located in an inactive region: ${shopAddress.city || shopAddress.district}`);
         }
 
         if (shippingCity && shopCity !== shippingCity) {
-            throw new Error(`Orders and deliveries are only allowed within the same city. Shop city '${shopAddress.city}' does not match shipping city.`);
+            throw new Error(`Orders and deliveries are only allowed within the same city/district. Shop location '${shopAddress.district || shopAddress.city}' does not match shipping location.`);
         }
 
         sellerShopMap.set(seller.id, seller.shop);

@@ -6,6 +6,7 @@ import { Badge } from '@/shared/components/Badge';
 import { Button } from '@/shared/components/Button';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { useOnDemandChatSocket } from '../hooks/useOnDemandChatSocket';
 import {
   MessageSquare,
   Send,
@@ -30,7 +31,6 @@ interface Attachment {
 export function SupportChatPage() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messageText, setMessageText] = useState('');
-  const [wsConnected, setWsConnected] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
   const [newSubject, setNewSubject] = useState('');
   const [newInitialMessage, setNewInitialMessage] = useState('');
@@ -38,7 +38,6 @@ export function SupportChatPage() {
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [failedMessage, setFailedMessage] = useState<{ text: string; clientMessageId: string } | null>(null);
 
-  const socketRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -65,51 +64,26 @@ export function SupportChatPage() {
     refetchInterval: wsConnected ? false : 5000, // Background sync when WS disconnected
   });
 
-  // Connect WebSocket
-  useEffect(() => {
-    let ws: WebSocket;
-    try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws/chat?role=seller`;
-      ws = new WebSocket(wsUrl);
-      socketRef.current = ws;
+  // On-demand WebSocket connection: exists ONLY while a conversation is open
+  const { connectionState, reconnect: reconnectSocket } = useOnDemandChatSocket({
+    role: 'seller',
+    conversationId: selectedConversationId,
+    onMessage: (payload) => {
+      if (payload.type === 'new_message' || payload.type === 'read_receipt' || payload.type === 'conversation_status_updated') {
+        queryClient.invalidateQueries({ queryKey: ['seller-conversation-detail', selectedConversationId] });
+        queryClient.invalidateQueries({ queryKey: ['seller-support-conversations'] });
+      }
+    },
+    onReconnect: () => {
+      // Re-fetch persisted messages from DB upon reconnecting to recover any offline messages
+      if (selectedConversationId) {
+        queryClient.invalidateQueries({ queryKey: ['seller-conversation-detail', selectedConversationId] });
+        queryClient.invalidateQueries({ queryKey: ['seller-support-conversations'] });
+      }
+    },
+  });
 
-      ws.onopen = () => {
-        setWsConnected(true);
-        if (selectedConversationId) {
-          ws.send(JSON.stringify({ type: 'join', conversationId: selectedConversationId }));
-        }
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.type === 'new_message') {
-            queryClient.invalidateQueries({ queryKey: ['seller-conversation-detail', payload.conversationId] });
-            queryClient.invalidateQueries({ queryKey: ['seller-support-conversations'] });
-          }
-        } catch (e) {
-          console.error('[WS parse error]', e);
-        }
-      };
-
-      ws.onclose = () => setWsConnected(false);
-      ws.onerror = () => setWsConnected(false);
-    } catch (e) {
-      console.warn('[WS init error]', e);
-    }
-
-    return () => {
-      if (ws) ws.close();
-    };
-  }, []);
-
-  // When selected conversation changes, join room via WS
-  useEffect(() => {
-    if (selectedConversationId && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({ type: 'join', conversationId: selectedConversationId }));
-    }
-  }, [selectedConversationId]);
+  const wsConnected = connectionState === 'connected';
 
   // Messages array (reading from both detailData.conversation.messages and detailData.messages safely)
   const currentConv = detailData?.conversation;
@@ -224,10 +198,40 @@ export function SupportChatPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge className={wsConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'}>
-              <Circle className={`h-2 w-2 mr-1.5 fill-current ${wsConnected ? 'text-emerald-400' : 'text-slate-500'}`} />
-              {wsConnected ? 'Connected' : 'Persistent Storage'}
+            <Badge className={
+              wsConnected
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                : connectionState === 'reconnecting'
+                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                : 'bg-slate-800 text-slate-400'
+            }>
+              <Circle className={`h-2 w-2 mr-1.5 fill-current ${
+                wsConnected
+                  ? 'text-emerald-400'
+                  : connectionState === 'reconnecting'
+                  ? 'text-amber-400 animate-pulse'
+                  : 'text-slate-500'
+              }`} />
+              {selectedConversationId
+                ? wsConnected
+                  ? 'Live WebSocket Connected'
+                  : connectionState === 'reconnecting'
+                  ? 'Reconnecting...'
+                  : connectionState === 'connecting'
+                  ? 'Connecting...'
+                  : 'Persistent Storage'
+                : 'Standby (Chat Closed)'}
             </Badge>
+            {selectedConversationId && connectionState === 'offline' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => reconnectSocket()}
+                className="text-[10px] h-6 px-2 border-white/10 text-white/50 hover:text-white"
+              >
+                Reconnect
+              </Button>
+            )}
             <Button
               size="sm"
               onClick={() => setShowNewModal(true)}

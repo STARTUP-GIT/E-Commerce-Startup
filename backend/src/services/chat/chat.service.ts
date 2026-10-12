@@ -122,21 +122,36 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
     const wss = new WebSocketServer({ server: httpServer, path: "/ws/chat" });
     wssInstance = wss;
 
-    // Heartbeat ping interval
+    // Heartbeat ping interval - bounded protocol health check
+    // Only runs checks when active clients exist and unrefs so it never prevents natural process sleep
     const pingInterval = setInterval(() => {
+        if (!wss || wss.clients.size === 0) return;
         wss.clients.forEach((ws) => {
             const client = clients.get(ws);
             if (!client || !client.isAlive) {
+                if (client) {
+                    client.subscribedConversations.clear();
+                }
                 clients.delete(ws);
                 return ws.terminate();
             }
             client.isAlive = false;
-            ws.ping();
+            try {
+                ws.ping();
+            } catch {
+                if (client) client.subscribedConversations.clear();
+                clients.delete(ws);
+            }
         });
-    }, 30000);
+    }, 35000);
+
+    if (typeof pingInterval.unref === "function") {
+        pingInterval.unref();
+    }
 
     wss.on("close", () => {
         clearInterval(pingInterval);
+        wssInstance = null;
     });
 
     wss.on("connection", async (ws: WebSocket, req) => {
@@ -365,6 +380,31 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
                             conversationId
                         });
 
+                        if (!safeIsInternal && client.actorType === "ADMIN") {
+                            import("../notification/notification.service.js").then(({ notificationService }) => {
+                                if (conv.customerId) {
+                                    notificationService.createNotification({
+                                        recipientType: "CUSTOMER",
+                                        recipientId: conv.customerId,
+                                        type: "NEW_MESSAGE",
+                                        title: "New Support Reply",
+                                        body: savedMessage.message ? savedMessage.message.slice(0, 140) : "Support sent an attachment.",
+                                        data: { route: "/profile", conversationId }
+                                    }).catch(err => console.error("WS notify customer error:", err));
+                                }
+                                if (conv.sellerId) {
+                                    notificationService.createNotification({
+                                        recipientType: "SELLER",
+                                        recipientId: conv.sellerId,
+                                        type: "NEW_MESSAGE",
+                                        title: "New Support Reply",
+                                        body: savedMessage.message ? savedMessage.message.slice(0, 140) : "Support sent an attachment.",
+                                        data: { route: "/support-chat", conversationId }
+                                    }).catch(err => console.error("WS notify seller error:", err));
+                                }
+                            }).catch(err => console.error("Dynamic import error:", err));
+                        }
+
                         // Ack to sender
                         return ws.send(JSON.stringify({
                             type: "message_ack",
@@ -429,13 +469,19 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
             }
         });
 
-        ws.on("close", () => {
+        const cleanupClient = () => {
+            const client = clients.get(ws);
+            if (client) {
+                client.subscribedConversations.clear();
+            }
             clients.delete(ws);
-        });
+        };
+
+        ws.on("close", cleanupClient);
 
         ws.on("error", (err) => {
             console.error("[WS] socket error:", err);
-            clients.delete(ws);
+            cleanupClient();
         });
     });
 
@@ -492,6 +538,31 @@ export function disconnectActorSockets(actorId: string, reason: string = "Sessio
                 // Ignore socket close errors
             }
             clients.delete(ws);
+        }
+    }
+}
+
+export function sendRealtimeNotification(
+    recipientType: "ADMIN" | "SELLER" | "CUSTOMER" | "DELIVERY_PARTNER",
+    recipientId: string,
+    notification: any
+) {
+    if (!recipientId) return;
+    const raw = JSON.stringify({
+        type: "notification",
+        notification
+    });
+    for (const [ws, client] of clients.entries()) {
+        if (
+            ws.readyState === WebSocket.OPEN &&
+            client.actorType === recipientType &&
+            client.actorId === recipientId
+        ) {
+            try {
+                ws.send(raw);
+            } catch {
+                // Ignore socket send error
+            }
         }
     }
 }

@@ -14,6 +14,8 @@ export const allocateProportionalValue = (itemAmount: number, totalAmount: numbe
     return Number((share * targetValue).toFixed(2));
 };
 
+import { notificationService } from "../../../services/notification/notification.service.js";
+
 // Poly-recipient notification sender
 export const sendPaymentNotification = async (params: {
     recipientId: string;
@@ -25,19 +27,13 @@ export const sendPaymentNotification = async (params: {
 }) => {
     try {
         const { recipientId, recipientType, type, title, body, data } = params;
-
-        await prisma.notification.create({
-            data: {
-                customerId: recipientType === "CUSTOMER" ? recipientId : null,
-                sellerId: recipientType === "SELLER" ? recipientId : null,
-                type,
-                channel: NotificationChannel.IN_APP,
-                status: NotificationStatus.PENDING,
-                title,
-                body,
-                data: data ? JSON.parse(JSON.stringify(data)) : null,
-                sentAt: new Date()
-            }
+        await notificationService.createNotification({
+            recipientType,
+            recipientId,
+            type,
+            title,
+            body,
+            data
         });
     } catch (error) {
         console.error("SEND PAYMENT NOTIFICATION ERROR:", error);

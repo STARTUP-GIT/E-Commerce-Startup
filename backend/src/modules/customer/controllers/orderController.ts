@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 import { generateInvoicePdf } from "../utils/generateInvoicePdf.js";
+import { notificationService } from "../../../services/notification/notification.service.js";
 
 export const getOrders = async (req: Request, res: Response) => {
     try {
@@ -190,6 +191,28 @@ export const cancelOrder = async (req: Request, res: Response) => {
 
             return updated;
         });
+
+        // Notify customer
+        notificationService.createNotification({
+            recipientType: "CUSTOMER",
+            recipientId: customerId,
+            type: "ORDER_CANCELLED",
+            title: "Order Cancelled",
+            body: `Your order #${order.orderNumber} has been cancelled successfully.`,
+            data: { route: "/orders", entityType: "ORDER", entityId: order.id }
+        }).catch(err => console.error("Cancel notify customer error:", err));
+
+        // Notify each seller
+        for (const sellerOrder of order.sellerOrders) {
+            notificationService.createNotification({
+                recipientType: "SELLER",
+                recipientId: sellerOrder.sellerId,
+                type: "ORDER_CANCELLED",
+                title: "Order Cancelled by Customer",
+                body: `Order #${order.orderNumber} was cancelled by the customer.`,
+                data: { route: "/orders", entityType: "SELLER_ORDER", entityId: sellerOrder.id }
+            }).catch(err => console.error("Cancel notify seller error:", err));
+        }
 
         return res.status(200).json({
             message: "Order cancelled successfully",
@@ -459,6 +482,16 @@ export const confirmDelivery = async (req: Request, res: Response) => {
 
             return result;
         });
+
+        // Notify seller that customer confirmed delivery
+        notificationService.createNotification({
+            recipientType: "SELLER",
+            recipientId: sellerOrder.sellerId,
+            type: "ORDER_DELIVERED",
+            title: "Delivery Confirmed",
+            body: `Customer confirmed delivery for order item #${sellerOrder.id.slice(-6)}.`,
+            data: { route: "/orders", entityType: "SELLER_ORDER", entityId: sellerOrder.id }
+        }).catch(err => console.error("Confirm delivery notify seller error:", err));
 
         return res.status(200).json({
             message: "Delivery confirmed successfully",

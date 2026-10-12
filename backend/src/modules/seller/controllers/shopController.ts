@@ -22,9 +22,14 @@ export const createShop = async (req: Request,res: Response) => {
             addressLine1,
             addressLine2,
             city,
+            district,
             state,
             postalCode,
             country,
+            latitude,
+            longitude,
+            formattedAddress,
+            placeId,
             gstRegistered,
             gstNumber
         } = req.body;
@@ -177,6 +182,17 @@ export const createShop = async (req: Request,res: Response) => {
             });
         }
 
+        let validLat: number | null = null;
+        let validLng: number | null = null;
+        if (latitude !== undefined && longitude !== undefined && latitude !== null && longitude !== null) {
+            const nLat = Number(latitude);
+            const nLng = Number(longitude);
+            if (!isNaN(nLat) && !isNaN(nLng) && nLat >= -90 && nLat <= 90 && nLng >= -180 && nLng <= 180) {
+                validLat = nLat;
+                validLng = nLng;
+            }
+        }
+
         const result = await prisma.$transaction(
             async (tx) => {
 
@@ -200,9 +216,15 @@ export const createShop = async (req: Request,res: Response) => {
                             addressLine2,
 
                             city,
+                            district: district || city,
                             state,
                             postalCode,
                             country,
+
+                            latitude: validLat,
+                            longitude: validLng,
+                            formattedAddress: formattedAddress?.trim() || null,
+                            placeId: placeId?.trim() || null,
 
                             isDefault: true
                         }
@@ -792,9 +814,14 @@ export const updateShop = async (req: Request, res: Response) => {
             addressLine1,
             addressLine2,
             city,
+            district,
             state,
             postalCode,
             country,
+            latitude,
+            longitude,
+            formattedAddress,
+            placeId,
         } = req.body;
 
         const shop = await prisma.shop.findUnique({
@@ -859,29 +886,48 @@ export const updateShop = async (req: Request, res: Response) => {
         }
 
         const result = await prisma.$transaction(async (tx) => {
+            if (shop.defaultPickupAddressId) {
+                let updatedLat = shop.defaultPickupAddress?.latitude;
+                let updatedLng = shop.defaultPickupAddress?.longitude;
+                if (latitude !== undefined && longitude !== undefined && latitude !== null && longitude !== null) {
+                    const nLat = Number(latitude);
+                    const nLng = Number(longitude);
+                    if (!isNaN(nLat) && !isNaN(nLng) && nLat >= -90 && nLat <= 90 && nLng >= -180 && nLng <= 180) {
+                        updatedLat = nLat as any;
+                        updatedLng = nLng as any;
+                    }
+                }
+
+                await tx.sellerAddress.update({
+                    where: { id: shop.defaultPickupAddressId },
+                    data: {
+                        phone: phone ?? undefined,
+                        addressLine1: addressLine1 ?? undefined,
+                        addressLine2: addressLine2 !== undefined ? (addressLine2?.trim() || null) : undefined,
+                        city: city ?? undefined,
+                        district: district ?? (city ?? undefined),
+                        state: state ?? undefined,
+                        postalCode: postalCode ?? undefined,
+                        country: country ?? undefined,
+                        latitude: updatedLat,
+                        longitude: updatedLng,
+                        formattedAddress: formattedAddress !== undefined ? (formattedAddress?.trim() || null) : undefined,
+                        placeId: placeId !== undefined ? (placeId?.trim() || null) : undefined,
+                    }
+                });
+            }
+
             const updatedShop = await tx.shop.update({
                 where: { sellerId },
                 data: {
                     name: shopName ?? undefined,
                     description: description ?? undefined,
                     supportPhone: phone ?? undefined,
+                },
+                include: {
+                    defaultPickupAddress: true
                 }
             });
-
-            if (shop.defaultPickupAddressId) {
-                await tx.sellerAddress.update({
-                    where: { id: shop.defaultPickupAddressId },
-                    data: {
-                        phone: phone ?? undefined,
-                        addressLine1: addressLine1 ?? undefined,
-                        addressLine2: addressLine2 ?? null,
-                        city: city ?? undefined,
-                        state: state ?? undefined,
-                        postalCode: postalCode ?? undefined,
-                        country: country ?? undefined,
-                    }
-                });
-            }
 
             return updatedShop;
         });

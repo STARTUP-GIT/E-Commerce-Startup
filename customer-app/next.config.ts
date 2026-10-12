@@ -25,6 +25,14 @@ const nextConfig: NextConfig = {
         destination: `${backendUrl.replace(/\/$/, '')}/customer/api/:path*`,
       },
       {
+        source: '/customer/addresses/:path*',
+        destination: `${backendUrl.replace(/\/$/, '')}/customer/addresses/:path*`,
+      },
+      {
+        source: '/customer/addresses',
+        destination: `${backendUrl.replace(/\/$/, '')}/customer/addresses`,
+      },
+      {
         source: '/api/storage/:path*',
         destination: `${backendUrl.replace(/\/$/, '')}/api/storage/:path*`,
       },

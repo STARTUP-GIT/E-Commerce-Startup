@@ -6,6 +6,7 @@ import { SellerOrderStatus } from "@prisma/client";
 import { generateShippingLabelPdf } from "../utils/generateShippingLabelPdf.js";
 import { generateSellerInvoicePdf } from "../utils/generateSellerInvoicePdf.js";
 import { safe } from "../../shared/utils/pdfHelpers.js";
+import { notificationService } from "../../../services/notification/notification.service.js";
 
 export const getOrders = async ( req: Request,res: Response) => {
 
@@ -193,7 +194,8 @@ export const acceptOrders = async (
             where: {
                 id: orderId as string,
                 sellerId
-            }
+            },
+            include: { order: true }
         });
 
         if (!order) {
@@ -217,6 +219,17 @@ export const acceptOrders = async (
                 acceptedAt: new Date()
             }
         });
+
+        if (order.order?.customerId) {
+            notificationService.createNotification({
+                recipientType: "CUSTOMER",
+                recipientId: order.order.customerId,
+                type: "ORDER_CONFIRMED",
+                title: "Order Processing",
+                body: `Your order #${order.order.orderNumber} is now being processed by the seller.`,
+                data: { route: "/orders", entityType: "ORDER", entityId: order.orderId }
+            }).catch(err => console.error("Accept order notify error:", err));
+        }
 
         return res.status(200).json({
             message: "Order accepted successfully",
@@ -268,7 +281,8 @@ export const rejectOrders = async (
             where: {
                 id: orderId as string,
                 sellerId
-            }
+            },
+            include: { order: true }
         });
 
         if (!order) {
@@ -293,6 +307,17 @@ export const rejectOrders = async (
                 rejectionReason: reason.trim()
             }
         });
+
+        if (order.order?.customerId) {
+            notificationService.createNotification({
+                recipientType: "CUSTOMER",
+                recipientId: order.order.customerId,
+                type: "ORDER_CANCELLED",
+                title: "Order Item Cancelled",
+                body: `An item in your order #${order.order.orderNumber} was cancelled by the seller. Reason: ${reason.trim()}`,
+                data: { route: "/orders", entityType: "ORDER", entityId: order.orderId }
+            }).catch(err => console.error("Reject order notify error:", err));
+        }
 
         return res.status(200).json({
             message: "Order rejected successfully",
@@ -500,7 +525,8 @@ export const markPacked = async (req: Request, res: Response) => {
             where: {
                 id: orderId as string,
                 sellerId
-            }
+            },
+            include: { order: true }
         });
 
         if (!order) {
@@ -548,6 +574,17 @@ export const markPacked = async (req: Request, res: Response) => {
             }
         });
 
+        if (order.order?.customerId) {
+            notificationService.createNotification({
+                recipientType: "CUSTOMER",
+                recipientId: order.order.customerId,
+                type: "ORDER_CONFIRMED",
+                title: "Order Packed",
+                body: `Your order #${order.order.orderNumber} items have been packed and prepared for dispatch.`,
+                data: { route: "/orders", entityType: "ORDER", entityId: order.orderId }
+            }).catch(err => console.error("Mark packed notify error:", err));
+        }
+
         return res.status(200).json({
             message: "Order marked as packed successfully",
             order: updatedOrder
@@ -582,7 +619,8 @@ export const markShipped = async (req: Request, res: Response) => {
             where: {
                 id: orderId as string,
                 sellerId
-            }
+            },
+            include: { order: true }
         });
 
         if (!order) {
@@ -619,6 +657,17 @@ export const markShipped = async (req: Request, res: Response) => {
             }
         });
 
+        if (order.order?.customerId) {
+            notificationService.createNotification({
+                recipientType: "CUSTOMER",
+                recipientId: order.order.customerId,
+                type: "ORDER_SHIPPED",
+                title: "Order Shipped",
+                body: `Your order #${order.order.orderNumber} has been shipped and is in transit!`,
+                data: { route: "/orders", entityType: "ORDER", entityId: order.orderId }
+            }).catch(err => console.error("Mark shipped notify error:", err));
+        }
+
         return res.status(200).json({
             message: "Order marked as shipped successfully",
             order: updatedOrder
@@ -653,7 +702,8 @@ export const markDelivered = async (req: Request, res: Response) => {
             where: {
                 id: orderId as string,
                 sellerId
-            }
+            },
+            include: { order: true }
         });
 
         if (!order) {
@@ -688,6 +738,17 @@ export const markDelivered = async (req: Request, res: Response) => {
                 description: "Order has been successfully delivered to the customer."
             }
         });
+
+        if (order.order?.customerId) {
+            notificationService.createNotification({
+                recipientType: "CUSTOMER",
+                recipientId: order.order.customerId,
+                type: "ORDER_DELIVERED",
+                title: "Order Delivered",
+                body: `Your order #${order.order.orderNumber} has been delivered successfully!`,
+                data: { route: "/orders", entityType: "ORDER", entityId: order.orderId }
+            }).catch(err => console.error("Mark delivered notify error:", err));
+        }
 
         return res.status(200).json({
             message: "Order marked as delivered successfully",

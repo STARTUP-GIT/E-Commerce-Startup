@@ -8,6 +8,7 @@ import { storageService } from '@/features/storage/services/storage.service';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useOnDemandChatSocket } from '@/features/chat/hooks/useOnDemandChatSocket';
 import {
   MessageSquare,
   Send,
@@ -46,7 +47,6 @@ function SupportChatContent() {
   const [messageText, setMessageText] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<OutgoingAttachment[]>([]);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
-  const [wsConnected, setWsConnected] = useState(false);
   const [failedMessage, setFailedMessage] = useState<{ text: string; clientMessageId: string } | null>(null);
 
   // New Inquiry Modal State
@@ -60,7 +60,6 @@ function SupportChatContent() {
   const [modalAttachments, setModalAttachments] = useState<OutgoingAttachment[]>([]);
   const [modalUploadError, setModalUploadError] = useState<string | null>(null);
 
-  const socketRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const modalAttachmentInputRef = useRef<HTMLInputElement>(null);
@@ -125,51 +124,26 @@ function SupportChatContent() {
     refetchInterval: wsConnected ? false : 5000, // Fallback polling if WS offline
   });
 
-  // Connect WebSocket
-  useEffect(() => {
-    let ws: WebSocket;
-    try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws/chat?role=customer`;
-      ws = new WebSocket(wsUrl);
-      socketRef.current = ws;
+  // On-demand WebSocket connection: exists ONLY while a conversation is open
+  const { connectionState, reconnect: reconnectSocket } = useOnDemandChatSocket({
+    role: 'customer',
+    conversationId: selectedConversationId,
+    onMessage: (payload) => {
+      if (payload.type === 'new_message' || payload.type === 'read_receipt' || payload.type === 'conversation_status_updated') {
+        queryClient.invalidateQueries({ queryKey: ['customer-conversation-detail', selectedConversationId] });
+        queryClient.invalidateQueries({ queryKey: ['customer-conversations'] });
+      }
+    },
+    onReconnect: () => {
+      // Re-fetch persisted messages from DB upon reconnecting to recover any offline messages
+      if (selectedConversationId) {
+        queryClient.invalidateQueries({ queryKey: ['customer-conversation-detail', selectedConversationId] });
+        queryClient.invalidateQueries({ queryKey: ['customer-conversations'] });
+      }
+    },
+  });
 
-      ws.onopen = () => {
-        setWsConnected(true);
-        if (selectedConversationId) {
-          ws.send(JSON.stringify({ type: 'join', conversationId: selectedConversationId }));
-        }
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.type === 'new_message') {
-            queryClient.invalidateQueries({ queryKey: ['customer-conversation-detail', payload.conversationId] });
-            queryClient.invalidateQueries({ queryKey: ['customer-conversations'] });
-          }
-        } catch (e) {
-          console.error('[WS parse error]', e);
-        }
-      };
-
-      ws.onclose = () => setWsConnected(false);
-      ws.onerror = () => setWsConnected(false);
-    } catch (e) {
-      console.warn('[WS init error]', e);
-    }
-
-    return () => {
-      if (ws) ws.close();
-    };
-  }, []);
-
-  // When selected conversation changes, join room via WS
-  useEffect(() => {
-    if (selectedConversationId && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({ type: 'join', conversationId: selectedConversationId }));
-    }
-  }, [selectedConversationId]);
+  const wsConnected = connectionState === 'connected';
 
   // Scroll to bottom on message updates
   const messages = detailData?.conversation?.messages || detailData?.messages || [];
@@ -349,16 +323,42 @@ function SupportChatContent() {
             <Badge
               variant="outline"
               className={`text-[10px] ${
-                wsConnected ? 'border-emerald-500/30 text-emerald-400' : 'text-white/40'
+                wsConnected
+                  ? 'border-emerald-500/30 text-emerald-400'
+                  : connectionState === 'reconnecting'
+                  ? 'border-amber-500/30 text-amber-400'
+                  : 'text-white/40'
               }`}
             >
               <Circle
                 className={`h-2 w-2 mr-1.5 fill-current ${
-                  wsConnected ? 'text-emerald-400' : 'text-white/40'
+                  wsConnected
+                    ? 'text-emerald-400'
+                    : connectionState === 'reconnecting'
+                    ? 'text-amber-400 animate-pulse'
+                    : 'text-white/40'
                 }`}
               />
-              {wsConnected ? 'Live Connection' : 'Persistent Storage'}
+              {selectedConversationId
+                ? wsConnected
+                  ? 'Live WebSocket Connected'
+                  : connectionState === 'reconnecting'
+                  ? 'Reconnecting...'
+                  : connectionState === 'connecting'
+                  ? 'Connecting...'
+                  : 'Persistent Storage'
+                : 'Standby (Chat Closed)'}
             </Badge>
+            {selectedConversationId && connectionState === 'offline' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => reconnectSocket()}
+                className="text-[10px] h-6 px-2 border-white/10 text-white/50 hover:text-white"
+              >
+                Reconnect
+              </Button>
+            )}
             <Button
               size="sm"
               onClick={() => setShowNewModal(true)}

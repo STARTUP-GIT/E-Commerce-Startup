@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "@/lib/axios/axiosInstance";
+import { useOnDemandChatSocket } from "../hooks/useOnDemandChatSocket";
 import { Card } from "@/shared/components/Card";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
@@ -55,12 +56,10 @@ export function AdminConversationInbox({
   const [statusFilter, setStatusFilter] = useState("");
   const [messageText, setMessageText] = useState("");
   const [isInternal, setIsInternal] = useState(false);
-  const [wsConnected, setWsConnected] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<OutgoingAttachment[]>([]);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [failedMessage, setFailedMessage] = useState<{ text: string; isInternal: boolean } | null>(null);
 
-  const socketRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const queryClient = useQueryClient();
@@ -115,61 +114,38 @@ export function AdminConversationInbox({
     }
   }, [selectedConversationId, queryClient]);
 
-  // 4. WebSocket setup
-  useEffect(() => {
-    let activeSocket: WebSocket | null = null;
-    try {
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${protocol}//${window.location.host}/ws/chat?role=admin`;
-      const ws = new WebSocket(wsUrl);
-      activeSocket = ws;
-      socketRef.current = ws;
+  // 4. On-demand WebSocket connection: exists ONLY while a conversation is open
+  const { connectionState, reconnect: reconnectSocket } = useOnDemandChatSocket({
+    role: "admin",
+    conversationId: selectedConversationId,
+    onMessage: useCallback(
+      (payload: any) => {
+        if (
+          payload.type === "new_message" ||
+          payload.type === "admin_conversation_update" ||
+          payload.type === "read_receipt" ||
+          payload.type === "conversation_status_updated"
+        ) {
+          queryClient.invalidateQueries({ queryKey: ["admin-conversations", conversationType] });
+          queryClient.invalidateQueries({ queryKey: ["admin-unread-counts"] });
 
-      ws.onopen = () => {
-        setWsConnected(true);
-        if (selectedConversationId) {
-          ws.send(JSON.stringify({ type: "join", conversationId: selectedConversationId }));
-        }
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (
-            payload.type === "new_message" ||
-            payload.type === "admin_conversation_update" ||
-            payload.type === "read_receipt" ||
-            payload.type === "conversation_status_updated"
-          ) {
-            queryClient.invalidateQueries({ queryKey: ["admin-conversations", conversationType] });
-            queryClient.invalidateQueries({ queryKey: ["admin-unread-counts"] });
-
-            if (selectedConversationId && (payload.conversationId === selectedConversationId || !payload.conversationId)) {
-              queryClient.invalidateQueries({ queryKey: ["admin-conversation-detail", selectedConversationId] });
-            }
+          if (selectedConversationId && (payload.conversationId === selectedConversationId || !payload.conversationId)) {
+            queryClient.invalidateQueries({ queryKey: ["admin-conversation-detail", selectedConversationId] });
           }
-        } catch {
-          // ignore parsing error
         }
-      };
+      },
+      [conversationType, selectedConversationId, queryClient]
+    ),
+    onReconnect: useCallback(() => {
+      // Safe offline message recovery: re-fetch persisted history from database upon reconnection
+      if (selectedConversationId) {
+        queryClient.invalidateQueries({ queryKey: ["admin-conversation-detail", selectedConversationId] });
+        queryClient.invalidateQueries({ queryKey: ["admin-conversations", conversationType] });
+      }
+    }, [conversationType, selectedConversationId, queryClient]),
+  });
 
-      ws.onclose = () => setWsConnected(false);
-      ws.onerror = () => setWsConnected(false);
-    } catch {
-      // ignore
-    }
-
-    return () => {
-      if (activeSocket) activeSocket.close();
-    };
-  }, [conversationType, selectedConversationId, queryClient]);
-
-  // Join WebSocket room when selected conversation changes
-  useEffect(() => {
-    if (selectedConversationId && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({ type: "join", conversationId: selectedConversationId }));
-    }
-  }, [selectedConversationId]);
+  const wsConnected = connectionState === "connected";
 
   // Scroll to bottom on new messages
   const messages = detailData?.conversation?.messages || [];
@@ -300,12 +276,40 @@ export function AdminConversationInbox({
             className={
               wsConnected
                 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs"
+                : connectionState === "reconnecting"
+                ? "bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs"
                 : "bg-slate-800 text-slate-400 border border-slate-700 text-xs"
             }
           >
-            <Circle className={`h-2 w-2 mr-1.5 fill-current ${wsConnected ? "text-emerald-400" : "text-amber-400"}`} />
-            {wsConnected ? "Real-Time WebSocket Connected" : "Persistent REST Polling"}
+            <Circle
+              className={`h-2 w-2 mr-1.5 fill-current ${
+                wsConnected
+                  ? "text-emerald-400"
+                  : connectionState === "reconnecting"
+                  ? "text-amber-400 animate-pulse"
+                  : "text-slate-500"
+              }`}
+            />
+            {selectedConversationId
+              ? wsConnected
+                ? "Real-Time WebSocket Connected"
+                : connectionState === "reconnecting"
+                ? "Reconnecting..."
+                : connectionState === "connecting"
+                ? "Connecting..."
+                : "Persistent REST Polling"
+              : "On-Demand Standby (No WS)"}
           </Badge>
+          {selectedConversationId && connectionState === "offline" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => reconnectSocket()}
+              className="text-[10px] h-6 px-2 border-slate-700 text-slate-400 hover:text-white"
+            >
+              Reconnect
+            </Button>
+          )}
         </div>
       </div>
 

@@ -5,15 +5,19 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocationStore } from '@/lib/store/locationStore';
 import { Button } from '@/shared/components/Button';
-import { Rocket, Bell, X, Check } from 'lucide-react';
+import { Rocket, Bell, X, Check, Loader2 } from 'lucide-react';
+import axiosInstance from '@/lib/axios/axiosInstance';
 
 export function ComingSoonDialog() {
   const { comingSoonOpen, comingSoonState, comingSoonDistrict, setComingSoon, onChooseAnotherState, onClose } = useLocationStore();
   const [notified, setNotified] = useState(false);
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [subscribeError, setSubscribeError] = useState<string | null>(null);
 
   const handleClose = (chooseAnother = false) => {
     setComingSoon(false);
     setNotified(false);
+    setSubscribeError(null);
     if (chooseAnother && onChooseAnotherState) {
       onChooseAnotherState();
     } else if (!chooseAnother && onClose) {
@@ -21,12 +25,29 @@ export function ComingSoonDialog() {
     }
   };
 
-  const handleNotifyMe = () => {
-    setNotified(true);
-    // Simulate notification registration
-    setTimeout(() => {
-      handleClose();
-    }, 1500);
+  const handleNotifyMe = async () => {
+    setIsSubscribing(true);
+    setSubscribeError(null);
+    try {
+      await axiosInstance.post('/customer/api/location/notify-me', {
+        state: comingSoonState,
+        district: comingSoonDistrict || undefined,
+        consent: true,
+      });
+      setNotified(true);
+      setTimeout(() => {
+        handleClose();
+      }, 1500);
+    } catch (err: any) {
+      if (err.response?.status === 200 || err.response?.data?.success) {
+        setNotified(true);
+        setTimeout(() => handleClose(), 1500);
+      } else {
+        setSubscribeError(err.response?.data?.message || err.message || 'Notification request failed.');
+      }
+    } finally {
+      setIsSubscribing(false);
+    }
   };
 
   return (
@@ -105,6 +126,10 @@ export function ComingSoonDialog() {
                       </div>
                     </Dialog.Description>
 
+                    {subscribeError && (
+                      <p className="text-xs text-red-400 mt-2 font-medium">{subscribeError}</p>
+                    )}
+
                     {/* Actions */}
                     <div className="flex flex-col gap-3 w-full mt-2">
                       <Button
@@ -126,9 +151,14 @@ export function ComingSoonDialog() {
                           variant={notified ? 'secondary' : 'outline'}
                           onClick={handleNotifyMe}
                           className="w-full justify-center gap-2 cursor-pointer"
-                          disabled={notified}
+                          disabled={notified || isSubscribing}
                         >
-                          {notified ? (
+                          {isSubscribing ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+                              <span>Subscribing...</span>
+                            </>
+                          ) : notified ? (
                             <>
                               <Check className="h-4 w-4 text-emerald-400" />
                               <span>Registered!</span>

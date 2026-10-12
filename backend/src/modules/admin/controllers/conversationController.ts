@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { ConversationType, ConversationStatus, MessageSenderType, Prisma } from "@prisma/client";
 import { prisma } from "../../../config/prisma.js";
 import { broadcastToConversation, broadcastToAdmins } from "../../../services/chat/chat.service.js";
+import { notificationService } from "../../../services/notification/notification.service.js";
 
 // ─── GET /api/admin/conversations/unread-counts ──────────────────────────────
 
@@ -393,6 +394,30 @@ export const sendAdminMessage = async (req: Request, res: Response) => {
             type: "unread_counts_update",
             conversationId: id
         });
+
+        // Notify customer or seller if external message
+        if (!isInternal) {
+            if (conv.customerId) {
+                notificationService.createNotification({
+                    recipientType: "CUSTOMER",
+                    recipientId: conv.customerId,
+                    type: "NEW_MESSAGE",
+                    title: "New Support Reply",
+                    body: savedMessage.message ? savedMessage.message.slice(0, 140) : "Support sent an attachment.",
+                    data: { route: "/profile", conversationId: id }
+                }).catch(err => console.error("Admin msg notify customer error:", err));
+            }
+            if (conv.sellerId) {
+                notificationService.createNotification({
+                    recipientType: "SELLER",
+                    recipientId: conv.sellerId,
+                    type: "NEW_MESSAGE",
+                    title: "New Support Reply",
+                    body: savedMessage.message ? savedMessage.message.slice(0, 140) : "Support sent an attachment.",
+                    data: { route: "/support-chat", conversationId: id }
+                }).catch(err => console.error("Admin msg notify seller error:", err));
+            }
+        }
 
         return res.status(201).json({ message: savedMessage });
     } catch (error: any) {

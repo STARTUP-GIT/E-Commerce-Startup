@@ -20,6 +20,7 @@ import customerNotificationRoutes from './modules/customer/routes/notificationRo
 import customerCustomOrderRoutes from './modules/customer/routes/customOrderRoute.js';
 import customerCityRoute from './modules/customer/routes/cityRoute.js';
 import customerLocationRoute from './modules/customer/routes/locationRoute.js';
+import customerAddressRoute from './modules/customer/routes/addressRoute.js';
 import corePaymentRoutes from './modules/payments/routes/paymentRoute.js';
 
 import sellerAuth from './modules/seller/routes/authroute.js';
@@ -202,9 +203,14 @@ app.use('/users', customerPaymentRoutes);
 app.use('/users', customerOrderRoutes);
 app.use('/users', customerReviewRoutes);
 app.use('/users', customerNotificationRoutes);
+app.use('/customer', customerNotificationRoutes);
 app.use('/users', customerCustomOrderRoutes);
 app.use('/users/cities', customerCityRoute);
 app.use('/customer/api/location', customerLocationRoute);
+app.use('/users/api/location', customerLocationRoute);
+app.use('/customer/addresses', customerAddressRoute);
+app.use('/users/addresses', customerAddressRoute);
+app.use('/users/api/addresses', customerAddressRoute);
 app.use('/', corePaymentRoutes);
 
 app.use('/users/api/reports', customerReportRoute);

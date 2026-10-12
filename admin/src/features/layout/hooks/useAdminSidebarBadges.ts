@@ -37,59 +37,31 @@ export const defaultBadgeCounts: SidebarBadgeCounts = {
 };
 
 export function useAdminSidebarBadges() {
-  const queryClient = useQueryClient();
-  const [wsConnected, setWsConnected] = useState(false);
-  const socketRef = useRef<WebSocket | null>(null);
-
   const { data, isLoading, refetch } = useQuery<SidebarBadgeCounts>({
     queryKey: ["admin-sidebar-badges"],
     queryFn: async () => {
       const res = await axiosInstance.get("/api/admin/sidebar-badges");
       return res.data;
     },
-    staleTime: 10 * 1000,
-    refetchInterval: wsConnected ? 25 * 1000 : 10 * 1000,
+    staleTime: 20 * 1000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    // Conservative polling interval only while the application tab is actively visible
+    refetchInterval: () => (typeof document !== "undefined" && document.visibilityState === "visible" ? 45 * 1000 : false),
   });
 
+  // Re-sync authoritative badge state when browser tab returns to focus
   useEffect(() => {
-    let ws: WebSocket | null = null;
-    try {
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${protocol}//${window.location.host}/ws/chat?role=admin`;
-      ws = new WebSocket(wsUrl);
-      socketRef.current = ws;
-
-      ws.onopen = () => setWsConnected(true);
-
-      ws.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (
-            payload.type === "unread_counts_update" ||
-            payload.type === "admin_conversation_update" ||
-            payload.type === "new_message" ||
-            payload.type === "read_receipt" ||
-            payload.type === "notification" ||
-            payload.type === "badge_update" ||
-            payload.type === "shop_approval_update"
-          ) {
-            queryClient.invalidateQueries({ queryKey: ["admin-sidebar-badges"] });
-          }
-        } catch {
-          // ignore parsing error
-        }
-      };
-
-      ws.onclose = () => setWsConnected(false);
-      ws.onerror = () => setWsConnected(false);
-    } catch {
-      // ignore connection error
-    }
-
-    return () => {
-      if (ws) (ws as WebSocket).close();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refetch();
+      }
     };
-  }, [queryClient]);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [refetch]);
 
   const badges = data || defaultBadgeCounts;
 

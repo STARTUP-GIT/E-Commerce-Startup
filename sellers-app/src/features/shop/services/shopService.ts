@@ -11,6 +11,11 @@ export const shopSetupSchema = z.object({
   state: z.string().min(1, 'State/Province is required'),
   postalCode: z.string().min(3, 'Postal code is required'),
   country: z.string().min(1, 'Country is required'),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  formattedAddress: z.string().optional(),
+  placeId: z.string().optional(),
+  district: z.string().optional(),
 });
 
 export const getShopSetupSchema = (districtRequired: boolean) => z.object({
@@ -21,9 +26,14 @@ export const getShopSetupSchema = (districtRequired: boolean) => z.object({
   addressLine1: z.string().min(5, 'Address is too short'),
   addressLine2: z.string().optional(),
   city: z.string().optional(),
+  district: z.string().optional(),
   state: z.string().min(1, 'State selection is required'),
   postalCode: z.string().min(3, 'Postal code is required'),
   country: z.string().min(1, 'Country is required'),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  formattedAddress: z.string().optional(),
+  placeId: z.string().optional(),
 }).refine((data) => {
   if (districtRequired) {
     return typeof data.city === 'string' && data.city.trim().length > 0;

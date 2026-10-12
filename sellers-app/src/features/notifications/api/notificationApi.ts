@@ -2,20 +2,61 @@ import axiosInstance from '@/lib/axios/axiosInstance';
 
 export interface NotificationRecord {
   id: string;
-  sellerId: string;
+  sellerId?: string;
+  type: string;
   title: string;
-  message: string;
+  body?: string;
+  message?: string;
   isRead: boolean;
+  data?: any;
+  route?: string | null;
   createdAt: string;
 }
 
+export interface SidebarBadges {
+  orders: number;
+  customRequests: number;
+  payouts: number;
+  reviews: number;
+  compliance: number;
+  policies: number;
+  commissionStatements: number;
+  support: number;
+  shop: number;
+  notifications: number;
+}
+
+export interface NotificationListResponse {
+  count: number;
+  unreadCount: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  notifications: NotificationRecord[];
+}
+
 export const notificationApi = {
-  getNotifications: async (): Promise<{ count: number; notifications: NotificationRecord[] }> => {
-    const response = await axiosInstance.get('/seller/api/notifications');
+  getNotifications: async (params?: {
+    page?: number;
+    limit?: number;
+    unreadOnly?: boolean;
+    type?: string;
+  }): Promise<NotificationListResponse> => {
+    const response = await axiosInstance.get('/seller/api/notifications', { params });
     return response.data;
   },
 
-  markAllRead: async (): Promise<{ message: string }> => {
+  getUnreadCount: async (): Promise<{ unreadCount: number }> => {
+    const response = await axiosInstance.get('/seller/api/notifications/unread-count');
+    return response.data;
+  },
+
+  getSidebarBadges: async (): Promise<{ badges: SidebarBadges }> => {
+    const response = await axiosInstance.get('/seller/api/sidebar-badges');
+    return response.data;
+  },
+
+  markAllRead: async (): Promise<{ message: string; count?: number }> => {
     const response = await axiosInstance.patch('/seller/api/notifications/read-all');
     return response.data;
   },

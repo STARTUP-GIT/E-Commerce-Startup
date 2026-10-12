@@ -28,6 +28,7 @@ import { Skeleton } from '@/shared/components/Skeleton';
 import { Dialog } from '@/shared/components/Dialog';
 import { useUIStore } from '@/lib/store/uiStore';
 import { SellerAgreementBanner } from './SellerAgreementBanner';
+import { GoogleMapsLocationPicker, type LocationPickerValue } from '@/features/location/ui/GoogleMapsLocationPicker';
 export function ShopSettingsPage() {
   const {
     shop,
@@ -136,6 +137,19 @@ export function ShopSettingsPage() {
 
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [locationValue, setLocationValue] = useState<LocationPickerValue>({
+    country: 'India',
+  });
+
+  const handleLocationPickerChange = (loc: LocationPickerValue) => {
+    setLocationValue(loc);
+    if (loc.addressLine1) setEditAddressLine1(loc.addressLine1);
+    if (loc.addressLine2) setEditAddressLine2(loc.addressLine2);
+    if (loc.postalCode) setEditPostalCode(loc.postalCode);
+    if (loc.state) setSelectedState(loc.state);
+    if (loc.district) setSelectedDistrict(loc.district);
+    else if (loc.city) setSelectedDistrict(loc.city);
+  };
 
   // Fetch active states & configurations from backend
   const { data: locationsConfig, isLoading: isLoadingConfig } = useQuery({
@@ -161,11 +175,30 @@ export function ShopSettingsPage() {
       setEditShopName(shop.name || '');
       setEditDescription(shop.description || '');
       setEditPhone(shop.supportPhone || shop.defaultPickupAddress?.phone || '');
-      setEditAddressLine1(shop.defaultPickupAddress?.addressLine1 || '');
-      setEditAddressLine2(shop.defaultPickupAddress?.addressLine2 || '');
-      setEditPostalCode(shop.defaultPickupAddress?.postalCode || '');
-      setSelectedState(shop.defaultPickupAddress?.state || '');
-      setSelectedDistrict(shop.defaultPickupAddress?.city || '');
+      const addr = shop.defaultPickupAddress;
+      const initialLat = addr?.latitude !== undefined && addr?.latitude !== null ? Number(addr.latitude) : null;
+      const initialLng = addr?.longitude !== undefined && addr?.longitude !== null ? Number(addr.longitude) : null;
+
+      setEditAddressLine1(addr?.addressLine1 || '');
+      setEditAddressLine2(addr?.addressLine2 || '');
+      setEditPostalCode(addr?.postalCode || '');
+      setSelectedState(addr?.state || '');
+      setSelectedDistrict(addr?.city || addr?.district || '');
+
+      setLocationValue({
+        latitude: initialLat,
+        longitude: initialLng,
+        formattedAddress: addr?.formattedAddress || '',
+        addressLine1: addr?.addressLine1 || '',
+        addressLine2: addr?.addressLine2 || '',
+        city: addr?.city || '',
+        district: addr?.district || addr?.city || '',
+        state: addr?.state || '',
+        postalCode: addr?.postalCode || '',
+        country: addr?.country || 'India',
+        placeId: addr?.placeId || '',
+      });
+
       setPackingFeeEnabled(!!shop.packingFeeEnabled);
       setPackingFeeAmount(String(shop.packingFeeAmount ?? '0'));
     }
@@ -238,9 +271,14 @@ export function ShopSettingsPage() {
         addressLine1: editAddressLine1.trim(),
         addressLine2: editAddressLine2.trim() || undefined,
         city: selectedDistrict,
+        district: selectedDistrict,
         state: selectedState,
         postalCode: editPostalCode.trim(),
         country: 'India',
+        latitude: locationValue.latitude,
+        longitude: locationValue.longitude,
+        formattedAddress: locationValue.formattedAddress,
+        placeId: locationValue.placeId,
       });
       setEditSuccess(true);
     } catch (err: any) {
@@ -642,8 +680,16 @@ export function ShopSettingsPage() {
                 />
               </div>
 
-              <div className="border-t border-white/5 pt-3 mt-1">
-                <h4 className="text-xs font-bold text-white/80 mb-3">Default Pickup Address</h4>
+              <div className="border-t border-white/5 pt-3 mt-1 space-y-4">
+                <GoogleMapsLocationPicker
+                  value={locationValue}
+                  onChange={handleLocationPickerChange}
+                  availableStates={allStates}
+                  availableDistricts={districts}
+                  title="Shop Location & Pickup Address"
+                  description="Update your store pickup location using Google Maps or adjust coordinates."
+                />
+
                 <div className="space-y-3">
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-white/60 ml-1">Address Line 1</label>

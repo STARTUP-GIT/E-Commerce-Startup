@@ -1,0 +1,25 @@
+// =============================================================================
+// LocationNotificationSubscription — Coming Soon Notify Me subscriptions
+// =============================================================================
+
+model LocationNotificationSubscription {
+  id         String    @id @default(cuid())
+  customerId String?
+  email      String?   @db.VarChar(320)
+  state      String    @db.VarChar(100)
+  district   String?   @db.VarChar(100)
+  city       String?   @db.VarChar(100)
+  postalCode String?   @db.VarChar(20)
+  latitude   Decimal?  @db.Decimal(10, 8)
+  longitude  Decimal?  @db.Decimal(11, 8)
+  consent    Boolean   @default(true)
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([state, district])
+  @@index([customerId])
+  @@map("location_notification_subscriptions")
+}

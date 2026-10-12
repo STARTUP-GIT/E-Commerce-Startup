@@ -1,0 +1,415 @@
+import type { Request, Response } from "express";
+import { prisma } from "../../../config/prisma.js";
+
+// Validation helper for coordinate boundaries
+const isValidCoordinate = (lat: any, lng: any): boolean => {
+    if (lat === null || lat === undefined || lng === null || lng === undefined) return false;
+    const nLat = Number(lat);
+    const nLng = Number(lng);
+    return !isNaN(nLat) && !isNaN(nLng) && nLat >= -90 && nLat <= 90 && nLng >= -180 && nLng <= 180;
+};
+
+/**
+ * GET /customer/addresses
+ * Returns all saved addresses for the authenticated customer
+ */
+export const getAddresses = async (req: Request, res: Response) => {
+    try {
+        const customerId = req.customerId;
+        if (!customerId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const addresses = await prisma.customerAddress.findMany({
+            where: { customerId },
+            orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }]
+        });
+
+        return res.status(200).json({
+            addresses: addresses.map(addr => ({
+                id: addr.id,
+                customerId: addr.customerId,
+                fullName: addr.fullName,
+                phone: addr.phone,
+                type: addr.type,
+                label: addr.label,
+                addressLine1: addr.addressLine1,
+                addressLine2: addr.addressLine2,
+                city: addr.city,
+                district: addr.district || addr.city,
+                state: addr.state,
+                postalCode: addr.postalCode,
+                country: addr.country,
+                latitude: addr.latitude ? Number(addr.latitude) : null,
+                longitude: addr.longitude ? Number(addr.longitude) : null,
+                formattedAddress: addr.formattedAddress,
+                placeId: addr.placeId,
+                isDefault: addr.isDefault,
+                createdAt: addr.createdAt,
+                updatedAt: addr.updatedAt
+            }))
+        });
+    } catch (error: any) {
+        console.error("GET CUSTOMER ADDRESSES ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+/**
+ * GET /customer/addresses/:id
+ * Retrieve a specific address
+ */
+export const getAddressById = async (req: Request, res: Response) => {
+    try {
+        const customerId = req.customerId;
+        const id = req.params.id as string;
+
+        if (!customerId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const address = await prisma.customerAddress.findUnique({
+            where: { id }
+        });
+
+        if (!address) {
+            return res.status(404).json({ message: "Address not found" });
+        }
+
+        if (address.customerId !== customerId) {
+            return res.status(403).json({ message: "Unauthorized to access this address" });
+        }
+
+        return res.status(200).json({
+            address: {
+                ...address,
+                district: address.district || address.city,
+                latitude: address.latitude ? Number(address.latitude) : null,
+                longitude: address.longitude ? Number(address.longitude) : null,
+            }
+        });
+    } catch (error: any) {
+        console.error("GET ADDRESS BY ID ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+/**
+ * POST /customer/addresses
+ * Add a new delivery address
+ */
+export const createAddress = async (req: Request, res: Response) => {
+    try {
+        const customerId = req.customerId;
+        if (!customerId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const {
+            fullName,
+            phone,
+            type,
+            label,
+            addressLine1,
+            addressLine2,
+            city,
+            district,
+            state,
+            postalCode,
+            country = "India",
+            latitude,
+            longitude,
+            formattedAddress,
+            placeId,
+            isDefault = false
+        } = req.body;
+
+        if (!fullName?.trim()) {
+            return res.status(400).json({ message: "Full Name is required" });
+        }
+        if (!phone?.trim()) {
+            return res.status(400).json({ message: "Phone number is required" });
+        }
+        if (!addressLine1?.trim()) {
+            return res.status(400).json({ message: "Address Line 1 is required" });
+        }
+        if (!state?.trim()) {
+            return res.status(400).json({ message: "State is required" });
+        }
+        if (!postalCode?.trim()) {
+            return res.status(400).json({ message: "Postal Code is required" });
+        }
+
+        const resolvedCity = (city || district || "").trim();
+        const resolvedDistrict = (district || city || "").trim();
+
+        // Validate coordinate bounds if supplied
+        let validLat: number | null = null;
+        let validLng: number | null = null;
+        if (latitude !== undefined && longitude !== undefined && isValidCoordinate(latitude, longitude)) {
+            validLat = Number(latitude);
+            validLng = Number(longitude);
+        }
+
+        const existingCount = await prisma.customerAddress.count({ where: { customerId } });
+        const shouldBeDefault = Boolean(isDefault) || existingCount === 0;
+
+        const newAddress = await prisma.$transaction(async (tx) => {
+            if (shouldBeDefault) {
+                await tx.customerAddress.updateMany({
+                    where: { customerId },
+                    data: { isDefault: false }
+                });
+            }
+
+            return tx.customerAddress.create({
+                data: {
+                    customerId,
+                    fullName: fullName.trim(),
+                    phone: phone.trim(),
+                    type: type || "HOME",
+                    label: label?.trim() || null,
+                    addressLine1: addressLine1.trim(),
+                    addressLine2: addressLine2?.trim() || null,
+                    city: resolvedCity,
+                    district: resolvedDistrict,
+                    state: state.trim(),
+                    postalCode: postalCode.trim(),
+                    country: country?.trim() || "India",
+                    latitude: validLat,
+                    longitude: validLng,
+                    formattedAddress: formattedAddress?.trim() || null,
+                    placeId: placeId?.trim() || null,
+                    isDefault: shouldBeDefault
+                }
+            });
+        });
+
+        return res.status(201).json({
+            message: "Address added successfully",
+            address: {
+                ...newAddress,
+                latitude: newAddress.latitude ? Number(newAddress.latitude) : null,
+                longitude: newAddress.longitude ? Number(newAddress.longitude) : null,
+            }
+        });
+    } catch (error: any) {
+        console.error("CREATE CUSTOMER ADDRESS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+/**
+ * PUT /customer/addresses/:id
+ * Update an existing delivery address (retains the existing ID)
+ */
+export const updateAddress = async (req: Request, res: Response) => {
+    try {
+        const customerId = req.customerId;
+        const id = req.params.id as string;
+
+        if (!customerId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const existingAddress = await prisma.customerAddress.findUnique({
+            where: { id }
+        });
+
+        if (!existingAddress) {
+            return res.status(404).json({ message: "Address not found" });
+        }
+
+        // Strict customer ownership enforcement
+        if (existingAddress.customerId !== customerId) {
+            return res.status(403).json({ message: "Unauthorized to modify this address" });
+        }
+
+        const {
+            fullName,
+            phone,
+            type,
+            label,
+            addressLine1,
+            addressLine2,
+            city,
+            district,
+            state,
+            postalCode,
+            country,
+            latitude,
+            longitude,
+            formattedAddress,
+            placeId,
+            isDefault
+        } = req.body;
+
+        // Coordinate processing: do not silently erase existing coordinates if incoming is undefined/null
+        let updatedLat = existingAddress.latitude;
+        let updatedLng = existingAddress.longitude;
+
+        if (latitude !== undefined && longitude !== undefined) {
+            if (isValidCoordinate(latitude, longitude)) {
+                updatedLat = latitude as any;
+                updatedLng = longitude as any;
+            }
+        }
+
+        const updatedAddress = await prisma.$transaction(async (tx) => {
+            if (isDefault) {
+                await tx.customerAddress.updateMany({
+                    where: { customerId, NOT: { id } },
+                    data: { isDefault: false }
+                });
+            }
+
+            return tx.customerAddress.update({
+                where: { id },
+                data: {
+                    fullName: fullName?.trim() ?? existingAddress.fullName,
+                    phone: phone?.trim() ?? existingAddress.phone,
+                    type: type ?? existingAddress.type,
+                    label: label !== undefined ? (label?.trim() || null) : existingAddress.label,
+                    addressLine1: addressLine1?.trim() ?? existingAddress.addressLine1,
+                    addressLine2: addressLine2 !== undefined ? (addressLine2?.trim() || null) : existingAddress.addressLine2,
+                    city: city?.trim() ?? existingAddress.city,
+                    district: district?.trim() ?? (city?.trim() ?? existingAddress.district),
+                    state: state?.trim() ?? existingAddress.state,
+                    postalCode: postalCode?.trim() ?? existingAddress.postalCode,
+                    country: country?.trim() ?? existingAddress.country,
+                    latitude: updatedLat,
+                    longitude: updatedLng,
+                    formattedAddress: formattedAddress !== undefined ? (formattedAddress?.trim() || null) : existingAddress.formattedAddress,
+                    placeId: placeId !== undefined ? (placeId?.trim() || null) : existingAddress.placeId,
+                    isDefault: isDefault !== undefined ? Boolean(isDefault) : existingAddress.isDefault
+                }
+            });
+        });
+
+        return res.status(200).json({
+            message: "Address updated successfully",
+            address: {
+                ...updatedAddress,
+                latitude: updatedAddress.latitude ? Number(updatedAddress.latitude) : null,
+                longitude: updatedAddress.longitude ? Number(updatedAddress.longitude) : null,
+            }
+        });
+    } catch (error: any) {
+        console.error("UPDATE CUSTOMER ADDRESS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+/**
+ * DELETE /customer/addresses/:id
+ * Delete a customer address
+ */
+export const deleteAddress = async (req: Request, res: Response) => {
+    try {
+        const customerId = req.customerId;
+        const id = req.params.id as string;
+
+        if (!customerId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const address = await prisma.customerAddress.findUnique({
+            where: { id }
+        });
+
+        if (!address) {
+            return res.status(404).json({ message: "Address not found" });
+        }
+
+        if (address.customerId !== customerId) {
+            return res.status(403).json({ message: "Unauthorized to delete this address" });
+        }
+
+        // Check if address is attached to historical orders
+        const ordersCount = await prisma.order.count({
+            where: {
+                OR: [
+                    { shippingAddressId: id },
+                    { billingAddressId: id }
+                ]
+            }
+        });
+
+        if (ordersCount > 0) {
+            return res.status(400).json({
+                message: "Cannot delete this address because it is associated with completed orders. You can add a new address or edit existing details."
+            });
+        }
+
+        await prisma.$transaction(async (tx) => {
+            await tx.customerAddress.delete({ where: { id } });
+
+            // If deleted address was default, promote another address to default
+            if (address.isDefault) {
+                const nextAddress = await tx.customerAddress.findFirst({
+                    where: { customerId },
+                    orderBy: { createdAt: "desc" }
+                });
+                if (nextAddress) {
+                    await tx.customerAddress.update({
+                        where: { id: nextAddress.id },
+                        data: { isDefault: true }
+                    });
+                }
+            }
+        });
+
+        return res.status(200).json({
+            message: "Address deleted successfully"
+        });
+    } catch (error: any) {
+        console.error("DELETE CUSTOMER ADDRESS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+/**
+ * PATCH /customer/addresses/:id/default
+ * Set an address as the default delivery address
+ */
+export const setDefaultAddress = async (req: Request, res: Response) => {
+    try {
+        const customerId = req.customerId;
+        const id = req.params.id as string;
+
+        if (!customerId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const address = await prisma.customerAddress.findUnique({
+            where: { id }
+        });
+
+        if (!address) {
+            return res.status(404).json({ message: "Address not found" });
+        }
+
+        if (address.customerId !== customerId) {
+            return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        await prisma.$transaction([
+            prisma.customerAddress.updateMany({
+                where: { customerId, NOT: { id } },
+                data: { isDefault: false }
+            }),
+            prisma.customerAddress.update({
+                where: { id },
+                data: { isDefault: true }
+            })
+        ]);
+
+        return res.status(200).json({
+            message: "Default address updated successfully",
+            addressId: id
+        });
+    } catch (error: any) {
+        console.error("SET DEFAULT ADDRESS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};

@@ -15,6 +15,7 @@ import { useFloating, offset, flip, shift, autoUpdate } from '@floating-ui/react
 import type { ProfileResponse } from '@/features/auth/profile/api/profileApi';
 import { BrandLogo } from './BrandLogo';
 import { useSiteLayout } from '@/lib/hooks/useSiteLayout';
+import { CustomerNotificationDropdown } from '@/features/notifications/ui/CustomerNotificationDropdown';
 
 // ─── Shop Names Marquee ───────────────────────────────────────────────────────
 
@@ -177,13 +178,14 @@ export function Navbar() {
   });
   const cartCount = cartData?.cart?.items?.reduce((total, item) => total + item.quantity, 0) || 0;
 
-  const { data: notifData } = useQuery<{ notifications?: Array<{ isRead: boolean }> }>({
+  const { data: notifData } = useQuery<{ unreadCount?: number; notifications?: Array<{ isRead: boolean }> }>({
     queryKey: ['notifications'],
     queryFn: async () => (await axiosInstance.get('/api/notifications')).data,
     enabled: !!session,
-    staleTime: 2 * 60_000,
+    refetchInterval: 15_000,
+    staleTime: 5_000,
   });
-  const unreadCount = notifData?.notifications?.filter((notification) => !notification.isRead).length || 0;
+  const unreadCount = notifData?.unreadCount ?? (notifData?.notifications?.filter((notification) => !notification.isRead).length || 0);
 
   const { navbar: dynamicNavbar } = useSiteLayout();
 
@@ -239,19 +241,11 @@ export function Navbar() {
                 <Search className="h-5 w-5 2xl:h-[19px] 2xl:w-[19px]" />
               </button>
 
-              {/* Desktop Bell */}
+              {/* Customer Notifications Dropdown */}
               {session && (
-                <Link
-                  href="/notifications"
-                  className="hidden 2xl:flex relative h-9 w-9 items-center justify-center rounded-lg text-white/55 hover:text-white hover:bg-white/[0.07] transition-all"
-                >
-                  <Bell className="h-4.5 w-4.5" />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-[8px] font-black text-black">
-                      {unreadCount}
-                    </span>
-                  )}
-                </Link>
+                <div className="flex items-center">
+                  <CustomerNotificationDropdown />
+                </div>
               )}
 
               {/* Cart Button */}
@@ -396,7 +390,7 @@ export function Navbar() {
                   { href: '/profile', icon: User, label: 'My Profile' },
                   { href: '/orders', icon: LayoutDashboard, label: 'My Orders' },
                   { href: '/wishlist', icon: ShoppingCart, label: 'My Wishlist' },
-                  { href: '/notifications', icon: Bell, label: `Notifications${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
+                  { href: '/notifications', icon: Bell, label: `Notifications${unreadCount > 0 ? ` (${unreadCount > 99 ? '99+' : unreadCount})` : ''}` },
                 ].map(({ href, icon: Icon, label }) => (
                   <Link key={href} href={href} onClick={() => setMobileNavOpen(false)}
                     className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/[0.06] transition-all">

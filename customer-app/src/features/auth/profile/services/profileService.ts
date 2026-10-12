@@ -13,12 +13,17 @@ export const getAddAddressSchema = (districtRequired: boolean) => z.object({
   addressLine1: z.string().min(1, 'Address Line 1 is required'),
   addressLine2: z.string().optional(),
   city: districtRequired ? z.string().min(1, 'District is required') : z.string().optional(),
+  district: z.string().optional(),
   state: z.string().min(1, 'State is required'),
   postalCode: z.string().min(1, 'Postal code is required'),
   country: z.string().min(1, 'Country is required'),
   type: z.enum(['HOME', 'WORK', 'BILLING', 'SHIPPING', 'OTHER']),
   label: z.string().optional(),
   isDefault: z.boolean(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  formattedAddress: z.string().optional(),
+  placeId: z.string().optional(),
 });
 
 export type EditProfileInput = z.infer<typeof editProfileSchema>;

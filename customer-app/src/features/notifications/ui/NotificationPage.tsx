@@ -5,10 +5,12 @@ import { useNotifications } from '../hooks/useNotifications';
 import { Card, CardContent } from '@/shared/components/Card';
 import { Button } from '@/shared/components/Button';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { Bell, Check, Trash2, MailOpen, AlertCircle } from 'lucide-react';
+import { Bell, Check, Trash2, MailOpen, AlertCircle, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export function NotificationPage() {
+  const router = useRouter();
   const {
     notifications,
     isLoading,
@@ -66,8 +68,12 @@ export function NotificationPage() {
               key={notif.id}
               onClick={() => {
                 if (!notif.isRead) markRead(notif.id);
+                const destination = notif.route || notif.data?.route || notif.data?.link || (notif.type.startsWith('ORDER') ? '/orders' : null);
+                if (destination && destination !== '/notifications') {
+                  router.push(destination);
+                }
               }}
-              className={`cursor-pointer transition-colors relative border ${
+              className={`cursor-pointer transition-colors relative border hover:border-primary/40 ${
                 notif.isRead ? 'bg-card border-border' : 'bg-primary/[0.02] border-primary/30'
               }`}
             >

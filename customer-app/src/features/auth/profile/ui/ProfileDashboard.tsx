@@ -11,22 +11,30 @@ import { Input } from '@/shared/components/Input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/shared/components/Card';
 import { Badge } from '@/shared/components/Badge';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { User, MapPin, ShieldAlert, LogOut, Loader2, Plus, Home, Upload } from 'lucide-react';
+import { User, MapPin, ShieldAlert, LogOut, Loader2, Plus, Home, Upload, Pencil, Trash2, CheckCircle2, Star } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
-import { profileApi } from '../api/profileApi';
+import { profileApi, type Address } from '../api/profileApi';
 import { useLocationStore } from '@/lib/store/locationStore';
 import { useConfirmStore } from '@/lib/store/confirmStore';
+import { GoogleMapsLocationPicker, type LocationPickerValue } from '@/features/location/ui/GoogleMapsLocationPicker';
 
 export function ProfileDashboard() {
   const {
     profile,
+    addresses,
     isLoading,
     isError,
     editProfile,
     isEditing,
-    addAddress,
-    isAddingAddress,
+    createAddress,
+    isCreatingAddress,
+    updateAddress,
+    isUpdatingAddress,
+    deleteAddress,
+    isDeletingAddress,
+    setDefaultAddress,
+    isSettingDefaultAddress,
     deactivateAccount,
     isDeactivating,
     deleteAccount,
@@ -35,6 +43,9 @@ export function ProfileDashboard() {
 
   const [activeTab, setActiveTab] = useState<'info' | 'addresses' | 'danger'>('info');
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const [locationValue, setLocationValue] = useState<LocationPickerValue>({ country: 'India' });
+  const [addressSaveError, setAddressSaveError] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -166,27 +177,128 @@ export function ProfileDashboard() {
     }
   };
 
-  const onAddAddress = (data: AddAddressInput) => {
-    addAddress(data, {
-      onSuccess: (response: any) => {
+  const handleOpenAddAddress = () => {
+    setEditingAddress(null);
+    setAddressSaveError(null);
+    resetAddressForm({
+      fullName: `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim(),
+      phone: profile?.phone || '',
+      addressLine1: '',
+      addressLine2: '',
+      state: '',
+      city: '',
+      postalCode: '',
+      country: 'India',
+      type: 'HOME',
+      label: '',
+      isDefault: false,
+    });
+    setLocationValue({ country: 'India' });
+    setShowAddressForm(true);
+  };
+
+  const handleOpenEditAddress = (addr: Address) => {
+    setEditingAddress(addr);
+    setAddressSaveError(null);
+    resetAddressForm({
+      fullName: addr.fullName,
+      phone: addr.phone,
+      addressLine1: addr.addressLine1,
+      addressLine2: addr.addressLine2 || '',
+      state: addr.state,
+      city: addr.district || addr.city,
+      postalCode: addr.postalCode,
+      country: addr.country || 'India',
+      type: (addr.type as any) || 'HOME',
+      label: addr.label || '',
+      isDefault: addr.isDefault,
+    });
+    setLocationValue({
+      latitude: addr.latitude !== undefined && addr.latitude !== null ? Number(addr.latitude) : null,
+      longitude: addr.longitude !== undefined && addr.longitude !== null ? Number(addr.longitude) : null,
+      formattedAddress: addr.formattedAddress || '',
+      addressLine1: addr.addressLine1 || '',
+      addressLine2: addr.addressLine2 || '',
+      city: addr.city || '',
+      district: addr.district || addr.city || '',
+      state: addr.state || '',
+      postalCode: addr.postalCode || '',
+      country: addr.country || 'India',
+      placeId: addr.placeId || '',
+    });
+    setShowAddressForm(true);
+  };
+
+  const handleLocationPickerChange = (loc: LocationPickerValue) => {
+    setLocationValue(loc);
+    if (loc.addressLine1) setValueAddress('addressLine1', loc.addressLine1, { shouldValidate: true });
+    if (loc.addressLine2) setValueAddress('addressLine2', loc.addressLine2);
+    if (loc.state) setValueAddress('state', loc.state, { shouldValidate: true });
+    if (loc.district || loc.city) setValueAddress('city', loc.district || loc.city || '', { shouldValidate: true });
+    if (loc.postalCode) setValueAddress('postalCode', loc.postalCode, { shouldValidate: true });
+  };
+
+  const onSubmitAddress = async (data: AddAddressInput) => {
+    setAddressSaveError(null);
+    try {
+      const payload = {
+        ...data,
+        city: data.city || '',
+        district: data.city || locationValue.district,
+        latitude: locationValue.latitude,
+        longitude: locationValue.longitude,
+        formattedAddress: locationValue.formattedAddress,
+        placeId: locationValue.placeId,
+      };
+
+      if (editingAddress) {
+        await updateAddress({ id: editingAddress.id, payload });
         setShowAddressForm(false);
-        resetAddressForm();
-        if (response?.user?.addresses) {
-          const newAddress = response.user.addresses.find(
-            (a: any) =>
-              a.addressLine1 === data.addressLine1 &&
-              a.city === data.city &&
-              a.state === data.state
-          ) || response.user.addresses[response.user.addresses.length - 1];
-          if (newAddress) {
-            setLocation(newAddress.id, newAddress.state, newAddress.city || '');
-          }
-        } else {
-          setLocation(null, data.state, data.city || '');
+        setEditingAddress(null);
+        showAlert({ title: 'Success', message: 'Delivery address updated successfully!' });
+      } else {
+        const res = await createAddress(payload);
+        setShowAddressForm(false);
+        if (res?.address) {
+          setLocation(res.address.id, res.address.state, res.address.city || res.address.district || '');
         }
         showAlert({ title: 'Success', message: 'Address added successfully and set as your active location!' });
+      }
+    } catch (err: any) {
+      setAddressSaveError(err.response?.data?.message || err.message || 'Failed to save address.');
+    }
+  };
+
+  const handleDeleteAddress = (addr: Address) => {
+    showConfirm({
+      title: 'Delete Delivery Address?',
+      message: `Are you sure you want to delete "${addr.addressLine1}"? This action cannot be undone.`,
+      confirmText: 'Delete Address',
+      onConfirm: async () => {
+        try {
+          await deleteAddress(addr.id);
+          showAlert({ title: 'Success', message: 'Address deleted successfully.' });
+        } catch (err: any) {
+          showAlert({
+            title: 'Cannot Delete Address',
+            message: err.response?.data?.message || err.message || 'Failed to delete address.',
+          });
+        }
       },
     });
+  };
+
+  const handleSetDefaultAddress = async (addr: Address) => {
+    try {
+      await setDefaultAddress(addr.id);
+      setLocation(addr.id, addr.state, addr.city || addr.district || '');
+      showAlert({ title: 'Success', message: 'Default address updated successfully!' });
+    } catch (err: any) {
+      showAlert({
+        title: 'Error',
+        message: err.response?.data?.message || err.message || 'Failed to set default address.',
+      });
+    }
   };
 
   if (isLoading) {
@@ -357,54 +469,79 @@ export function ProfileDashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xl font-bold tracking-tight">Saved Addresses</h3>
-                  <p className="text-sm text-muted-foreground">Manage your shipping destinations.</p>
+                  <p className="text-sm text-muted-foreground">Manage your delivery and pickup destinations.</p>
                 </div>
-                <Button
-                  onClick={() => setShowAddressForm(!showAddressForm)}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Address
-                </Button>
+                {!showAddressForm && (
+                  <Button
+                    onClick={handleOpenAddAddress}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Address
+                  </Button>
+                )}
               </div>
 
-              {/* Add Address Form overlay/panel */}
+              {/* Add / Edit Address Form */}
               {showAddressForm && (
-                <Card className="border-primary/20 bg-zinc-950/20 backdrop-blur-md">
-                  <CardHeader>
-                    <CardTitle>New Address</CardTitle>
-                    <CardDescription>Enter details of the new shipping address.</CardDescription>
+                <Card className="border-primary/20 bg-zinc-950/40 backdrop-blur-md shadow-2xl">
+                  <CardHeader className="border-b border-border/40 pb-4">
+                    <CardTitle className="text-lg">
+                      {editingAddress ? 'Edit Delivery Address' : 'Add New Delivery Address'}
+                    </CardTitle>
+                    <CardDescription>
+                      {editingAddress
+                        ? 'Update your delivery location pin and address details.'
+                        : 'Search on Google Maps or drop a pin to auto-fill address details.'}
+                    </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleSubmitAddress(onAddAddress)} className="space-y-4">
+                  <CardContent className="pt-6 space-y-6">
+                    {addressSaveError && (
+                      <div className="flex items-center gap-2 p-3 rounded-xl border border-red-500/20 bg-red-500/10 text-xs text-red-400">
+                        <ShieldAlert className="h-4 w-4 shrink-0" />
+                        <span>{addressSaveError}</span>
+                      </div>
+                    )}
+
+                    {/* Google Maps Location Picker */}
+                    <GoogleMapsLocationPicker
+                      value={locationValue}
+                      onChange={handleLocationPickerChange}
+                      availableStates={locationsConfig?.allStates ?? []}
+                      availableDistricts={districtsData?.allDistricts ?? []}
+                      title="Delivery Location & Pin"
+                      description="Search for your address or move the marker directly to fine-tune your delivery location."
+                    />
+
+                    <form onSubmit={handleSubmitAddress(onSubmitAddress)} className="space-y-4">
                       <div className="grid md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="text-xs font-semibold text-muted-foreground uppercase">Full Name</label>
-                          <Input error={!!addressErrors.fullName} {...registerAddress('fullName')} />
+                          <label className="text-xs font-semibold text-muted-foreground uppercase">Recipient Full Name *</label>
+                          <Input error={!!addressErrors.fullName} {...registerAddress('fullName')} placeholder="e.g. John Doe" />
                           {addressErrors.fullName && <p className="text-xs text-destructive">{addressErrors.fullName.message}</p>}
                         </div>
                         <div className="space-y-2">
-                          <label className="text-xs font-semibold text-muted-foreground uppercase">Phone</label>
-                          <Input error={!!addressErrors.phone} {...registerAddress('phone')} />
+                          <label className="text-xs font-semibold text-muted-foreground uppercase">Phone Number *</label>
+                          <Input error={!!addressErrors.phone} {...registerAddress('phone')} placeholder="e.g. +91 98765 43210" />
                           {addressErrors.phone && <p className="text-xs text-destructive">{addressErrors.phone.message}</p>}
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs font-semibold text-muted-foreground uppercase">Address Line 1</label>
-                        <Input error={!!addressErrors.addressLine1} {...registerAddress('addressLine1')} />
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">Address Line 1 *</label>
+                        <Input error={!!addressErrors.addressLine1} {...registerAddress('addressLine1')} placeholder="Flat, House no., Building, Apartment, Street" />
                         {addressErrors.addressLine1 && <p className="text-xs text-destructive">{addressErrors.addressLine1.message}</p>}
                       </div>
 
                       <div className="space-y-2">
                         <label className="text-xs font-semibold text-muted-foreground uppercase">Address Line 2 (Optional)</label>
-                        <Input {...registerAddress('addressLine2')} />
+                        <Input {...registerAddress('addressLine2')} placeholder="Floor, Landmark, Near metro station" />
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {/* State selection */}
                         <div className="space-y-2">
-                          <label className="text-xs font-semibold text-muted-foreground uppercase">State</label>
+                          <label className="text-xs font-semibold text-muted-foreground uppercase">State *</label>
                           {isLoadingConfig ? (
                             <Skeleton className="h-10 w-full rounded-xl" />
                           ) : (
@@ -430,7 +567,7 @@ export function ProfileDashboard() {
                         {/* District (City) selection */}
                         <div className="space-y-2">
                           <label className="text-xs font-semibold text-muted-foreground uppercase">
-                            District {districtRequired ? '' : '(Optional)'}
+                            District {districtRequired ? '*' : '(Optional)'}
                           </label>
                           {isLoadingDistricts ? (
                             <Skeleton className="h-10 w-full rounded-xl" />
@@ -439,7 +576,7 @@ export function ProfileDashboard() {
                               className="flex h-10 w-full rounded-xl px-3 py-2 text-sm outline-none bg-zinc-900 border border-white/10 text-white/40 disabled:cursor-not-allowed"
                               disabled
                             >
-                              <option>Select a State first</option>
+                              <option>Select State first</option>
                             </select>
                           ) : (districtsData?.allDistricts ?? []).length === 0 ? (
                             <select
@@ -448,7 +585,7 @@ export function ProfileDashboard() {
                                 addressErrors.city ? 'border-red-500/50 focus:border-red-500/60' : ''
                               }`}
                             >
-                              <option value="">{districtRequired ? 'No operational districts available' : 'None available (Optional)'}</option>
+                              <option value="">{districtRequired ? 'No operational districts' : 'None available (Optional)'}</option>
                             </select>
                           ) : (
                             <select
@@ -474,7 +611,7 @@ export function ProfileDashboard() {
 
                         {/* Postal Code */}
                         <div className="space-y-2">
-                          <label className="text-xs font-semibold text-muted-foreground uppercase">Postal Code</label>
+                          <label className="text-xs font-semibold text-muted-foreground uppercase">Postal Code *</label>
                           <Input error={!!addressErrors.postalCode} {...registerAddress('postalCode')} placeholder="e.g. 560001" />
                           {addressErrors.postalCode && (
                             <p className="text-[10px] text-red-400 mt-0.5">{addressErrors.postalCode.message}</p>
@@ -491,37 +628,49 @@ export function ProfileDashboard() {
 
                       <div className="grid md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="text-xs font-semibold text-muted-foreground uppercase">Type</label>
+                          <label className="text-xs font-semibold text-muted-foreground uppercase">Address Type</label>
                           <select
                             {...registerAddress('type')}
-                            className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="flex h-10 w-full rounded-xl border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white focus-visible:outline-none focus:border-purple-500/50"
                           >
-                            <option value="HOME">Home</option>
-                            <option value="WORK">Work</option>
-                            <option value="BILLING">Billing</option>
-                            <option value="SHIPPING">Shipping</option>
-                            <option value="OTHER">Other</option>
+                            <option value="HOME" className="bg-zinc-950 text-white">Home</option>
+                            <option value="WORK" className="bg-zinc-950 text-white">Work / Office</option>
+                            <option value="BILLING" className="bg-zinc-950 text-white">Billing</option>
+                            <option value="SHIPPING" className="bg-zinc-950 text-white">Shipping</option>
+                            <option value="OTHER" className="bg-zinc-950 text-white">Other</option>
                           </select>
                         </div>
                         <div className="space-y-2">
                           <label className="text-xs font-semibold text-muted-foreground uppercase">Label (Optional)</label>
-                          <Input placeholder="e.g. My Apartment" {...registerAddress('label')} />
+                          <Input placeholder="e.g. Parents' House, Studio" {...registerAddress('label')} />
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2 py-2">
-                        <input type="checkbox" id="isDefault" {...registerAddress('isDefault')} className="h-4 w-4 accent-primary" />
-                        <label htmlFor="isDefault" className="text-sm font-medium text-foreground">
-                          Set as default address
+                        <input type="checkbox" id="isDefault" {...registerAddress('isDefault')} className="h-4 w-4 accent-purple-600 rounded" />
+                        <label htmlFor="isDefault" className="text-sm font-medium text-foreground cursor-pointer select-none">
+                          Set as default delivery address
                         </label>
                       </div>
 
-                      <div className="flex justify-end gap-3 pt-2">
-                        <Button type="button" variant="ghost" onClick={() => setShowAddressForm(false)}>
+                      <div className="flex justify-end gap-3 pt-3 border-t border-border/40">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => {
+                            setShowAddressForm(false);
+                            setEditingAddress(null);
+                          }}
+                          className="cursor-pointer"
+                        >
                           Cancel
                         </Button>
-                        <Button type="submit" isLoading={isAddingAddress}>
-                          Save Address
+                        <Button
+                          type="submit"
+                          isLoading={isCreatingAddress || isUpdatingAddress}
+                          className="cursor-pointer"
+                        >
+                          {editingAddress ? 'Update Address' : 'Save Address'}
                         </Button>
                       </div>
                     </form>
@@ -531,30 +680,118 @@ export function ProfileDashboard() {
 
               {/* Address List */}
               <div className="grid gap-4">
-                {profile.addresses && profile.addresses.length > 0 ? (
-                  profile.addresses.map((addr) => (
-                    <Card key={addr.id} className={addr.isDefault ? 'border-primary' : 'border-border'}>
-                      <CardContent className="p-6 flex items-start justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-base">{addr.fullName}</span>
-                            <Badge variant="secondary">{addr.type}</Badge>
-                            {addr.isDefault && <Badge variant="default">Default</Badge>}
+                {addresses && addresses.length > 0 ? (
+                  addresses.map((addr) => (
+                    <Card
+                      key={addr.id}
+                      className={`transition-all duration-200 ${
+                        addr.isDefault
+                          ? 'border-purple-500/50 bg-purple-500/[0.03] shadow-md shadow-purple-500/5'
+                          : 'border-border/60 hover:border-border'
+                      }`}
+                    >
+                      <CardContent className="p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="space-y-1.5 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold text-base text-foreground">{addr.fullName}</span>
+                            <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                              {addr.type}
+                            </Badge>
+                            {addr.label && (
+                              <Badge variant="outline" className="text-[10px] px-2 py-0.5 text-muted-foreground">
+                                {addr.label}
+                              </Badge>
+                            )}
+                            {addr.isDefault && (
+                              <Badge variant="default" className="text-[10px] px-2 py-0.5 bg-purple-600 hover:bg-purple-600 text-white flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                <span>Default</span>
+                              </Badge>
+                            )}
                           </div>
-                          <p className="text-sm text-muted-foreground">{addr.addressLine1}</p>
-                          {addr.addressLine2 && <p className="text-sm text-muted-foreground">{addr.addressLine2}</p>}
-                          <p className="text-sm text-muted-foreground">
-                            {addr.city}, {addr.state} {addr.postalCode}, {addr.country}
+
+                          <p className="text-sm text-foreground/90 font-medium">
+                            {addr.addressLine1}
+                            {addr.addressLine2 && `, ${addr.addressLine2}`}
                           </p>
-                          <p className="text-xs text-muted-foreground font-medium pt-1">Phone: {addr.phone}</p>
+
+                          <p className="text-xs text-muted-foreground">
+                            {[addr.city || addr.district, addr.state, addr.postalCode, addr.country]
+                              .filter(Boolean)
+                              .join(', ')}
+                          </p>
+
+                          {addr.phone && (
+                            <p className="text-xs text-muted-foreground font-mono">
+                              Phone: <span className="text-foreground/80">{addr.phone}</span>
+                            </p>
+                          )}
+
+                          {addr.latitude && addr.longitude && (
+                            <div className="pt-1 flex items-center gap-1 text-[11px] text-purple-400/80">
+                              <MapPin className="h-3 w-3" />
+                              <span>Pin verified ({Number(addr.latitude).toFixed(4)}, {Number(addr.longitude).toFixed(4)})</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Card Actions */}
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center border-t sm:border-t-0 pt-3 sm:pt-0 w-full sm:w-auto justify-end">
+                          {!addr.isDefault && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSetDefaultAddress(addr)}
+                              disabled={isSettingDefaultAddress}
+                              className="text-xs h-8 text-muted-foreground hover:text-purple-400 hover:bg-purple-500/10 cursor-pointer"
+                              title="Set as Default Address"
+                            >
+                              <Star className="h-3.5 w-3.5 mr-1 text-purple-400" />
+                              <span>Set Default</span>
+                            </Button>
+                          )}
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenEditAddress(addr)}
+                            className="text-xs h-8 border-border hover:bg-zinc-800 cursor-pointer"
+                            title="Edit Address"
+                          >
+                            <Pencil className="h-3.5 w-3.5 mr-1 text-zinc-300" />
+                            <span>Edit</span>
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteAddress(addr)}
+                            disabled={isDeletingAddress}
+                            className="text-xs h-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 cursor-pointer"
+                            title="Delete Address"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            <span>Delete</span>
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
                   ))
                 ) : (
-                  <div className="text-center py-12 border border-dashed border-border rounded-xl">
-                    <MapPin className="mx-auto h-8 w-8 text-muted-foreground opacity-50 mb-3" />
-                    <p className="text-sm text-muted-foreground">No addresses saved yet.</p>
+                  <div className="text-center py-16 border border-dashed border-border/60 rounded-2xl bg-zinc-950/20">
+                    <MapPin className="mx-auto h-10 w-10 text-muted-foreground/40 mb-3" />
+                    <h4 className="text-sm font-semibold text-foreground">No saved addresses found</h4>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                      Add your shipping address to enable rapid checkout and accurate delivery calculations.
+                    </p>
+                    <Button
+                      onClick={handleOpenAddAddress}
+                      size="sm"
+                      className="mt-4 text-xs cursor-pointer"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Add Your First Address
+                    </Button>
                   </div>
                 )}
               </div>

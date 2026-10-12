@@ -10,6 +10,8 @@ export function useNotifications() {
     queryKey: ['notifications'],
     queryFn: () => notificationApi.getNotifications(),
     enabled: !!session,
+    refetchInterval: 15_000, // Poll every 15s for offline/online synchronization
+    staleTime: 5_000,
   });
 
   const markAllReadMutation = useMutation({
@@ -33,10 +35,16 @@ export function useNotifications() {
     },
   });
 
+  const notifications = notificationsQuery.data?.notifications || [];
+  const unreadCount = notificationsQuery.data?.unreadCount ?? notifications.filter((n) => !n.isRead).length;
+
   return {
-    notifications: notificationsQuery.data?.notifications || [],
+    notifications,
+    unreadCount,
+    totalCount: notificationsQuery.data?.count || notifications.length,
     isLoading: notificationsQuery.isLoading,
     isError: notificationsQuery.isError,
+    refetch: notificationsQuery.refetch,
 
     markAllRead: markAllReadMutation.mutate,
     isMarkingAllRead: markAllReadMutation.isPending,

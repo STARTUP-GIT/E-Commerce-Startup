@@ -5,12 +5,14 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLocationStore } from '@/lib/store/locationStore';
 import { Button } from '@/shared/components/Button';
-import { MapPin, X, ChevronRight, Check, Plus } from 'lucide-react';
+import { MapPin, X, ChevronRight, Check, Plus, Globe, Navigation, Loader2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { profileApi } from '@/features/auth/profile/api/profileApi';
 import { SearchableDropdown } from '@/components/ui/SearchableDropdown';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { GoogleMapsLocationPicker, type LocationPickerValue } from '@/features/location/ui/GoogleMapsLocationPicker';
+import axiosInstance from '@/lib/axios/axiosInstance';
 
 export function AddressSelectorDialog() {
   const queryClient = useQueryClient();
@@ -24,8 +26,11 @@ export function AddressSelectorDialog() {
     setComingSoon,
   } = useLocationStore();
 
+  const [activeTab, setActiveTab] = useState<'saved' | 'map'>('saved');
   const [customState, setCustomState] = useState('');
   const [customDistrict, setCustomDistrict] = useState('');
+  const [mapLocation, setMapLocation] = useState<LocationPickerValue>({ country: 'India' });
+  const [isCheckingServiceability, setIsCheckingServiceability] = useState(false);
 
   // Fetch customer profile for saved addresses
   const { data: session } = useSession();
@@ -135,6 +140,50 @@ export function AddressSelectorDialog() {
     handleClose();
   };
 
+  const handleConfirmMapLocation = async () => {
+    if (!mapLocation.state && !mapLocation.latitude) {
+      alert('Please select or search a location on the map first.');
+      return;
+    }
+    setIsCheckingServiceability(true);
+    try {
+      const res = await axiosInstance.post('/customer/api/location/check-serviceability', {
+        state: mapLocation.state,
+        district: mapLocation.district || mapLocation.city,
+        latitude: mapLocation.latitude,
+        longitude: mapLocation.longitude,
+      });
+
+      if (res.data.isServiceable) {
+        setLocation(null, res.data.state || mapLocation.state || '', res.data.district || mapLocation.district || mapLocation.city || '');
+        queryClient.invalidateQueries({ queryKey: ['shops'] });
+        queryClient.invalidateQueries({ queryKey: ['products'] });
+        queryClient.invalidateQueries({ queryKey: ['nearby-shops'] });
+        queryClient.invalidateQueries({ queryKey: ['recommendations'] });
+        queryClient.invalidateQueries({ queryKey: ['delivery-availability'] });
+        handleClose();
+      } else {
+        setComingSoon(true, mapLocation.state, mapLocation.district || mapLocation.city, () => {
+          setAddressSelectorOpen(true);
+        });
+        setAddressSelectorOpen(false);
+      }
+    } catch (err: any) {
+      const stateObj = allStates.find((s) => s.name.toLowerCase() === (mapLocation.state || '').toLowerCase());
+      if (stateObj && stateObj.isEnabled) {
+        setLocation(null, mapLocation.state || '', mapLocation.district || mapLocation.city || '');
+        handleClose();
+      } else {
+        setComingSoon(true, mapLocation.state, mapLocation.district || mapLocation.city, () => {
+          setAddressSelectorOpen(true);
+        });
+        setAddressSelectorOpen(false);
+      }
+    } finally {
+      setIsCheckingServiceability(false);
+    }
+  };
+
   const savedAddresses = profile?.user?.addresses || [];
 
   // Sort so the selected address is always at the top (first card)
@@ -164,7 +213,7 @@ export function AddressSelectorDialog() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
                   transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-                  className="relative overflow-hidden w-full max-w-[500px] rounded-3xl border border-white/10 bg-zinc-950/75 p-6 text-foreground shadow-2xl backdrop-blur-xl focus:outline-none flex flex-col max-h-[85vh]"
+                  className="relative overflow-hidden w-full max-w-[520px] rounded-3xl border border-white/10 bg-zinc-950/80 p-6 text-foreground shadow-2xl backdrop-blur-xl focus:outline-none flex flex-col max-h-[85vh]"
                 >
                   {/* Subtle Glow */}
                   <div className="absolute -top-[30%] -right-[30%] h-48 w-48 rounded-full bg-white/5 blur-[50px] pointer-events-none" />
@@ -184,102 +233,158 @@ export function AddressSelectorDialog() {
                     <MapPin className="h-5 w-5 text-white/60" />
                     Select Delivery Location
                   </Dialog.Title>
-                  <p className="text-xs text-white/40 mb-4">
-                    Choose from saved addresses or select custom operational cities.
+                  <p className="text-xs text-white/40 mb-3">
+                    Choose from saved addresses, regional destinations, or Google Maps pin.
                   </p>
 
+                  {/* Mode switcher tabs */}
+                  <div className="flex rounded-xl bg-white/5 p-1 mb-4 border border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('saved')}
+                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                        activeTab === 'saved'
+                          ? 'bg-purple-600 text-white shadow'
+                          : 'text-white/60 hover:text-white'
+                      }`}
+                    >
+                      Saved & Regional
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('map')}
+                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                        activeTab === 'map'
+                          ? 'bg-purple-600 text-white shadow'
+                          : 'text-white/60 hover:text-white'
+                      }`}
+                    >
+                      Map & GPS Pin
+                    </button>
+                  </div>
+
                   <div className="flex-1 overflow-y-auto space-y-5 pr-1 py-1">
-                    {/* Saved Addresses Section */}
-                    {orderedAddresses.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
-                          Saved Addresses
-                        </h4>
-                        <div className="grid gap-3">
-                          {orderedAddresses.map((addr) => {
-                            const isSelected = selectedAddressId === addr.id;
-                            return (
-                              <button
-                                key={addr.id}
-                                onClick={() => handleSelectAddress(addr)}
-                                className={`relative w-full text-left p-4 rounded-2xl border transition-all cursor-pointer flex flex-col backdrop-blur-md ${
-                                  isSelected
-                                    ? 'bg-purple-500/12 border-purple-400/40 shadow-[0_0_24px_rgba(168,85,247,0.15)] text-white'
-                                    : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/15 text-white/70'
-                                }`}
-                              >
-                                {/* Name and Type */}
-                                <div className="flex items-center gap-2 mb-1.5 pr-20">
-                                  <span className="text-xs font-black capitalize text-white">
-                                    {addr.fullName}
-                                  </span>
-                                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/50 uppercase tracking-wider font-semibold">
-                                    {addr.type}
-                                  </span>
-                                </div>
-
-                                {/* Checkmark & Default badge */}
-                                <div className="absolute top-4 right-4 flex items-center gap-1.5">
-                                  {isSelected && (
-                                    <div className="h-5 w-5 rounded-full bg-purple-500 flex items-center justify-center shadow-md">
-                                      <Check className="h-3 w-3 text-white stroke-[3px]" />
-                                    </div>
-                                  )}
-                                  {addr.isDefault && (
-                                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300">
-                                      Default Address
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Address Details */}
-                                <div className="text-[11px] leading-relaxed text-white/50 font-medium space-y-0.5">
-                                  <p>{addr.addressLine1}</p>
-                                  {addr.addressLine2 && <p>{addr.addressLine2}</p>}
-                                  <p>{addr.city}, {addr.state} - <span className="font-bold text-white/80">{addr.postalCode}</span></p>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Custom Location Section */}
-                    <div className="space-y-3 pt-2 border-t border-white/5">
-                      <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
-                        Or Choose Custom Location
-                      </h4>
-
-                      <div className="space-y-3">
-                        {/* State Dropdown */}
-                        <SearchableDropdown
-                          options={allStates}
-                          value={customState}
-                          onChange={handleStateChange}
-                          placeholder="Select State"
-                          label="State"
+                    {activeTab === 'map' ? (
+                      <div className="space-y-4">
+                        <GoogleMapsLocationPicker
+                          value={mapLocation}
+                          onChange={setMapLocation}
+                          availableStates={allStates}
+                          availableDistricts={districtsData?.allDistricts || []}
+                          title="Locate via Google Maps"
+                          description="Search your locality or drop a marker to test coverage."
                         />
-
-                        {/* District Dropdown */}
-                        {customState && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="space-y-1.5"
-                          >
-                            <SearchableDropdown
-                              options={districtsData?.allDistricts || []}
-                              value={customDistrict}
-                              onChange={handleDistrictChange}
-                              placeholder="Select District"
-                              label="District / City"
-                              isLoading={!districtsData}
-                            />
-                          </motion.div>
-                        )}
+                        <Button
+                          type="button"
+                          onClick={handleConfirmMapLocation}
+                          disabled={isCheckingServiceability || (!mapLocation.latitude && !mapLocation.state)}
+                          className="w-full text-xs font-bold cursor-pointer"
+                        >
+                          {isCheckingServiceability ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin text-white" />
+                              <span>Checking Coverage...</span>
+                            </>
+                          ) : (
+                            <span>Set As Browsing Location</span>
+                          )}
+                        </Button>
                       </div>
-                    </div>
+                    ) : (
+                      <>
+                        {/* Saved Addresses Section */}
+                        {orderedAddresses.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
+                              Saved Addresses
+                            </h4>
+                            <div className="grid gap-3">
+                              {orderedAddresses.map((addr) => {
+                                const isSelected = selectedAddressId === addr.id;
+                                return (
+                                  <button
+                                    key={addr.id}
+                                    onClick={() => handleSelectAddress(addr)}
+                                    className={`relative w-full text-left p-4 rounded-2xl border transition-all cursor-pointer flex flex-col backdrop-blur-md ${
+                                      isSelected
+                                        ? 'bg-purple-500/12 border-purple-400/40 shadow-[0_0_24px_rgba(168,85,247,0.15)] text-white'
+                                        : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/15 text-white/70'
+                                    }`}
+                                  >
+                                    {/* Name and Type */}
+                                    <div className="flex items-center gap-2 mb-1.5 pr-20">
+                                      <span className="text-xs font-black capitalize text-white">
+                                        {addr.fullName}
+                                      </span>
+                                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/50 uppercase tracking-wider font-semibold">
+                                        {addr.type}
+                                      </span>
+                                    </div>
+
+                                    {/* Checkmark & Default badge */}
+                                    <div className="absolute top-4 right-4 flex items-center gap-1.5">
+                                      {isSelected && (
+                                        <div className="h-5 w-5 rounded-full bg-purple-500 flex items-center justify-center shadow-md">
+                                          <Check className="h-3 w-3 text-white stroke-[3px]" />
+                                        </div>
+                                      )}
+                                      {addr.isDefault && (
+                                        <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300">
+                                          Default Address
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Address Details */}
+                                    <div className="text-[11px] leading-relaxed text-white/50 font-medium space-y-0.5">
+                                      <p>{addr.addressLine1}</p>
+                                      {addr.addressLine2 && <p>{addr.addressLine2}</p>}
+                                      <p>{addr.city}, {addr.state} - <span className="font-bold text-white/80">{addr.postalCode}</span></p>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Custom Location Section */}
+                        <div className="space-y-3 pt-2 border-t border-white/5">
+                          <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
+                            Or Choose Custom Location
+                          </h4>
+
+                          <div className="space-y-3">
+                            {/* State Dropdown */}
+                            <SearchableDropdown
+                              options={allStates}
+                              value={customState}
+                              onChange={handleStateChange}
+                              placeholder="Select State"
+                              label="State"
+                            />
+
+                            {/* District Dropdown */}
+                            {customState && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="space-y-1.5"
+                              >
+                                <SearchableDropdown
+                                  options={districtsData?.allDistricts || []}
+                                  value={customDistrict}
+                                  onChange={handleDistrictChange}
+                                  placeholder="Select District"
+                                  label="District / City"
+                                  isLoading={!districtsData}
+                                />
+                              </motion.div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Add New Address */}

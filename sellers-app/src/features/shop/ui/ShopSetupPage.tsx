@@ -16,6 +16,7 @@ import { shopApi } from '../api/shopApi';
 import { useLocationStore } from '@/lib/store/locationStore';
 
 import { SearchableDropdown } from '@/components/ui/SearchableDropdown';
+import { GoogleMapsLocationPicker, type LocationPickerValue } from '@/features/location/ui/GoogleMapsLocationPicker';
 
 export function ShopSetupPage() {
   const { createShop, isCreatingShop } = useShop();
@@ -127,6 +128,29 @@ export function ShopSetupPage() {
     setValue('city', districtName, { shouldValidate: true });
   };
 
+  const [locationValue, setLocationValue] = useState<LocationPickerValue>({
+    country: 'India',
+  });
+
+  const handleLocationPickerChange = (loc: LocationPickerValue) => {
+    setLocationValue(loc);
+    if (loc.addressLine1) {
+      setValue('addressLine1', loc.addressLine1, { shouldValidate: true });
+    }
+    if (loc.addressLine2) {
+      setValue('addressLine2', loc.addressLine2);
+    }
+    if (loc.state) {
+      setValue('state', loc.state, { shouldValidate: true });
+    }
+    if (loc.district || loc.city) {
+      setValue('city', loc.district || loc.city || '', { shouldValidate: true });
+    }
+    if (loc.postalCode) {
+      setValue('postalCode', loc.postalCode, { shouldValidate: true });
+    }
+  };
+
   const onSubmit = async (data: ShopSetupInput) => {
     setErrorMsg(null);
     try {
@@ -148,6 +172,11 @@ export function ShopSetupPage() {
       await createShop({
         ...data,
         city: data.city || '',
+        district: data.city || locationValue.district,
+        latitude: locationValue.latitude,
+        longitude: locationValue.longitude,
+        formattedAddress: locationValue.formattedAddress,
+        placeId: locationValue.placeId,
         contactName: `${user?.firstName} ${user?.lastName ?? ''}`.trim(),
         type: 'STORE',
         label: 'PICKUP',
@@ -244,8 +273,15 @@ export function ShopSetupPage() {
                 )}
               </div>
 
-              <div className="border-t border-white/5 pt-3 mt-1">
-                <h4 className="text-xs font-bold text-white/80 mb-3">Default Pickup Address</h4>
+              <div className="border-t border-white/5 pt-3 mt-1 space-y-4">
+                <GoogleMapsLocationPicker
+                  value={locationValue}
+                  onChange={handleLocationPickerChange}
+                  availableStates={allStates}
+                  availableDistricts={districts}
+                  title="Shop Location & Pickup Address"
+                  description="Search your store address or drop a marker to auto-fill your default pickup location."
+                />
 
                 <div className="space-y-3">
                   <div className="space-y-1">

@@ -9,10 +9,17 @@ export interface Address {
   addressLine1: string;
   addressLine2?: string;
   city: string;
+  district?: string;
   state: string;
   postalCode: string;
   country: string;
   isDefault: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  formattedAddress?: string;
+  placeId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ProfileResponse {
@@ -45,11 +52,37 @@ export interface UpdateProfilePayload {
   addressLine1?: string;
   addressLine2?: string;
   city?: string;
+  district?: string;
   state?: string;
   postalCode?: string;
   country?: string;
   isDefault?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  formattedAddress?: string;
+  placeId?: string;
 }
+
+export interface CreateAddressPayload {
+  fullName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city?: string;
+  district?: string;
+  state: string;
+  postalCode: string;
+  country?: string;
+  type?: string;
+  label?: string;
+  isDefault?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  formattedAddress?: string;
+  placeId?: string;
+}
+
+export interface UpdateAddressPayload extends Partial<CreateAddressPayload> {}
 
 export const profileApi = {
   getProfile: async (): Promise<ProfileResponse> => {
@@ -62,6 +95,30 @@ export const profileApi = {
   },
   updateProfile: async (payload: UpdateProfilePayload): Promise<ProfileResponse> => {
     const response = await axiosInstance.post('/api/auth/profile/update', payload);
+    return response.data;
+  },
+  getAddresses: async (): Promise<{ success: boolean; addresses: Address[] }> => {
+    const response = await axiosInstance.get('/customer/addresses');
+    return response.data;
+  },
+  getAddressById: async (id: string): Promise<{ success: boolean; address: Address }> => {
+    const response = await axiosInstance.get(`/customer/addresses/${id}`);
+    return response.data;
+  },
+  createAddress: async (payload: CreateAddressPayload): Promise<{ success: boolean; address: Address }> => {
+    const response = await axiosInstance.post('/customer/addresses', payload);
+    return response.data;
+  },
+  updateAddress: async (id: string, payload: UpdateAddressPayload): Promise<{ success: boolean; address: Address }> => {
+    const response = await axiosInstance.put(`/customer/addresses/${id}`, payload);
+    return response.data;
+  },
+  deleteAddress: async (id: string): Promise<{ success: boolean; message: string }> => {
+    const response = await axiosInstance.delete(`/customer/addresses/${id}`);
+    return response.data;
+  },
+  setDefaultAddress: async (id: string): Promise<{ success: boolean; address: Address }> => {
+    const response = await axiosInstance.patch(`/customer/addresses/${id}/default`);
     return response.data;
   },
   deactivateAccount: async (): Promise<any> => {

@@ -1,6 +1,4 @@
-"use client";
-
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { shopApi } from '../api/shopApi';
 import { Card } from '@/shared/components/Card';
@@ -10,14 +8,9 @@ import { Dialog } from '@/shared/components/Dialog';
 import { useUIStore } from '@/lib/store/uiStore';
 import {
   FileCheck,
-  AlertCircle,
   CheckCircle2,
-  XCircle,
-  FileText,
   Clock,
-  Shield,
   Send,
-  AlertTriangle,
   Lock
 } from 'lucide-react';
 
@@ -42,7 +35,6 @@ export function SellerAgreementBanner({ shopStatus }: SellerAgreementBannerProps
   });
 
   const agreement = data?.agreement;
-  const approvalRequest = data?.approvalRequest;
 
   const acceptMutation = useMutation({
     mutationFn: () => {
@@ -159,7 +151,7 @@ export function SellerAgreementBanner({ shopStatus }: SellerAgreementBannerProps
           onClose={() => setIsModalOpen(false)}
           title={`Review & Accept Seller Agreement (v${agreement.version})`}
           description={agreement.title}
-          maxWidth="max-w-[700px]"
+          className="max-w-[700px]"
         >
           <div className="space-y-4 text-xs">
             {/* Commercial terms summary */}
@@ -281,7 +273,7 @@ export function SellerAgreementBanner({ shopStatus }: SellerAgreementBannerProps
         onClose={() => setIsDeclineModalOpen(false)}
         title="Decline Seller Agreement"
         description="Provide feedback to platform operations regarding the proposed terms"
-        maxWidth="max-w-[480px]"
+        className="max-w-[480px]"
       >
         <div className="space-y-4 text-xs">
           <div className="space-y-1.5">
