@@ -98,7 +98,7 @@ export function useProfile() {
     refetch: profileQuery.refetch,
     refetchAddresses: addressesQuery.refetch,
     
-    editProfile: editProfileMutation.mutate,
+    editProfile: editProfileMutation.mutateAsync,
     isEditing: editProfileMutation.isPending,
     editError: editProfileMutation.error,
 

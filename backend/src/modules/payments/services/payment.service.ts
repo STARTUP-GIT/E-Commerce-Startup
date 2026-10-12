@@ -195,8 +195,14 @@ export const calculateTotals = async (params: {
     for (const sellerId of sellerSubtotals.keys()) {
         const shop = sellerShopMap.get(sellerId);
         let amount = 0;
-        if (shop && shop.packingFeeApprovalStatus === "APPROVED" && shop.packingFeeEnabled) {
-            amount = Number(shop.packingFeeAmount) || 0;
+        // Enforce admin approval and active toggle
+        if (shop && shop.packingFeeApprovalStatus === "APPROVED" && (shop.packingFeeEnabled || shop.enablePackingFee)) {
+            const rawAmount = Number(shop.packingFeeAmount) || 0;
+            // Never exceed the approved maximum ceiling
+            const maxApproved = shop.packingFeeApprovedMaxAmount !== null && shop.packingFeeApprovedMaxAmount !== undefined
+                ? Number(shop.packingFeeApprovedMaxAmount)
+                : rawAmount;
+            amount = Math.max(0, Math.min(rawAmount, maxApproved));
         }
         validatedPackingFeesBySeller.set(sellerId, amount);
         packingFeeTotal += amount;

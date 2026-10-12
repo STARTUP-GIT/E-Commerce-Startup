@@ -180,6 +180,7 @@ export const approvePackingPermission = async (req: Request, res: Response) => {
     try {
         const shopId = String(req.params.id);
         const adminId = req.adminId!;
+        const { approvedMaxFee, amount } = req.body ?? {};
 
         const shop = await prisma.shop.findUnique({
             where: { id: shopId }
@@ -196,11 +197,35 @@ export const approvePackingPermission = async (req: Request, res: Response) => {
             }
         });
 
+        const requestedAmount = pendingRequest?.requestedMaxFee !== null && pendingRequest?.requestedMaxFee !== undefined
+            ? Number(pendingRequest.requestedMaxFee)
+            : null;
+
+        let finalApprovedMaxFee: number | null = requestedAmount;
+
+        const incomingFee = approvedMaxFee !== undefined && approvedMaxFee !== null && String(approvedMaxFee).trim() !== ''
+            ? approvedMaxFee
+            : amount;
+
+        if (incomingFee !== undefined && incomingFee !== null && String(incomingFee).trim() !== '') {
+            const parsedFee = Number(incomingFee);
+            if (isNaN(parsedFee) || parsedFee <= 0) {
+                return res.status(400).json({ message: "Approved packaging fee must be a valid positive amount." });
+            }
+            if (requestedAmount !== null && parsedFee > requestedAmount) {
+                return res.status(400).json({
+                    message: `Approved maximum fee (₹${parsedFee.toFixed(2)}) cannot exceed the seller's requested maximum of ₹${requestedAmount.toFixed(2)}.`
+                });
+            }
+            finalApprovedMaxFee = parsedFee;
+        }
+
         if (pendingRequest) {
             await prisma.packingFeeRequest.update({
                 where: { id: pendingRequest.id },
                 data: {
                     status: "APPROVED",
+                    approvedMaxFee: finalApprovedMaxFee,
                     reviewedByAdminId: adminId,
                     reviewedAt: new Date()
                 }
@@ -213,11 +238,16 @@ export const approvePackingPermission = async (req: Request, res: Response) => {
                 packingFeeApproved: true,
                 packingFeeApprovalStatus: "APPROVED",
                 packingFeeApprovedAt: new Date(),
+                packingFeeApprovedMaxAmount: finalApprovedMaxFee,
                 packingFeeRejectedReason: null
             }
         });
 
-        // Notify seller
+        // Notify seller with approved max fee detail
+        const feeDetailMsg = finalApprovedMaxFee !== null
+            ? ` with an approved maximum fee of ₹${Number(finalApprovedMaxFee).toFixed(2)}.`
+            : '.';
+
         await prisma.notification.create({
             data: {
                 sellerId: shop.sellerId,
@@ -225,7 +255,7 @@ export const approvePackingPermission = async (req: Request, res: Response) => {
                 channel: "IN_APP",
                 status: "PENDING",
                 title: "Packing Fee Authorization Approved",
-                body: `Your request to charge packing fees for shop '${shop.name}' has been approved. You can now configure this under shop settings.`,
+                body: `Your request to charge packing fees for shop '${shop.name}' has been approved${feeDetailMsg} You can now configure this under shop settings up to the approved limit.`,
                 sentAt: new Date()
             }
         });

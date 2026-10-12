@@ -132,13 +132,20 @@ axiosInstance.interceptors.response.use(
       }
     }
 
-    const message =
-      error.response?.data?.message ||
-      error.response?.data?.error ||
-      error.message ||
-      'An unexpected error occurred';
-    error.message = message;
+    let message = 'An unexpected error occurred';
+    const rawData = error.response?.data;
 
+    if (rawData && typeof rawData === 'object') {
+      message = rawData.message || rawData.error || error.message || message;
+    } else if (typeof rawData === 'string' && (rawData.includes('<!DOCTYPE') || rawData.includes('<html') || rawData.includes('Cannot '))) {
+      message = error.response?.status === 404
+        ? 'The requested endpoint or resource was not found.'
+        : 'The server returned an unexpected error response.';
+    } else if (error.message) {
+      message = error.message;
+    }
+
+    error.message = message;
     return Promise.reject(error);
   }
 );

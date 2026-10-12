@@ -209,8 +209,12 @@ app.use('/users/cities', customerCityRoute);
 app.use('/customer/api/location', customerLocationRoute);
 app.use('/users/api/location', customerLocationRoute);
 app.use('/customer/addresses', customerAddressRoute);
+app.use('/customer/api/addresses', customerAddressRoute);
+app.use('/api/customer/addresses', customerAddressRoute);
+app.use('/api/addresses', customerAddressRoute);
 app.use('/users/addresses', customerAddressRoute);
 app.use('/users/api/addresses', customerAddressRoute);
+app.use('/users/api/customer/addresses', customerAddressRoute);
 app.use('/', corePaymentRoutes);
 
 app.use('/users/api/reports', customerReportRoute);

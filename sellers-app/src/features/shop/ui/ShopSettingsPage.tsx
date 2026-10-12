@@ -51,6 +51,7 @@ export function ShopSettingsPage() {
   const showToast = useUIStore((state) => state.showToast);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [requestReason, setRequestReason] = useState('');
+  const [requestedMaxFee, setRequestedMaxFee] = useState('');
   const [supportingNotes, setSupportingNotes] = useState('');
   const [requestError, setRequestError] = useState<string | null>(null);
 
@@ -72,14 +73,26 @@ export function ShopSettingsPage() {
       return;
     }
 
+    const parsedFee = parseFloat(requestedMaxFee);
+    if (!requestedMaxFee || isNaN(parsedFee) || parsedFee <= 0) {
+      setRequestError('Please enter a valid positive maximum packaging fee amount (e.g. 50.00).');
+      return;
+    }
+    if (parsedFee > 500) {
+      setRequestError('Maximum packaging fee cannot exceed ₹500.00.');
+      return;
+    }
+
     try {
       await requestPackingFeeApproval({
         reason: trimmedReason,
+        requestedMaxFee: parsedFee,
         supportingNotes: supportingNotes.trim() || undefined,
       });
       showToast('Packing fee approval request submitted successfully.', 'success');
       setIsRequestModalOpen(false);
       setRequestReason('');
+      setRequestedMaxFee('');
       setSupportingNotes('');
     } catch (err: any) {
       setRequestError(err.message || 'Failed to submit request.');
@@ -95,8 +108,11 @@ export function ShopSettingsPage() {
     const amountNum = parseFloat(packingFeeAmount);
 
     if (packingFeeEnabled) {
-      if (isNaN(amountNum) || amountNum < 0 || amountNum > 500) {
-        setPackingFeeError('Packing fee amount must be a number between ₹0 and ₹500.');
+      const maxCeiling = shop?.packingFeeApprovedMaxAmount !== null && shop?.packingFeeApprovedMaxAmount !== undefined
+        ? Number(shop.packingFeeApprovedMaxAmount)
+        : 500;
+      if (isNaN(amountNum) || amountNum < 0 || amountNum > maxCeiling) {
+        setPackingFeeError(`Packing fee amount must be a number between ₹0 and ₹${maxCeiling.toFixed(2)}.`);
         setIsSavingPackingFee(false);
         return;
       }
@@ -977,6 +993,32 @@ export function ShopSettingsPage() {
                 className="w-full px-3 py-2 text-xs rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-purple-500/50 transition-all font-medium resize-none placeholder-white/20"
               />
               <div className="text-[10px] text-white/30 text-right font-semibold">{requestReason.trim().length}/500</div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-white/50 uppercase tracking-wider block">
+                Maximum Packaging Fee (₹) *
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/40 font-semibold pointer-events-none">₹</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max="500"
+                  required
+                  value={requestedMaxFee}
+                  onChange={(e) => {
+                    setRequestedMaxFee(e.target.value);
+                    if (requestError) setRequestError(null);
+                  }}
+                  placeholder="e.g. 50.00"
+                  className="w-full pl-7 pr-3 py-2 text-xs rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-purple-500/50 transition-all font-medium placeholder-white/20"
+                />
+              </div>
+              <p className="text-[10px] text-white/40 leading-normal">
+                This is the maximum packaging fee you are requesting to charge customers per eligible order, subject to admin approval (max ₹500.00).
+              </p>
             </div>
 
             <div className="space-y-1.5">

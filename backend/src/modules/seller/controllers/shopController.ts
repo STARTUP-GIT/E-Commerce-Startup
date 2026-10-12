@@ -985,11 +985,34 @@ export const updateShop = async (req: Request, res: Response) => {
 export const requestPackingFeeApproval = async (req: Request, res: Response) => {
     try {
         const sellerId = req.sellerId!;
-        const { reason, supportingNotes } = req.body;
+        const { reason, supportingNotes, requestedMaxFee, maxFee } = req.body;
 
         if (!reason || typeof reason !== "string" || !reason.trim()) {
             return res.status(400).json({
                 message: "Reason is required"
+            });
+        }
+
+        const feeValue = requestedMaxFee !== undefined && requestedMaxFee !== null && String(requestedMaxFee).trim() !== ''
+            ? requestedMaxFee
+            : maxFee;
+
+        if (feeValue === undefined || feeValue === null || String(feeValue).trim() === '') {
+            return res.status(400).json({
+                message: "Maximum packaging fee is required."
+            });
+        }
+
+        const nFee = Number(feeValue);
+        if (isNaN(nFee) || nFee <= 0) {
+            return res.status(400).json({
+                message: "Maximum packaging fee must be a valid positive amount."
+            });
+        }
+
+        if (nFee > 500) {
+            return res.status(400).json({
+                message: "Maximum packaging fee cannot exceed ₹500.00."
             });
         }
 
@@ -1024,6 +1047,7 @@ export const requestPackingFeeApproval = async (req: Request, res: Response) => 
                     shopId: shop.id,
                     status: "PENDING",
                     reason: reason.trim(),
+                    requestedMaxFee: nFee,
                     supportingNotes: supportingNotes ? supportingNotes.trim() : null
                 }
             });
@@ -1082,6 +1106,14 @@ export const togglePackingFee = async (req: Request, res: Response) => {
                 return res.status(400).json({
                     message: "Packing fee amount must be between ₹0 and ₹500."
                 });
+            }
+            if (shop.packingFeeApprovedMaxAmount !== null && shop.packingFeeApprovedMaxAmount !== undefined) {
+                const maxApproved = Number(shop.packingFeeApprovedMaxAmount);
+                if (amount > maxApproved) {
+                    return res.status(400).json({
+                        message: `Packing fee cannot exceed the admin-approved maximum of ₹${maxApproved.toFixed(2)}.`
+                    });
+                }
             }
         }
 

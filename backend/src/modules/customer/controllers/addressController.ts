@@ -212,6 +212,7 @@ export const createAddress = async (req: Request, res: Response) => {
         });
 
         return res.status(201).json({
+            success: true,
             message: "Address added successfully",
             address: {
                 ...newAddress,
@@ -372,6 +373,7 @@ export const updateAddress = async (req: Request, res: Response) => {
         });
 
         return res.status(200).json({
+            success: true,
             message: "Address updated successfully",
             address: {
                 ...updatedAddress,
@@ -445,6 +447,7 @@ export const deleteAddress = async (req: Request, res: Response) => {
         });
 
         return res.status(200).json({
+            success: true,
             message: "Address deleted successfully"
         });
     } catch (error: any) {
@@ -490,6 +493,7 @@ export const setDefaultAddress = async (req: Request, res: Response) => {
         ]);
 
         return res.status(200).json({
+            success: true,
             message: "Default address updated successfully",
             addressId: id
         });

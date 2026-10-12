@@ -92,6 +92,7 @@ model Shop {
   packingFeeRequestedAt    DateTime?
   packingFeeApprovedAt     DateTime?
   packingFeeRejectedReason String?                  @db.Text
+  packingFeeApprovedMaxAmount Decimal?              @db.Decimal(10, 2)
   commissionPercentage   Float      @default(10.0)
   commissionNotes        String?    @db.Text
   customerDeliveryShare  Int        @default(75)

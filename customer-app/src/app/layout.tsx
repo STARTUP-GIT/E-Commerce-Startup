@@ -9,6 +9,7 @@ import { ComingSoonDialog } from "@/components/ui/ComingSoonDialog";
 import { PremiumDialogContainer } from "@/components/ui/PremiumDialogContainer";
 import { AddressSelectorDialog } from "@/components/ui/AddressSelectorDialog";
 import { FloatingSupportWidget } from "@/components/ui/FloatingSupportWidget";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -81,6 +82,23 @@ export default function RootLayout({
               <AddressSelectorDialog />
               <PremiumDialogContainer />
               <FloatingSupportWidget />
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: '#18181b',
+                    color: '#f4f4f5',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    zIndex: 99999,
+                  },
+                }}
+                containerStyle={{
+                  top: 24,
+                  right: 24,
+                  zIndex: 99999,
+                }}
+              />
             </BrandingProvider>
           </ReactQueryProvider>
         </SessionProvider>

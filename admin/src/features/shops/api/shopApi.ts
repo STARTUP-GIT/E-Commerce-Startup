@@ -13,8 +13,8 @@ export const shopApi = {
     const response = await axiosInstance.delete(`/api/admin/shops/shops/${id}`, { data: { reason } });
     return response.data;
   },
-  approvePackingPermission: async (id: string) => {
-    const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/approve-packing`);
+  approvePackingPermission: async (id: string, approvedMaxFee?: number) => {
+    const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/approve-packing`, { approvedMaxFee });
     return response.data;
   },
   rejectPackingPermission: async (id: string, reason?: string) => {

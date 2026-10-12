@@ -18,6 +18,8 @@ import { profileApi, type Address } from '../api/profileApi';
 import { useLocationStore } from '@/lib/store/locationStore';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 import { LocationCoordinatesInput } from '@/features/location/ui/LocationCoordinatesInput';
+import { appToast } from '@/lib/utils/toast';
+import { getApiErrorMessage } from '@/lib/utils/apiError';
 
 export function ProfileDashboard() {
   const {
@@ -167,16 +169,26 @@ export function ProfileDashboard() {
     }
   }, [selectedDistrict, selectedDistrictObj, selectedState, setComingSoon, setValueAddress]);
 
-  const onUpdateInfo = (data: EditProfileInput) => {
-    editProfile(data);
+  const onUpdateInfo = async (data: EditProfileInput) => {
+    try {
+      await editProfile(data);
+      appToast.success('Profile updated successfully.');
+    } catch (err: any) {
+      appToast.apiError(err, 'Unable to update your profile. Please try again.');
+    }
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const result = await uploadAvatar(file);
-    if (result) {
-      editProfile({ avatarUrl: result.url });
+    try {
+      const result = await uploadAvatar(file);
+      if (result) {
+        await editProfile({ avatarUrl: result.url });
+        appToast.success('Profile photo updated successfully.');
+      }
+    } catch (err: any) {
+      appToast.apiError(err, 'Failed to update profile photo.');
     }
   };
 
@@ -225,6 +237,28 @@ export function ProfileDashboard() {
 
   const onSubmitAddress = async (data: AddAddressInput) => {
     setAddressSaveError(null);
+
+    // Coordinate validation
+    if (coordinates.latitude !== null || coordinates.longitude !== null) {
+      if (coordinates.latitude === null || coordinates.longitude === null) {
+        appToast.error('Please enter valid latitude and longitude values.');
+        setAddressSaveError('Both latitude and longitude must be provided together, or both must be empty.');
+        return;
+      }
+      if (
+        isNaN(coordinates.latitude) ||
+        coordinates.latitude < -90 ||
+        coordinates.latitude > 90 ||
+        isNaN(coordinates.longitude) ||
+        coordinates.longitude < -180 ||
+        coordinates.longitude > 180
+      ) {
+        appToast.error('Please enter valid latitude and longitude values.');
+        setAddressSaveError('Please enter valid latitude and longitude values.');
+        return;
+      }
+    }
+
     try {
       const payload = {
         ...data,
@@ -238,17 +272,28 @@ export function ProfileDashboard() {
         await updateAddress({ id: editingAddress.id, payload });
         setShowAddressForm(false);
         setEditingAddress(null);
-        showAlert({ title: 'Success', message: 'Delivery address updated successfully!' });
+        if (coordinates.latitude !== null && coordinates.longitude !== null) {
+          appToast.success('Location coordinates saved.');
+        }
+        appToast.success('Address updated successfully.');
       } else {
         const res = await createAddress(payload);
         setShowAddressForm(false);
         if (res?.address) {
           setLocation(res.address.id, res.address.state, res.address.city || res.address.district || '');
         }
-        showAlert({ title: 'Success', message: 'Address added successfully and set as your active location!' });
+        if (coordinates.latitude !== null && coordinates.longitude !== null) {
+          appToast.success('Location coordinates saved.');
+        }
+        appToast.success('Address saved successfully.');
       }
     } catch (err: any) {
-      setAddressSaveError(err.response?.data?.message || err.message || 'Failed to save address.');
+      const msg = getApiErrorMessage(
+        err,
+        editingAddress ? 'Unable to update your address. Please try again.' : 'Unable to save your address. Please try again.'
+      );
+      setAddressSaveError(msg);
+      appToast.error(msg);
     }
   };
 
@@ -260,12 +305,10 @@ export function ProfileDashboard() {
       onConfirm: async () => {
         try {
           await deleteAddress(addr.id);
-          showAlert({ title: 'Success', message: 'Address deleted successfully.' });
+          appToast.success('Address deleted successfully.');
         } catch (err: any) {
-          showAlert({
-            title: 'Cannot Delete Address',
-            message: err.response?.data?.message || err.message || 'Failed to delete address.',
-          });
+          const msg = getApiErrorMessage(err, 'Unable to delete address. Please try again.');
+          appToast.error(msg);
         }
       },
     });
@@ -275,12 +318,10 @@ export function ProfileDashboard() {
     try {
       await setDefaultAddress(addr.id);
       setLocation(addr.id, addr.state, addr.city || addr.district || '');
-      showAlert({ title: 'Success', message: 'Default address updated successfully!' });
+      appToast.success('Default address updated successfully.');
     } catch (err: any) {
-      showAlert({
-        title: 'Error',
-        message: err.response?.data?.message || err.message || 'Failed to set default address.',
-      });
+      const msg = getApiErrorMessage(err, 'Failed to set default address.');
+      appToast.error(msg);
     }
   };
 

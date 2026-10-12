@@ -3,6 +3,8 @@ model PackingFeeRequest {
   shopId            String
   status            PackingFeeRequestStatus @default(PENDING)
   reason            String                  @db.Text
+  requestedMaxFee   Decimal?                @db.Decimal(10, 2)
+  approvedMaxFee    Decimal?                @db.Decimal(10, 2)
   supportingNotes   String?                 @db.Text
   rejectionReason   String?                 @db.Text
   reviewedByAdminId String?                 @db.VarChar(30)

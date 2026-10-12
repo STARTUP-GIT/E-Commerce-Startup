@@ -36,6 +36,7 @@ export interface ShopInfo {
   enablePackingFee?: boolean;
   packingFeeEnabled?: boolean;
   packingFeeAmount?: number;
+  packingFeeApprovedMaxAmount?: number;
   packingFeeApprovalStatus?: string;
   packingFeeRequestedAt?: string;
   packingFeeApprovedAt?: string;
@@ -126,7 +127,7 @@ export const shopApi = {
     return response.data;
   },
 
-  requestPackingFeeApproval: async (payload: { reason: string; supportingNotes?: string }): Promise<{ message: string; request: any }> => {
+  requestPackingFeeApproval: async (payload: { reason: string; requestedMaxFee: number; supportingNotes?: string }): Promise<{ message: string; request: any }> => {
     const response = await axiosInstance.post('/seller/api/shop/packing-fee/request', payload);
     return response.data;
   },
