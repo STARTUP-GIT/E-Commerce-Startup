@@ -112,18 +112,6 @@ function SupportChatContent() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Load detail for selected conversation
-  const { data: detailData, isLoading: isDetailLoading } = useQuery({
-    queryKey: ['customer-conversation-detail', selectedConversationId],
-    queryFn: async () => {
-      if (!selectedConversationId) return null;
-      const res = await axiosInstance.get(`/customer/api/conversations/${selectedConversationId}`);
-      return res.data;
-    },
-    enabled: !!selectedConversationId,
-    refetchInterval: wsConnected ? false : 5000, // Fallback polling if WS offline
-  });
-
   // On-demand WebSocket connection: exists ONLY while a conversation is open
   const { connectionState, reconnect: reconnectSocket } = useOnDemandChatSocket({
     role: 'customer',
@@ -144,6 +132,18 @@ function SupportChatContent() {
   });
 
   const wsConnected = connectionState === 'connected';
+
+  // Load detail for selected conversation
+  const { data: detailData, isLoading: isDetailLoading } = useQuery({
+    queryKey: ['customer-conversation-detail', selectedConversationId],
+    queryFn: async () => {
+      if (!selectedConversationId) return null;
+      const res = await axiosInstance.get(`/customer/api/conversations/${selectedConversationId}`);
+      return res.data;
+    },
+    enabled: !!selectedConversationId,
+    refetchInterval: wsConnected ? false : 5000, // Fallback polling if WS offline
+  });
 
   // Scroll to bottom on message updates
   const messages = detailData?.conversation?.messages || detailData?.messages || [];

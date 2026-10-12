@@ -42,6 +42,27 @@ export function SupportChatPage() {
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
+  // On-demand WebSocket connection: exists ONLY while a conversation is open
+  const { connectionState, reconnect: reconnectSocket } = useOnDemandChatSocket({
+    role: 'seller',
+    conversationId: selectedConversationId,
+    onMessage: (payload) => {
+      if (payload.type === 'new_message' || payload.type === 'read_receipt' || payload.type === 'conversation_status_updated') {
+        queryClient.invalidateQueries({ queryKey: ['seller-conversation-detail', selectedConversationId] });
+        queryClient.invalidateQueries({ queryKey: ['seller-support-conversations'] });
+      }
+    },
+    onReconnect: () => {
+      // Re-fetch persisted messages from DB upon reconnecting to recover any offline messages
+      if (selectedConversationId) {
+        queryClient.invalidateQueries({ queryKey: ['seller-conversation-detail', selectedConversationId] });
+        queryClient.invalidateQueries({ queryKey: ['seller-support-conversations'] });
+      }
+    },
+  });
+
+  const wsConnected = connectionState === 'connected';
+
   // Load conversations list
   const { data: convData, isLoading: isConvLoading } = useQuery({
     queryKey: ['seller-support-conversations'],
@@ -63,27 +84,6 @@ export function SupportChatPage() {
     enabled: !!selectedConversationId,
     refetchInterval: wsConnected ? false : 5000, // Background sync when WS disconnected
   });
-
-  // On-demand WebSocket connection: exists ONLY while a conversation is open
-  const { connectionState, reconnect: reconnectSocket } = useOnDemandChatSocket({
-    role: 'seller',
-    conversationId: selectedConversationId,
-    onMessage: (payload) => {
-      if (payload.type === 'new_message' || payload.type === 'read_receipt' || payload.type === 'conversation_status_updated') {
-        queryClient.invalidateQueries({ queryKey: ['seller-conversation-detail', selectedConversationId] });
-        queryClient.invalidateQueries({ queryKey: ['seller-support-conversations'] });
-      }
-    },
-    onReconnect: () => {
-      // Re-fetch persisted messages from DB upon reconnecting to recover any offline messages
-      if (selectedConversationId) {
-        queryClient.invalidateQueries({ queryKey: ['seller-conversation-detail', selectedConversationId] });
-        queryClient.invalidateQueries({ queryKey: ['seller-support-conversations'] });
-      }
-    },
-  });
-
-  const wsConnected = connectionState === 'connected';
 
   // Messages array (reading from both detailData.conversation.messages and detailData.messages safely)
   const currentConv = detailData?.conversation;

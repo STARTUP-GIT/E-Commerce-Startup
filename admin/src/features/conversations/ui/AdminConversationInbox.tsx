@@ -72,6 +72,39 @@ export function AdminConversationInbox({
   const primaryLightBg = isCustomer ? "bg-indigo-950/30" : "bg-purple-950/30";
   const primaryAccent = isCustomer ? "border-indigo-400" : "border-purple-400";
 
+  // On-demand WebSocket connection: exists ONLY while a conversation is open
+  const { connectionState, reconnect: reconnectSocket } = useOnDemandChatSocket({
+    role: "admin",
+    conversationId: selectedConversationId,
+    onMessage: useCallback(
+      (payload: any) => {
+        if (
+          payload.type === "new_message" ||
+          payload.type === "admin_conversation_update" ||
+          payload.type === "read_receipt" ||
+          payload.type === "conversation_status_updated"
+        ) {
+          queryClient.invalidateQueries({ queryKey: ["admin-conversations", conversationType] });
+          queryClient.invalidateQueries({ queryKey: ["admin-unread-counts"] });
+
+          if (selectedConversationId && (payload.conversationId === selectedConversationId || !payload.conversationId)) {
+            queryClient.invalidateQueries({ queryKey: ["admin-conversation-detail", selectedConversationId] });
+          }
+        }
+      },
+      [conversationType, selectedConversationId, queryClient]
+    ),
+    onReconnect: useCallback(() => {
+      // Safe offline message recovery: re-fetch persisted history from database upon reconnection
+      if (selectedConversationId) {
+        queryClient.invalidateQueries({ queryKey: ["admin-conversation-detail", selectedConversationId] });
+        queryClient.invalidateQueries({ queryKey: ["admin-conversations", conversationType] });
+      }
+    }, [conversationType, selectedConversationId, queryClient]),
+  });
+
+  const wsConnected = connectionState === "connected";
+
   // 1. Fetch conversations list
   const { data: convData, isLoading: isConvLoading, refetch: refetchConversations } = useQuery({
     queryKey: ["admin-conversations", conversationType, { search, statusFilter }],
@@ -113,39 +146,6 @@ export function AdminConversationInbox({
         .catch(() => {});
     }
   }, [selectedConversationId, queryClient]);
-
-  // 4. On-demand WebSocket connection: exists ONLY while a conversation is open
-  const { connectionState, reconnect: reconnectSocket } = useOnDemandChatSocket({
-    role: "admin",
-    conversationId: selectedConversationId,
-    onMessage: useCallback(
-      (payload: any) => {
-        if (
-          payload.type === "new_message" ||
-          payload.type === "admin_conversation_update" ||
-          payload.type === "read_receipt" ||
-          payload.type === "conversation_status_updated"
-        ) {
-          queryClient.invalidateQueries({ queryKey: ["admin-conversations", conversationType] });
-          queryClient.invalidateQueries({ queryKey: ["admin-unread-counts"] });
-
-          if (selectedConversationId && (payload.conversationId === selectedConversationId || !payload.conversationId)) {
-            queryClient.invalidateQueries({ queryKey: ["admin-conversation-detail", selectedConversationId] });
-          }
-        }
-      },
-      [conversationType, selectedConversationId, queryClient]
-    ),
-    onReconnect: useCallback(() => {
-      // Safe offline message recovery: re-fetch persisted history from database upon reconnection
-      if (selectedConversationId) {
-        queryClient.invalidateQueries({ queryKey: ["admin-conversation-detail", selectedConversationId] });
-        queryClient.invalidateQueries({ queryKey: ["admin-conversations", conversationType] });
-      }
-    }, [conversationType, selectedConversationId, queryClient]),
-  });
-
-  const wsConnected = connectionState === "connected";
 
   // Scroll to bottom on new messages
   const messages = detailData?.conversation?.messages || [];
