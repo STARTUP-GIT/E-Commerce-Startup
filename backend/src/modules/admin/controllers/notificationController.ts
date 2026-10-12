@@ -44,6 +44,7 @@ export const listNotifications = async (req: Request, res: Response) => {
                     body: true,
                     sentAt: true,
                     readAt: true,
+                    data: true,
                     createdAt: true,
                     customerId: true,
                     sellerId: true,
@@ -287,6 +288,53 @@ export const deleteNotification = async (req: Request, res: Response) => {
         return res.status(200).json({ message: "Notification deleted successfully" });
     } catch (error: any) {
         console.error("DELETE NOTIFICATION ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const markNotificationAsRead = async (req: Request, res: Response) => {
+    try {
+        const notificationId = String(req.params.id);
+
+        const updated = await prisma.notification.update({
+            where: { id: notificationId },
+            data: {
+                readAt: new Date(),
+                status: "READ"
+            }
+        });
+
+        return res.status(200).json({
+            message: "Notification marked as read",
+            notification: updated
+        });
+    } catch (error: any) {
+        console.error("MARK NOTIFICATION READ ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const markAllNotificationsAsRead = async (req: Request, res: Response) => {
+    try {
+        const adminId = req.adminId;
+
+        await prisma.notification.updateMany({
+            where: {
+                OR: [
+                    { adminId: adminId || undefined },
+                    { type: { in: ["SHOP_APPROVAL_REQUESTED", "SHOP_AGREEMENT_ACCEPTED", "SHOP_AGREEMENT_DECLINED", "NEW_MESSAGE"] } }
+                ],
+                readAt: null
+            },
+            data: {
+                readAt: new Date(),
+                status: "READ"
+            }
+        });
+
+        return res.status(200).json({ message: "All notifications marked as read" });
+    } catch (error: any) {
+        console.error("MARK ALL NOTIFICATIONS READ ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };

@@ -49,4 +49,22 @@ export const shopApi = {
     const response = await axiosInstance.get('/api/admin/shops/packing-fee/requests');
     return response.data;
   },
+  issueAgreement: async (id: string, payload: {
+    templateId?: string;
+    version?: string;
+    title?: string;
+    content: string;
+    commercialTerms?: string;
+    commissionPercentage: number;
+    deliveryFulfilmentTerms?: string;
+    otherObligations?: string;
+    effectiveDate?: string;
+  }) => {
+    const response = await axiosInstance.post(`/api/admin/shops/shops/${id}/issue-agreement`, payload);
+    return response.data;
+  },
+  getAllAgreements: async (params?: { page?: number; limit?: number; status?: string; search?: string }) => {
+    const response = await axiosInstance.get('/api/admin/shops/agreements', { params });
+    return response.data;
+  },
 };

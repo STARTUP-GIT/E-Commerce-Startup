@@ -50,12 +50,15 @@ import { useConfirmStore } from '@/lib/store/confirmStore';
 import { useBranding } from '@/lib/hooks/useBranding';
 import { usePermissions } from '@/lib/hooks/usePermissions';
 import { useConversationUnreadCounts } from '@/features/conversations/hooks/useConversationUnreadCounts';
+import { useAdminSidebarBadges } from '@/features/layout/hooks/useAdminSidebarBadges';
+import { AdminNotificationDropdown } from './AdminNotificationDropdown';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { branding } = useBranding();
   const { can } = usePermissions();
   const { admin, logout, isLoading } = useAuth();
   const unreadCounts = useConversationUnreadCounts();
+  const { badges } = useAdminSidebarBadges();
   const { sidebarOpen, toggleSidebar } = useUIStore();
   const pathname = usePathname();
   const router = useRouter();
@@ -70,6 +73,69 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         await logout();
       },
     });
+  };
+
+  const getBadgeForPath = (path: string): { count: number; colorClass: string; id: string } | null => {
+    switch (path) {
+      case '/customer-conversations': {
+        const count = Math.max(unreadCounts.customerUnread || 0, badges.customerConversations || 0);
+        return count > 0
+          ? { count, colorClass: 'bg-indigo-500 ring-indigo-400/30 text-white font-black', id: 'customer-unread-badge' }
+          : null;
+      }
+      case '/seller-conversations': {
+        const count = Math.max(unreadCounts.sellerUnread || 0, badges.sellerConversations || 0);
+        return count > 0
+          ? { count, colorClass: 'bg-purple-500 ring-purple-400/30 text-white font-black', id: 'seller-unread-badge' }
+          : null;
+      }
+      case '/shops':
+        return badges.shops > 0
+          ? { count: badges.shops, colorClass: 'bg-amber-500 ring-amber-400/30 text-black font-black', id: 'shops-badge' }
+          : null;
+      case '/seller-verifications':
+        return badges.sellerVerifications > 0
+          ? { count: badges.sellerVerifications, colorClass: 'bg-amber-500 ring-amber-400/30 text-black font-black', id: 'verifications-badge' }
+          : null;
+      case '/agreement-tracking':
+        return badges.sellerAgreements > 0
+          ? { count: badges.sellerAgreements, colorClass: 'bg-blue-500 ring-blue-400/30 text-white font-black', id: 'agreements-badge' }
+          : null;
+      case '/appeals':
+        return badges.appeals > 0
+          ? { count: badges.appeals, colorClass: 'bg-rose-500 ring-rose-400/30 text-white font-black', id: 'appeals-badge' }
+          : null;
+      case '/cases':
+        return badges.customerReports > 0
+          ? { count: badges.customerReports, colorClass: 'bg-rose-500 ring-rose-400/30 text-white font-black', id: 'cases-badge' }
+          : null;
+      case '/reports':
+        return badges.productReports > 0
+          ? { count: badges.productReports, colorClass: 'bg-rose-500 ring-rose-400/30 text-white font-black', id: 'reports-badge' }
+          : null;
+      case '/support-tickets':
+        return badges.supportTickets > 0
+          ? { count: badges.supportTickets, colorClass: 'bg-orange-500 ring-orange-400/30 text-white font-black', id: 'tickets-badge' }
+          : null;
+      case '/orders':
+        return badges.orders > 0
+          ? { count: badges.orders, colorClass: 'bg-emerald-500 ring-emerald-400/30 text-white font-black', id: 'orders-badge' }
+          : null;
+      case '/returns':
+        return badges.returns > 0
+          ? { count: badges.returns, colorClass: 'bg-amber-500 ring-amber-400/30 text-black font-black', id: 'returns-badge' }
+          : null;
+      case '/packing-fee-requests':
+        return badges.packingFeeRequests > 0
+          ? { count: badges.packingFeeRequests, colorClass: 'bg-cyan-500 ring-cyan-400/30 text-black font-black', id: 'packing-badge' }
+          : null;
+      case '/seller-payouts':
+        return badges.sellerPayouts > 0
+          ? { count: badges.sellerPayouts, colorClass: 'bg-teal-500 ring-teal-400/30 text-white font-black', id: 'payouts-badge' }
+          : null;
+      default:
+        return null;
+    }
   };
 
   interface NavItem {
@@ -139,7 +205,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     // Administration
     { name: 'Admin Management', path: '/admin-management', icon: UserCog, group: 'Administration', permission: 'admin.users.manage' },
     { name: 'Roles & Permissions', path: '/roles', icon: KeyRound, group: 'Administration', permission: 'admin.roles.manage' },
-    { name: 'Branding', path: '/branding', icon: Palette, group: 'Administration', permission: 'branding.view' },
+    { name: 'Customer Branding', path: '/customer-branding', icon: Palette, group: 'Administration', permission: 'branding.view' },
+    { name: 'Seller Branding', path: '/seller-branding', icon: Store, group: 'Administration', permission: 'branding.view' },
     { name: 'Settings', path: '/settings', icon: Settings, group: 'Administration', permission: 'settings.view' },
     { name: 'My Profile', path: '/profile', icon: UserCircle, group: 'Administration' },
   ];
@@ -211,6 +278,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     .map((item) => {
                       const Icon = item.icon;
                       const isActive = pathname.startsWith(item.path);
+                      const badgeInfo = getBadgeForPath(item.path);
                       return (
                         <Link
                           key={item.path}
@@ -223,20 +291,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         >
                           <Icon className="h-4 w-4 shrink-0" />
                           <span className="truncate flex-1">{item.name}</span>
-                          {item.path === '/customer-conversations' && unreadCounts.customerUnread > 0 && (
+                          {badgeInfo && (
                             <span
-                              id="customer-unread-badge"
-                              className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-black rounded-full bg-indigo-500 text-white shadow-sm ring-1 ring-indigo-400/30 animate-fade-in"
+                              id={badgeInfo.id}
+                              className={`ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] rounded-full shadow-sm ring-1 animate-fade-in ${badgeInfo.colorClass}`}
                             >
-                              {unreadCounts.customerUnread > 99 ? '99+' : unreadCounts.customerUnread}
-                            </span>
-                          )}
-                          {item.path === '/seller-conversations' && unreadCounts.sellerUnread > 0 && (
-                            <span
-                              id="seller-unread-badge"
-                              className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-black rounded-full bg-purple-500 text-white shadow-sm ring-1 ring-purple-400/30 animate-fade-in"
-                            >
-                              {unreadCounts.sellerUnread > 99 ? '99+' : unreadCounts.sellerUnread}
+                              {badgeInfo.count > 99 ? '99+' : badgeInfo.count}
                             </span>
                           )}
                         </Link>
@@ -301,14 +361,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </Badge>
             )}
 
-            {/* Notification trigger */}
-            <Link
-              href="/notifications"
-              className="relative p-2 rounded-xl glass hover:border-white/20 text-white/70 hover:text-white transition-all cursor-pointer"
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-            </Link>
+            {/* Notification Dropdown */}
+            <AdminNotificationDropdown />
           </div>
         </header>
 

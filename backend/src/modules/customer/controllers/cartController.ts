@@ -80,7 +80,11 @@ export const addToCart = async (req: Request, res: Response) => {
         const product = await prisma.product.findUnique({
             where: { id: productId },
             include: {
-                seller: true,
+                seller: {
+                    include: {
+                        shop: true
+                    }
+                },
                 variants: {
                     where: productVariantId ? { id: productVariantId } : undefined
                 }
@@ -96,6 +100,12 @@ export const addToCart = async (req: Request, res: Response) => {
         if (product.seller.isBanned || product.seller.status !== "ACTIVE") {
             return res.status(403).json({
                 message: "Seller is not active or approved"
+            });
+        }
+
+        if (!product.seller.shop || product.seller.shop.status !== "APPROVED") {
+            return res.status(403).json({
+                message: "Products from unapproved shops cannot be purchased or added to cart"
             });
         }
 

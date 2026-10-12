@@ -25,10 +25,13 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { productApi } from '../api/productApi';
+import { useShop } from '@/features/shop/hooks/useShop';
+import { SellerAgreementBanner } from '@/features/shop/ui/SellerAgreementBanner';
 
 import { useConfirmStore } from '@/lib/store/confirmStore';
 
 export function ProductListPage() {
+  const { shop } = useShop();
   const { products, isLoading, isError, refetch, createProduct, updateProduct, deleteProduct } = useProducts();
   const { upload: uploadProductImage, isUploading, progress: uploadProgress,  publicUrl } = useFileUpload({ folder: 'products' });
 
@@ -185,6 +188,9 @@ export function ProductListPage() {
             Add Product
           </Button>
         </div>
+
+        {/* Shop Approval & Agreement Status Notice */}
+        <SellerAgreementBanner shopStatus={shop?.status} />
 
         {/* Filters Panel */}
         <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/5">

@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import crypto from "crypto";
 import { prisma } from "../../../config/prisma.js";
 import { SellerOrderStatus, SellerAddressType } from "@prisma/client";
 import { invalidatePublicCache } from "../../../middleware/cache.js";
@@ -228,9 +229,36 @@ export const createShop = async (req: Request,res: Response) => {
                         }
                     });
 
+                const approvalRequest = await tx.shopApprovalRequest.create({
+                    data: {
+                        shopId: shop.id,
+                        sellerId,
+                        status: "PENDING_REVIEW",
+                        notes: "Initial shop onboarding registration",
+                        submittedAt: new Date()
+                    }
+                });
+
+                await tx.notification.create({
+                    data: {
+                        type: "SHOP_APPROVAL_REQUESTED",
+                        channel: "IN_APP",
+                        status: "PENDING",
+                        title: `New Shop Approval Request: ${shop.name}`,
+                        body: `Seller ${seller.firstName} ${seller.lastName} registered shop '${shop.name}' and submitted it for approval.`,
+                        data: {
+                            link: `/shops/${shop.id}`,
+                            shopId: shop.id,
+                            requestId: approvalRequest.id
+                        },
+                        sentAt: new Date()
+                    }
+                });
+
                 return {
                     shop,
-                    address
+                    address,
+                    approvalRequest
                 };
             }
         );
@@ -279,6 +307,25 @@ export const getShopInfo = async (req: Request , res:Response) =>   {
                 packingFeeRequests: {
                     orderBy: {
                         createdAt: "desc"
+                    },
+                    take: 1
+                },
+                approvalRequests: {
+                    orderBy: {
+                        createdAt: "desc"
+                    },
+                    take: 1,
+                    include: {
+                        agreements: {
+                            orderBy: {
+                                version: "desc"
+                            }
+                        }
+                    }
+                },
+                agreements: {
+                    orderBy: {
+                        version: "desc"
                     },
                     take: 1
                 }
@@ -988,6 +1035,305 @@ export const togglePackingFee = async (req: Request, res: Response) => {
         return res.status(500).json({
             message: "Internal Server Error"
         });
+    }
+};
+
+export const submitShopApprovalRequest = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+        const { notes } = req.body;
+
+        const seller = await prisma.seller.findUnique({
+            where: { id: sellerId },
+            include: { shop: true }
+        });
+
+        if (!seller || !seller.shop) {
+            return res.status(404).json({ message: "Shop not found. Please create a shop first." });
+        }
+
+        const shop = seller.shop;
+
+        if (shop.status === "APPROVED") {
+            return res.status(400).json({ message: "Shop is already approved and active." });
+        }
+
+        // Prevent duplicate active approval requests
+        const activeRequest = await prisma.shopApprovalRequest.findFirst({
+            where: {
+                shopId: shop.id,
+                status: {
+                    in: ["PENDING_REVIEW", "AGREEMENT_ISSUED", "AGREEMENT_ACCEPTED", "AWAITING_FINAL_APPROVAL"]
+                }
+            }
+        });
+
+        if (activeRequest) {
+            return res.status(400).json({
+                message: "An active shop approval request is already in progress.",
+                activeRequest
+            });
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
+            await tx.shop.update({
+                where: { id: shop.id },
+                data: {
+                    status: "PENDING",
+                    rejectionReason: null
+                }
+            });
+
+            const request = await tx.shopApprovalRequest.create({
+                data: {
+                    shopId: shop.id,
+                    sellerId,
+                    status: "PENDING_REVIEW",
+                    notes: typeof notes === "string" ? notes.trim() : null,
+                    submittedAt: new Date()
+                }
+            });
+
+            await tx.notification.create({
+                data: {
+                    type: "SHOP_APPROVAL_REQUESTED",
+                    channel: "IN_APP",
+                    status: "PENDING",
+                    title: `Shop Approval Resubmission: ${shop.name}`,
+                    body: `Seller ${seller.firstName} ${seller.lastName} submitted shop '${shop.name}' for approval.`,
+                    data: { link: `/shops/${shop.id}`, shopId: shop.id, requestId: request.id },
+                    sentAt: new Date()
+                }
+            });
+
+            return request;
+        });
+
+        invalidatePublicCache();
+
+        return res.status(201).json({
+            message: "Shop approval request submitted successfully",
+            request: result
+        });
+    } catch (error: any) {
+        console.error("SUBMIT SHOP APPROVAL ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const getShopAgreement = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+        const shop = await prisma.shop.findUnique({
+            where: { sellerId },
+            include: {
+                agreements: {
+                    orderBy: { version: "desc" },
+                    take: 1
+                },
+                approvalRequests: {
+                    orderBy: { createdAt: "desc" },
+                    take: 1
+                }
+            }
+        });
+
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+
+        const latestAgreement = shop.agreements[0] || null;
+        const latestRequest = shop.approvalRequests[0] || null;
+
+        return res.status(200).json({
+            shop: {
+                id: shop.id,
+                name: shop.name,
+                status: shop.status,
+                commissionPercentage: shop.commissionPercentage,
+            },
+            approvalRequest: latestRequest,
+            agreement: latestAgreement
+        });
+    } catch (error: any) {
+        console.error("GET SHOP AGREEMENT ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const acceptShopAgreement = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+        const agreementId = String(req.params.agreementId);
+        const { legalName, acceptanceMethod = "ELECTRONIC_SIGNATURE", signatureImageUrl } = req.body;
+
+        if (!legalName || typeof legalName !== "string" || !legalName.trim()) {
+            return res.status(400).json({ message: "Typed legal name is required for agreement acceptance." });
+        }
+
+        const agreement = await prisma.shopAgreement.findUnique({
+            where: { id: agreementId },
+            include: {
+                shop: true,
+                approvalRequest: true
+            }
+        });
+
+        if (!agreement) {
+            return res.status(404).json({ message: "Shop agreement not found." });
+        }
+
+        if (agreement.sellerId !== sellerId) {
+            return res.status(403).json({ message: "You are not authorized to accept this agreement." });
+        }
+
+        if (agreement.status !== "ISSUED") {
+            return res.status(400).json({
+                message: `Agreement cannot be accepted. Current status is ${agreement.status}.`
+            });
+        }
+
+        const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "127.0.0.1";
+        const userAgent = req.headers["user-agent"] || "Unknown";
+        const documentHash = crypto
+            .createHash("sha256")
+            .update(`${agreement.content}|${legalName.trim()}|${agreement.version}`)
+            .digest("hex");
+
+        const result = await prisma.$transaction(async (tx) => {
+            const updatedAgreement = await tx.shopAgreement.update({
+                where: { id: agreementId },
+                data: {
+                    status: "ACCEPTED",
+                    acceptedAt: new Date(),
+                    acceptedLegalName: legalName.trim(),
+                    acceptanceMethod,
+                    signatureImageUrl: signatureImageUrl || null,
+                    ipAddress: String(ip).slice(0, 45),
+                    userAgent: String(userAgent).slice(0, 512),
+                    documentHash
+                }
+            });
+
+            await tx.shopApprovalRequest.update({
+                where: { id: agreement.approvalRequestId },
+                data: {
+                    status: "AWAITING_FINAL_APPROVAL",
+                    reviewedAt: new Date()
+                }
+            });
+
+            // Notify Admin
+            await tx.notification.create({
+                data: {
+                    type: "SHOP_AGREEMENT_ACCEPTED",
+                    channel: "IN_APP",
+                    status: "PENDING",
+                    title: `Shop Agreement Accepted: ${agreement.shop.name}`,
+                    body: `${legalName.trim()} accepted the seller agreement (v${agreement.version}) for '${agreement.shop.name}'. Shop is awaiting final approval.`,
+                    data: {
+                        link: `/shops/${agreement.shopId}`,
+                        shopId: agreement.shopId,
+                        agreementId: agreement.id
+                    },
+                    sentAt: new Date()
+                }
+            });
+
+            return updatedAgreement;
+        });
+
+        invalidatePublicCache();
+
+        return res.status(200).json({
+            message: "Agreement accepted successfully. Your shop is now awaiting final administrative approval.",
+            agreement: result
+        });
+    } catch (error: any) {
+        console.error("ACCEPT SHOP AGREEMENT ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const declineShopAgreement = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+        const agreementId = String(req.params.agreementId);
+        const { reason } = req.body;
+
+        if (!reason || typeof reason !== "string" || reason.trim().length < 5) {
+            return res.status(400).json({ message: "A decline reason of at least 5 characters is required." });
+        }
+
+        const agreement = await prisma.shopAgreement.findUnique({
+            where: { id: agreementId },
+            include: {
+                shop: true,
+                approvalRequest: true
+            }
+        });
+
+        if (!agreement) {
+            return res.status(404).json({ message: "Shop agreement not found." });
+        }
+
+        if (agreement.sellerId !== sellerId) {
+            return res.status(403).json({ message: "You are not authorized to decline this agreement." });
+        }
+
+        if (agreement.status !== "ISSUED") {
+            return res.status(400).json({
+                message: `Agreement cannot be declined. Current status is ${agreement.status}.`
+            });
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
+            const updatedAgreement = await tx.shopAgreement.update({
+                where: { id: agreementId },
+                data: {
+                    status: "DECLINED",
+                    declinedAt: new Date(),
+                    declinedReason: reason.trim()
+                }
+            });
+
+            await tx.shopApprovalRequest.update({
+                where: { id: agreement.approvalRequestId },
+                data: {
+                    status: "AGREEMENT_DECLINED",
+                    reviewedAt: new Date()
+                }
+            });
+
+            // Notify Admin
+            await tx.notification.create({
+                data: {
+                    type: "SHOP_AGREEMENT_DECLINED",
+                    channel: "IN_APP",
+                    status: "PENDING",
+                    title: `Shop Agreement Declined: ${agreement.shop.name}`,
+                    body: `The seller declined the issued agreement for '${agreement.shop.name}'. Reason: ${reason.trim()}`,
+                    data: {
+                        link: `/shops/${agreement.shopId}`,
+                        shopId: agreement.shopId,
+                        agreementId: agreement.id
+                    },
+                    sentAt: new Date()
+                }
+            });
+
+            return updatedAgreement;
+        });
+
+        invalidatePublicCache();
+
+        return res.status(200).json({
+            message: "Agreement declined. Administration has been notified.",
+            agreement: result
+        });
+    } catch (error: any) {
+        console.error("DECLINE SHOP AGREEMENT ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };
 

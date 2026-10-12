@@ -1,13 +1,13 @@
 // =============================================================================
-// SHARED BRANDING SERVICE (Single Source of Truth)
+// BRANDING SERVICE (Customer & Seller Branding Scopes)
 // -----------------------------------------------------------------------------
-// Branding is owned by the Admin panel. Every frontend reads the SAME public
-// endpoint:
-//   GET /api/branding/public   (primary)
-//   GET /api/branding          (fallback)
-// Admin CRUD lives at GET/PUT /api/admin/settings/branding (see rolesApi.ts /
-// brandingApi). If every endpoint fails we fall back to the default below.
-// Never crashes.
+// Separate scopes for Customer Marketplace and Seller Portal branding.
+// Endpoints:
+//   GET /api/branding/public?app=customer | seller
+//   GET /api/branding/:app
+// Admin CRUD:
+//   GET /api/admin/settings/branding?app=customer | seller
+//   PUT /api/admin/settings/branding?app=customer | seller
 // =============================================================================
 
 import type { AxiosInstance } from 'axios';
@@ -15,6 +15,7 @@ import type { AxiosInstance } from 'axios';
 export interface BrandingConfig {
   name: string;
   marketplaceName: string;
+  brandName?: string;
   logo: string;
   favicon: string;
   tagline?: string | null;
@@ -42,7 +43,10 @@ export interface BrandingConfig {
   browserTitle: string;
   primaryColor?: string;
   secondaryColor?: string;
+  supportEmail?: string;
+  supportPhone?: string;
   updatedAt?: string;
+  updatedBy?: string;
 }
 
 export type BrandingApp = 'customer' | 'seller';
@@ -50,6 +54,7 @@ export type BrandingApp = 'customer' | 'seller';
 export const DEFAULT_BRANDING: BrandingConfig = {
   name: 'Marketplace',
   marketplaceName: 'Marketplace',
+  brandName: 'Marketplace',
   logo: '',
   favicon: '',
   tagline: 'Your local marketplace for everything',
@@ -68,17 +73,22 @@ export const DEFAULT_BRANDING: BrandingConfig = {
   seoTitle: 'Marketplace',
   seoDescription: 'Discover local artisans, handcrafted items, and custom products.',
   browserTitle: 'Marketplace',
+  primaryColor: '#FF5722',
+  secondaryColor: '#0EA5E9',
 };
 
 export const DEFAULT_SELLER_BRANDING: BrandingConfig = {
   ...DEFAULT_BRANDING,
-  name: 'Marketplace Seller',
-  marketplaceName: 'Marketplace Seller',
-  tagline: 'Grow your store locally',
+  name: 'Seller Portal',
+  marketplaceName: 'Marketplace',
+  brandName: 'Seller Portal',
+  tagline: 'Manage your storefront, products, and incoming orders.',
   shortName: 'Seller',
-  seoTitle: 'Marketplace Seller',
+  seoTitle: 'Seller Portal',
   seoDescription: 'Manage your shop, products, orders, and sales.',
-  browserTitle: 'Marketplace Seller',
+  browserTitle: 'Seller Portal',
+  primaryColor: '#7C3AED',
+  secondaryColor: '#4F46E5',
 };
 
 const str = (value: unknown, fallback?: string | null): string =>
@@ -88,20 +98,29 @@ export const normalizeBranding = (
   d: any,
   defaults: BrandingConfig = DEFAULT_BRANDING
 ): BrandingConfig => {
-  const nameVal = d?.name || d?.marketplaceName || defaults.name;
-  const logoVal = d?.logo || d?.logoUrl || defaults.logo;
-  const rawFavicon = d?.favicon || d?.faviconUrl || '';
-  const faviconVal = rawFavicon && rawFavicon !== '/favicon.ico' ? rawFavicon : logoVal;
-  const taglineVal = str(d?.tagline, defaults.tagline);
+  const nameVal = str(d?.customerTitle, '') || str(d?.sellerPortalTitle, '') || str(d?.brandName, '') || str(d?.name, '') || str(d?.marketplaceName, '') || defaults.name;
+  const logoVal = str(d?.sellerPortalLogoUrl, '') || str(d?.logo, '') || str(d?.logoUrl, '') || defaults.logo;
+  const rawFavicon = str(d?.favicon, '') || str(d?.faviconUrl, '') || '';
+  const faviconVal = rawFavicon && rawFavicon !== '/favicon.ico' ? rawFavicon : (logoVal || defaults.favicon);
+  const taglineVal = str(d?.sellerPortalTagline, '') || str(d?.tagline, defaults.tagline);
+
   return {
     name: nameVal,
-    marketplaceName: nameVal,
+    marketplaceName: str(d?.marketplaceName, str(d?.brandName, defaults.marketplaceName)),
+    brandName: str(d?.brandName, nameVal),
     logo: logoVal,
     favicon: faviconVal,
     tagline: taglineVal,
-    shortName: str(d?.shortName, nameVal),
+    shortName: str(d?.shortName, defaults.shortName),
     logoUrl: logoVal,
     faviconUrl: faviconVal,
+    darkLogoUrl: str(d?.darkLogoUrl, null),
+    lightLogoUrl: str(d?.lightLogoUrl, null),
+    brandDescription: str(d?.brandDescription, defaults.brandDescription),
+    customerTitle: str(d?.customerTitle, null),
+    sellerPortalTitle: str(d?.sellerPortalTitle, null),
+    sellerPortalTagline: str(d?.sellerPortalTagline, null),
+    sellerPortalLogoUrl: str(d?.sellerPortalLogoUrl, null),
     heroBadge: str(d?.heroBadge, defaults.heroBadge),
     heroHeadingLine1: str(d?.heroHeadingLine1, defaults.heroHeadingLine1),
     heroHeadingLine2: str(d?.heroHeadingLine2, defaults.heroHeadingLine2),
@@ -114,7 +133,12 @@ export const normalizeBranding = (
     seoTitle: str(d?.seoTitle, defaults.seoTitle),
     seoDescription: str(d?.seoDescription, defaults.seoDescription),
     browserTitle: str(d?.browserTitle, defaults.browserTitle),
+    primaryColor: d?.primaryColor || defaults.primaryColor,
+    secondaryColor: d?.secondaryColor || defaults.secondaryColor,
+    supportEmail: str(d?.supportEmail, null),
+    supportPhone: str(d?.supportPhone, null),
     updatedAt: d?.updatedAt,
+    updatedBy: d?.updatedBy,
   };
 };
 
@@ -133,7 +157,7 @@ export const fetchBranding = async (
       const res = await client.get(url, { params: { app } });
       if (res?.data) return normalizeBranding(res.data, defaults);
     } catch {
-      // Try the next endpoint; ultimately fall back to DEFAULT_BRANDING.
+      // Try next endpoint
     }
   }
   return defaults;

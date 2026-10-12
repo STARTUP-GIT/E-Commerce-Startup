@@ -54,6 +54,8 @@ model Seller {
   notifications     Notification[]
   refreshTokens     SellerRefreshToken[]
   supportTickets    SupportTicket[]
+  shopApprovalRequests ShopApprovalRequest[]
+  shopAgreements       ShopAgreement[]
 
   @@index([email])
   @@index([phone])
@@ -102,6 +104,8 @@ model Shop {
   defaultPickupAddress SellerAddress? @relation("ShopDefaultPickupAddress", fields: [defaultPickupAddressId], references: [id], onDelete: SetNull)
   reviewedByAdmin      Admin?         @relation("ShopReviewedBy", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
   packingFeeRequests   PackingFeeRequest[]
+  approvalRequests     ShopApprovalRequest[]
+  agreements           ShopAgreement[]
 
   @@index([slug])
   @@index([status])

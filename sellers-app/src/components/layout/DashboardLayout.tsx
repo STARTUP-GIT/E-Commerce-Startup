@@ -85,12 +85,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const sellerPortalName = React.useMemo(() => {
     const raw = (branding?.sellerPortalTitle || branding?.name || '').trim();
-    if (!raw) return 'Seller Portal';
-    if (/seller|portal/i.test(raw)) return raw;
-    return `${raw} Seller Portal`;
+    return raw || 'Seller Portal';
   }, [branding?.sellerPortalTitle, branding?.name]);
 
-  const sellerPortalTagline = branding?.sellerPortalTagline || branding?.tagline || 'Merchant Center';
+  const sellerPortalTagline = branding?.sellerPortalTagline || branding?.tagline || 'Manage your storefront, products, and incoming orders.';
   const hasValidLogo = Boolean(!logoError && branding?.logo && branding.logo.trim() !== '');
 
   const handleLogout = () => {

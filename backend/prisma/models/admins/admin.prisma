@@ -44,6 +44,8 @@ model Admin {
   createdCoupons          Coupon[]             @relation("CouponCreatedBy")
   assignedSupportTickets  SupportTicket[]      @relation("SupportTicketAssignedTo")
   reviewedPackingFeeRequests PackingFeeRequest[] @relation("PackingFeeRequestReviewedBy")
+  reviewedShopApprovals   ShopApprovalRequest[] @relation("ShopApprovalReviewedBy")
+  issuedShopAgreements    ShopAgreement[]       @relation("ShopAgreementIssuedBy")
   refreshTokens           AdminRefreshToken[]
 
   @@index([email])

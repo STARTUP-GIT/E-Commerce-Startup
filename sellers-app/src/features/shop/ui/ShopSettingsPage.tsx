@@ -27,6 +27,7 @@ import { SearchableDropdown } from '@/components/ui/SearchableDropdown';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Dialog } from '@/shared/components/Dialog';
 import { useUIStore } from '@/lib/store/uiStore';
+import { SellerAgreementBanner } from './SellerAgreementBanner';
 export function ShopSettingsPage() {
   const {
     shop,
@@ -291,6 +292,9 @@ export function ShopSettingsPage() {
             <span>{errorMsg}</span>
           </div>
         )}
+
+        {/* Shop Agreement & Approval Banner */}
+        <SellerAgreementBanner shopStatus={shop?.status} />
 
         <Card className="border border-white/10 bg-gradient-to-br from-purple-500/10 via-transparent to-emerald-500/10">
           <CardHeader className="pb-3">

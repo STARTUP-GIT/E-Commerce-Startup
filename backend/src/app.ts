@@ -90,6 +90,7 @@ import adminCommissionStatementRoute from './modules/admin/routes/commissionStat
 import adminCaseReportRoute from './modules/admin/routes/caseReportRoute.js';
 import adminPostmortemRoute from './modules/admin/routes/postmortemRoute.js';
 import adminConversationRoute from './modules/admin/routes/conversationRoute.js';
+import adminBadgeRoute from './modules/admin/routes/badgeRoute.js';
 
 import sellerEnforcementRoute from './modules/seller/routes/enforcementRoute.js';
 import sellerAppealRoute from './modules/seller/routes/appealRoute.js';
@@ -277,6 +278,7 @@ app.use('/api/admin/commission-statements', adminLimiter, adminCommissionStateme
 app.use('/api/admin/cases', adminLimiter, adminCaseReportRoute);
 app.use('/api/admin/postmortems', adminLimiter, adminPostmortemRoute);
 app.use('/api/admin/conversations', adminLimiter, adminConversationRoute);
+app.use('/api/admin/sidebar-badges', adminLimiter, adminBadgeRoute);
 app.use('/api/admin/seller-payouts', adminLimiter, adminSellerPayoutRoute);
 app.use('/api/admin/exports', adminLimiter, adminExportRoute);
 

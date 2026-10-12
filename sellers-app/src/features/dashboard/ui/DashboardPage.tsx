@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSellerLayout } from '@/lib/hooks/useSellerLayout';
+import { SellerAgreementBanner } from '@/features/shop/ui/SellerAgreementBanner';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -171,20 +172,23 @@ export function DashboardPage() {
             </div>
           </Card>
         ) : shop && shop.status !== 'APPROVED' ? (
-          <Card className="border border-yellow-500/20 bg-yellow-500/5 p-8 rounded-2xl backdrop-blur-md">
-            <div className="flex items-center gap-4">
-              <AlertTriangle className="h-8 w-8 text-yellow-400 shrink-0" />
-              <div>
-                <h3 className="text-lg font-bold text-white">Your shop is {shop.status === 'PENDING' ? 'awaiting approval' : shop.status === 'REJECTED' ? 'has been rejected' : shop.status === 'SUSPENDED' ? 'has been suspended' : 'has been disabled'}</h3>
-                <p className="text-xs text-white/50 mt-1">
-                  {shop.status === 'PENDING' && 'An admin will review your shop shortly. You can manage products and settings, but they won\'t be visible to customers until your shop is approved.'}
-                  {shop.status === 'REJECTED' && (shop.rejectionReason ? `Reason: ${shop.rejectionReason}` : 'Your shop application was rejected. Contact support for more information.')}
-                  {shop.status === 'SUSPENDED' && 'Your shop has been suspended. Please contact support for more information.'}
-                  {shop.status === 'DISABLED' && 'Your shop has been disabled by an administrator.'}
-                </p>
+          <div className="space-y-4">
+            <SellerAgreementBanner shopStatus={shop?.status} />
+            <Card className="border border-yellow-500/20 bg-yellow-500/5 p-6 rounded-2xl backdrop-blur-md">
+              <div className="flex items-center gap-4">
+                <AlertTriangle className="h-7 w-7 text-yellow-400 shrink-0" />
+                <div>
+                  <h3 className="text-base font-bold text-white">Your shop is {shop.status === 'PENDING' ? 'awaiting approval' : shop.status === 'REJECTED' ? 'rejected' : shop.status === 'SUSPENDED' ? 'suspended' : 'disabled'}</h3>
+                  <p className="text-xs text-white/50 mt-1">
+                    {shop.status === 'PENDING' && 'An administrator is reviewing your shop. You can prepare and edit your product catalog, but items will remain unlisted to customers until final approval.'}
+                    {shop.status === 'REJECTED' && (shop.rejectionReason ? `Reason: ${shop.rejectionReason}` : 'Your shop application was rejected. Please contact support or update your store.')}
+                    {shop.status === 'SUSPENDED' && 'Your shop has been suspended. Please contact support for more information.'}
+                    {shop.status === 'DISABLED' && 'Your shop has been disabled by an administrator.'}
+                  </p>
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
         ) : (
           <>
             {/* Stats Grid */}

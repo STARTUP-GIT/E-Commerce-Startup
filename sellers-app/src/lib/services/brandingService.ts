@@ -93,7 +93,7 @@ export const normalizeBranding = (
   d: any,
   defaults: BrandingConfig = DEFAULT_BRANDING
 ): BrandingConfig => {
-  const sellerTitle = str(d?.sellerPortalTitle, '') || str(d?.name, '') || str(d?.marketplaceName, '') || defaults.name;
+  const sellerTitle = str(d?.sellerPortalTitle, '') || str(d?.brandName, '') || str(d?.name, '') || str(d?.marketplaceName, '') || defaults.name;
   const rawLogo = cleanUrl(d?.sellerPortalLogoUrl) || cleanUrl(d?.logo) || cleanUrl(d?.logoUrl) || defaults.logo;
   const logoVal = resolveAssetUrl(rawLogo);
   const rawFavicon = cleanUrl(d?.favicon) || cleanUrl(d?.faviconUrl) || rawLogo;

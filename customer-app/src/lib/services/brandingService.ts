@@ -67,7 +67,7 @@ const cleanUrl = (url: unknown): string => {
 };
 
 export const normalizeBranding = (d: any): BrandingData => {
-  const nameVal = d?.customerTitle || d?.name || d?.marketplaceName || DEFAULT_BRANDING.name;
+  const nameVal = d?.customerTitle || d?.brandName || d?.name || d?.marketplaceName || DEFAULT_BRANDING.name;
   const rawLogo = cleanUrl(d?.logo) || cleanUrl(d?.logoUrl) || DEFAULT_BRANDING.logo;
   const logoVal = rawLogo;
   const rawFavicon = cleanUrl(d?.favicon) || cleanUrl(d?.faviconUrl) || rawLogo;

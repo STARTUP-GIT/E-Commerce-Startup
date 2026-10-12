@@ -69,13 +69,6 @@ export const addProducts = async (req: Request, res: Response) => {
             });
         }
 
-        if (shop.status !== "APPROVED") {
-            return res.status(403).json({
-                message:
-                    "Shop is not approved"
-            });
-        }
-
         const normalizedName =
             productname.trim().toLowerCase();
 

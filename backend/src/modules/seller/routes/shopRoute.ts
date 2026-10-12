@@ -12,7 +12,11 @@ import {
     getActiveDistricts,
     updateShop,
     requestPackingFeeApproval,
-    togglePackingFee
+    togglePackingFee,
+    submitShopApprovalRequest,
+    getShopAgreement,
+    acceptShopAgreement,
+    declineShopAgreement
 } from "../controllers/shopController.js";
 import { sellerAuth } from "../../../middleware/sellerAuth.js";
 import { writeLimiter, uploadLimiter } from "../../../middleware/rateLimiter.js";
@@ -22,6 +26,11 @@ const router = express.Router();
 router.post("/api/shop", sellerAuth, writeLimiter, createShop);
 router.put("/api/shop", sellerAuth, writeLimiter, updateShop);
 router.get("/api/shop", sellerAuth, writeLimiter, getShopInfo);
+router.post("/api/shop/approval/submit", sellerAuth, writeLimiter, submitShopApprovalRequest);
+router.post("/api/shop/submit-approval", sellerAuth, writeLimiter, submitShopApprovalRequest);
+router.get("/api/shop/agreement", sellerAuth, writeLimiter, getShopAgreement);
+router.post("/api/shop/agreement/:agreementId/accept", sellerAuth, writeLimiter, acceptShopAgreement);
+router.post("/api/shop/agreement/:agreementId/decline", sellerAuth, writeLimiter, declineShopAgreement);
 router.post("/api/shop/bank-account", sellerAuth, writeLimiter, addBankAccountDetails);
 router.get("/api/shop/bank-account", sellerAuth, writeLimiter, getBankAccountDetails);
 router.post("/api/shop/ban-appeal", sellerAuth, writeLimiter, raiseBanIssue);

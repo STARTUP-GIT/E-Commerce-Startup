@@ -4,14 +4,11 @@ import storageService from "../../storage/services/storage.service.js";
 /**
  * Marketplace branding — independent Admin-owned configurations per app.
  *
- * Replaces the removed Platform app's branding store. Read by:
- *   - GET /api/branding (public)          → app-selected public configuration
- *   - Admin → Branding screen             → GET/PUT /api/admin/settings/branding
- *   - Server-side PDF invoices / emails   → getBrandingConfiguration()
+ * Scopes:
+ *   - CUSTOMER: Controls customer marketplace store, header, colors, marketing copy, and SEO.
+ *   - SELLER: Controls seller portal workspace, sidebar, auth headers, colors, and portal metadata.
  *
- * The response shape is deliberately backwards compatible with the old
- * Platform branding payload so every existing `normalizeBranding()` keeps
- * working unchanged.
+ * Both are persisted and managed completely independently.
  */
 
 export interface BrandingConfiguration {
@@ -92,7 +89,7 @@ const appDefaults: Record<BrandingApp, BrandingConfiguration> = {
     SELLER: {
         name: "Sante Seller Portal",
         marketplaceName: "Sante Marketplace",
-        brandName: "Sante Marketplace",
+        brandName: "Sante Seller Portal",
         logo: "",
         favicon: "",
         tagline: "Manage your storefront, products, and incoming orders.",
@@ -156,140 +153,121 @@ export const getBrandingConfiguration = async (
         return cached.value;
     }
 
-    // Always fetch central CUSTOMER branding as the primary source of truth
-    const [centralRow, sellerRow] = await Promise.all([
-        prisma.marketplaceBranding.findUnique({ where: { app: "CUSTOMER" } }),
-        prisma.marketplaceBranding.findUnique({ where: { app: "SELLER" } })
-    ]);
-
-    const central = centralRow || ({} as any);
-    const seller = sellerRow || ({} as any);
-
-    // Primary marketplace identity (Source of Truth)
-    const centralBrandName = str(central.brandName, DEFAULT_BRANDING.brandName);
-    const centralLogo = cleanAssetUrl(central.logoUrl);
-    const centralDarkLogo = cleanAssetUrl(central.darkLogoUrl) || centralLogo;
-    const centralLightLogo = cleanAssetUrl(central.lightLogoUrl) || centralLogo;
-    const centralFavicon = cleanAssetUrl(central.faviconUrl) || centralLogo;
-    const centralTagline = str(central.tagline, DEFAULT_BRANDING.tagline);
-    const primaryColor = str(central.primaryColor, "#FF5722");
-    const secondaryColor = str(central.secondaryColor, "#0EA5E9");
+    const row = await prisma.marketplaceBranding.findUnique({ where: { app } });
+    const defaults = appDefaults[app];
 
     if (app === "SELLER") {
-        // Derive seller portal specific title and tagline with central inheritance
+        const sellerRow = row || ({} as any);
         const sellerTitle =
-            str(central.sellerPortalTitle, "") ||
-            str(seller.sellerPortalTitle, "") ||
-            (seller.brandName && seller.brandName !== "Marketplace Seller" && seller.brandName !== "Marketplace"
-                ? seller.brandName
-                : centralBrandName.toLowerCase().includes("seller")
-                ? centralBrandName
-                : `${centralBrandName} Seller Portal`);
+            str(sellerRow.sellerPortalTitle, "") ||
+            str(sellerRow.brandName, "") ||
+            defaults.name;
 
         const sellerTagline =
-            str(central.sellerPortalTagline, "") ||
-            str(seller.sellerPortalTagline, "") ||
-            (seller.tagline && seller.tagline !== "Grow your store locally"
-                ? seller.tagline
-                : centralTagline && centralTagline !== DEFAULT_BRANDING.tagline
-                ? centralTagline
-                : DEFAULT_SELLER_BRANDING.tagline);
+            str(sellerRow.sellerPortalTagline, "") ||
+            str(sellerRow.tagline, "") ||
+            defaults.tagline;
 
-        // Inherit logo: seller-specific override if explicitly uploaded, otherwise central logo!
         const sellerLogo =
-            cleanAssetUrl(central.sellerPortalLogoUrl) ||
-            cleanAssetUrl(seller.sellerPortalLogoUrl) ||
-            (cleanAssetUrl(seller.logoUrl) && cleanAssetUrl(seller.logoUrl) !== cleanAssetUrl(central.logoUrl)
-                ? cleanAssetUrl(seller.logoUrl)
-                : centralLogo);
+            cleanAssetUrl(sellerRow.sellerPortalLogoUrl) ||
+            cleanAssetUrl(sellerRow.logoUrl) ||
+            defaults.logo;
 
-        const sellerFavicon = cleanAssetUrl(seller.faviconUrl) || centralFavicon || sellerLogo;
+        const sellerFavicon = cleanAssetUrl(sellerRow.faviconUrl) || sellerLogo;
+        const darkLogo = cleanAssetUrl(sellerRow.darkLogoUrl) || sellerLogo;
+        const lightLogo = cleanAssetUrl(sellerRow.lightLogoUrl) || sellerLogo;
 
         const config: BrandingConfiguration = {
             name: sellerTitle,
-            marketplaceName: centralBrandName,
-            brandName: centralBrandName,
+            marketplaceName: sellerTitle,
+            brandName: sellerTitle,
             logo: sellerLogo,
             favicon: sellerFavicon,
             logoUrl: sellerLogo,
             faviconUrl: sellerFavicon,
-            darkLogoUrl: cleanAssetUrl(seller.darkLogoUrl) || centralDarkLogo || sellerLogo,
-            lightLogoUrl: cleanAssetUrl(seller.lightLogoUrl) || centralLightLogo || sellerLogo,
+            darkLogoUrl: darkLogo,
+            lightLogoUrl: lightLogo,
             tagline: sellerTagline,
-            shortName: str(seller.shortName, "Seller"),
-            brandDescription: str(seller.brandDescription, str(central.brandDescription, DEFAULT_SELLER_BRANDING.brandDescription!)),
-            customerTitle: str(central.customerTitle, centralBrandName),
+            shortName: str(sellerRow.shortName, "Seller"),
+            brandDescription: str(sellerRow.brandDescription, defaults.brandDescription!),
+            customerTitle: sellerTitle,
             sellerPortalTitle: sellerTitle,
             sellerPortalTagline: sellerTagline,
             sellerPortalLogoUrl: sellerLogo,
-            heroBadge: str(seller.heroBadge, DEFAULT_SELLER_BRANDING.heroBadge),
-            heroHeadingLine1: str(seller.heroHeadingLine1, DEFAULT_SELLER_BRANDING.heroHeadingLine1),
-            heroHeadingLine2: str(seller.heroHeadingLine2, DEFAULT_SELLER_BRANDING.heroHeadingLine2),
-            heroHeadingLine3: str(seller.heroHeadingLine3, DEFAULT_SELLER_BRANDING.heroHeadingLine3),
-            heroDescription: str(seller.heroDescription, DEFAULT_SELLER_BRANDING.heroDescription),
-            searchPlaceholder: str(seller.searchPlaceholder, DEFAULT_SELLER_BRANDING.searchPlaceholder),
-            exploreShopsButtonText: str(seller.exploreShopsButtonText, DEFAULT_SELLER_BRANDING.exploreShopsButtonText),
-            browseProductsButtonText: str(seller.browseProductsButtonText, DEFAULT_SELLER_BRANDING.browseProductsButtonText),
-            footerDescription: str(seller.footerDescription, DEFAULT_SELLER_BRANDING.footerDescription),
-            seoTitle: str(seller.seoTitle, `${sellerTitle} | ${centralBrandName}`),
-            seoDescription: str(seller.seoDescription, DEFAULT_SELLER_BRANDING.seoDescription),
-            browserTitle: str(seller.browserTitle, `${sellerTitle}`),
-            primaryColor: seller.primaryColor || primaryColor,
-            secondaryColor: seller.secondaryColor || secondaryColor,
-            supportEmail: seller.supportEmail || central.supportEmail || undefined,
-            supportPhone: seller.supportPhone || central.supportPhone || undefined,
-            updatedAt: seller.updatedAt ? new Date(seller.updatedAt).toISOString() : new Date().toISOString(),
-            updatedBy: str(seller.updatedBy, "system")
+            heroBadge: str(sellerRow.heroBadge, defaults.heroBadge),
+            heroHeadingLine1: str(sellerRow.heroHeadingLine1, defaults.heroHeadingLine1),
+            heroHeadingLine2: str(sellerRow.heroHeadingLine2, defaults.heroHeadingLine2),
+            heroHeadingLine3: str(sellerRow.heroHeadingLine3, defaults.heroHeadingLine3),
+            heroDescription: str(sellerRow.heroDescription, defaults.heroDescription),
+            searchPlaceholder: str(sellerRow.searchPlaceholder, defaults.searchPlaceholder),
+            exploreShopsButtonText: str(sellerRow.exploreShopsButtonText, defaults.exploreShopsButtonText),
+            browseProductsButtonText: str(sellerRow.browseProductsButtonText, defaults.browseProductsButtonText),
+            footerDescription: str(sellerRow.footerDescription, defaults.footerDescription),
+            seoTitle: str(sellerRow.seoTitle, `${sellerTitle}`),
+            seoDescription: str(sellerRow.seoDescription, defaults.seoDescription),
+            browserTitle: str(sellerRow.browserTitle, `${sellerTitle}`),
+            primaryColor: sellerRow.primaryColor || defaults.primaryColor,
+            secondaryColor: sellerRow.secondaryColor || defaults.secondaryColor,
+            supportEmail: sellerRow.supportEmail || undefined,
+            supportPhone: sellerRow.supportPhone || undefined,
+            updatedAt: sellerRow.updatedAt ? new Date(sellerRow.updatedAt).toISOString() : new Date().toISOString(),
+            updatedBy: str(sellerRow.updatedBy, "system")
         };
 
         brandingCache.set(cacheKey, { value: config, expiresAt: Date.now() + CACHE_TTL_MS });
         return config;
     }
 
-    // Default: CUSTOMER branding (authoritative primary marketplace identity)
-    const custTitle = str(central.customerTitle, centralBrandName);
+    // Default: CUSTOMER branding (strictly from CUSTOMER record)
+    const custRow = row || ({} as any);
+    const customerBrandName = str(custRow.brandName, defaults.brandName);
+    const customerLogo = cleanAssetUrl(custRow.logoUrl);
+    const customerFavicon = cleanAssetUrl(custRow.faviconUrl) || customerLogo;
+    const customerTagline = str(custRow.tagline, defaults.tagline);
+    const custTitle = str(custRow.customerTitle, customerBrandName);
+
     const config: BrandingConfiguration = {
-        name: centralBrandName,
-        marketplaceName: centralBrandName,
-        brandName: centralBrandName,
-        logo: centralLogo,
-        favicon: centralFavicon,
-        logoUrl: centralLogo,
-        faviconUrl: centralFavicon,
-        darkLogoUrl: centralDarkLogo,
-        lightLogoUrl: centralLightLogo,
-        tagline: centralTagline,
-        shortName: str(central.shortName, centralBrandName),
-        brandDescription: str(central.brandDescription, DEFAULT_BRANDING.brandDescription!),
+        name: customerBrandName,
+        marketplaceName: customerBrandName,
+        brandName: customerBrandName,
+        logo: customerLogo,
+        favicon: customerFavicon,
+        logoUrl: customerLogo,
+        faviconUrl: customerFavicon,
+        darkLogoUrl: cleanAssetUrl(custRow.darkLogoUrl) || customerLogo,
+        lightLogoUrl: cleanAssetUrl(custRow.lightLogoUrl) || customerLogo,
+        tagline: customerTagline,
+        shortName: str(custRow.shortName, customerBrandName),
+        brandDescription: str(custRow.brandDescription, defaults.brandDescription!),
         customerTitle: custTitle,
-        sellerPortalTitle: str(central.sellerPortalTitle, `${centralBrandName} Seller Portal`),
-        sellerPortalTagline: str(central.sellerPortalTagline, "Manage your storefront, products, and incoming orders."),
-        sellerPortalLogoUrl: cleanAssetUrl(central.sellerPortalLogoUrl) || centralLogo,
-        heroBadge: str(central.heroBadge, DEFAULT_BRANDING.heroBadge),
-        heroHeadingLine1: str(central.heroHeadingLine1, DEFAULT_BRANDING.heroHeadingLine1),
-        heroHeadingLine2: str(central.heroHeadingLine2, DEFAULT_BRANDING.heroHeadingLine2),
-        heroHeadingLine3: str(central.heroHeadingLine3, DEFAULT_BRANDING.heroHeadingLine3),
-        heroDescription: str(central.heroDescription, DEFAULT_BRANDING.heroDescription),
-        searchPlaceholder: str(central.searchPlaceholder, DEFAULT_BRANDING.searchPlaceholder),
-        exploreShopsButtonText: str(central.exploreShopsButtonText, DEFAULT_BRANDING.exploreShopsButtonText),
-        browseProductsButtonText: str(central.browseProductsButtonText, DEFAULT_BRANDING.browseProductsButtonText),
-        footerDescription: str(central.footerDescription, DEFAULT_BRANDING.footerDescription),
-        seoTitle: str(central.seoTitle, `${centralBrandName}`),
-        seoDescription: str(central.seoDescription, DEFAULT_BRANDING.seoDescription),
-        browserTitle: str(central.browserTitle, `${centralBrandName}`),
-        primaryColor,
-        secondaryColor,
-        supportEmail: central.supportEmail || undefined,
-        supportPhone: central.supportPhone || undefined,
-        updatedAt: central.updatedAt ? new Date(central.updatedAt).toISOString() : new Date().toISOString(),
-        updatedBy: str(central.updatedBy, "system")
+        sellerPortalTitle: str(custRow.sellerPortalTitle, `${customerBrandName} Seller Portal`),
+        sellerPortalTagline: str(custRow.sellerPortalTagline, "Manage your storefront, products, and incoming orders."),
+        sellerPortalLogoUrl: cleanAssetUrl(custRow.sellerPortalLogoUrl) || customerLogo,
+        heroBadge: str(custRow.heroBadge, defaults.heroBadge),
+        heroHeadingLine1: str(custRow.heroHeadingLine1, defaults.heroHeadingLine1),
+        heroHeadingLine2: str(custRow.heroHeadingLine2, defaults.heroHeadingLine2),
+        heroHeadingLine3: str(custRow.heroHeadingLine3, defaults.heroHeadingLine3),
+        heroDescription: str(custRow.heroDescription, defaults.heroDescription),
+        searchPlaceholder: str(custRow.searchPlaceholder, defaults.searchPlaceholder),
+        exploreShopsButtonText: str(custRow.exploreShopsButtonText, defaults.exploreShopsButtonText),
+        browseProductsButtonText: str(custRow.browseProductsButtonText, defaults.browseProductsButtonText),
+        footerDescription: str(custRow.footerDescription, defaults.footerDescription),
+        seoTitle: str(custRow.seoTitle, `${customerBrandName}`),
+        seoDescription: str(custRow.seoDescription, defaults.seoDescription),
+        browserTitle: str(custRow.browserTitle, `${customerBrandName}`),
+        primaryColor: custRow.primaryColor || defaults.primaryColor,
+        secondaryColor: custRow.secondaryColor || defaults.secondaryColor,
+        supportEmail: custRow.supportEmail || undefined,
+        supportPhone: custRow.supportPhone || undefined,
+        updatedAt: custRow.updatedAt ? new Date(custRow.updatedAt).toISOString() : new Date().toISOString(),
+        updatedBy: str(custRow.updatedBy, "system")
     };
 
     brandingCache.set(cacheKey, { value: config, expiresAt: Date.now() + CACHE_TTL_MS });
     return config;
 };
 
-/** Accepts legacy Platform keys and all new centralized branding fields */
+/** Accepts keys for independent customer or seller branding updates */
 export interface BrandingUpdate {
     brandName?: string;
     name?: string;
@@ -338,153 +316,161 @@ export const saveBranding = async (
     adminId?: string,
     app: BrandingApp = "CUSTOMER"
 ): Promise<BrandingConfiguration> => {
-    const centralRow = await prisma.marketplaceBranding.findUnique({ where: { app: "CUSTOMER" } });
-    const sellerRow = await prisma.marketplaceBranding.findUnique({ where: { app: "SELLER" } });
+    const existingRow = await prisma.marketplaceBranding.findUnique({ where: { app } });
+    const defaults = appDefaults[app];
 
     const brandName = str(
         pick(input.brandName, input.name, input.marketplaceName),
-        centralRow?.brandName || DEFAULT_BRANDING.brandName
+        existingRow?.brandName || defaults.brandName
     );
 
-    const logoUrl = str(pick(input.logoUrl, input.logo), centralRow?.logoUrl || "");
+    const logoUrl = str(pick(input.logoUrl, input.logo), existingRow?.logoUrl || "");
     const faviconRaw = pick(input.faviconUrl, input.favicon);
-    const faviconUrl = faviconRaw === "" ? null : (faviconRaw ?? centralRow?.faviconUrl ?? null);
+    const faviconUrl = faviconRaw === "" ? null : (faviconRaw ?? existingRow?.faviconUrl ?? null);
 
     const logoPublicId = input.logoPublicId === undefined
-        ? centralRow?.logoPublicId ?? null
+        ? existingRow?.logoPublicId ?? null
         : input.logoPublicId || null;
 
     const faviconPublicId = input.faviconPublicId === undefined
-        ? centralRow?.faviconPublicId ?? null
+        ? existingRow?.faviconPublicId ?? null
         : input.faviconPublicId || null;
 
-    const darkLogoUrl = input.darkLogoUrl !== undefined ? (input.darkLogoUrl || null) : centralRow?.darkLogoUrl ?? null;
-    const darkLogoPublicId = input.darkLogoPublicId !== undefined ? (input.darkLogoPublicId || null) : centralRow?.darkLogoPublicId ?? null;
-    const lightLogoUrl = input.lightLogoUrl !== undefined ? (input.lightLogoUrl || null) : centralRow?.lightLogoUrl ?? null;
-    const lightLogoPublicId = input.lightLogoPublicId !== undefined ? (input.lightLogoPublicId || null) : centralRow?.lightLogoPublicId ?? null;
+    const darkLogoUrl = input.darkLogoUrl !== undefined ? (input.darkLogoUrl || null) : existingRow?.darkLogoUrl ?? null;
+    const darkLogoPublicId = input.darkLogoPublicId !== undefined ? (input.darkLogoPublicId || null) : existingRow?.darkLogoPublicId ?? null;
+    const lightLogoUrl = input.lightLogoUrl !== undefined ? (input.lightLogoUrl || null) : existingRow?.lightLogoUrl ?? null;
+    const lightLogoPublicId = input.lightLogoPublicId !== undefined ? (input.lightLogoPublicId || null) : existingRow?.lightLogoPublicId ?? null;
 
-    const sellerPortalTitle = input.sellerPortalTitle !== undefined
-        ? (input.sellerPortalTitle || null)
-        : (centralRow?.sellerPortalTitle || `${brandName} Seller Portal`);
+    const shortName = str(input.shortName, existingRow?.shortName || defaults.shortName);
+    const tagline = str(input.tagline, existingRow?.tagline || defaults.tagline);
+    const brandDescription = input.brandDescription !== undefined ? (input.brandDescription || null) : existingRow?.brandDescription ?? null;
+    const browserTitle = str(input.browserTitle, existingRow?.browserTitle || brandName);
+    const seoTitle = str(input.seoTitle, existingRow?.seoTitle || brandName);
+    const seoDescription = str(input.seoDescription, existingRow?.seoDescription || defaults.seoDescription);
+    const primaryColor = input.primaryColor ?? existingRow?.primaryColor ?? defaults.primaryColor;
+    const secondaryColor = input.secondaryColor ?? existingRow?.secondaryColor ?? defaults.secondaryColor;
+    const supportEmail = input.supportEmail !== undefined ? (input.supportEmail || null) : existingRow?.supportEmail ?? null;
+    const supportPhone = input.supportPhone !== undefined ? (input.supportPhone || null) : existingRow?.supportPhone ?? null;
 
-    const sellerPortalTagline = input.sellerPortalTagline !== undefined
-        ? (input.sellerPortalTagline || null)
-        : (centralRow?.sellerPortalTagline || "Manage your storefront, products, and incoming orders.");
+    let targetData: any;
 
-    const sellerPortalLogoUrl = input.sellerPortalLogoUrl !== undefined
-        ? (input.sellerPortalLogoUrl || null)
-        : (centralRow?.sellerPortalLogoUrl || null);
+    if (app === "SELLER") {
+        const sellerPortalTitle = str(
+            pick(input.sellerPortalTitle, input.brandName, input.name),
+            existingRow?.sellerPortalTitle || existingRow?.brandName || defaults.name
+        );
+        const sellerPortalTagline = str(
+            pick(input.sellerPortalTagline, input.tagline),
+            existingRow?.sellerPortalTagline || existingRow?.tagline || defaults.tagline
+        );
+        const sellerPortalLogoUrl = str(
+            pick(input.sellerPortalLogoUrl, input.logoUrl, input.logo),
+            existingRow?.sellerPortalLogoUrl || existingRow?.logoUrl || ""
+        );
+        const sellerPortalLogoPublicId = input.sellerPortalLogoPublicId !== undefined
+            ? (input.sellerPortalLogoPublicId || null)
+            : input.logoPublicId !== undefined
+            ? (input.logoPublicId || null)
+            : existingRow?.sellerPortalLogoPublicId ?? existingRow?.logoPublicId ?? null;
 
-    const sellerPortalLogoPublicId = input.sellerPortalLogoPublicId !== undefined
-        ? (input.sellerPortalLogoPublicId || null)
-        : (centralRow?.sellerPortalLogoPublicId || null);
+        targetData = {
+            brandName: sellerPortalTitle,
+            shortName,
+            tagline: sellerPortalTagline,
+            logoUrl: sellerPortalLogoUrl || logoUrl,
+            logoPublicId: sellerPortalLogoPublicId || logoPublicId,
+            faviconUrl,
+            faviconPublicId,
+            darkLogoUrl,
+            darkLogoPublicId,
+            lightLogoUrl,
+            lightLogoPublicId,
+            brandDescription,
+            sellerPortalTitle,
+            sellerPortalTagline,
+            sellerPortalLogoUrl,
+            sellerPortalLogoPublicId,
+            browserTitle,
+            seoTitle,
+            seoDescription,
+            primaryColor,
+            secondaryColor,
+            supportEmail,
+            supportPhone,
+            updatedBy: adminId ?? "system"
+        };
+    } else {
+        // app === "CUSTOMER"
+        const customerTitle = input.customerTitle !== undefined ? (input.customerTitle || null) : existingRow?.customerTitle ?? brandName;
+        targetData = {
+            brandName,
+            shortName,
+            tagline,
+            logoUrl,
+            logoPublicId,
+            faviconUrl,
+            faviconPublicId,
+            darkLogoUrl,
+            darkLogoPublicId,
+            lightLogoUrl,
+            lightLogoPublicId,
+            brandDescription,
+            customerTitle,
+            browserTitle,
+            seoTitle,
+            seoDescription,
+            primaryColor,
+            secondaryColor,
+            supportEmail,
+            supportPhone,
+            heroBadge: str(input.heroBadge, existingRow?.heroBadge || defaults.heroBadge),
+            heroHeadingLine1: str(input.heroHeadingLine1, existingRow?.heroHeadingLine1 || defaults.heroHeadingLine1),
+            heroHeadingLine2: str(input.heroHeadingLine2, existingRow?.heroHeadingLine2 || defaults.heroHeadingLine2),
+            heroHeadingLine3: str(input.heroHeadingLine3, existingRow?.heroHeadingLine3 || defaults.heroHeadingLine3),
+            heroDescription: str(input.heroDescription, existingRow?.heroDescription || defaults.heroDescription),
+            searchPlaceholder: str(input.searchPlaceholder, existingRow?.searchPlaceholder || defaults.searchPlaceholder),
+            exploreShopsButtonText: str(input.exploreShopsButtonText, existingRow?.exploreShopsButtonText || defaults.exploreShopsButtonText),
+            browseProductsButtonText: str(input.browseProductsButtonText, existingRow?.browseProductsButtonText || defaults.browseProductsButtonText),
+            footerDescription: str(input.footerDescription, existingRow?.footerDescription || defaults.footerDescription),
+            updatedBy: adminId ?? "system"
+        };
+    }
 
-    const commonData = {
-        brandName,
-        shortName: str(input.shortName, centralRow?.shortName || "Sante"),
-        tagline: str(input.tagline, centralRow?.tagline || DEFAULT_BRANDING.tagline),
-        logoUrl,
-        logoPublicId,
-        faviconUrl,
-        faviconPublicId,
-        darkLogoUrl,
-        darkLogoPublicId,
-        lightLogoUrl,
-        lightLogoPublicId,
-        brandDescription: input.brandDescription !== undefined ? (input.brandDescription || null) : centralRow?.brandDescription ?? null,
-        customerTitle: input.customerTitle !== undefined ? (input.customerTitle || null) : centralRow?.customerTitle ?? brandName,
-        sellerPortalTitle,
-        sellerPortalTagline,
-        sellerPortalLogoUrl,
-        sellerPortalLogoPublicId,
-        browserTitle: str(input.browserTitle, brandName),
-        seoTitle: str(input.seoTitle, brandName),
-        seoDescription: str(input.seoDescription, centralRow?.seoDescription || DEFAULT_BRANDING.seoDescription),
-        primaryColor: input.primaryColor ?? centralRow?.primaryColor ?? "#FF5722",
-        secondaryColor: input.secondaryColor ?? centralRow?.secondaryColor ?? "#0EA5E9",
-        supportEmail: input.supportEmail ?? centralRow?.supportEmail ?? null,
-        supportPhone: input.supportPhone ?? centralRow?.supportPhone ?? null,
-        heroBadge: str(input.heroBadge, centralRow?.heroBadge || DEFAULT_BRANDING.heroBadge),
-        heroHeadingLine1: str(input.heroHeadingLine1, centralRow?.heroHeadingLine1 || DEFAULT_BRANDING.heroHeadingLine1),
-        heroHeadingLine2: str(input.heroHeadingLine2, centralRow?.heroHeadingLine2 || DEFAULT_BRANDING.heroHeadingLine2),
-        heroHeadingLine3: str(input.heroHeadingLine3, centralRow?.heroHeadingLine3 || DEFAULT_BRANDING.heroHeadingLine3),
-        heroDescription: str(input.heroDescription, centralRow?.heroDescription || DEFAULT_BRANDING.heroDescription),
-        searchPlaceholder: str(input.searchPlaceholder, centralRow?.searchPlaceholder || DEFAULT_BRANDING.searchPlaceholder),
-        exploreShopsButtonText: str(input.exploreShopsButtonText, centralRow?.exploreShopsButtonText || DEFAULT_BRANDING.exploreShopsButtonText),
-        browseProductsButtonText: str(input.browseProductsButtonText, centralRow?.browseProductsButtonText || DEFAULT_BRANDING.browseProductsButtonText),
-        footerDescription: str(input.footerDescription, centralRow?.footerDescription || DEFAULT_BRANDING.footerDescription),
-        updatedBy: adminId ?? "system"
-    };
-
-    // 1. Persist Authoritative Central CUSTOMER row
+    // Persist strictly to the specified app row (never overwrite the other app!)
     await prisma.marketplaceBranding.upsert({
-        where: { app: "CUSTOMER" },
-        update: commonData,
-        create: { app: "CUSTOMER", ...commonData }
+        where: { app },
+        update: targetData,
+        create: { app, ...targetData }
     });
 
-    // 2. Automatically synchronize SELLER row with central brand assets
-    const sellerSyncData = {
-        brandName: sellerPortalTitle || `${brandName} Seller Portal`,
-        shortName: "Seller",
-        tagline: sellerPortalTagline || "Manage your storefront, products, and incoming orders.",
-        logoUrl: sellerPortalLogoUrl || logoUrl,
-        logoPublicId: sellerPortalLogoPublicId || logoPublicId,
-        faviconUrl: faviconUrl || logoUrl,
-        faviconPublicId,
-        darkLogoUrl,
-        darkLogoPublicId,
-        lightLogoUrl,
-        lightLogoPublicId,
-        brandDescription: commonData.brandDescription,
-        customerTitle: commonData.customerTitle,
-        sellerPortalTitle,
-        sellerPortalTagline,
-        sellerPortalLogoUrl,
-        sellerPortalLogoPublicId,
-        browserTitle: `${sellerPortalTitle || `${brandName} Seller Portal`}`,
-        seoTitle: `${sellerPortalTitle || `${brandName} Seller Portal`} | ${brandName}`,
-        seoDescription: `Manage your shop, products, orders, and sales on ${brandName}.`,
-        primaryColor: commonData.primaryColor,
-        secondaryColor: commonData.secondaryColor,
-        supportEmail: commonData.supportEmail,
-        supportPhone: commonData.supportPhone,
-        updatedBy: adminId ?? "system"
-    };
+    // Invalidate cache strictly for the target app
+    invalidateBrandingCache(app);
 
-    await prisma.marketplaceBranding.upsert({
-        where: { app: "SELLER" },
-        update: sellerSyncData,
-        create: { app: "SELLER", ...sellerSyncData }
-    });
-
-    // Invalidate caches across both applications
-    invalidateBrandingCache("CUSTOMER");
-    invalidateBrandingCache("SELLER");
-
-    // Clean up replaced Cloudinary assets if any changed
+    // Clean up replaced Cloudinary assets strictly for this app row
     const replacedPublicIds = [
-        centralRow?.logoPublicId && centralRow.logoPublicId !== logoPublicId ? centralRow.logoPublicId : null,
-        centralRow?.faviconPublicId && centralRow.faviconPublicId !== faviconPublicId ? centralRow.faviconPublicId : null,
-        sellerRow?.logoPublicId && sellerRow.logoPublicId !== logoPublicId && sellerRow.logoPublicId !== sellerPortalLogoPublicId ? sellerRow.logoPublicId : null,
+        existingRow?.logoPublicId && existingRow.logoPublicId !== targetData.logoPublicId ? existingRow.logoPublicId : null,
+        existingRow?.faviconPublicId && existingRow.faviconPublicId !== targetData.faviconPublicId ? existingRow.faviconPublicId : null,
+        existingRow?.darkLogoPublicId && existingRow.darkLogoPublicId !== targetData.darkLogoPublicId ? existingRow.darkLogoPublicId : null,
+        existingRow?.lightLogoPublicId && existingRow.lightLogoPublicId !== targetData.lightLogoPublicId ? existingRow.lightLogoPublicId : null,
+        existingRow?.sellerPortalLogoPublicId && existingRow.sellerPortalLogoPublicId !== targetData.sellerPortalLogoPublicId ? existingRow.sellerPortalLogoPublicId : null,
     ].filter((publicId): publicId is string => Boolean(publicId));
 
     for (const publicId of replacedPublicIds) {
         try {
             await storageService.deleteImage({ publicId });
         } catch (error) {
-            console.error("FAILED TO REMOVE REPLACED BRANDING IMAGE:", error);
+            console.error(`FAILED TO REMOVE REPLACED ${app} BRANDING IMAGE:`, error);
         }
     }
 
     return getBrandingConfiguration(app);
 };
 
-/** Admin-facing payload (row-shaped, includes editable non-public fields). */
+/** Admin-facing payload for the specified application row */
 export const getBrandingSettings = async (app: BrandingApp = "CUSTOMER") => {
     const [branding, row] = await Promise.all([
         getBrandingConfiguration(app),
-        prisma.marketplaceBranding.findUnique({ where: { app: "CUSTOMER" } })
+        prisma.marketplaceBranding.findUnique({ where: { app } })
     ]);
     return {
         branding: {
@@ -504,4 +490,3 @@ export const getBrandingSettings = async (app: BrandingApp = "CUSTOMER") => {
         }
     };
 };
-

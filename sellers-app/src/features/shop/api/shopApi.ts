@@ -143,4 +143,24 @@ export const shopApi = {
       allDistricts: districtsArray.map(d => ({ name: d.name, isEnabled: true })),
     };
   },
+
+  submitShopApproval: async (payload?: { notes?: string }): Promise<{ message: string; approvalRequest: any }> => {
+    const response = await axiosInstance.post('/seller/api/shop/submit-approval', payload || {});
+    return response.data;
+  },
+
+  getAgreement: async (): Promise<{ agreement: any; history: any[]; approvalRequest: any }> => {
+    const response = await axiosInstance.get('/seller/api/shop/agreement');
+    return response.data;
+  },
+
+  acceptAgreement: async (agreementId: string, payload: { signedName: string }): Promise<{ message: string; agreement: any }> => {
+    const response = await axiosInstance.post(`/seller/api/shop/agreement/${agreementId}/accept`, payload);
+    return response.data;
+  },
+
+  declineAgreement: async (agreementId: string, payload: { reason: string }): Promise<{ message: string; agreement: any }> => {
+    const response = await axiosInstance.post(`/seller/api/shop/agreement/${agreementId}/decline`, payload);
+    return response.data;
+  },
 };
