@@ -12,6 +12,7 @@ import { useUIStore } from '@/lib/store/uiStore';
 import { Grid, Plus, Trash2, Edit2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { ImageUploadField, type UploadResult } from '@/shared/components/ImageUploadField';
+import { Dialog } from '@/shared/components/Dialog';
 
 export function CategoriesPage() {
   const queryClient = useQueryClient();
@@ -212,49 +213,51 @@ export function CategoriesPage() {
       )}
 
       {showEditModal && editingCategory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md p-6 bg-[#0c0c12] border border-white/10 rounded-2xl shadow-xl">
-            <h2 className="text-base font-bold text-white mb-1">Edit Category</h2>
-            <p className="text-[11px] text-white/40 mb-4">Update the details of this category</p>
-            <form onSubmit={editForm.handleSubmit((v) => updateMutation.mutate({ id: editingCategory.id, payload: v }))} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Category Name</label>
-                <Input {...editForm.register('name', { required: true })} />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Description (Optional)</label>
-                <Input {...editForm.register('description')} />
-              </div>
-              <div className="space-y-1">
-                <ImageUploadField
-                  label="Category Image (Optional)"
-                  folder="categories"
-                  value={editForm.watch('imageUrl')}
-                  onChange={(image: UploadResult) => {
-                    editForm.setValue('imageUrl', image.url, { shouldDirty: true });
-                    editForm.setValue('imagePublicId', image.publicId, { shouldDirty: true });
-                  }}
-                  onRemove={() => {
-                    editForm.setValue('imageUrl', '', { shouldDirty: true });
-                    editForm.setValue('imagePublicId', '', { shouldDirty: true });
-                  }}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Display Order</label>
-                <Input type="number" placeholder="0" {...editForm.register('sortOrder', { valueAsNumber: true })} />
-              </div>
-              <div className="flex justify-end gap-2.5 pt-2">
-                <Button type="button" variant="outline" onClick={() => { setShowEditModal(false); setEditingCategory(null); }}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={updateMutation.isPending}>
-                  Save Changes
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <Dialog
+          isOpen={showEditModal && !!editingCategory}
+          onClose={() => { setShowEditModal(false); setEditingCategory(null); }}
+          title="Edit Category"
+          description="Update the details of this category"
+          maxWidth="max-w-md"
+        >
+          <form onSubmit={editForm.handleSubmit((v) => updateMutation.mutate({ id: editingCategory.id, payload: v }))} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Category Name</label>
+              <Input {...editForm.register('name', { required: true })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Description (Optional)</label>
+              <Input {...editForm.register('description')} />
+            </div>
+            <div className="space-y-1">
+              <ImageUploadField
+                label="Category Image (Optional)"
+                folder="categories"
+                value={editForm.watch('imageUrl')}
+                onChange={(image: UploadResult) => {
+                  editForm.setValue('imageUrl', image.url, { shouldDirty: true });
+                  editForm.setValue('imagePublicId', image.publicId, { shouldDirty: true });
+                }}
+                onRemove={() => {
+                  editForm.setValue('imageUrl', '', { shouldDirty: true });
+                  editForm.setValue('imagePublicId', '', { shouldDirty: true });
+                }}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Display Order</label>
+              <Input type="number" placeholder="0" {...editForm.register('sortOrder', { valueAsNumber: true })} />
+            </div>
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-white/5">
+              <Button type="button" variant="outline" onClick={() => { setShowEditModal(false); setEditingCategory(null); }}>
+                Cancel
+              </Button>
+              <Button type="submit" isLoading={updateMutation.isPending}>
+                Save Changes
+              </Button>
+            </div>
+          </form>
+        </Dialog>
       )}
     </div>
   );

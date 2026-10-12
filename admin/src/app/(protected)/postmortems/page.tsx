@@ -9,6 +9,8 @@ import { Button } from '@/shared/components/Button';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
+import { Dialog, Drawer } from '@/shared/components/Dialog';
+import { MultiFileUploadField } from '@/shared/components/MultiFileUploadField';
 import {
   FileCode,
   Plus,
@@ -19,7 +21,8 @@ import {
   Search,
   X,
   User,
-  ShieldCheck
+  ShieldCheck,
+  ExternalLink
 } from 'lucide-react';
 
 export default function PostmortemsPage() {
@@ -35,6 +38,7 @@ export default function PostmortemsPage() {
   const [resolution, setResolution] = useState('');
   const [responsibleOwner, setResponsibleOwner] = useState('');
   const [impact, setImpact] = useState('');
+  const [attachments, setAttachments] = useState<string[]>([]);
 
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
@@ -60,17 +64,24 @@ export default function PostmortemsPage() {
 
   const createPostmortemMutation = useMutation({
     mutationFn: async () => {
-      if (!title || !summary || !rootCause || !resolution || !responsibleOwner) {
+      if (!title.trim() || !summary.trim() || !rootCause.trim() || !resolution.trim() || !responsibleOwner.trim()) {
         throw new Error('Title, summary, root cause, resolution and owner are required.');
       }
+
+      let formattedImpact = impact.trim() || 'Incident impact recorded';
+      if (attachments.length > 0) {
+        formattedImpact += '\n\nSupporting Diagnostic Attachments:\n' +
+          attachments.map((url, i) => `${i + 1}. ${url}`).join('\n');
+      }
+
       const res = await axiosInstance.post('/api/admin/postmortems', {
-        title,
-        summary,
+        title: title.trim(),
+        summary: summary.trim(),
         severity,
-        rootCause,
-        resolution,
-        responsibleOwner,
-        impact,
+        rootCause: rootCause.trim(),
+        resolution: resolution.trim(),
+        responsibleOwner: responsibleOwner.trim(),
+        impact: formattedImpact,
       });
       return res.data;
     },
@@ -103,6 +114,7 @@ export default function PostmortemsPage() {
     setResolution('');
     setResponsibleOwner('');
     setImpact('');
+    setAttachments([]);
   };
 
   const postmortems = data?.postmortems ?? [];
@@ -204,154 +216,178 @@ export default function PostmortemsPage() {
         </Table>
       </Card>
 
-      {/* Create Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white">Draft Postmortem Incident Report</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+      {/* Create Modal (Using Viewport-Centered Shared Dialog) */}
+      <Dialog
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        maxWidth="max-w-xl"
+        title="Draft Postmortem Incident Report"
+        description="Document root cause analysis and resolution actions."
+        footer={
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowCreateModal(false)}
+              className="border-slate-700 text-slate-300 hover:bg-slate-800 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={!title.trim() || !summary.trim() || !rootCause.trim() || !resolution.trim() || !responsibleOwner.trim() || createPostmortemMutation.isPending}
+              onClick={() => createPostmortemMutation.mutate()}
+              className="bg-red-600 hover:bg-red-500 font-bold text-white text-xs"
+            >
+              {createPostmortemMutation.isPending ? 'Saving...' : 'Save Postmortem Draft'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3.5">
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Incident Title *</label>
+            <input
+              type="text"
+              placeholder="e.g. Mass Payment Webhook Retry Disruption"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-red-500"
+            />
+          </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Incident Title *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Mass Payment Webhook Retry Disruption"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Severity</label>
-                  <select
-                    value={severity}
-                    onChange={(e) => setSeverity(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                  >
-                    <option value="SEV1">SEV1 (Critical Marketplace Outage)</option>
-                    <option value="SEV2">SEV2 (Major Degraded Operations)</option>
-                    <option value="SEV3">SEV3 (Minor Incident)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Responsible Owner *</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Lead SRE / Operations Lead"
-                    value={responsibleOwner}
-                    onChange={(e) => setResponsibleOwner(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Executive Summary *</label>
-                <textarea
-                  rows={2}
-                  placeholder="What happened and customer impact..."
-                  value={summary}
-                  onChange={(e) => setSummary(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Root Cause *</label>
-                <textarea
-                  rows={2}
-                  placeholder="Why did this failure occur..."
-                  value={rootCause}
-                  onChange={(e) => setRootCause(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Immediate Resolution &amp; Fix *</label>
-                <textarea
-                  rows={2}
-                  placeholder="How was the issue remediated..."
-                  value={resolution}
-                  onChange={(e) => setResolution(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-              <Button size="sm" variant="outline" onClick={() => setShowCreateModal(false)} className="border-slate-700">
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                disabled={!title || !summary || !rootCause || !resolution || !responsibleOwner || createPostmortemMutation.isPending}
-                onClick={() => createPostmortemMutation.mutate()}
-                className="bg-red-600 hover:bg-red-500 font-bold text-white text-xs"
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Severity</label>
+              <select
+                value={severity}
+                onChange={(e) => setSeverity(e.target.value)}
+                className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-red-500"
               >
-                {createPostmortemMutation.isPending ? 'Saving...' : 'Save Postmortem Draft'}
+                <option value="SEV1">SEV1 (Critical Outage)</option>
+                <option value="SEV2">SEV2 (Major Degraded Ops)</option>
+                <option value="SEV3">SEV3 (Minor Incident)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Responsible Owner *</label>
+              <input
+                type="text"
+                placeholder="e.g. Lead SRE / Operations Lead"
+                value={responsibleOwner}
+                onChange={(e) => setResponsibleOwner(e.target.value)}
+                className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-red-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Executive Summary *</label>
+            <textarea
+              rows={2}
+              placeholder="What happened and customer/operational impact..."
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none focus:outline-none focus:border-red-500"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Root Cause *</label>
+            <textarea
+              rows={2}
+              placeholder="Why did this failure occur (5-whys analysis)..."
+              value={rootCause}
+              onChange={(e) => setRootCause(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none focus:outline-none focus:border-red-500"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Immediate Resolution &amp; Fix *</label>
+            <textarea
+              rows={2}
+              placeholder="How was the issue remediated and stabilized..."
+              value={resolution}
+              onChange={(e) => setResolution(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none focus:outline-none focus:border-red-500"
+            />
+          </div>
+
+          {/* Cloudinary Supporting Files & Incident Evidence */}
+          <div className="pt-1">
+            <MultiFileUploadField
+              value={attachments}
+              onChange={setAttachments}
+              folder="postmortems"
+              label="Incident Supporting Files & Diagnostic Screenshots"
+              hint="Upload error log exports, telemetry charts, or architecture diagrams"
+              maxFiles={5}
+            />
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Drawer (Using Viewport-Aware Drawer) */}
+      <Drawer
+        isOpen={!!selectedPostmortemId}
+        onClose={() => setSelectedPostmortemId(null)}
+        maxWidth="max-w-xl"
+        title="Postmortem Report"
+        subtitle={
+          detailData?.postmortem && (
+            <span className="font-mono text-xs text-red-400">
+              {detailData.postmortem.reference}
+            </span>
+          )
+        }
+      >
+        {isDetailLoading ? (
+          <Skeleton className="h-48 w-full bg-slate-800/40" />
+        ) : detailData?.postmortem ? (
+          <div className="space-y-6">
+            <div>
+              <h4 className="text-sm font-bold text-white">{detailData.postmortem.title}</h4>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge className="bg-red-500/20 text-red-300">{detailData.postmortem.severity}</Badge>
+                <span className="text-xs text-slate-400">Owner: {detailData.postmortem.responsibleOwner}</span>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs space-y-2">
+              <span className="text-slate-500 block uppercase font-semibold text-[10px]">Executive Summary</span>
+              <p className="text-slate-200 whitespace-pre-wrap">{detailData.postmortem.summary}</p>
+            </div>
+
+            <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs space-y-2">
+              <span className="text-slate-500 block uppercase font-semibold text-[10px]">Root Cause</span>
+              <p className="text-slate-200 whitespace-pre-wrap">{detailData.postmortem.rootCause}</p>
+            </div>
+
+            <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs space-y-2">
+              <span className="text-slate-500 block uppercase font-semibold text-[10px]">Resolution Applied</span>
+              <p className="text-slate-200 whitespace-pre-wrap">{detailData.postmortem.resolution}</p>
+            </div>
+
+            {detailData.postmortem.impact && (
+              <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs space-y-2">
+                <span className="text-slate-500 block uppercase font-semibold text-[10px]">Impact &amp; Supporting Files</span>
+                <p className="text-slate-300 whitespace-pre-wrap">{detailData.postmortem.impact}</p>
+              </div>
+            )}
+
+            {detailData.postmortem.reviewStatus === 'DRAFT' && (
+              <Button
+                onClick={() => { if (selectedPostmortemId) updateStatusMutation.mutate({ id: selectedPostmortemId, reviewStatus: 'APPROVED' }); }}
+                disabled={updateStatusMutation.isPending}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+              >
+                {updateStatusMutation.isPending ? 'Approving...' : 'Approve Incident Postmortem'}
               </Button>
-            </div>
+            )}
           </div>
-        </div>
-      )}
-
-      {/* Drawer */}
-      {selectedPostmortemId && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-xl bg-slate-900 border-l border-slate-800 h-full overflow-y-auto p-6 space-y-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-white">Postmortem Report</h3>
-                <span className="font-mono text-xs text-red-400">{detailData?.postmortem?.reference}</span>
-              </div>
-              <button onClick={() => setSelectedPostmortemId(null)} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {isDetailLoading ? (
-              <Skeleton className="h-48 w-full bg-slate-800/40" />
-            ) : detailData?.postmortem ? (
-              <div className="space-y-6">
-                <div>
-                  <h4 className="text-sm font-bold text-white">{detailData.postmortem.title}</h4>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge className="bg-red-500/20 text-red-300">{detailData.postmortem.severity}</Badge>
-                    <span className="text-xs text-slate-400">Owner: {detailData.postmortem.responsibleOwner}</span>
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs space-y-2">
-                  <span className="text-slate-500 block uppercase font-semibold text-[10px]">Root Cause</span>
-                  <p className="text-slate-200 whitespace-pre-wrap">{detailData.postmortem.rootCause}</p>
-                </div>
-
-                <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs space-y-2">
-                  <span className="text-slate-500 block uppercase font-semibold text-[10px]">Resolution Applied</span>
-                  <p className="text-slate-200 whitespace-pre-wrap">{detailData.postmortem.resolution}</p>
-                </div>
-
-                {detailData.postmortem.reviewStatus === 'DRAFT' && (
-                  <Button
-                    onClick={() => updateStatusMutation.mutate({ id: selectedPostmortemId, reviewStatus: 'APPROVED' })}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
-                  >
-                    Approve Incident Postmortem
-                  </Button>
-                )}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      )}
+        ) : null}
+      </Drawer>
     </div>
   );
 }

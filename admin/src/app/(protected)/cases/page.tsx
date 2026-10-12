@@ -9,6 +9,7 @@ import { Button } from '@/shared/components/Button';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
+import { Dialog, Drawer } from '@/shared/components/Dialog';
 import {
   ShieldAlert,
   Search,
@@ -225,183 +226,180 @@ export default function CasesManagementPage() {
         </Table>
       </Card>
 
-      {/* Case Investigation Drawer */}
-      {selectedCaseId && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-xl bg-slate-900 border-l border-slate-800 h-full overflow-y-auto p-6 space-y-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-white">Case File</h3>
-                <span className="font-mono text-xs text-amber-400">{detailData?.report?.reference}</span>
+      {/* Case Investigation Drawer (Using Viewport-Aware Drawer) */}
+      <Drawer
+        isOpen={!!selectedCaseId}
+        onClose={() => setSelectedCaseId(null)}
+        maxWidth="max-w-xl"
+        title="Case File"
+        subtitle={
+          detailData?.report && (
+            <span className="font-mono text-xs text-amber-400">{detailData.report.reference}</span>
+          )
+        }
+      >
+        {isDetailLoading ? (
+          <Skeleton className="h-48 w-full bg-slate-800/40" />
+        ) : detailData?.report ? (
+          <div className="space-y-6">
+            {/* Original Complaint */}
+            <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400 uppercase font-semibold">Original Customer Submission</span>
+                <Badge className="bg-amber-500/20 text-amber-300 text-[10px]">{detailData.report.targetType}</Badge>
               </div>
-              <button onClick={() => setSelectedCaseId(null)} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
+              <h4 className="text-sm font-bold text-white">{detailData.report.reason}</h4>
+              <p className="text-xs text-slate-300 whitespace-pre-wrap">{detailData.report.description}</p>
             </div>
 
-            {isDetailLoading ? (
-              <Skeleton className="h-48 w-full bg-slate-800/40" />
-            ) : detailData?.report ? (
-              <div className="space-y-6">
-                {/* Original Complaint */}
-                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400 uppercase font-semibold">Original Customer Submission</span>
-                    <Badge className="bg-amber-500/20 text-amber-300 text-[10px]">{detailData.report.targetType}</Badge>
-                  </div>
-                  <h4 className="text-sm font-bold text-white">{detailData.report.reason}</h4>
-                  <p className="text-xs text-slate-300 whitespace-pre-wrap">{detailData.report.description}</p>
-                </div>
-
-                {/* Evidence Attachments */}
-                {detailData.report.evidenceUrls && detailData.report.evidenceUrls.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Customer Evidence</h4>
-                    <div className="space-y-1.5">
-                      {detailData.report.evidenceUrls.map((url: string, idx: number) => (
-                        <a
-                          key={idx}
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-2 p-2 rounded bg-slate-800/50 border border-slate-700/60 text-xs text-cyan-400 hover:text-cyan-300 truncate"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
-                          <span className="truncate">{url}</span>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Append-Only Timeline */}
-                <div className="space-y-3 border-t border-slate-800 pt-4">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Case Investigation Timeline</h4>
-                  <div className="space-y-2 relative before:absolute before:inset-0 before:left-3 before:w-0.5 before:bg-slate-800">
-                    {detailData.report.timelineEvents?.map((evt: any) => (
-                      <div key={evt.id} className="relative pl-7 text-xs space-y-1">
-                        <div className="absolute left-1.5 top-1.5 -translate-x-1/2 h-2.5 w-2.5 rounded-full bg-amber-400 border border-slate-900" />
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-white">{evt.eventType.replace('_', ' ')}</span>
-                          <span className="text-[10px] text-slate-500">{new Date(evt.createdAt).toLocaleString()}</span>
-                        </div>
-                        <p className="text-slate-300">{evt.description}</p>
-                        {evt.isInternal && (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-amber-400/90 font-mono">
-                            <Lock className="h-2.5 w-2.5" /> Confidential Admin Note
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Add Event Form */}
-                  <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 space-y-2 pt-3">
-                    <h5 className="text-[11px] font-bold text-slate-400 uppercase">Append Case Event / Note</h5>
-                    <div className="flex gap-2">
-                      <select
-                        value={eventType}
-                        onChange={(e) => setEventType(e.target.value)}
-                        className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
-                      >
-                        <option value="NOTE_ADDED">Internal Note</option>
-                        <option value="SELLER_CONTACTED">Seller Contacted</option>
-                        <option value="EVIDENCE_VERIFIED">Evidence Verified</option>
-                        <option value="ENFORCEMENT_ISSUED">Enforcement Issued</option>
-                      </select>
-                      <input
-                        type="text"
-                        placeholder="Observation or action taken..."
-                        value={eventDescription}
-                        onChange={(e) => setEventDescription(e.target.value)}
-                        className="flex-1 px-3 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
-                      />
-                      <Button
-                        size="sm"
-                        disabled={!eventDescription.trim() || addTimelineMutation.isPending}
-                        onClick={() => addTimelineMutation.mutate()}
-                        className="bg-amber-600 hover:bg-amber-500 text-xs font-semibold text-white"
-                      >
-                        Append
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Resolution Controls */}
-                <div className="border-t border-slate-800 pt-4">
-                  {detailData.report.status !== 'RESOLVED' && detailData.report.status !== 'DISMISSED' ? (
-                    <Button
-                      onClick={() => setShowResolveModal(true)}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+            {/* Evidence Attachments */}
+            {detailData.report.evidenceUrls && detailData.report.evidenceUrls.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Customer Evidence</h4>
+                <div className="space-y-1.5">
+                  {detailData.report.evidenceUrls.map((url: string, idx: number) => (
+                    <a
+                      key={idx}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 p-2 rounded bg-slate-800/50 border border-slate-700/60 text-xs text-cyan-400 hover:text-cyan-300 truncate"
                     >
-                      Resolve / Close Case
-                    </Button>
-                  ) : (
-                    <div className="p-3 rounded-lg bg-emerald-950/20 border border-emerald-900/40 text-xs text-emerald-300">
-                      Case resolved on {new Date(detailData.report.resolvedAt).toLocaleDateString()}.
-                    </div>
-                  )}
+                      <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">{url}</span>
+                    </a>
+                  ))}
                 </div>
               </div>
-            ) : null}
-          </div>
-        </div>
-      )}
+            )}
 
-      {/* Resolve Modal */}
-      {showResolveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white">Record Case Resolution</h3>
-              <button onClick={() => setShowResolveModal(false)} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
+            {/* Append-Only Timeline */}
+            <div className="space-y-3 border-t border-slate-800 pt-4">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Case Investigation Timeline</h4>
+              <div className="space-y-2 relative before:absolute before:inset-0 before:left-3 before:w-0.5 before:bg-slate-800">
+                {detailData.report.timelineEvents?.map((evt: any) => (
+                  <div key={evt.id} className="relative pl-7 text-xs space-y-1">
+                    <div className="absolute left-1.5 top-1.5 -translate-x-1/2 h-2.5 w-2.5 rounded-full bg-amber-400 border border-slate-900" />
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-white">{evt.eventType.replace('_', ' ')}</span>
+                      <span className="text-[10px] text-slate-500">{new Date(evt.createdAt).toLocaleString()}</span>
+                    </div>
+                    <p className="text-slate-300">{evt.description}</p>
+                    {evt.isInternal && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-amber-400/90 font-mono">
+                        <Lock className="h-2.5 w-2.5" /> Confidential Admin Note
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Add Event Form */}
+              <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 space-y-2 pt-3">
+                <h5 className="text-[11px] font-bold text-slate-400 uppercase">Append Case Event / Note</h5>
+                <div className="flex gap-2">
+                  <select
+                    value={eventType}
+                    onChange={(e) => setEventType(e.target.value)}
+                    className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                  >
+                    <option value="NOTE_ADDED">Internal Note</option>
+                    <option value="SELLER_CONTACTED">Seller Contacted</option>
+                    <option value="EVIDENCE_VERIFIED">Evidence Verified</option>
+                    <option value="ENFORCEMENT_ISSUED">Enforcement Issued</option>
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Observation or action taken..."
+                    value={eventDescription}
+                    onChange={(e) => setEventDescription(e.target.value)}
+                    className="flex-1 px-3 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
+                  />
+                  <Button
+                    size="sm"
+                    disabled={!eventDescription.trim() || addTimelineMutation.isPending}
+                    onClick={() => addTimelineMutation.mutate()}
+                    className="bg-amber-600 hover:bg-amber-500 text-xs font-semibold text-white"
+                  >
+                    Append
+                  </Button>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Resolution Outcome</label>
-                <select
-                  value={resolutionStatus}
-                  onChange={(e) => setResolutionStatus(e.target.value as any)}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+            {/* Resolution Controls */}
+            <div className="border-t border-slate-800 pt-4">
+              {detailData.report.status !== 'RESOLVED' && detailData.report.status !== 'DISMISSED' ? (
+                <Button
+                  onClick={() => setShowResolveModal(true)}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
                 >
-                  <option value="RESOLVED">Resolved (Satisfactory Resolution)</option>
-                  <option value="ACTION_TAKEN">Action Taken (Enforcement Applied)</option>
-                  <option value="DISMISSED">Dismissed (Unsubstantiated)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Mandatory Outcome Details *</label>
-                <textarea
-                  rows={3}
-                  placeholder="Comprehensive record of resolution, actions taken, or reason for dismissal..."
-                  value={resolutionOutcome}
-                  onChange={(e) => setResolutionOutcome(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-              <Button size="sm" variant="outline" onClick={() => setShowResolveModal(false)} className="border-slate-700">
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                disabled={!resolutionOutcome.trim() || resolveCaseMutation.isPending}
-                onClick={() => resolveCaseMutation.mutate()}
-                className="bg-emerald-600 hover:bg-emerald-500 font-bold text-white text-xs"
-              >
-                {resolveCaseMutation.isPending ? 'Resolving...' : 'Complete Resolution'}
-              </Button>
+                  Resolve / Close Case
+                </Button>
+              ) : (
+                <div className="p-3 rounded-lg bg-emerald-950/20 border border-emerald-900/40 text-xs text-emerald-300">
+                  Case resolved on {new Date(detailData.report.resolvedAt).toLocaleDateString()}.
+                </div>
+              )}
             </div>
           </div>
+        ) : null}
+      </Drawer>
+
+      {/* Resolve Modal (Using Viewport-Centered Shared Dialog) */}
+      <Dialog
+        isOpen={showResolveModal}
+        onClose={() => setShowResolveModal(false)}
+        maxWidth="max-w-md"
+        title="Record Case Resolution"
+        description="Specify final investigation outcome and administrative disposition."
+        footer={
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowResolveModal(false)}
+              className="border-slate-700 text-slate-300 hover:bg-slate-800 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={!resolutionOutcome.trim() || resolveCaseMutation.isPending}
+              onClick={() => resolveCaseMutation.mutate()}
+              className="bg-emerald-600 hover:bg-emerald-500 font-bold text-white text-xs"
+            >
+              {resolveCaseMutation.isPending ? 'Resolving...' : 'Complete Resolution'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3.5">
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Resolution Outcome</label>
+            <select
+              value={resolutionStatus}
+              onChange={(e) => setResolutionStatus(e.target.value as any)}
+              className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-emerald-500"
+            >
+              <option value="RESOLVED">Resolved (Satisfactory Resolution)</option>
+              <option value="ACTION_TAKEN">Action Taken (Enforcement Applied)</option>
+              <option value="DISMISSED">Dismissed (Unsubstantiated)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Mandatory Outcome Details *</label>
+            <textarea
+              rows={3}
+              placeholder="Comprehensive record of resolution, actions taken, or reason for dismissal..."
+              value={resolutionOutcome}
+              onChange={(e) => setResolutionOutcome(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none focus:outline-none focus:border-emerald-500"
+            />
+          </div>
         </div>
-      )}
+      </Dialog>
     </div>
   );
 }

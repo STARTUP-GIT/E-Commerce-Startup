@@ -6,6 +6,7 @@ import { authApi } from "@/features/auth/api/authApi";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useUIStore } from "@/lib/store/uiStore";
 import { useConfirmStore } from "@/lib/store/confirmStore";
+import { Dialog } from "@/shared/components/Dialog";
 import {
   Users,
   Plus,
@@ -159,115 +160,107 @@ export default function AdminManagementPage() {
         </button>
       </div>
 
-      {/* Create Admin Modal */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0f] shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-              <h3 className="text-sm font-bold text-white">Create Admin Account</h3>
-              <button onClick={() => setShowCreate(false)} className="text-white/40 hover:text-white transition-colors cursor-pointer">
-                <X className="h-4 w-4" />
-              </button>
+      {/* Create Admin Modal (Using Viewport-Centered Shared Dialog) */}
+      <Dialog
+        isOpen={showCreate}
+        onClose={() => setShowCreate(false)}
+        maxWidth="max-w-md"
+        title="Create Admin Account"
+        description="Set credentials and administrative access level."
+        footer={
+          <>
+            <button
+              onClick={() => setShowCreate(false)}
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-white/10 text-white/60 hover:text-white text-xs font-bold transition-all cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => createMutation.mutate()}
+              disabled={createMutation.isPending || !createForm.name || !createForm.email}
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white text-black text-xs font-bold hover:bg-white/90 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              <Save className="h-3.5 w-3.5" />
+              {createMutation.isPending ? "Creating..." : "Create Admin"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {[
+            { label: "Full Name", key: "name", placeholder: "e.g. Jane Doe" },
+            { label: "Email", key: "email", placeholder: "jane@company.com" },
+            { label: "Initial Password (optional)", key: "password", placeholder: "Min. 6 characters" },
+          ].map(({ label, key, placeholder }) => (
+            <div key={key} className="space-y-1.5">
+              <label className="text-xs font-semibold text-white/50">{label}</label>
+              <input
+                type={key === "password" ? "password" : "text"}
+                value={(createForm as any)[key]}
+                onChange={(e) => setCreateForm((f) => ({ ...f, [key]: e.target.value }))}
+                placeholder={placeholder}
+                className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-white/25 transition-all"
+              />
             </div>
-            <div className="p-6 space-y-4">
-              {[
-                { label: "Full Name", key: "name", placeholder: "e.g. Jane Doe" },
-                { label: "Email", key: "email", placeholder: "jane@company.com" },
-                { label: "Initial Password (optional)", key: "password", placeholder: "Min. 6 characters" },
-              ].map(({ label, key, placeholder }) => (
-                <div key={key} className="space-y-1.5">
-                  <label className="text-xs font-semibold text-white/50">{label}</label>
-                  <input
-                    type={key === "password" ? "password" : "text"}
-                    value={(createForm as any)[key]}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, [key]: e.target.value }))}
-                    placeholder={placeholder}
-                    className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-white/25 transition-all"
-                  />
-                </div>
-              ))}
+          ))}
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-white/50">Role</label>
-                <div className="relative">
-                  <select
-                    value={createForm.role}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value }))}
-                    className="w-full appearance-none bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-white/25 transition-all cursor-pointer"
-                  >
-                    {ROLES.map((r) => (
-                      <option key={r} value={r} className="bg-[#0a0a0f]">
-                        {r.replace("_", " ")}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 pointer-events-none" />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => createMutation.mutate()}
-                  disabled={createMutation.isPending || !createForm.name || !createForm.email}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-black text-xs font-bold hover:bg-white/90 transition-all disabled:opacity-50 cursor-pointer"
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  {createMutation.isPending ? "Creating..." : "Create Admin"}
-                </button>
-                <button
-                  onClick={() => setShowCreate(false)}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 text-white/60 hover:text-white text-xs font-bold transition-all cursor-pointer"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Cancel
-                </button>
-              </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-white/50">Role</label>
+            <div className="relative">
+              <select
+                value={createForm.role}
+                onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value }))}
+                className="w-full appearance-none bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-white/25 transition-all cursor-pointer"
+              >
+                {ROLES.map((r) => (
+                  <option key={r} value={r} className="bg-[#0a0a0f]">
+                    {r.replace("_", " ")}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 pointer-events-none" />
             </div>
           </div>
         </div>
-      )}
+      </Dialog>
 
-      {/* Reset Password Modal */}
-      {resetTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0a0a0f] shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-              <h3 className="text-sm font-bold text-white">Reset Password</h3>
-              <button onClick={() => { setResetTarget(null); setResetPw(""); }} className="text-white/40 hover:text-white cursor-pointer">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-white/50">New Password</label>
-                <input
-                  type="password"
-                  value={resetPw}
-                  onChange={(e) => setResetPw(e.target.value)}
-                  placeholder="Min. 6 characters"
-                  className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-white/25 transition-all"
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => resetMutation.mutate({ id: resetTarget, password: resetPw })}
-                  disabled={resetMutation.isPending || resetPw.length < 6}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white text-black text-xs font-bold hover:bg-white/90 transition-all disabled:opacity-50 cursor-pointer"
-                >
-                  <Key className="h-3.5 w-3.5" />
-                  {resetMutation.isPending ? "Resetting..." : "Reset Password"}
-                </button>
-                <button
-                  onClick={() => { setResetTarget(null); setResetPw(""); }}
-                  className="px-4 py-2.5 rounded-xl border border-white/10 text-white/60 hover:text-white text-xs font-bold transition-all cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* Reset Password Modal (Using Viewport-Centered Shared Dialog) */}
+      <Dialog
+        isOpen={!!resetTarget}
+        onClose={() => { setResetTarget(null); setResetPw(""); }}
+        maxWidth="max-w-sm"
+        title="Reset Password"
+        description="Set a new password for this administrative user."
+        footer={
+          <>
+            <button
+              onClick={() => { setResetTarget(null); setResetPw(""); }}
+              className="px-4 py-2 rounded-xl border border-white/10 text-white/60 hover:text-white text-xs font-bold transition-all cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => resetMutation.mutate({ id: resetTarget!, password: resetPw })}
+              disabled={resetMutation.isPending || resetPw.length < 6}
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white text-black text-xs font-bold hover:bg-white/90 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              <Key className="h-3.5 w-3.5" />
+              {resetMutation.isPending ? "Resetting..." : "Reset Password"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-white/50">New Password</label>
+          <input
+            type="password"
+            value={resetPw}
+            onChange={(e) => setResetPw(e.target.value)}
+            placeholder="Min. 6 characters"
+            className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-white/25 transition-all"
+          />
         </div>
-      )}
+      </Dialog>
 
       {/* Search */}
       <div className="relative">

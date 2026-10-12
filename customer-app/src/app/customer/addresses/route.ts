@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
 const BACKEND_URL = process.env.BACKEND_API_URL?.replace(/\/$/, '');
 
@@ -13,14 +14,37 @@ async function proxyRequest(req: NextRequest, subpath: string = '') {
   const method = req.method;
   const headers: Record<string, string> = {};
 
-  const cookie = req.headers.get('cookie');
-  if (cookie) headers['cookie'] = cookie;
+  let cookie = req.headers.get('cookie') || '';
 
   const auth = req.headers.get('authorization');
   if (auth) headers['authorization'] = auth;
 
   const custToken = req.headers.get('x-customer-token');
   if (custToken) headers['x-customer-token'] = custToken;
+
+  try {
+    const nextAuthToken = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET || 'supersecretnextauthsecret',
+    });
+    if (nextAuthToken?.backendToken) {
+      if (!headers['authorization']) {
+        headers['authorization'] = `Bearer ${nextAuthToken.backendToken}`;
+      }
+      if (!headers['x-customer-token']) {
+        headers['x-customer-token'] = String(nextAuthToken.backendToken);
+      }
+      if (!cookie.includes('customer_session=')) {
+        cookie = cookie
+          ? `${cookie}; customer_session=${nextAuthToken.backendToken}`
+          : `customer_session=${nextAuthToken.backendToken}`;
+      }
+    }
+  } catch {
+    // continue
+  }
+
+  if (cookie) headers['cookie'] = cookie;
 
   const contentType = req.headers.get('content-type');
   if (contentType) headers['content-type'] = contentType;

@@ -44,6 +44,32 @@ export function ReasonModal({
     }
   }, [isOpen]);
 
+  // Lock body scroll and handle Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isLoading) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    const prevOverflow = document.body.style.overflow;
+    const prevPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = prevOverflow;
+      document.body.style.paddingRight = prevPaddingRight;
+    };
+  }, [isOpen, isLoading, onClose]);
+
   if (!mounted) return null;
 
   const handleConfirm = (e: React.FormEvent) => {
@@ -64,19 +90,17 @@ export function ReasonModal({
     onConfirm(trimmed);
   };
 
-  const modalRoot = document.body;
-
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            onClick={onClose}
+            onClick={() => { if (!isLoading) onClose(); }}
             className="fixed inset-0 bg-black/85 backdrop-blur-md"
           />
 
@@ -86,7 +110,7 @@ export function ReasonModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-            className="relative overflow-hidden w-full max-w-[450px] rounded-2xl border border-white/10 bg-zinc-950 p-6 text-foreground shadow-2xl backdrop-blur-2xl focus:outline-none z-10"
+            className="relative overflow-y-auto my-auto max-h-[calc(100dvh-2rem)] w-full max-w-[450px] rounded-2xl border border-white/10 bg-zinc-950 p-6 text-foreground shadow-2xl backdrop-blur-2xl focus:outline-none z-10"
           >
             {/* Subtle monochrome accent */}
             <div className="absolute top-0 left-0 w-full h-[3px] bg-red-500/50" />
@@ -173,6 +197,6 @@ export function ReasonModal({
         </div>
       )}
     </AnimatePresence>,
-    modalRoot
+    document.body
   );
 }

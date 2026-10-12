@@ -86,7 +86,13 @@ export function useProfile() {
     },
   });
 
-  const addresses = addressesQuery.data?.addresses ?? profileQuery.data?.user?.addresses ?? [];
+  const queryAddresses = addressesQuery.data?.addresses;
+  const profileAddresses = profileQuery.data?.user?.addresses;
+  const addresses = (Array.isArray(queryAddresses) && queryAddresses.length > 0)
+    ? queryAddresses
+    : (Array.isArray(profileAddresses) && profileAddresses.length > 0)
+      ? profileAddresses
+      : (Array.isArray(queryAddresses) ? queryAddresses : Array.isArray(profileAddresses) ? profileAddresses : []);
 
   return {
     profile: profileQuery.data?.user,

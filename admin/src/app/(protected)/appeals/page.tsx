@@ -3,12 +3,13 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios/axiosInstance';
-import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/Card';
+import { Card } from '@/shared/components/Card';
 import { Badge } from '@/shared/components/Badge';
 import { Button } from '@/shared/components/Button';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
+import { Drawer } from '@/shared/components/Dialog';
 import {
   ShieldAlert,
   Clock,
@@ -315,190 +316,184 @@ export default function AppealsPage() {
         </Table>
       </Card>
 
-      {/* Appeal Review Drawer */}
-      {selectedAppealId && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-xl bg-slate-900 border-l border-slate-800 h-full overflow-y-auto p-6 space-y-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-white">Appeal Investigation Case</h3>
-                <span className="font-mono text-xs text-slate-400">
-                  {detailData?.appeal?.reference}
-                </span>
+      {/* Appeal Review Drawer (Using Viewport-Aware Drawer) */}
+      <Drawer
+        isOpen={!!selectedAppealId}
+        onClose={() => setSelectedAppealId(null)}
+        maxWidth="max-w-xl"
+        title="Appeal Investigation Case"
+        subtitle={
+          detailData?.appeal && (
+            <span className="font-mono text-xs text-slate-400">{detailData.appeal.reference}</span>
+          )
+        }
+      >
+        {isDetailLoading ? (
+          <Skeleton className="h-48 w-full bg-slate-800/40" />
+        ) : detailData?.appeal ? (
+          <div className="space-y-6">
+            {/* Contested Decision */}
+            <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400 font-semibold uppercase">Contested Decision</span>
+                <Badge className="bg-rose-500/10 text-rose-300 text-[10px]">
+                  {detailData.appeal.enforcement?.type}
+                </Badge>
               </div>
-              <button onClick={() => setSelectedAppealId(null)} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
+              <p className="text-xs text-white font-medium">{detailData.appeal.enforcement?.reason}</p>
+              {detailData.appeal.enforcement?.guidelineClause && (
+                <p className="text-[11px] text-slate-400 font-mono">
+                  Clause: {detailData.appeal.enforcement.guidelineClause} ({detailData.appeal.enforcement.guidelineVersion})
+                </p>
+              )}
             </div>
 
-            {isDetailLoading ? (
-              <Skeleton className="h-48 w-full bg-slate-800/40" />
-            ) : detailData?.appeal ? (
-              <div className="space-y-6">
-                {/* Contested Decision */}
-                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400 font-semibold uppercase">Contested Decision</span>
-                    <Badge className="bg-rose-500/10 text-rose-300 text-[10px]">
-                      {detailData.appeal.enforcement?.type}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-white font-medium">{detailData.appeal.enforcement?.reason}</p>
-                  {detailData.appeal.enforcement?.guidelineClause && (
-                    <p className="text-[11px] text-slate-400 font-mono">
-                      Clause: {detailData.appeal.enforcement.guidelineClause} ({detailData.appeal.enforcement.guidelineVersion})
-                    </p>
-                  )}
-                </div>
+            {/* Seller Statement & Attachments */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Seller's Written Statement</h4>
+              <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-200 whitespace-pre-wrap">
+                {detailData.appeal.sellerExplanation}
+              </div>
 
-                {/* Seller Statement & Attachments */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Seller's Written Statement</h4>
-                  <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-200 whitespace-pre-wrap">
-                    {detailData.appeal.sellerExplanation}
-                  </div>
-
-                  {detailData.appeal.evidenceUrls && detailData.appeal.evidenceUrls.length > 0 && (
-                    <div className="space-y-1.5 pt-2">
-                      <span className="text-[11px] text-slate-400 block font-semibold">Supporting Evidence Submitted</span>
-                      {detailData.appeal.evidenceUrls.map((url: string, idx: number) => (
-                        <a
-                          key={idx}
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-2 p-2 rounded bg-slate-800/50 border border-slate-700/60 text-xs text-cyan-400 hover:text-cyan-300 truncate"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
-                          <span className="truncate">{url}</span>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Confidential Internal Notes */}
-                <div className="space-y-2 border-t border-slate-800 pt-4">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
-                    <span>Confidential Internal Notes</span>
-                    <span className="text-[10px] text-slate-500 font-normal">Never visible to seller</span>
-                  </h4>
-                  {detailData.appeal.internalNotes ? (
-                    <div className="p-3 rounded-lg bg-amber-950/20 border border-amber-900/40 text-xs text-amber-200/90 whitespace-pre-wrap font-mono">
-                      {detailData.appeal.internalNotes}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-500 italic">No internal notes added yet.</p>
-                  )}
-
-                  <div className="flex gap-2 pt-1">
-                    <input
-                      type="text"
-                      placeholder="Add internal investigation observation..."
-                      value={internalNoteText}
-                      onChange={(e) => setInternalNoteText(e.target.value)}
-                      className="flex-1 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => addNoteMutation.mutate()}
-                      disabled={!internalNoteText.trim() || addNoteMutation.isPending}
-                      className="bg-slate-800 hover:bg-slate-700 text-xs"
+              {detailData.appeal.evidenceUrls && detailData.appeal.evidenceUrls.length > 0 && (
+                <div className="space-y-1.5 pt-2">
+                  <span className="text-[11px] text-slate-400 block font-semibold">Supporting Evidence Submitted</span>
+                  {detailData.appeal.evidenceUrls.map((url: string, idx: number) => (
+                    <a
+                      key={idx}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 p-2 rounded bg-slate-800/50 border border-slate-700/60 text-xs text-cyan-400 hover:text-cyan-300 truncate"
                     >
-                      Save Note
-                    </Button>
-                  </div>
+                      <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">{url}</span>
+                    </a>
+                  ))}
                 </div>
+              )}
+            </div>
 
-                {/* Request More Information */}
-                {detailData.appeal.status !== 'UPHELD' && detailData.appeal.status !== 'OVERTURNED' && (
-                  <div className="space-y-2 border-t border-slate-800 pt-4">
-                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                      Request Clarification / More Info
-                    </h4>
-                    <p className="text-[11px] text-slate-400">
-                      Sends an in-app prompt to the seller requesting specific evidence or explanations.
-                    </p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Specify questions or missing documents..."
-                        value={questionText}
-                        onChange={(e) => setQuestionText(e.target.value)}
-                        className="flex-1 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => requestInfoMutation.mutate()}
-                        disabled={!questionText.trim() || requestInfoMutation.isPending}
-                        className="bg-purple-600 hover:bg-purple-500 text-xs font-semibold text-white"
-                      >
-                        Request
-                      </Button>
-                    </div>
-                  </div>
-                )}
+            {/* Confidential Internal Notes */}
+            <div className="space-y-2 border-t border-slate-800 pt-4">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                <span>Confidential Internal Notes</span>
+                <span className="text-[10px] text-slate-500 font-normal">Never visible to seller</span>
+              </h4>
+              {detailData.appeal.internalNotes ? (
+                <div className="p-3 rounded-lg bg-amber-950/20 border border-amber-900/40 text-xs text-amber-200/90 whitespace-pre-wrap font-mono">
+                  {detailData.appeal.internalNotes}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 italic">No internal notes added yet.</p>
+              )}
 
-                {/* Record Evidence-Based Decision */}
-                <div className="space-y-3 border-t border-slate-800 pt-4">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                    Record Final Appeal Decision
-                  </h4>
+              <div className="flex gap-2 pt-1">
+                <input
+                  type="text"
+                  placeholder="Add internal investigation observation..."
+                  value={internalNoteText}
+                  onChange={(e) => setInternalNoteText(e.target.value)}
+                  className="flex-1 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => addNoteMutation.mutate()}
+                  disabled={!internalNoteText.trim() || addNoteMutation.isPending}
+                  className="bg-slate-800 hover:bg-slate-700 text-xs"
+                >
+                  Save Note
+                </Button>
+              </div>
+            </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDecisionType('OVERTURNED')}
-                      className={`p-2.5 rounded-lg border text-xs font-bold transition-all ${
-                        decisionType === 'OVERTURNED'
-                          ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
-                          : 'border-slate-800 bg-slate-900 text-slate-400'
-                      }`}
-                    >
-                      Overturn Violation
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDecisionType('UPHELD')}
-                      className={`p-2.5 rounded-lg border text-xs font-bold transition-all ${
-                        decisionType === 'UPHELD'
-                          ? 'border-rose-500 bg-rose-500/20 text-rose-300'
-                          : 'border-slate-800 bg-slate-900 text-slate-400'
-                      }`}
-                    >
-                      Upheld Violation
-                    </button>
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-400 block mb-1">
-                      Mandatory Decision Reason *
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={decisionReason}
-                      onChange={(e) => setDecisionReason(e.target.value)}
-                      placeholder="Comprehensive evidence-based justification for this decision"
-                      className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none"
-                    />
-                  </div>
-
+            {/* Request More Information */}
+            {detailData.appeal.status !== 'UPHELD' && detailData.appeal.status !== 'OVERTURNED' && (
+              <div className="space-y-2 border-t border-slate-800 pt-4">
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Request Clarification / More Info
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Sends an in-app prompt to the seller requesting specific evidence or explanations.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Specify questions or missing documents..."
+                    value={questionText}
+                    onChange={(e) => setQuestionText(e.target.value)}
+                    className="flex-1 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
+                  />
                   <Button
                     size="sm"
-                    disabled={!decisionReason.trim() || recordDecisionMutation.isPending}
-                    onClick={() => recordDecisionMutation.mutate()}
-                    className={`w-full font-bold text-white text-xs ${
-                      decisionType === 'OVERTURNED' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
-                    }`}
+                    onClick={() => requestInfoMutation.mutate()}
+                    disabled={!questionText.trim() || requestInfoMutation.isPending}
+                    className="bg-purple-600 hover:bg-purple-500 text-xs font-semibold text-white"
                   >
-                    {recordDecisionMutation.isPending ? 'Recording...' : `Submit Decision (${decisionType})`}
+                    Request
                   </Button>
                 </div>
               </div>
-            ) : null}
+            )}
+
+            {/* Record Evidence-Based Decision */}
+            <div className="space-y-3 border-t border-slate-800 pt-4">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Record Final Appeal Decision
+              </h4>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDecisionType('OVERTURNED')}
+                  className={`p-2.5 rounded-lg border text-xs font-bold transition-all ${
+                    decisionType === 'OVERTURNED'
+                      ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+                      : 'border-slate-800 bg-slate-900 text-slate-400'
+                  }`}
+                >
+                  Overturn Violation
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDecisionType('UPHELD')}
+                  className={`p-2.5 rounded-lg border text-xs font-bold transition-all ${
+                    decisionType === 'UPHELD'
+                      ? 'border-rose-500 bg-rose-500/20 text-rose-300'
+                      : 'border-slate-800 bg-slate-900 text-slate-400'
+                  }`}
+                >
+                  Upheld Violation
+                </button>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-slate-400 block mb-1">
+                  Mandatory Decision Reason *
+                </label>
+                <textarea
+                  rows={2}
+                  value={decisionReason}
+                  onChange={(e) => setDecisionReason(e.target.value)}
+                  placeholder="Comprehensive evidence-based justification for this decision"
+                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none"
+                />
+              </div>
+
+              <Button
+                size="sm"
+                disabled={!decisionReason.trim() || recordDecisionMutation.isPending}
+                onClick={() => recordDecisionMutation.mutate()}
+                className={`w-full font-bold text-white text-xs ${
+                  decisionType === 'OVERTURNED' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
+                }`}
+              >
+                {recordDecisionMutation.isPending ? 'Recording...' : `Submit Decision (${decisionType})`}
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        ) : null}
+      </Drawer>
     </div>
   );
 }

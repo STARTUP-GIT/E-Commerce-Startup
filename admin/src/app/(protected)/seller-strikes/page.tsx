@@ -3,12 +3,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios/axiosInstance';
-import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/Card';
+import { Card } from '@/shared/components/Card';
 import { Badge } from '@/shared/components/Badge';
 import { Button } from '@/shared/components/Button';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
+import { Dialog, Drawer } from '@/shared/components/Dialog';
+import { MultiFileUploadField } from '@/shared/components/MultiFileUploadField';
 import {
   Gavel,
   AlertTriangle,
@@ -35,9 +37,20 @@ export default function SellerEnforcementPage() {
 
   // Modals & Drawers
   const [showIssueModal, setShowIssueModal] = useState(false);
-  const [showDirectSuspendModal, setShowDirectSuspendModal] = useState(false);
-  const [showReinstateModal, setShowReinstateModal] = useState(false);
   const [selectedEnforcementId, setSelectedEnforcementId] = useState<string | null>(null);
+
+  // Status Action Dialog (replaces browser prompt)
+  const [actionDialog, setActionDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    status: 'WITHDRAWN' | 'OVERTURNED' | null;
+    reason: string;
+  }>({
+    isOpen: false,
+    title: '',
+    status: null,
+    reason: '',
+  });
 
   // Issue Enforcement Form
   const [selectedSeller, setSelectedSeller] = useState<SellerOption | null>(null);
@@ -46,11 +59,7 @@ export default function SellerEnforcementPage() {
   const [description, setDescription] = useState('');
   const [guidelineVersion, setGuidelineVersion] = useState('v1.0-2026');
   const [guidelineClause, setGuidelineClause] = useState('Section 3.2 - Prohibited Items');
-  const [evidenceUrlsInput, setEvidenceUrlsInput] = useState('');
-
-  // Direct Suspend & Reinstate Forms
-  const [targetSellerId, setTargetSellerId] = useState('');
-  const [actionReason, setActionReason] = useState('');
+  const [evidenceUrls, setEvidenceUrls] = useState<string[]>([]);
 
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
@@ -86,18 +95,15 @@ export default function SellerEnforcementPage() {
   const issueMutation = useMutation({
     mutationFn: async () => {
       if (!selectedSeller) throw new Error('Please select a seller.');
-      const evidenceUrls = evidenceUrlsInput
-        .split('\n')
-        .map((u) => u.trim())
-        .filter(Boolean);
+      if (!reason.trim()) throw new Error('Violation reason is required.');
 
       const res = await axiosInstance.post('/api/admin/seller-enforcement', {
         sellerId: selectedSeller.id,
         type: enforcementType,
-        reason,
-        description: description || undefined,
-        guidelineVersion: enforcementType === 'STRIKE' ? guidelineVersion : undefined,
-        guidelineClause: enforcementType === 'STRIKE' ? guidelineClause : undefined,
+        reason: reason.trim(),
+        description: description.trim() || undefined,
+        guidelineVersion: enforcementType === 'STRIKE' ? guidelineVersion.trim() : undefined,
+        guidelineClause: enforcementType === 'STRIKE' ? guidelineClause.trim() : undefined,
         evidenceUrls,
       });
       return res.data;
@@ -131,44 +137,11 @@ export default function SellerEnforcementPage() {
       } else {
         showToast('Enforcement status updated successfully.', 'success');
       }
+      setActionDialog({ isOpen: false, title: '', status: null, reason: '' });
     },
     onError: (err: any) => {
       showToast(err?.response?.data?.message || 'Failed to update enforcement status.', 'error');
     },
-  });
-
-  const directSuspendMutation = useMutation({
-    mutationFn: async () => {
-      const res = await axiosInstance.post('/api/admin/seller-enforcement/direct-suspension', {
-        sellerId: targetSellerId,
-        reason: actionReason,
-      });
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-enforcements'] });
-      showToast('Seller directly suspended with documented cause.', 'success');
-      setShowDirectSuspendModal(false);
-      setActionReason('');
-    },
-    onError: (err: any) => showToast(err?.response?.data?.message || 'Failed to suspend seller.', 'error'),
-  });
-
-  const reinstateMutation = useMutation({
-    mutationFn: async () => {
-      const res = await axiosInstance.post('/api/admin/seller-enforcement/reinstatement', {
-        sellerId: targetSellerId,
-        reason: actionReason,
-      });
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-enforcements'] });
-      showToast('Seller successfully reinstated.', 'success');
-      setShowReinstateModal(false);
-      setActionReason('');
-    },
-    onError: (err: any) => showToast(err?.response?.data?.message || 'Failed to reinstate seller.', 'error'),
   });
 
   const closeIssueModal = () => {
@@ -177,7 +150,7 @@ export default function SellerEnforcementPage() {
     setReason('');
     setDescription('');
     setEnforcementType('WARNING');
-    setEvidenceUrlsInput('');
+    setEvidenceUrls([]);
   };
 
   const items = data?.items ?? [];
@@ -427,306 +400,346 @@ export default function SellerEnforcementPage() {
         </div>
       )}
 
-      {/* Issue Enforcement Action Modal */}
-      {showIssueModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-white">Issue Enforcement Action</h3>
-                <p className="text-xs text-slate-400">Select exactly one primary enforcement type.</p>
+      {/* Issue Enforcement Action Modal (Using Viewport-Centered Shared Dialog) */}
+      <Dialog
+        isOpen={showIssueModal}
+        onClose={closeIssueModal}
+        maxWidth="max-w-xl"
+        title="Issue Enforcement Action"
+        description="Select exactly one primary enforcement classification."
+        footer={
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={closeIssueModal}
+              className="border-slate-700 text-slate-300 hover:bg-slate-800 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={!selectedSeller || !reason.trim() || issueMutation.isPending}
+              onClick={() => issueMutation.mutate()}
+              className="bg-rose-600 hover:bg-rose-500 font-bold text-white text-xs"
+            >
+              {issueMutation.isPending ? 'Processing...' : 'Issue Enforcement Action'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {/* Classification type selector */}
+          <div className="grid grid-cols-2 gap-3">
+            <div
+              onClick={() => setEnforcementType('WARNING')}
+              className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
+                enforcementType === 'WARNING'
+                  ? 'border-amber-500/50 bg-amber-500/10 text-amber-300'
+                  : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700'
+              }`}
+            >
+              <div className="font-bold text-xs flex items-center gap-1.5">
+                <AlertTriangle className="h-4 w-4" />
+                Type A: Warning
               </div>
-              <button onClick={closeIssueModal} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
+              <p className="text-[11px] text-slate-400 mt-1">
+                No numeric limit. Does NOT increase strike count. Mandatory reason.
+              </p>
             </div>
 
-            {/* Type selector */}
-            <div className="grid grid-cols-2 gap-3">
-              <div
-                onClick={() => setEnforcementType('WARNING')}
-                className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
-                  enforcementType === 'WARNING'
-                    ? 'border-amber-500/50 bg-amber-500/10 text-amber-300'
-                    : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <div className="font-bold text-xs flex items-center gap-1.5">
-                  <AlertTriangle className="h-4 w-4" />
-                  Type A: Warning
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  No numeric limit. Does NOT increase strike count. Mandatory reason.
-                </p>
+            <div
+              onClick={() => setEnforcementType('STRIKE')}
+              className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
+                enforcementType === 'STRIKE'
+                  ? 'border-rose-500/50 bg-rose-500/10 text-rose-300'
+                  : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700'
+              }`}
+            >
+              <div className="font-bold text-xs flex items-center gap-1.5">
+                <Gavel className="h-4 w-4" />
+                Type B: Formal Strike
               </div>
-
-              <div
-                onClick={() => setEnforcementType('STRIKE')}
-                className={`p-3.5 rounded-lg border cursor-pointer transition-all ${
-                  enforcementType === 'STRIKE'
-                    ? 'border-rose-500/50 bg-rose-500/10 text-rose-300'
-                    : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <div className="font-bold text-xs flex items-center gap-1.5">
-                  <Gavel className="h-4 w-4" />
-                  Type B: Formal Strike
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Requires guideline clause. Max 3 qualifying strikes triggers suspension.
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Target Seller *</label>
-                <SellerSearchSelect
-                  selected={selectedSeller}
-                  onSelect={(_id, seller) => setSelectedSeller(seller)}
-                  onClear={() => setSelectedSeller(null)}
-                />
-              </div>
-
-              {enforcementType === 'STRIKE' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300 block mb-1">Guideline Version *</label>
-                    <input
-                      type="text"
-                      value={guidelineVersion}
-                      onChange={(e) => setGuidelineVersion(e.target.value)}
-                      placeholder="e.g. v1.0-2026"
-                      className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-300 block mb-1">Specific Clause *</label>
-                    <input
-                      type="text"
-                      value={guidelineClause}
-                      onChange={(e) => setGuidelineClause(e.target.value)}
-                      placeholder="e.g. Section 4.1"
-                      className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Violation Reason *</label>
-                <input
-                  type="text"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Summary of violation"
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Detailed Explanation (Optional)</label>
-                <textarea
-                  rows={2}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Detailed facts and context"
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Evidence Attachments (One URL per line)</label>
-                <textarea
-                  rows={2}
-                  value={evidenceUrlsInput}
-                  onChange={(e) => setEvidenceUrlsInput(e.target.value)}
-                  placeholder="https://storage.marketplace.com/evidence1.jpg"
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
-              <Button size="sm" variant="outline" onClick={closeIssueModal} className="border-slate-700">
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                disabled={!selectedSeller || !reason.trim() || issueMutation.isPending}
-                onClick={() => issueMutation.mutate()}
-                className="bg-rose-600 hover:bg-rose-500 font-bold text-white"
-              >
-                {issueMutation.isPending ? 'Processing...' : 'Issue Enforcement'}
-              </Button>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Requires guideline clause. Max 3 qualifying strikes triggers suspension.
+              </p>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Enforcement Detail Drawer */}
-      {selectedEnforcementId && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-slate-900 border-l border-slate-800 h-full overflow-y-auto p-6 space-y-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Target Seller *</label>
+            <SellerSearchSelect
+              selected={selectedSeller}
+              onSelect={(_id, seller) => setSelectedSeller(seller)}
+              onClear={() => setSelectedSeller(null)}
+            />
+          </div>
+
+          {enforcementType === 'STRIKE' && (
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <h3 className="text-base font-bold text-white">Enforcement Record</h3>
-                <span className="font-mono text-xs text-slate-400">
-                  {detailData?.enforcement?.reference || selectedEnforcementId}
+                <label className="text-xs font-semibold text-slate-300 block mb-1">Guideline Version *</label>
+                <input
+                  type="text"
+                  value={guidelineVersion}
+                  onChange={(e) => setGuidelineVersion(e.target.value)}
+                  placeholder="e.g. v1.0-2026"
+                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-rose-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1">Specific Clause *</label>
+                <input
+                  type="text"
+                  value={guidelineClause}
+                  onChange={(e) => setGuidelineClause(e.target.value)}
+                  placeholder="e.g. Section 4.1"
+                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-rose-500"
+                />
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Violation Reason *</label>
+            <input
+              type="text"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Brief summary of policy violation"
+              className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-rose-500"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Detailed Explanation (Optional)</label>
+            <textarea
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Investigative facts, order identifiers, and context"
+              className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none focus:outline-none focus:border-rose-500"
+            />
+          </div>
+
+          {/* Cloudinary Multi-File Uploader + External URL Support */}
+          <div>
+            <MultiFileUploadField
+              value={evidenceUrls}
+              onChange={setEvidenceUrls}
+              folder="evidence"
+              label="Evidence Attachments (Cloudinary Files or External URLs)"
+              hint="Upload screenshot proof, chat transcripts, or packaging photo evidence"
+              maxFiles={6}
+              allowExternalUrls={true}
+            />
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Enforcement Detail Drawer (Using Viewport-Aware Drawer) */}
+      <Drawer
+        isOpen={!!selectedEnforcementId}
+        onClose={() => setSelectedEnforcementId(null)}
+        maxWidth="max-w-lg"
+        title="Enforcement Record"
+        subtitle={
+          detailData?.enforcement && (
+            <span className="font-mono text-xs text-slate-400">
+              {detailData.enforcement.reference || selectedEnforcementId}
+            </span>
+          )
+        }
+      >
+        {isDetailLoading ? (
+          <Skeleton className="h-48 w-full bg-slate-800/40" />
+        ) : detailData?.enforcement ? (
+          <div className="space-y-6">
+            {/* Status banner */}
+            <div className="p-4 rounded-xl border border-slate-800 bg-slate-800/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">Classification</span>
+                <Badge className={detailData.enforcement.type === 'STRIKE' ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'}>
+                  {detailData.enforcement.type === 'STRIKE' ? 'Formal Community Guidelines Strike' : 'Formal Warning'}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">Current Status</span>
+                <span className="text-xs font-semibold text-white capitalize">{detailData.enforcement.status}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">Seller Standing</span>
+                <span className="text-xs font-mono font-bold text-rose-400">
+                  {detailData.enforcement.seller?.strikeCount}/3 qualifying strikes
                 </span>
               </div>
-              <button onClick={() => setSelectedEnforcementId(null)} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
             </div>
 
-            {isDetailLoading ? (
-              <Skeleton className="h-48 w-full bg-slate-800/40" />
-            ) : detailData?.enforcement ? (
-              <div className="space-y-6">
-                {/* Status banner */}
-                <div className="p-4 rounded-xl border border-slate-800 bg-slate-800/30 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Classification</span>
-                    <Badge className={detailData.enforcement.type === 'STRIKE' ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'}>
-                      {detailData.enforcement.type === 'STRIKE' ? 'Formal Community Guidelines Strike' : 'Formal Warning'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Current Status</span>
-                    <span className="text-xs font-semibold text-white capitalize">{detailData.enforcement.status}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Seller Standing</span>
-                    <span className="text-xs font-mono font-bold text-rose-400">
-                      {detailData.enforcement.seller?.strikeCount}/3 qualifying strikes
-                    </span>
-                  </div>
+            {/* Seller Info */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Affected Seller</h4>
+              <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
+                <div className="text-xs text-white font-semibold">
+                  {detailData.enforcement.seller?.shop?.name || `${detailData.enforcement.seller?.firstName} ${detailData.enforcement.seller?.lastName}`}
                 </div>
+                <div className="text-[11px] text-slate-400">{detailData.enforcement.seller?.email}</div>
+                <div className="text-[11px] text-slate-500">ID: {detailData.enforcement.seller?.id}</div>
+              </div>
+            </div>
 
-                {/* Seller Info */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Affected Seller</h4>
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-1">
-                    <div className="text-xs text-white font-semibold">
-                      {detailData.enforcement.seller?.shop?.name || `${detailData.enforcement.seller?.firstName} ${detailData.enforcement.seller?.lastName}`}
-                    </div>
-                    <div className="text-[11px] text-slate-400">{detailData.enforcement.seller?.email}</div>
-                    <div className="text-[11px] text-slate-500">ID: {detailData.enforcement.seller?.id}</div>
-                  </div>
+            {/* Violation Facts */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Violation Details</h4>
+              <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-2">
+                <div>
+                  <span className="text-[11px] text-slate-500 block">Primary Reason</span>
+                  <p className="text-xs text-white font-medium">{detailData.enforcement.reason}</p>
                 </div>
-
-                {/* Violation Facts */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Violation Details</h4>
-                  <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 space-y-2">
-                    <div>
-                      <span className="text-[11px] text-slate-500 block">Primary Reason</span>
-                      <p className="text-xs text-white font-medium">{detailData.enforcement.reason}</p>
-                    </div>
-                    {detailData.enforcement.guidelineClause && (
-                      <div>
-                        <span className="text-[11px] text-slate-500 block">Applicable Policy Clause</span>
-                        <p className="text-xs text-slate-300 font-mono">
-                          {detailData.enforcement.guidelineClause} ({detailData.enforcement.guidelineVersion})
-                        </p>
-                      </div>
-                    )}
-                    {detailData.enforcement.description && (
-                      <div>
-                        <span className="text-[11px] text-slate-500 block">Investigative Context</span>
-                        <p className="text-xs text-slate-300 whitespace-pre-wrap">{detailData.enforcement.description}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Evidence URLs */}
-                {detailData.enforcement.evidenceUrls && detailData.enforcement.evidenceUrls.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Evidence Attachments</h4>
-                    <div className="space-y-1.5">
-                      {detailData.enforcement.evidenceUrls.map((url: string, idx: number) => (
-                        <a
-                          key={idx}
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-2 p-2 rounded bg-slate-800/50 border border-slate-700/60 text-xs text-cyan-400 hover:text-cyan-300 truncate"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
-                          <span className="truncate">{url}</span>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Appeal status */}
-                {detailData.enforcement.appeal && (
-                  <div className="space-y-2 border-t border-slate-800 pt-4">
-                    <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
-                      <span>Associated Appeal</span>
-                      <Badge className="bg-cyan-500/10 text-cyan-300 text-[10px]">
-                        {detailData.enforcement.appeal.status}
-                      </Badge>
-                    </h4>
-                    <p className="text-xs text-slate-400">
-                      Ref: {detailData.enforcement.appeal.reference} • Submitted:{' '}
-                      {new Date(detailData.enforcement.appeal.submittedAt).toLocaleDateString()}
+                {detailData.enforcement.guidelineClause && (
+                  <div>
+                    <span className="text-[11px] text-slate-500 block">Applicable Policy Clause</span>
+                    <p className="text-xs text-slate-300 font-mono">
+                      {detailData.enforcement.guidelineClause} ({detailData.enforcement.guidelineVersion})
                     </p>
                   </div>
                 )}
-
-                {/* Authorized Actions */}
-                <div className="border-t border-slate-800 pt-4 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Authorized Management</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {detailData.enforcement.status !== 'WITHDRAWN' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const r = prompt('Enter mandatory withdrawal / amendment reason:');
-                          if (r) {
-                            statusUpdateMutation.mutate({
-                              id: selectedEnforcementId,
-                              status: 'WITHDRAWN',
-                              reason: r,
-                            });
-                          }
-                        }}
-                        className="text-xs border-slate-700 hover:bg-slate-800 text-slate-300"
-                      >
-                        Withdraw Enforcement
-                      </Button>
-                    )}
-                    {detailData.enforcement.status !== 'OVERTURNED' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          const r = prompt('Enter reason for overturning this enforcement decision:');
-                          if (r) {
-                            statusUpdateMutation.mutate({
-                              id: selectedEnforcementId,
-                              status: 'OVERTURNED',
-                              reason: r,
-                            });
-                          }
-                        }}
-                        className="text-xs border-emerald-800/60 hover:bg-emerald-950/40 text-emerald-300"
-                      >
-                        Overturn Decision
-                      </Button>
-                    )}
+                {detailData.enforcement.description && (
+                  <div>
+                    <span className="text-[11px] text-slate-500 block">Investigative Context</span>
+                    <p className="text-xs text-slate-300 whitespace-pre-wrap">{detailData.enforcement.description}</p>
                   </div>
+                )}
+              </div>
+            </div>
+
+            {/* Evidence Attachments */}
+            {detailData.enforcement.evidenceUrls && detailData.enforcement.evidenceUrls.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Evidence Attachments ({detailData.enforcement.evidenceUrls.length})</h4>
+                <div className="space-y-1.5">
+                  {detailData.enforcement.evidenceUrls.map((url: string, idx: number) => (
+                    <a
+                      key={idx}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 p-2 rounded bg-slate-800/50 border border-slate-700/60 text-xs text-cyan-400 hover:text-cyan-300 truncate"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">{url}</span>
+                    </a>
+                  ))}
                 </div>
               </div>
-            ) : null}
+            )}
+
+            {/* Appeal status */}
+            {detailData.enforcement.appeal && (
+              <div className="space-y-2 border-t border-slate-800 pt-4">
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                  <span>Associated Appeal</span>
+                  <Badge className="bg-cyan-500/10 text-cyan-300 text-[10px]">
+                    {detailData.enforcement.appeal.status}
+                  </Badge>
+                </h4>
+                <p className="text-xs text-slate-400">
+                  Ref: {detailData.enforcement.appeal.reference} • Submitted:{' '}
+                  {new Date(detailData.enforcement.appeal.submittedAt).toLocaleDateString()}
+                </p>
+              </div>
+            )}
+
+            {/* Authorized Actions */}
+            <div className="border-t border-slate-800 pt-4 space-y-3">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Authorized Management</h4>
+              <div className="flex flex-wrap gap-2">
+                {detailData.enforcement.status !== 'WITHDRAWN' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setActionDialog({
+                        isOpen: true,
+                        title: 'Withdraw Enforcement Action',
+                        status: 'WITHDRAWN',
+                        reason: '',
+                      });
+                    }}
+                    className="text-xs border-slate-700 hover:bg-slate-800 text-slate-300"
+                  >
+                    Withdraw Enforcement
+                  </Button>
+                )}
+                {detailData.enforcement.status !== 'OVERTURNED' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setActionDialog({
+                        isOpen: true,
+                        title: 'Overturn Enforcement Decision',
+                        status: 'OVERTURNED',
+                        reason: '',
+                      });
+                    }}
+                    className="text-xs border-emerald-800/60 hover:bg-emerald-950/40 text-emerald-300"
+                  >
+                    Overturn Decision
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
+        ) : null}
+      </Drawer>
+
+      {/* Confirmation / Reason Dialog for Overturning or Withdrawing (Replaces browser prompt) */}
+      <Dialog
+        isOpen={actionDialog.isOpen}
+        onClose={() => setActionDialog({ isOpen: false, title: '', status: null, reason: '' })}
+        maxWidth="max-w-md"
+        title={actionDialog.title}
+        description="Provide a documented administrative justification for this change."
+        footer={
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setActionDialog({ isOpen: false, title: '', status: null, reason: '' })}
+              className="border-slate-700 text-slate-300 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={!actionDialog.reason.trim() || statusUpdateMutation.isPending}
+              onClick={() => {
+                if (selectedEnforcementId && actionDialog.status) {
+                  statusUpdateMutation.mutate({
+                    id: selectedEnforcementId,
+                    status: actionDialog.status,
+                    reason: actionDialog.reason.trim(),
+                  });
+                }
+              }}
+              className="bg-emerald-600 hover:bg-emerald-500 font-bold text-white text-xs"
+            >
+              {statusUpdateMutation.isPending ? 'Submitting...' : 'Confirm Action'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <label className="text-xs font-semibold text-slate-300 block">Mandatory Reason *</label>
+          <textarea
+            rows={3}
+            placeholder="Detailed administrative grounds for amending this enforcement status..."
+            value={actionDialog.reason}
+            onChange={(e) => setActionDialog((prev) => ({ ...prev, reason: e.target.value }))}
+            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none focus:outline-none focus:border-emerald-500"
+          />
         </div>
-      )}
+      </Dialog>
     </div>
   );
 }

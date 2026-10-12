@@ -8,6 +8,7 @@ import { Card } from '@/shared/components/Card';
 import { Badge } from '@/shared/components/Badge';
 import { Button } from '@/shared/components/Button';
 import { Skeleton } from '@/shared/components/Skeleton';
+import { Dialog } from '@/shared/components/Dialog';
 import Link from 'next/link';
 import {
   FileCheck,
@@ -372,80 +373,14 @@ export default function AgreementTrackingPage() {
 
       {/* Audit Detail Modal */}
       {selectedAgreement && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="w-full max-w-lg border border-white/10 bg-[#0c0c10] p-6 space-y-4 shadow-2xl animate-in fade-in-50 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-emerald-400" />
-                <h3 className="font-bold text-sm text-white">Agreement Terms & Certificate</h3>
-              </div>
-              <button
-                onClick={() => setSelectedAgreement(null)}
-                className="text-white/40 hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3 bg-black/40 rounded-lg border border-white/5 space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-white/40">Agreement ID:</span>
-                  <span className="font-mono text-white text-[11px]">{selectedAgreement.id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/40">Shop:</span>
-                  <span className="text-purple-400 font-bold">{selectedAgreement.shop?.name || selectedAgreement.seller?.shop?.name || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/40">Seller:</span>
-                  <span className="text-white font-semibold">
-                    {selectedAgreement.seller?.firstName} {selectedAgreement.seller?.lastName} ({selectedAgreement.seller?.email})
-                  </span>
-                </div>
-                {selectedAgreement.commissionPercentage !== undefined && (
-                  <div className="flex justify-between">
-                    <span className="text-white/40">Agreed Commission:</span>
-                    <span className="text-purple-400 font-bold">{selectedAgreement.commissionPercentage}%</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-white/40">Status:</span>
-                  <Badge variant={selectedAgreement.status === 'ACCEPTED' ? 'success' : 'warning'} className="text-[9px]">
-                    {selectedAgreement.status || 'ACCEPTED'}
-                  </Badge>
-                </div>
-                {selectedAgreement.acceptedAt && (
-                  <div className="flex justify-between">
-                    <span className="text-white/40">Accepted At:</span>
-                    <span className="text-white">{new Date(selectedAgreement.acceptedAt).toLocaleString()}</span>
-                  </div>
-                )}
-              </div>
-
-              {selectedAgreement.documentHash && (
-                <div className="p-3 bg-black/40 rounded-lg border border-white/5 space-y-1">
-                  <p className="text-[11px] font-semibold text-white/80 flex items-center gap-1.5">
-                    <Hash className="h-3.5 w-3.5 text-purple-400" />
-                    Cryptographic Content SHA-256 Digest
-                  </p>
-                  <p className="font-mono text-[10px] break-all text-purple-300 bg-purple-950/20 p-2 rounded border border-purple-900/30">
-                    {selectedAgreement.documentHash}
-                  </p>
-                </div>
-              )}
-
-              {selectedAgreement.content && (
-                <div className="space-y-1">
-                  <p className="text-[11px] font-semibold text-white/60">Immutable Agreement Body:</p>
-                  <div className="p-3 rounded-lg bg-black/60 border border-white/5 font-mono text-[10px] text-white/70 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
-                    {selectedAgreement.content}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-white/5">
+        <Dialog
+          isOpen={!!selectedAgreement}
+          onClose={() => setSelectedAgreement(null)}
+          title="Agreement Terms & Certificate"
+          description="Legally binding shop agreement audit record and cryptographic hash"
+          maxWidth="max-w-lg"
+          footer={
+            <div className="flex justify-end gap-2 w-full">
               <Button
                 variant="outline"
                 size="sm"
@@ -472,8 +407,66 @@ export default function AgreementTrackingPage() {
                 Download JSON Certificate
               </Button>
             </div>
-          </Card>
-        </div>
+          }
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-3.5 bg-black/40 rounded-xl border border-white/5 space-y-2.5">
+              <div className="flex justify-between items-center">
+                <span className="text-white/40">Agreement ID:</span>
+                <span className="font-mono text-white text-[11px] select-all">{selectedAgreement.id}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-white/40">Shop:</span>
+                <span className="text-purple-400 font-bold">{selectedAgreement.shop?.name || selectedAgreement.seller?.shop?.name || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-white/40">Seller:</span>
+                <span className="text-white font-semibold">
+                  {selectedAgreement.seller?.firstName} {selectedAgreement.seller?.lastName} ({selectedAgreement.seller?.email})
+                </span>
+              </div>
+              {selectedAgreement.commissionPercentage !== undefined && (
+                <div className="flex justify-between items-center">
+                  <span className="text-white/40">Agreed Commission:</span>
+                  <span className="text-purple-400 font-bold">{selectedAgreement.commissionPercentage}%</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center">
+                <span className="text-white/40">Status:</span>
+                <Badge variant={selectedAgreement.status === 'ACCEPTED' ? 'success' : 'warning'} className="text-[9px]">
+                  {selectedAgreement.status || 'ACCEPTED'}
+                </Badge>
+              </div>
+              {selectedAgreement.acceptedAt && (
+                <div className="flex justify-between items-center">
+                  <span className="text-white/40">Accepted At:</span>
+                  <span className="text-white">{new Date(selectedAgreement.acceptedAt).toLocaleString()}</span>
+                </div>
+              )}
+            </div>
+
+            {selectedAgreement.documentHash && (
+              <div className="p-3 bg-black/40 rounded-xl border border-white/5 space-y-1.5">
+                <p className="text-[11px] font-semibold text-white/80 flex items-center gap-1.5">
+                  <Hash className="h-3.5 w-3.5 text-purple-400" />
+                  Cryptographic Content SHA-256 Digest
+                </p>
+                <p className="font-mono text-[10px] break-all text-purple-300 bg-purple-950/20 p-2.5 rounded-lg border border-purple-900/30 select-all">
+                  {selectedAgreement.documentHash}
+                </p>
+              </div>
+            )}
+
+            {selectedAgreement.content && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-semibold text-white/60">Immutable Agreement Body:</p>
+                <div className="p-3 rounded-xl bg-black/60 border border-white/5 font-mono text-[10px] text-white/70 whitespace-pre-wrap max-h-60 overflow-y-auto leading-relaxed">
+                  {selectedAgreement.content}
+                </div>
+              </div>
+            )}
+          </div>
+        </Dialog>
       )}
     </div>
   );

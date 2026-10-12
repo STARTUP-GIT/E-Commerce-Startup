@@ -661,7 +661,15 @@ export const getProfile = async (req: Request, res: Response) => {
         where: {
             id: customerId
         }, include: {
-            addresses: true
+            addresses: {
+                where: {
+                    OR: [
+                        { label: null },
+                        { label: { not: "ARCHIVED_HISTORICAL_ORDER" } }
+                    ]
+                },
+                orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }]
+            }
         }
 
     });
@@ -765,8 +773,13 @@ export const updateProfile = async (req: Request, res: Response) => {
 
         const addresses = await prisma.customerAddress.findMany({
             where: {
-                customerId: customerId
-            }
+                customerId: customerId,
+                OR: [
+                    { label: null },
+                    { label: { not: "ARCHIVED_HISTORICAL_ORDER" } }
+                ]
+            },
+            orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }]
         });
 
         return res.status(200).json({

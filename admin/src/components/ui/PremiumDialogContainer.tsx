@@ -26,6 +26,32 @@ export function PremiumDialogContainer() {
     return () => setMounted(false);
   }, []);
 
+  // Lock body scroll and handle Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleCancel();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    const prevOverflow = document.body.style.overflow;
+    const prevPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = prevOverflow;
+      document.body.style.paddingRight = prevPaddingRight;
+    };
+  }, [isOpen]);
+
   if (!mounted) return null;
 
   const handleConfirm = () => {
@@ -48,12 +74,10 @@ export function PremiumDialogContainer() {
     return <HelpCircle className="h-6 w-6 text-white/80" />;
   };
 
-  const modalRoot = document.body;
-
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -70,7 +94,7 @@ export function PremiumDialogContainer() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-            className="relative overflow-hidden w-full max-w-[400px] rounded-2xl border border-white/10 bg-zinc-950 p-6 text-foreground shadow-2xl backdrop-blur-2xl focus:outline-none z-10"
+            className="relative overflow-y-auto my-auto max-h-[calc(100dvh-2rem)] w-full max-w-[400px] rounded-2xl border border-white/10 bg-zinc-950 p-6 text-foreground shadow-2xl backdrop-blur-2xl focus:outline-none z-10"
           >
             {/* Subtle monochrome accent */}
             <div className="absolute top-0 left-0 w-full h-[3px] bg-white/20" />
@@ -118,6 +142,6 @@ export function PremiumDialogContainer() {
         </div>
       )}
     </AnimatePresence>,
-    modalRoot
+    document.body
   );
 }

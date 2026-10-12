@@ -29,6 +29,10 @@ export const STORAGE_FOLDERS: Record<string, UploadFolder> = {
   REPORTS: "reports",
   EVIDENCE: "evidence",
   SUPPORT: "support",
+  POLICIES: "policies",
+  GUIDELINES: "guidelines",
+  POSTMORTEMS: "postmortems",
+  APPEALS: "appeals",
 } as const;
 
 /**

@@ -149,6 +149,10 @@ export const validateFolder = (
     "reports",
     "evidence",
     "support",
+    "policies",
+    "guidelines",
+    "postmortems",
+    "appeals",
   ];
 
   if (!folder || typeof folder !== "string" || !allowedFolders.includes(folder)) {

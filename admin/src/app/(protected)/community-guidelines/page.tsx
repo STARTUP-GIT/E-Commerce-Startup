@@ -3,12 +3,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axiosInstance from '@/lib/axios/axiosInstance';
-import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/Card';
+import { Card } from '@/shared/components/Card';
 import { Badge } from '@/shared/components/Badge';
 import { Button } from '@/shared/components/Button';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
+import { Dialog, Drawer } from '@/shared/components/Dialog';
+import { MultiFileUploadField } from '@/shared/components/MultiFileUploadField';
 import {
   FileText,
   Plus,
@@ -20,7 +22,8 @@ import {
   Layers,
   ArrowRight,
   ShieldCheck,
-  Calendar
+  Calendar,
+  ExternalLink
 } from 'lucide-react';
 
 interface ClauseItem {
@@ -39,6 +42,7 @@ export default function CommunityGuidelinesPage() {
   const [version, setVersion] = useState('v1.0-2026');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [summary, setSummary] = useState('');
+  const [attachments, setAttachments] = useState<string[]>([]);
   const [clauses, setClauses] = useState<ClauseItem[]>([
     { id: '1', number: '1.0', title: 'Authenticity & Intellectual Property', content: 'Sellers must only list authentic goods...' },
     { id: '2', number: '2.0', title: 'Fulfillment & SLA Commitments', content: 'Orders must be dispatched within the agreed SLA...' }
@@ -69,13 +73,24 @@ export default function CommunityGuidelinesPage() {
 
   const createDraftMutation = useMutation({
     mutationFn: async () => {
-      if (!title || !version || !effectiveDate) throw new Error('Title, version and effective date are required.');
+      if (!title || !version) throw new Error('Title and version are required.');
+      if (!effectiveDate) throw new Error('Effective date is required.');
+      if (clauses.length === 0) throw new Error('At least one clause is required.');
+
+      // Bundle clauses, summary, and attachments into sections structure
+      const sections = clauses.map(c => ({
+        number: c.number,
+        title: c.title,
+        content: c.content,
+      }));
+
       const res = await axiosInstance.post('/api/admin/guidelines', {
-        title,
-        version,
+        title: title.trim(),
+        version: version.trim(),
+        sections,
+        summary: summary.trim(),
         effectiveDate,
-        summary,
-        clauses,
+        attachments,
         requiresAcceptance,
       });
       return res.data;
@@ -107,6 +122,7 @@ export default function CommunityGuidelinesPage() {
     setVersion('');
     setEffectiveDate('');
     setSummary('');
+    setAttachments([]);
   };
 
   const addClause = () => {
@@ -197,13 +213,13 @@ export default function CommunityGuidelinesPage() {
                   </TableCell>
                   <TableCell>
                     <div className="text-xs text-slate-300">
-                      {new Date(g.effectiveDate).toLocaleDateString()}
+                      {g.effectiveDate ? new Date(g.effectiveDate).toLocaleDateString() : 'Immediate'}
                     </div>
                   </TableCell>
                   <TableCell>
-                    {g.documentHash ? (
+                    {g.contentHash ? (
                       <span className="font-mono text-[10px] text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                        {g.documentHash.slice(0, 12)}...
+                        {g.contentHash.slice(0, 12)}...
                       </span>
                     ) : (
                       <span className="text-xs text-slate-500 italic">Pending publication</span>
@@ -232,213 +248,226 @@ export default function CommunityGuidelinesPage() {
         </Table>
       </Card>
 
-      {/* Create Draft Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-white">Draft Community Guidelines Version</h3>
-                <p className="text-xs text-slate-400">Published guidelines are immutable and require explicit versioning.</p>
-              </div>
-              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Document Title *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Marketplace Community Guidelines"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Version Identifier *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. v2.0-2026"
-                  value={version}
-                  onChange={(e) => setVersion(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Effective Date *</label>
-                <input
-                  type="date"
-                  value={effectiveDate}
-                  onChange={(e) => setEffectiveDate(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                />
-              </div>
-              <div className="flex items-center pt-5">
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={requiresAcceptance}
-                    onChange={(e) => setRequiresAcceptance(e.target.checked)}
-                    className="rounded border-slate-700 bg-slate-800 text-indigo-500 focus:ring-0"
-                  />
-                  Require In-App Seller Agreement
-                </label>
-              </div>
-            </div>
-
+      {/* Create Draft Modal (Using Viewport-Centered Shared Dialog) */}
+      <Dialog
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        maxWidth="max-w-2xl"
+        title="Draft Community Guidelines Version"
+        description="Published guidelines are immutable and require explicit versioning."
+        footer={
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowCreateModal(false)}
+              className="border-slate-700 text-slate-300 hover:bg-slate-800 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={!title || !version || !effectiveDate || clauses.length === 0 || createDraftMutation.isPending}
+              onClick={() => createDraftMutation.mutate()}
+              className="bg-indigo-600 hover:bg-indigo-500 font-bold text-white text-xs"
+            >
+              {createDraftMutation.isPending ? 'Saving...' : 'Save Draft Version'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Executive Summary</label>
-              <textarea
-                rows={2}
-                placeholder="Overview of terms..."
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-                className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none"
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Document Title *</label>
+              <input
+                type="text"
+                placeholder="e.g. Marketplace Community Guidelines"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
 
-            {/* Clauses Editor */}
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Numbered Clauses</h4>
-                <Button size="sm" variant="outline" onClick={addClause} className="text-xs border-slate-700 gap-1">
-                  <Plus className="h-3 w-3" />
-                  Add Clause
-                </Button>
-              </div>
-
-              {clauses.map((clause, idx) => (
-                <div key={clause.id} className="p-3 rounded-lg border border-slate-800 bg-slate-950/60 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="Num"
-                      value={clause.number}
-                      onChange={(e) => updateClause(idx, 'number', e.target.value)}
-                      className="w-16 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white font-mono"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Clause Title"
-                      value={clause.title}
-                      onChange={(e) => updateClause(idx, 'title', e.target.value)}
-                      className="flex-1 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white"
-                    />
-                    {clauses.length > 1 && (
-                      <button onClick={() => removeClause(idx)} className="text-slate-500 hover:text-red-400 p-1">
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  <textarea
-                    rows={2}
-                    placeholder="Clause terms and operational guidelines..."
-                    value={clause.content}
-                    onChange={(e) => updateClause(idx, 'content', e.target.value)}
-                    className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 resize-none"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-              <Button size="sm" variant="outline" onClick={() => setShowCreateModal(false)} className="border-slate-700">
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                disabled={!title || !version || !effectiveDate || createDraftMutation.isPending}
-                onClick={() => createDraftMutation.mutate()}
-                className="bg-indigo-600 hover:bg-indigo-500 font-bold text-white text-xs"
-              >
-                {createDraftMutation.isPending ? 'Saving...' : 'Save Draft'}
-              </Button>
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Version Identifier *</label>
+              <input
+                type="text"
+                placeholder="e.g. v2.0-2026"
+                value={version}
+                onChange={(e) => setVersion(e.target.value)}
+                className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
+              />
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Guideline Detail Drawer */}
-      {selectedGuidelineId && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-xl bg-slate-900 border-l border-slate-800 h-full overflow-y-auto p-6 space-y-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-white">Guideline Version Details</h3>
-                <span className="font-mono text-xs text-indigo-400">
-                  {detailData?.guideline?.version}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Effective Date *</label>
+              <input
+                type="date"
+                value={effectiveDate}
+                onChange={(e) => setEffectiveDate(e.target.value)}
+                className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+            <div className="flex items-center pt-2 sm:pt-5">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 select-none">
+                <input
+                  type="checkbox"
+                  checked={requiresAcceptance}
+                  onChange={(e) => setRequiresAcceptance(e.target.checked)}
+                  className="rounded border-slate-700 bg-slate-800 text-indigo-500 focus:ring-0"
+                />
+                Require In-App Seller Agreement
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Executive Summary</label>
+            <textarea
+              rows={2}
+              placeholder="Overview of terms, scope, and marketplace enforcement standards..."
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          {/* Cloudinary Supporting Documents Upload */}
+          <div className="pt-1">
+            <MultiFileUploadField
+              value={attachments}
+              onChange={setAttachments}
+              folder="guidelines"
+              label="Policy Attachments & Supporting Documents (Cloudinary)"
+              hint="Upload legal terms, supplementary schedules, or standards docs (PDF, DOCX, Images)"
+              maxFiles={5}
+            />
+          </div>
+
+          {/* Clauses Editor */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Numbered Clauses ({clauses.length})</h4>
+              <Button size="sm" variant="outline" onClick={addClause} className="text-xs border-slate-700 gap-1 hover:bg-slate-800">
+                <Plus className="h-3 w-3" />
+                Add Clause
+              </Button>
+            </div>
+
+            {clauses.map((clause, idx) => (
+              <div key={clause.id} className="p-3 rounded-lg border border-slate-800 bg-slate-950/60 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Num"
+                    value={clause.number}
+                    onChange={(e) => updateClause(idx, 'number', e.target.value)}
+                    className="w-16 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Clause Title"
+                    value={clause.title}
+                    onChange={(e) => updateClause(idx, 'title', e.target.value)}
+                    className="flex-1 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white focus:outline-none focus:border-indigo-500"
+                  />
+                  {clauses.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeClause(idx)}
+                      className="text-slate-500 hover:text-red-400 p-1 cursor-pointer"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  rows={2}
+                  placeholder="Clause terms and operational guidelines..."
+                  value={clause.content}
+                  onChange={(e) => updateClause(idx, 'content', e.target.value)}
+                  className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-300 resize-none focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Guideline Detail Drawer (Using Viewport-Aware Drawer) */}
+      <Drawer
+        isOpen={!!selectedGuidelineId}
+        onClose={() => setSelectedGuidelineId(null)}
+        maxWidth="max-w-xl"
+        title="Guideline Version Details"
+        subtitle={
+          detailData?.guideline && (
+            <span className="font-mono text-xs text-indigo-400">
+              {detailData.guideline.version} • {detailData.guideline.title}
+            </span>
+          )
+        }
+      >
+        {isDetailLoading ? (
+          <Skeleton className="h-48 w-full bg-slate-800/40" />
+        ) : detailData?.guideline ? (
+          <div className="space-y-6">
+            <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">Status</span>
+                <Badge className={detailData.guideline.status === 'PUBLISHED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}>
+                  {detailData.guideline.status}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400">Effective Date</span>
+                <span className="text-xs font-semibold text-white">
+                  {detailData.guideline.effectiveDate ? new Date(detailData.guideline.effectiveDate).toLocaleDateString() : 'Immediate'}
                 </span>
               </div>
-              <button onClick={() => setSelectedGuidelineId(null)} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
+              {detailData.guideline.contentHash && (
+                <div className="space-y-1 pt-1 border-t border-slate-800/60">
+                  <span className="text-[11px] text-slate-400 font-mono block">SHA-256 Checksum:</span>
+                  <p className="text-[10px] font-mono text-indigo-300 break-all bg-slate-900 p-2 rounded border border-slate-800">
+                    {detailData.guideline.contentHash}
+                  </p>
+                </div>
+              )}
             </div>
 
-            {isDetailLoading ? (
-              <Skeleton className="h-48 w-full bg-slate-800/40" />
-            ) : detailData?.guideline ? (
-              <div className="space-y-6">
-                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/60 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Status</span>
-                    <Badge className={detailData.guideline.status === 'PUBLISHED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}>
-                      {detailData.guideline.status}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Effective Date</span>
-                    <span className="text-xs font-semibold text-white">
-                      {new Date(detailData.guideline.effectiveDate).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {detailData.guideline.documentHash && (
-                    <div className="space-y-1 pt-1 border-t border-slate-800/60">
-                      <span className="text-[11px] text-slate-400 font-mono block">SHA-256 Checksum:</span>
-                      <p className="text-[10px] font-mono text-indigo-300 break-all bg-slate-900 p-2 rounded border border-slate-800">
-                        {detailData.guideline.documentHash}
-                      </p>
+            {/* Clauses list */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Document Clauses</h4>
+              {Array.isArray(detailData.guideline.sections) &&
+                detailData.guideline.sections.map((clause: any, idx: number) => (
+                  <div key={idx} className="p-3.5 rounded-lg border border-slate-800 bg-slate-950/40 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-indigo-400 font-bold">{clause.number || `${idx + 1}.0`}</span>
+                      <span className="text-xs text-white font-semibold">{clause.title}</span>
                     </div>
-                  )}
-                </div>
+                    <p className="text-xs text-slate-300 whitespace-pre-wrap">{clause.content}</p>
+                  </div>
+                ))}
+            </div>
 
-                {/* Clauses list */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Document Clauses</h4>
-                  {(detailData.guideline.clauses as ClauseItem[])?.map((clause, idx) => (
-                    <div key={idx} className="p-3.5 rounded-lg border border-slate-800 bg-slate-950/40 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-indigo-400 font-bold">{clause.number}</span>
-                        <span className="text-xs text-white font-semibold">{clause.title}</span>
-                      </div>
-                      <p className="text-xs text-slate-300 whitespace-pre-wrap">{clause.content}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Actions */}
-                <div className="border-t border-slate-800 pt-4">
-                  {detailData.guideline.status === 'DRAFT' && (
-                    <Button
-                      onClick={() => publishMutation.mutate(selectedGuidelineId)}
-                      disabled={publishMutation.isPending}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
-                    >
-                      {publishMutation.isPending ? 'Publishing & Hashing...' : 'Publish Version Immutably'}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ) : null}
+            {/* Actions */}
+            <div className="border-t border-slate-800 pt-4">
+              {detailData.guideline.status === 'DRAFT' && (
+                <Button
+                  onClick={() => { if (selectedGuidelineId) publishMutation.mutate(selectedGuidelineId); }}
+                  disabled={publishMutation.isPending}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+                >
+                  {publishMutation.isPending ? 'Publishing & Hashing...' : 'Publish Version Immutably'}
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        ) : null}
+      </Drawer>
     </div>
   );
 }

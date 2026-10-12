@@ -9,6 +9,8 @@ import { Button } from '@/shared/components/Button';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
+import { Dialog, Drawer } from '@/shared/components/Dialog';
+import { MultiFileUploadField } from '@/shared/components/MultiFileUploadField';
 import {
   BellRing,
   Plus,
@@ -16,7 +18,8 @@ import {
   CheckCircle,
   X,
   Users,
-  Search
+  Search,
+  ExternalLink
 } from 'lucide-react';
 
 export default function IssuePolicyPage() {
@@ -30,6 +33,7 @@ export default function IssuePolicyPage() {
   const [content, setContent] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [audience, setAudience] = useState('ALL_SELLERS');
+  const [attachments, setAttachments] = useState<string[]>([]);
 
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
@@ -65,11 +69,20 @@ export default function IssuePolicyPage() {
 
   const createNoticeMutation = useMutation({
     mutationFn: async () => {
-      if (!title || !content || !effectiveDate) throw new Error('Title, content and effective date required.');
+      if (!title.trim() || !content.trim()) throw new Error('Title and content are required.');
+      if (!effectiveDate) throw new Error('Effective date is required.');
+
+      // Format content with any uploaded attachment links if backend stores content as string
+      let finalContent = content.trim();
+      if (attachments.length > 0) {
+        finalContent += '\n\n---\n**Official Attachments & References:**\n' +
+          attachments.map((url, i) => `${i + 1}. ${url}`).join('\n');
+      }
+
       const res = await axiosInstance.post('/api/admin/policy-notices', {
-        title,
+        title: title.trim(),
         category,
-        content,
+        content: finalContent,
         effectiveDate,
         audience,
       });
@@ -101,6 +114,7 @@ export default function IssuePolicyPage() {
     setTitle('');
     setContent('');
     setEffectiveDate('');
+    setAttachments([]);
   };
 
   const notices = data?.notices ?? [];
@@ -195,152 +209,162 @@ export default function IssuePolicyPage() {
         </Table>
       </Card>
 
-      {/* Create Draft Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-white">Draft Policy Notice</h3>
-                <p className="text-xs text-slate-400">Notice will be visible in the seller app upon publishing.</p>
-              </div>
-              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+      {/* Create Draft Modal (Using Centered Shared Dialog) */}
+      <Dialog
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        maxWidth="max-w-lg"
+        title="Draft Policy Notice"
+        description="Notice will be broadcasted to sellers upon publishing."
+        footer={
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowCreateModal(false)}
+              className="border-slate-700 text-slate-300 hover:bg-slate-800 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={!title.trim() || !content.trim() || !effectiveDate || createNoticeMutation.isPending}
+              onClick={() => createNoticeMutation.mutate()}
+              className="bg-sky-600 hover:bg-sky-500 font-bold text-white text-xs"
+            >
+              {createNoticeMutation.isPending ? 'Saving...' : 'Save Draft Notice'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3.5">
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Title *</label>
+            <input
+              type="text"
+              placeholder="e.g. Mandatory Packaging Guidelines for Monsoon Season"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-sky-500"
+            />
+          </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Title *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Mandatory Packaging Guidelines for Monsoon Season"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Category</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                  >
-                    <option value="OPERATIONS">Operations</option>
-                    <option value="SHIPPING">Shipping &amp; Delivery</option>
-                    <option value="FINANCE">Finance &amp; Taxes</option>
-                    <option value="PRODUCT_RULES">Product Rules</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Effective Date *</label>
-                  <input
-                    type="date"
-                    value={effectiveDate}
-                    onChange={(e) => setEffectiveDate(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Audience</label>
-                <select
-                  value={audience}
-                  onChange={(e) => setAudience(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white"
-                >
-                  <option value="ALL_SELLERS">All Sellers</option>
-                  <option value="VERIFIED_ONLY">Verified Sellers Only</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Notice Content *</label>
-                <textarea
-                  rows={5}
-                  placeholder="Complete policy text..."
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-              <Button size="sm" variant="outline" onClick={() => setShowCreateModal(false)} className="border-slate-700">
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                disabled={!title || !content || !effectiveDate || createNoticeMutation.isPending}
-                onClick={() => createNoticeMutation.mutate()}
-                className="bg-sky-600 hover:bg-sky-500 font-bold text-white text-xs"
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Category</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-sky-500"
               >
-                {createNoticeMutation.isPending ? 'Saving...' : 'Save Draft'}
+                <option value="OPERATIONS">Operations</option>
+                <option value="SHIPPING">Shipping &amp; Delivery</option>
+                <option value="FINANCE">Finance &amp; Taxes</option>
+                <option value="PRODUCT_RULES">Product Rules</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Effective Date *</label>
+              <input
+                type="date"
+                value={effectiveDate}
+                onChange={(e) => setEffectiveDate(e.target.value)}
+                className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-sky-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Audience</label>
+            <select
+              value={audience}
+              onChange={(e) => setAudience(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-sky-500"
+            >
+              <option value="ALL_SELLERS">All Sellers</option>
+              <option value="VERIFIED_ONLY">Verified Sellers Only</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Notice Content *</label>
+            <textarea
+              rows={4}
+              placeholder="Complete policy text, guidance, and instructions..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white resize-none focus:outline-none focus:border-sky-500"
+            />
+          </div>
+
+          {/* Cloudinary File Attachments */}
+          <div className="pt-1">
+            <MultiFileUploadField
+              value={attachments}
+              onChange={setAttachments}
+              folder="policies"
+              label="Policy Attachments (Cloudinary)"
+              hint="Upload PDF circulars, guidelines, or reference documents"
+              maxFiles={4}
+            />
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Detail Drawer (Using Viewport-Aware Drawer) */}
+      <Drawer
+        isOpen={!!selectedNoticeId}
+        onClose={() => setSelectedNoticeId(null)}
+        maxWidth="max-w-lg"
+        title="Policy Notice"
+        subtitle={
+          detailData?.notice && (
+            <span className="text-xs text-slate-400">Category: {detailData.notice.category}</span>
+          )
+        }
+      >
+        {isDetailLoading ? (
+          <Skeleton className="h-48 w-full bg-slate-800/40" />
+        ) : detailData?.notice ? (
+          <div className="space-y-6">
+            <div>
+              <h4 className="text-sm font-bold text-white mb-2">{detailData.notice.title}</h4>
+              <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">
+                {detailData.notice.content}
+              </div>
+            </div>
+
+            {detailData.notice.status === 'DRAFT' && (
+              <Button
+                onClick={() => { if (selectedNoticeId) publishMutation.mutate(selectedNoticeId); }}
+                disabled={publishMutation.isPending}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+              >
+                {publishMutation.isPending ? 'Publishing...' : 'Publish Announcement'}
               </Button>
-            </div>
-          </div>
-        </div>
-      )}
+            )}
 
-      {/* Detail Drawer */}
-      {selectedNoticeId && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-slate-900 border-l border-slate-800 h-full overflow-y-auto p-6 space-y-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-white">Policy Notice</h3>
-                <span className="text-xs text-slate-400">{detailData?.notice?.category}</span>
-              </div>
-              <button onClick={() => setSelectedNoticeId(null)} className="text-slate-400 hover:text-white">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {isDetailLoading ? (
-              <Skeleton className="h-48 w-full bg-slate-800/40" />
-            ) : detailData?.notice ? (
-              <div className="space-y-6">
-                <div>
-                  <h4 className="text-sm font-bold text-white mb-2">{detailData.notice.title}</h4>
-                  <div className="p-3.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">
-                    {detailData.notice.content}
-                  </div>
-                </div>
-
-                {detailData.notice.status === 'DRAFT' && (
-                  <Button
-                    onClick={() => publishMutation.mutate(selectedNoticeId)}
-                    disabled={publishMutation.isPending}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
-                  >
-                    {publishMutation.isPending ? 'Publishing...' : 'Publish Announcement'}
-                  </Button>
+            {/* Read Receipts */}
+            <div className="space-y-2 border-t border-slate-800 pt-4">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Seller Read Log ({readsData?.reads?.length ?? 0})
+              </h4>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {readsData?.reads?.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic p-2">No seller reads recorded yet.</p>
+                ) : (
+                  readsData?.reads?.map((r: any) => (
+                    <div key={r.id} className="flex items-center justify-between p-2 rounded bg-slate-950/40 text-xs border border-slate-800">
+                      <span className="text-white">{r.seller?.shop?.name || `${r.seller?.firstName} ${r.seller?.lastName}`}</span>
+                      <span className="text-slate-500 text-[11px]">{new Date(r.readAt).toLocaleString()}</span>
+                    </div>
+                  ))
                 )}
-
-                {/* Read Receipts */}
-                <div className="space-y-2 border-t border-slate-800 pt-4">
-                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                    Seller Read Log ({readsData?.reads?.length ?? 0})
-                  </h4>
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                    {readsData?.reads?.map((r: any) => (
-                      <div key={r.id} className="flex items-center justify-between p-2 rounded bg-slate-950/40 text-xs border border-slate-800">
-                        <span className="text-white">{r.seller?.shop?.name || `${r.seller?.firstName} ${r.seller?.lastName}`}</span>
-                        <span className="text-slate-500 text-[11px]">{new Date(r.readAt).toLocaleString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
-            ) : null}
+            </div>
           </div>
-        </div>
-      )}
+        ) : null}
+      </Drawer>
     </div>
   );
 }

@@ -46,7 +46,10 @@ export const getAddresses = async (req: Request, res: Response) => {
         const addresses = await prisma.customerAddress.findMany({
             where: {
                 customerId,
-                NOT: { label: "ARCHIVED_HISTORICAL_ORDER" }
+                OR: [
+                    { label: null },
+                    { label: { not: "ARCHIVED_HISTORICAL_ORDER" } }
+                ]
             },
             orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }]
         });
@@ -98,7 +101,7 @@ export const getAddressById = async (req: Request, res: Response) => {
             where: { id }
         });
 
-        if (!address) {
+        if (!address || address.label === "ARCHIVED_HISTORICAL_ORDER") {
             return res.status(404).json({ message: "Address not found" });
         }
 
