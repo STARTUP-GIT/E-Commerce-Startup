@@ -2,11 +2,34 @@ import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 
 // Validation helper for coordinate boundaries
-const isValidCoordinate = (lat: any, lng: any): boolean => {
-    if (lat === null || lat === undefined || lng === null || lng === undefined) return false;
-    const nLat = Number(lat);
-    const nLng = Number(lng);
-    return !isNaN(nLat) && !isNaN(nLng) && nLat >= -90 && nLat <= 90 && nLng >= -180 && nLng <= 180;
+export const validateCoordinatePair = (latitude: any, longitude: any): { valid: boolean; message?: string; lat: number | null; lng: number | null } => {
+    const latProvided = latitude !== undefined && latitude !== null && String(latitude).trim() !== '';
+    const lngProvided = longitude !== undefined && longitude !== null && String(longitude).trim() !== '';
+
+    if (!latProvided && !lngProvided) {
+        return { valid: true, lat: null, lng: null };
+    }
+
+    if (!latProvided || !lngProvided) {
+        return { valid: false, message: "Both latitude and longitude must be provided together, or both must be empty.", lat: null, lng: null };
+    }
+
+    const nLat = Number(latitude);
+    const nLng = Number(longitude);
+
+    if (isNaN(nLat) || isNaN(nLng)) {
+        return { valid: false, message: "Latitude and longitude must be valid numeric values.", lat: null, lng: null };
+    }
+
+    if (nLat < -90 || nLat > 90) {
+        return { valid: false, message: "Latitude must be between -90 and 90.", lat: null, lng: null };
+    }
+
+    if (nLng < -180 || nLng > 180) {
+        return { valid: false, message: "Longitude must be between -180 and 180.", lat: null, lng: null };
+    }
+
+    return { valid: true, lat: nLat, lng: nLng };
 };
 
 /**
@@ -21,7 +44,10 @@ export const getAddresses = async (req: Request, res: Response) => {
         }
 
         const addresses = await prisma.customerAddress.findMany({
-            where: { customerId },
+            where: {
+                customerId,
+                NOT: { label: "ARCHIVED_HISTORICAL_ORDER" }
+            },
             orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }]
         });
 
@@ -144,12 +170,12 @@ export const createAddress = async (req: Request, res: Response) => {
         const resolvedDistrict = (district || city || "").trim();
 
         // Validate coordinate bounds if supplied
-        let validLat: number | null = null;
-        let validLng: number | null = null;
-        if (latitude !== undefined && longitude !== undefined && isValidCoordinate(latitude, longitude)) {
-            validLat = Number(latitude);
-            validLng = Number(longitude);
+        const coordValidation = validateCoordinatePair(latitude, longitude);
+        if (!coordValidation.valid) {
+            return res.status(400).json({ message: coordValidation.message });
         }
+        const validLat = coordValidation.lat;
+        const validLng = coordValidation.lng;
 
         const existingCount = await prisma.customerAddress.count({ where: { customerId } });
         const shouldBeDefault = Boolean(isDefault) || existingCount === 0;
@@ -244,18 +270,77 @@ export const updateAddress = async (req: Request, res: Response) => {
             isDefault
         } = req.body;
 
-        // Coordinate processing: do not silently erase existing coordinates if incoming is undefined/null
-        let updatedLat = existingAddress.latitude;
-        let updatedLng = existingAddress.longitude;
+        // Coordinate processing: do not silently erase existing coordinates if incoming is undefined
+        let updatedLat = existingAddress.latitude !== null && existingAddress.latitude !== undefined
+            ? Number(existingAddress.latitude)
+            : null;
+        let updatedLng = existingAddress.longitude !== null && existingAddress.longitude !== undefined
+            ? Number(existingAddress.longitude)
+            : null;
 
-        if (latitude !== undefined && longitude !== undefined) {
-            if (isValidCoordinate(latitude, longitude)) {
-                updatedLat = latitude as any;
-                updatedLng = longitude as any;
+        if (latitude !== undefined || longitude !== undefined) {
+            const coordValidation = validateCoordinatePair(latitude, longitude);
+            if (!coordValidation.valid) {
+                return res.status(400).json({ message: coordValidation.message });
             }
+            updatedLat = coordValidation.lat;
+            updatedLng = coordValidation.lng;
         }
 
+        // Check if this address is attached to completed historical orders
+        const completedHistoricalOrders = await prisma.order.findMany({
+            where: {
+                OR: [
+                    { shippingAddressId: id },
+                    { billingAddressId: id }
+                ],
+                status: { in: ["DELIVERED", "CANCELLED", "REFUNDED"] }
+            },
+            select: { id: true, shippingAddressId: true, billingAddressId: true }
+        });
+
         const updatedAddress = await prisma.$transaction(async (tx) => {
+            // If historical completed orders reference this address, snapshot the old address for them
+            if (completedHistoricalOrders.length > 0) {
+                const historicalCopy = await tx.customerAddress.create({
+                    data: {
+                        customerId,
+                        fullName: existingAddress.fullName,
+                        phone: existingAddress.phone,
+                        type: existingAddress.type,
+                        label: "ARCHIVED_HISTORICAL_ORDER",
+                        addressLine1: existingAddress.addressLine1,
+                        addressLine2: existingAddress.addressLine2,
+                        city: existingAddress.city,
+                        district: existingAddress.district,
+                        state: existingAddress.state,
+                        postalCode: existingAddress.postalCode,
+                        country: existingAddress.country,
+                        latitude: existingAddress.latitude,
+                        longitude: existingAddress.longitude,
+                        formattedAddress: existingAddress.formattedAddress,
+                        placeId: existingAddress.placeId,
+                        isDefault: false
+                    }
+                });
+
+                const shippingOrderIds = completedHistoricalOrders.filter(o => o.shippingAddressId === id).map(o => o.id);
+                const billingOrderIds = completedHistoricalOrders.filter(o => o.billingAddressId === id).map(o => o.id);
+
+                if (shippingOrderIds.length > 0) {
+                    await tx.order.updateMany({
+                        where: { id: { in: shippingOrderIds } },
+                        data: { shippingAddressId: historicalCopy.id }
+                    });
+                }
+                if (billingOrderIds.length > 0) {
+                    await tx.order.updateMany({
+                        where: { id: { in: billingOrderIds } },
+                        data: { billingAddressId: historicalCopy.id }
+                    });
+                }
+            }
+
             if (isDefault) {
                 await tx.customerAddress.updateMany({
                     where: { customerId, NOT: { id } },

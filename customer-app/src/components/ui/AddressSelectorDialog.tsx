@@ -11,7 +11,6 @@ import { profileApi } from '@/features/auth/profile/api/profileApi';
 import { SearchableDropdown } from '@/components/ui/SearchableDropdown';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { GoogleMapsLocationPicker, type LocationPickerValue } from '@/features/location/ui/GoogleMapsLocationPicker';
 import axiosInstance from '@/lib/axios/axiosInstance';
 
 export function AddressSelectorDialog() {
@@ -26,11 +25,8 @@ export function AddressSelectorDialog() {
     setComingSoon,
   } = useLocationStore();
 
-  const [activeTab, setActiveTab] = useState<'saved' | 'map'>('saved');
   const [customState, setCustomState] = useState('');
   const [customDistrict, setCustomDistrict] = useState('');
-  const [mapLocation, setMapLocation] = useState<LocationPickerValue>({ country: 'India' });
-  const [isCheckingServiceability, setIsCheckingServiceability] = useState(false);
 
   // Fetch customer profile for saved addresses
   const { data: session } = useSession();
@@ -140,49 +136,6 @@ export function AddressSelectorDialog() {
     handleClose();
   };
 
-  const handleConfirmMapLocation = async () => {
-    if (!mapLocation.state && !mapLocation.latitude) {
-      alert('Please select or search a location on the map first.');
-      return;
-    }
-    setIsCheckingServiceability(true);
-    try {
-      const res = await axiosInstance.post('/customer/api/location/check-serviceability', {
-        state: mapLocation.state,
-        district: mapLocation.district || mapLocation.city,
-        latitude: mapLocation.latitude,
-        longitude: mapLocation.longitude,
-      });
-
-      if (res.data.isServiceable) {
-        setLocation(null, res.data.state || mapLocation.state || '', res.data.district || mapLocation.district || mapLocation.city || '');
-        queryClient.invalidateQueries({ queryKey: ['shops'] });
-        queryClient.invalidateQueries({ queryKey: ['products'] });
-        queryClient.invalidateQueries({ queryKey: ['nearby-shops'] });
-        queryClient.invalidateQueries({ queryKey: ['recommendations'] });
-        queryClient.invalidateQueries({ queryKey: ['delivery-availability'] });
-        handleClose();
-      } else {
-        setComingSoon(true, mapLocation.state, mapLocation.district || mapLocation.city, () => {
-          setAddressSelectorOpen(true);
-        });
-        setAddressSelectorOpen(false);
-      }
-    } catch (err: any) {
-      const stateObj = allStates.find((s) => s.name.toLowerCase() === (mapLocation.state || '').toLowerCase());
-      if (stateObj && stateObj.isEnabled) {
-        setLocation(null, mapLocation.state || '', mapLocation.district || mapLocation.city || '');
-        handleClose();
-      } else {
-        setComingSoon(true, mapLocation.state, mapLocation.district || mapLocation.city, () => {
-          setAddressSelectorOpen(true);
-        });
-        setAddressSelectorOpen(false);
-      }
-    } finally {
-      setIsCheckingServiceability(false);
-    }
-  };
 
   const savedAddresses = profile?.user?.addresses || [];
 
@@ -234,64 +187,10 @@ export function AddressSelectorDialog() {
                     Select Delivery Location
                   </Dialog.Title>
                   <p className="text-xs text-white/40 mb-3">
-                    Choose from saved addresses, regional destinations, or Google Maps pin.
+                    Choose from your saved addresses or browse by region.
                   </p>
 
-                  {/* Mode switcher tabs */}
-                  <div className="flex rounded-xl bg-white/5 p-1 mb-4 border border-white/10">
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('saved')}
-                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                        activeTab === 'saved'
-                          ? 'bg-purple-600 text-white shadow'
-                          : 'text-white/60 hover:text-white'
-                      }`}
-                    >
-                      Saved & Regional
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('map')}
-                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                        activeTab === 'map'
-                          ? 'bg-purple-600 text-white shadow'
-                          : 'text-white/60 hover:text-white'
-                      }`}
-                    >
-                      Map & GPS Pin
-                    </button>
-                  </div>
-
                   <div className="flex-1 overflow-y-auto space-y-5 pr-1 py-1">
-                    {activeTab === 'map' ? (
-                      <div className="space-y-4">
-                        <GoogleMapsLocationPicker
-                          value={mapLocation}
-                          onChange={setMapLocation}
-                          availableStates={allStates}
-                          availableDistricts={districtsData?.allDistricts || []}
-                          title="Locate via Google Maps"
-                          description="Search your locality or drop a marker to test coverage."
-                        />
-                        <Button
-                          type="button"
-                          onClick={handleConfirmMapLocation}
-                          disabled={isCheckingServiceability || (!mapLocation.latitude && !mapLocation.state)}
-                          className="w-full text-xs font-bold cursor-pointer"
-                        >
-                          {isCheckingServiceability ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin text-white" />
-                              <span>Checking Coverage...</span>
-                            </>
-                          ) : (
-                            <span>Set As Browsing Location</span>
-                          )}
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
                         {/* Saved Addresses Section */}
                         {orderedAddresses.length > 0 && (
                           <div className="space-y-2">
@@ -383,8 +282,6 @@ export function AddressSelectorDialog() {
                             )}
                           </div>
                         </div>
-                      </>
-                    )}
                   </div>
 
                   {/* Add New Address */}

@@ -17,7 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { profileApi, type Address } from '../api/profileApi';
 import { useLocationStore } from '@/lib/store/locationStore';
 import { useConfirmStore } from '@/lib/store/confirmStore';
-import { GoogleMapsLocationPicker, type LocationPickerValue } from '@/features/location/ui/GoogleMapsLocationPicker';
+import { LocationCoordinatesInput } from '@/features/location/ui/LocationCoordinatesInput';
 
 export function ProfileDashboard() {
   const {
@@ -44,7 +44,10 @@ export function ProfileDashboard() {
   const [activeTab, setActiveTab] = useState<'info' | 'addresses' | 'danger'>('info');
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
-  const [locationValue, setLocationValue] = useState<LocationPickerValue>({ country: 'India' });
+  const [coordinates, setCoordinates] = useState<{ latitude: number | null; longitude: number | null }>({
+    latitude: null,
+    longitude: null,
+  });
   const [addressSaveError, setAddressSaveError] = useState<string | null>(null);
 
   React.useEffect(() => {
@@ -193,7 +196,7 @@ export function ProfileDashboard() {
       label: '',
       isDefault: false,
     });
-    setLocationValue({ country: 'India' });
+    setCoordinates({ latitude: null, longitude: null });
     setShowAddressForm(true);
   };
 
@@ -213,29 +216,11 @@ export function ProfileDashboard() {
       label: addr.label || '',
       isDefault: addr.isDefault,
     });
-    setLocationValue({
+    setCoordinates({
       latitude: addr.latitude !== undefined && addr.latitude !== null ? Number(addr.latitude) : null,
       longitude: addr.longitude !== undefined && addr.longitude !== null ? Number(addr.longitude) : null,
-      formattedAddress: addr.formattedAddress || '',
-      addressLine1: addr.addressLine1 || '',
-      addressLine2: addr.addressLine2 || '',
-      city: addr.city || '',
-      district: addr.district || addr.city || '',
-      state: addr.state || '',
-      postalCode: addr.postalCode || '',
-      country: addr.country || 'India',
-      placeId: addr.placeId || '',
     });
     setShowAddressForm(true);
-  };
-
-  const handleLocationPickerChange = (loc: LocationPickerValue) => {
-    setLocationValue(loc);
-    if (loc.addressLine1) setValueAddress('addressLine1', loc.addressLine1, { shouldValidate: true });
-    if (loc.addressLine2) setValueAddress('addressLine2', loc.addressLine2);
-    if (loc.state) setValueAddress('state', loc.state, { shouldValidate: true });
-    if (loc.district || loc.city) setValueAddress('city', loc.district || loc.city || '', { shouldValidate: true });
-    if (loc.postalCode) setValueAddress('postalCode', loc.postalCode, { shouldValidate: true });
   };
 
   const onSubmitAddress = async (data: AddAddressInput) => {
@@ -244,11 +229,9 @@ export function ProfileDashboard() {
       const payload = {
         ...data,
         city: data.city || '',
-        district: data.city || locationValue.district,
-        latitude: locationValue.latitude,
-        longitude: locationValue.longitude,
-        formattedAddress: locationValue.formattedAddress,
-        placeId: locationValue.placeId,
+        district: data.city,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
       };
 
       if (editingAddress) {
@@ -491,8 +474,8 @@ export function ProfileDashboard() {
                     </CardTitle>
                     <CardDescription>
                       {editingAddress
-                        ? 'Update your delivery location pin and address details.'
-                        : 'Search on Google Maps or drop a pin to auto-fill address details.'}
+                        ? 'Update your delivery address details and location coordinates.'
+                        : 'Enter your delivery address details and location coordinates.'}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-6">
@@ -503,14 +486,12 @@ export function ProfileDashboard() {
                       </div>
                     )}
 
-                    {/* Google Maps Location Picker */}
-                    <GoogleMapsLocationPicker
-                      value={locationValue}
-                      onChange={handleLocationPickerChange}
-                      availableStates={locationsConfig?.allStates ?? []}
-                      availableDistricts={districtsData?.allDistricts ?? []}
-                      title="Delivery Location & Pin"
-                      description="Search for your address or move the marker directly to fine-tune your delivery location."
+                    {/* Location Coordinates */}
+                    <LocationCoordinatesInput
+                      latitude={coordinates.latitude}
+                      longitude={coordinates.longitude}
+                      onChange={setCoordinates}
+                      helperText="Optional latitude and longitude coordinates help delivery personnel navigate directly to your address."
                     />
 
                     <form onSubmit={handleSubmitAddress(onSubmitAddress)} className="space-y-4">
@@ -730,7 +711,7 @@ export function ProfileDashboard() {
                           {addr.latitude && addr.longitude && (
                             <div className="pt-1 flex items-center gap-1 text-[11px] text-purple-400/80">
                               <MapPin className="h-3 w-3" />
-                              <span>Pin verified ({Number(addr.latitude).toFixed(4)}, {Number(addr.longitude).toFixed(4)})</span>
+                              <span>Coordinates: ({Number(addr.latitude).toFixed(4)}, {Number(addr.longitude).toFixed(4)})</span>
                             </div>
                           )}
                         </div>

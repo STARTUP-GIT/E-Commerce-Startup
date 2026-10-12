@@ -24,6 +24,15 @@ export const getAddAddressSchema = (districtRequired: boolean) => z.object({
   longitude: z.number().nullable().optional(),
   formattedAddress: z.string().optional(),
   placeId: z.string().optional(),
+}).refine((data) => {
+  const hasLat = data.latitude !== undefined && data.latitude !== null;
+  const hasLng = data.longitude !== undefined && data.longitude !== null;
+  if (!hasLat && !hasLng) return true;
+  if (!hasLat || !hasLng) return false;
+  return data.latitude! >= -90 && data.latitude! <= 90 && data.longitude! >= -180 && data.longitude! <= 180;
+}, {
+  message: 'Both latitude (-90 to 90) and longitude (-180 to 180) must be provided together, or both left empty.',
+  path: ['latitude'],
 });
 
 export type EditProfileInput = z.infer<typeof editProfileSchema>;

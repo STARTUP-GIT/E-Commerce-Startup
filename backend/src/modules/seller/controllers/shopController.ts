@@ -4,6 +4,36 @@ import { prisma } from "../../../config/prisma.js";
 import { SellerOrderStatus, SellerAddressType } from "@prisma/client";
 import { invalidatePublicCache } from "../../../middleware/cache.js";
 
+export const validateCoordinatePair = (latitude: any, longitude: any): { valid: boolean; message?: string; lat: number | null; lng: number | null } => {
+    const latProvided = latitude !== undefined && latitude !== null && String(latitude).trim() !== '';
+    const lngProvided = longitude !== undefined && longitude !== null && String(longitude).trim() !== '';
+
+    if (!latProvided && !lngProvided) {
+        return { valid: true, lat: null, lng: null };
+    }
+
+    if (!latProvided || !lngProvided) {
+        return { valid: false, message: "Both latitude and longitude must be provided together, or both must be empty.", lat: null, lng: null };
+    }
+
+    const nLat = Number(latitude);
+    const nLng = Number(longitude);
+
+    if (isNaN(nLat) || isNaN(nLng)) {
+        return { valid: false, message: "Latitude and longitude must be valid numeric values.", lat: null, lng: null };
+    }
+
+    if (nLat < -90 || nLat > 90) {
+        return { valid: false, message: "Latitude must be between -90 and 90.", lat: null, lng: null };
+    }
+
+    if (nLng < -180 || nLng > 180) {
+        return { valid: false, message: "Longitude must be between -180 and 180.", lat: null, lng: null };
+    }
+
+    return { valid: true, lat: nLat, lng: nLng };
+};
+
 
 export const createShop = async (req: Request,res: Response) => {
     try {
@@ -182,16 +212,14 @@ export const createShop = async (req: Request,res: Response) => {
             });
         }
 
-        let validLat: number | null = null;
-        let validLng: number | null = null;
-        if (latitude !== undefined && longitude !== undefined && latitude !== null && longitude !== null) {
-            const nLat = Number(latitude);
-            const nLng = Number(longitude);
-            if (!isNaN(nLat) && !isNaN(nLng) && nLat >= -90 && nLat <= 90 && nLng >= -180 && nLng <= 180) {
-                validLat = nLat;
-                validLng = nLng;
-            }
+        const coordValidation = validateCoordinatePair(latitude, longitude);
+        if (!coordValidation.valid) {
+            return res.status(400).json({
+                message: coordValidation.message
+            });
         }
+        const validLat = coordValidation.lat;
+        const validLng = coordValidation.lng;
 
         const result = await prisma.$transaction(
             async (tx) => {
@@ -887,15 +915,22 @@ export const updateShop = async (req: Request, res: Response) => {
 
         const result = await prisma.$transaction(async (tx) => {
             if (shop.defaultPickupAddressId) {
-                let updatedLat = shop.defaultPickupAddress?.latitude;
-                let updatedLng = shop.defaultPickupAddress?.longitude;
-                if (latitude !== undefined && longitude !== undefined && latitude !== null && longitude !== null) {
-                    const nLat = Number(latitude);
-                    const nLng = Number(longitude);
-                    if (!isNaN(nLat) && !isNaN(nLng) && nLat >= -90 && nLat <= 90 && nLng >= -180 && nLng <= 180) {
-                        updatedLat = nLat as any;
-                        updatedLng = nLng as any;
+                let updatedLat = shop.defaultPickupAddress?.latitude !== null && shop.defaultPickupAddress?.latitude !== undefined
+                    ? Number(shop.defaultPickupAddress.latitude)
+                    : null;
+                let updatedLng = shop.defaultPickupAddress?.longitude !== null && shop.defaultPickupAddress?.longitude !== undefined
+                    ? Number(shop.defaultPickupAddress.longitude)
+                    : null;
+
+                if (latitude !== undefined || longitude !== undefined) {
+                    const coordValidation = validateCoordinatePair(latitude, longitude);
+                    if (!coordValidation.valid) {
+                        return res.status(400).json({
+                            message: coordValidation.message
+                        });
                     }
+                    updatedLat = coordValidation.lat;
+                    updatedLng = coordValidation.lng;
                 }
 
                 await tx.sellerAddress.update({

@@ -16,7 +16,7 @@ import { shopApi } from '../api/shopApi';
 import { useLocationStore } from '@/lib/store/locationStore';
 
 import { SearchableDropdown } from '@/components/ui/SearchableDropdown';
-import { GoogleMapsLocationPicker, type LocationPickerValue } from '@/features/location/ui/GoogleMapsLocationPicker';
+import { LocationCoordinatesInput } from '@/features/location/ui/LocationCoordinatesInput';
 
 export function ShopSetupPage() {
   const { createShop, isCreatingShop } = useShop();
@@ -128,28 +128,13 @@ export function ShopSetupPage() {
     setValue('city', districtName, { shouldValidate: true });
   };
 
-  const [locationValue, setLocationValue] = useState<LocationPickerValue>({
-    country: 'India',
+  const [coordinates, setCoordinates] = useState<{
+    latitude: number | null;
+    longitude: number | null;
+  }>({
+    latitude: null,
+    longitude: null,
   });
-
-  const handleLocationPickerChange = (loc: LocationPickerValue) => {
-    setLocationValue(loc);
-    if (loc.addressLine1) {
-      setValue('addressLine1', loc.addressLine1, { shouldValidate: true });
-    }
-    if (loc.addressLine2) {
-      setValue('addressLine2', loc.addressLine2);
-    }
-    if (loc.state) {
-      setValue('state', loc.state, { shouldValidate: true });
-    }
-    if (loc.district || loc.city) {
-      setValue('city', loc.district || loc.city || '', { shouldValidate: true });
-    }
-    if (loc.postalCode) {
-      setValue('postalCode', loc.postalCode, { shouldValidate: true });
-    }
-  };
 
   const onSubmit = async (data: ShopSetupInput) => {
     setErrorMsg(null);
@@ -172,11 +157,9 @@ export function ShopSetupPage() {
       await createShop({
         ...data,
         city: data.city || '',
-        district: data.city || locationValue.district,
-        latitude: locationValue.latitude,
-        longitude: locationValue.longitude,
-        formattedAddress: locationValue.formattedAddress,
-        placeId: locationValue.placeId,
+        district: data.city,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
         contactName: `${user?.firstName} ${user?.lastName ?? ''}`.trim(),
         type: 'STORE',
         label: 'PICKUP',
@@ -274,13 +257,11 @@ export function ShopSetupPage() {
               </div>
 
               <div className="border-t border-white/5 pt-3 mt-1 space-y-4">
-                <GoogleMapsLocationPicker
-                  value={locationValue}
-                  onChange={handleLocationPickerChange}
-                  availableStates={allStates}
-                  availableDistricts={districts}
-                  title="Shop Location & Pickup Address"
-                  description="Search your store address or drop a marker to auto-fill your default pickup location."
+                <LocationCoordinatesInput
+                  latitude={coordinates.latitude}
+                  longitude={coordinates.longitude}
+                  onChange={setCoordinates}
+                  helperText="Specify store pickup coordinates for delivery dispatch, or use your device's current location."
                 />
 
                 <div className="space-y-3">

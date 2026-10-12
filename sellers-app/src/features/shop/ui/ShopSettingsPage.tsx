@@ -28,7 +28,7 @@ import { Skeleton } from '@/shared/components/Skeleton';
 import { Dialog } from '@/shared/components/Dialog';
 import { useUIStore } from '@/lib/store/uiStore';
 import { SellerAgreementBanner } from './SellerAgreementBanner';
-import { GoogleMapsLocationPicker, type LocationPickerValue } from '@/features/location/ui/GoogleMapsLocationPicker';
+import { LocationCoordinatesInput } from '@/features/location/ui/LocationCoordinatesInput';
 export function ShopSettingsPage() {
   const {
     shop,
@@ -137,19 +137,13 @@ export function ShopSettingsPage() {
 
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
-  const [locationValue, setLocationValue] = useState<LocationPickerValue>({
-    country: 'India',
+  const [coordinates, setCoordinates] = useState<{
+    latitude: number | null;
+    longitude: number | null;
+  }>({
+    latitude: null,
+    longitude: null,
   });
-
-  const handleLocationPickerChange = (loc: LocationPickerValue) => {
-    setLocationValue(loc);
-    if (loc.addressLine1) setEditAddressLine1(loc.addressLine1);
-    if (loc.addressLine2) setEditAddressLine2(loc.addressLine2);
-    if (loc.postalCode) setEditPostalCode(loc.postalCode);
-    if (loc.state) setSelectedState(loc.state);
-    if (loc.district) setSelectedDistrict(loc.district);
-    else if (loc.city) setSelectedDistrict(loc.city);
-  };
 
   // Fetch active states & configurations from backend
   const { data: locationsConfig, isLoading: isLoadingConfig } = useQuery({
@@ -185,18 +179,9 @@ export function ShopSettingsPage() {
       setSelectedState(addr?.state || '');
       setSelectedDistrict(addr?.city || addr?.district || '');
 
-      setLocationValue({
+      setCoordinates({
         latitude: initialLat,
         longitude: initialLng,
-        formattedAddress: addr?.formattedAddress || '',
-        addressLine1: addr?.addressLine1 || '',
-        addressLine2: addr?.addressLine2 || '',
-        city: addr?.city || '',
-        district: addr?.district || addr?.city || '',
-        state: addr?.state || '',
-        postalCode: addr?.postalCode || '',
-        country: addr?.country || 'India',
-        placeId: addr?.placeId || '',
       });
 
       setPackingFeeEnabled(!!shop.packingFeeEnabled);
@@ -275,10 +260,8 @@ export function ShopSettingsPage() {
         state: selectedState,
         postalCode: editPostalCode.trim(),
         country: 'India',
-        latitude: locationValue.latitude,
-        longitude: locationValue.longitude,
-        formattedAddress: locationValue.formattedAddress,
-        placeId: locationValue.placeId,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
       });
       setEditSuccess(true);
     } catch (err: any) {
@@ -681,13 +664,11 @@ export function ShopSettingsPage() {
               </div>
 
               <div className="border-t border-white/5 pt-3 mt-1 space-y-4">
-                <GoogleMapsLocationPicker
-                  value={locationValue}
-                  onChange={handleLocationPickerChange}
-                  availableStates={allStates}
-                  availableDistricts={districts}
-                  title="Shop Location & Pickup Address"
-                  description="Update your store pickup location using Google Maps or adjust coordinates."
+                <LocationCoordinatesInput
+                  latitude={coordinates.latitude}
+                  longitude={coordinates.longitude}
+                  onChange={setCoordinates}
+                  helperText="Specify store pickup coordinates for delivery dispatch, or use your device's current location."
                 />
 
                 <div className="space-y-3">

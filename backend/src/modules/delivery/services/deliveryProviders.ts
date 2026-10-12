@@ -56,7 +56,7 @@ const providers: DeliveryProvider[] = [
   new LocalCourierProvider(),
 ];
 
-const haversineDistanceKm = (a: any, b: any) => {
+export const haversineDistanceKm = (a: any, b: any) => {
   if (!a || !b) return 12;
   const toRadians = (value: number) => (value * Math.PI) / 180;
   const lat1 = Number(a.latitude ?? a.lat ?? 0);

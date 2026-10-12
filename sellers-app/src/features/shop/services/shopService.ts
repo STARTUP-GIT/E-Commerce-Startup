@@ -42,6 +42,15 @@ export const getShopSetupSchema = (districtRequired: boolean) => z.object({
 }, {
   message: 'District selection is required',
   path: ['city']
+}).refine((data) => {
+  const hasLat = data.latitude !== undefined && data.latitude !== null;
+  const hasLng = data.longitude !== undefined && data.longitude !== null;
+  if (!hasLat && !hasLng) return true;
+  if (!hasLat || !hasLng) return false;
+  return data.latitude! >= -90 && data.latitude! <= 90 && data.longitude! >= -180 && data.longitude! <= 180;
+}, {
+  message: 'Both latitude (-90 to 90) and longitude (-180 to 180) must be provided together, or both left empty.',
+  path: ['latitude']
 });
 
 export const bankDetailsSchema = z.object({
