@@ -36,8 +36,33 @@ export default withAuth(
     }
 
     // Allow public routes without auth
+    let response = NextResponse.next();
+
+    // Synchronize session cookies to browser if user is authenticated via NextAuth
+    // but customer_session cookie has not yet been set (e.g. immediately following Google OAuth)
+    if (nextauth?.token?.backendToken && !req.cookies.has('customer_session')) {
+      const isProduction = process.env.NODE_ENV === 'production';
+      response.cookies.set('customer_session', nextauth.token.backendToken as string, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60,
+      });
+
+      if (nextauth.token?.backendRefreshToken && !req.cookies.has('customer_refresh')) {
+        response.cookies.set('customer_refresh', nextauth.token.backendRefreshToken as string, {
+          httpOnly: true,
+          secure: isProduction,
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 30 * 24 * 60 * 60,
+        });
+      }
+    }
+
     if (isPublicRoute(nextUrl.pathname)) {
-      return NextResponse.next();
+      return response;
     }
 
     // Protected: cart, checkout, orders, profile, notifications, wishlist
@@ -47,7 +72,7 @@ export default withAuth(
       return NextResponse.redirect(loginUrl);
     }
 
-    return NextResponse.next();
+    return response;
   },
   {
     callbacks: {

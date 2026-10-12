@@ -109,6 +109,11 @@ export function useAuth() {
 
   const logout = async () => {
     try {
+      try {
+        await authApi.logout();
+      } catch {
+        // Continue with local cleanup even if backend call fails
+      }
       await signOut({ redirect: false });
       queryClient.setQueryData(['profile'], null);
       queryClient.clear();

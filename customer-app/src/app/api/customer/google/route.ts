@@ -42,30 +42,56 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json(data, { status: backendRes.status });
 
-    // Forward customer_session from backend to browser
+    // Forward customer_session and customer_refresh from backend to browser
     const rawSetCookie = backendRes.headers.get('set-cookie');
+    const isProduction = process.env.NODE_ENV === 'production';
     if (rawSetCookie) {
       const cookieEntries = splitSetCookieHeader(rawSetCookie);
       for (const entry of cookieEntries) {
         if (entry.trimStart().startsWith('customer_session=')) {
           const parsed = parseCookieEntry(entry);
           if (parsed) {
-            const isProduction = process.env.NODE_ENV === 'production';
             response.cookies.set('customer_session', parsed.value, {
               httpOnly: true,
               secure: isProduction,
-              // 'lax' — see login route: the cookie is only consumed on the
-              // customer-app origin; SameSite=None would widen the CSRF surface.
               sameSite: 'lax',
               path: '/',
               maxAge: parsed.maxAge ?? 60 * 60 * 24 * 7,
             });
           }
-          break;
+        } else if (entry.trimStart().startsWith('customer_refresh=')) {
+          const parsed = parseCookieEntry(entry);
+          if (parsed) {
+            response.cookies.set('customer_refresh', parsed.value, {
+              httpOnly: true,
+              secure: isProduction,
+              sameSite: 'lax',
+              path: '/',
+              maxAge: parsed.maxAge ?? 60 * 60 * 24 * 30,
+            });
+          }
         }
       }
-    } else {
-      console.warn('[/api/customer/google] Backend did not return a Set-Cookie header');
+    }
+
+    if (data.token && !response.cookies.has('customer_session')) {
+      response.cookies.set('customer_session', data.token, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7,
+      });
+    }
+
+    if (data.refreshToken && !response.cookies.has('customer_refresh')) {
+      response.cookies.set('customer_refresh', data.refreshToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30,
+      });
     }
 
     return response;

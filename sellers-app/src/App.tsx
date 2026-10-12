@@ -122,6 +122,9 @@ function App() {
             if (syncRes.data?.token) {
               localStorage.setItem('seller_token', syncRes.data.token);
             }
+            if (syncRes.data?.refreshToken) {
+              localStorage.setItem('seller_refresh_token', syncRes.data.refreshToken);
+            }
 
             queryClient.setQueryData(['profile'], syncRes.data.user);
             queryClient.invalidateQueries({ queryKey: ['profile'] });
@@ -139,18 +142,14 @@ function App() {
           }
           setBootstrapped(true);
         } catch (err: any) {
-          // Sync failure must NOT destroy the Supabase session. The profile GET
-          // authenticates with the Supabase access_token (primary source), so
-          // wiping the session here is what caused production requests to reach
-          // the backend with no Authorization header. Keep the session so the
-          // interceptor can still attach the Supabase access_token, and complete
-          // bootstrap so the profile query proceeds.
           console.error('[auth:bootstrap] Google sync failed (keeping Supabase session)', {
             message: err?.message ?? 'unknown',
           });
           setBootstrapped(true);
         }
       } else if (event === 'SIGNED_OUT') {
+        localStorage.removeItem('seller_token');
+        localStorage.removeItem('seller_refresh_token');
         try {
           await axiosInstance.post('/seller/api/auth/logout');
         } catch {

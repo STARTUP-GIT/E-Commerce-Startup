@@ -8,15 +8,18 @@ import { useAuth } from '../hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/shared/components/Card';
 import { Input } from '@/shared/components/Input';
 import { Button } from '@/shared/components/Button';
-import { ShieldCheck, Mail, Lock } from 'lucide-react';
+import { ShieldCheck, Mail, Lock, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 import { useBranding } from '@/lib/hooks/useBranding';
 
 export function LoginPage() {
   const { branding } = useBranding();
   const { login, isLoggingIn } = useAuth();
+  const searchParams = useSearchParams();
+  const isExpired = searchParams?.get('expired') === 'true';
 
   const loginForm = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -64,7 +67,13 @@ export function LoginPage() {
               Enter credentials to access administrative modules.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {isExpired && (
+              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>Your session has expired. Please sign in again.</span>
+              </div>
+            )}
             <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">

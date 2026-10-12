@@ -10,12 +10,14 @@ export const getJwtSecret = () => {
   return secret;
 };
 
+import crypto from 'crypto';
+
 export const signAccessToken = (userId: string, expiresIn = '7d') => {
-  return jwt.sign({ id: userId }, getJwtSecret(), { expiresIn: expiresIn as any });
+  return jwt.sign({ id: userId, jti: crypto.randomUUID() }, getJwtSecret(), { expiresIn: expiresIn as any });
 };
 
 export const signRefreshToken = (userId: string, expiresIn = '30d') => {
-  return jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET_KEY || getJwtSecret(), {
+  return jwt.sign({ id: userId, jti: crypto.randomUUID() }, process.env.JWT_REFRESH_SECRET_KEY || getJwtSecret(), {
     expiresIn: expiresIn as any,
   });
 };

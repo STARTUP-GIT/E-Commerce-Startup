@@ -33,23 +33,25 @@ axiosInstance.interceptors.request.use(
     // seller_token issued by /seller/api/auth/login|register.
     if (typeof window !== 'undefined') {
       let bearerToken: string | null = null;
-      let tokenSource: 'supabase' | 'seller_token' | 'none' = 'none';
+      let tokenSource: 'seller_token' | 'supabase' | 'none' = 'none';
 
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (data.session?.access_token) {
-          bearerToken = data.session.access_token;
-          tokenSource = 'supabase';
-        }
-      } catch {
-        bearerToken = null;
+      // 1. Prioritize authoritative marketplace JWT (supports refresh & session rotation)
+      const stored = localStorage.getItem('seller_token');
+      if (stored) {
+        bearerToken = stored;
+        tokenSource = 'seller_token';
       }
 
+      // 2. Fall back to live Supabase session during initial bootstrap
       if (!bearerToken) {
-        const stored = localStorage.getItem('seller_token');
-        if (stored) {
-          bearerToken = stored;
-          tokenSource = 'seller_token';
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (data.session?.access_token) {
+            bearerToken = data.session.access_token;
+            tokenSource = 'supabase';
+          }
+        } catch {
+          bearerToken = null;
         }
       }
 
@@ -73,10 +75,95 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Unwrap backend error messages for cleaner DX
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value?: any) => void;
+  reject: (reason?: any) => void;
+}> = [];
+
+const processQueue = (error: any = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve();
+    }
+  });
+  failedQueue = [];
+};
+
+// Response interceptor with single-flight refresh queue and robust session expiry handling
 axiosInstance.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+    const status = error.response?.status;
+    const url = originalRequest?.url || '';
+
+    const isAuthEndpoint =
+      url.includes('/seller/api/auth/login') ||
+      url.includes('/seller/api/auth/register') ||
+      url.includes('/seller/api/auth/refresh') ||
+      url.includes('/seller/api/auth/logout');
+
+    if (status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint && typeof window !== 'undefined') {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => axiosInstance(originalRequest))
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const currentRefreshToken = localStorage.getItem('seller_refresh_token');
+        const refreshRes = await axios.post(
+          `${import.meta.env.VITE_BACKEND_API_URL || ''}/seller/api/auth/refresh`,
+          { refreshToken: currentRefreshToken || undefined },
+          { withCredentials: true }
+        );
+
+        const newToken = refreshRes.data?.token;
+        const newRefreshToken = refreshRes.data?.refreshToken;
+
+        if (newToken) {
+          localStorage.setItem('seller_token', newToken);
+          if (newRefreshToken) {
+            localStorage.setItem('seller_refresh_token', newRefreshToken);
+          }
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            originalRequest.headers['x-seller-token'] = newToken;
+          }
+        }
+
+        processQueue(null);
+        return axiosInstance(originalRequest);
+      } catch (refreshErr) {
+        processQueue(refreshErr);
+
+        localStorage.removeItem('seller_token');
+        localStorage.removeItem('seller_refresh_token');
+        try {
+          await supabase.auth.signOut({ scope: 'local' });
+        } catch {
+          // ignore signout errors
+        }
+
+        const currentPath = window.location.pathname;
+        if (!currentPath.startsWith('/login') && !currentPath.startsWith('/register')) {
+          window.location.href = `/login?expired=true&callbackUrl=${encodeURIComponent(currentPath)}`;
+        }
+
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
     const message =
       error.response?.data?.message ||
       error.response?.data?.error ||
@@ -91,7 +178,8 @@ axiosInstance.interceptors.response.use(
       });
     }
 
-    return Promise.reject(new Error(message));
+    error.message = message;
+    return Promise.reject(error);
   }
 );
 

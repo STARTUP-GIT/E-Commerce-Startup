@@ -1,20 +1,72 @@
 import type { Request, Response } from "express";
 import { ConversationType, ConversationStatus, MessageSenderType, Prisma } from "@prisma/client";
 import { prisma } from "../../../config/prisma.js";
-import { broadcastToConversation } from "../../../services/chat/chat.service.js";
+import { broadcastToConversation, broadcastToAdmins } from "../../../services/chat/chat.service.js";
+
+// ─── GET /api/admin/conversations/unread-counts ──────────────────────────────
+
+export const getAdminUnreadCounts = async (req: Request, res: Response) => {
+    try {
+        const adminId = req.adminId!;
+
+        const conversations = await prisma.conversation.findMany({
+            select: {
+                id: true,
+                type: true,
+                readReceipts: {
+                    where: { readerType: "ADMIN", readerId: adminId },
+                    select: { lastReadAt: true }
+                },
+                messages: {
+                    where: { senderType: { not: MessageSenderType.ADMIN }, isInternal: false },
+                    orderBy: { createdAt: "desc" },
+                    take: 1,
+                    select: { createdAt: true }
+                }
+            }
+        });
+
+        let customerUnread = 0;
+        let sellerUnread = 0;
+
+        for (const c of conversations) {
+            const lastIncoming = c.messages[0];
+            if (!lastIncoming) continue;
+            const lastReadAt = c.readReceipts[0]?.lastReadAt || new Date(0);
+            if (new Date(lastIncoming.createdAt) > new Date(lastReadAt)) {
+                if (c.type === ConversationType.CUSTOMER_ADMIN) {
+                    customerUnread++;
+                } else if (c.type === ConversationType.SELLER_ADMIN) {
+                    sellerUnread++;
+                }
+            }
+        }
+
+        return res.status(200).json({
+            customerUnread,
+            sellerUnread,
+            totalUnread: customerUnread + sellerUnread
+        });
+    } catch (error: any) {
+        console.error("GET ADMIN UNREAD COUNTS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
 
 // ─── GET /api/admin/conversations ─────────────────────────────────────────────
 
 export const getConversations = async (req: Request, res: Response) => {
     try {
+        const adminId = req.adminId!;
         const page = Math.max(1, Number(req.query.page) || 1);
         const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
         const skip = (page - 1) * limit;
 
+        const isUnreadFilter = req.query.status === "UNREAD";
         const type = typeof req.query.type === "string" && req.query.type
             ? (req.query.type as ConversationType)
             : undefined;
-        const status = typeof req.query.status === "string" && req.query.status
+        const status = !isUnreadFilter && typeof req.query.status === "string" && req.query.status
             ? (req.query.status as ConversationStatus)
             : undefined;
         const search = typeof req.query.search === "string" && req.query.search.trim()
@@ -39,12 +91,12 @@ export const getConversations = async (req: Request, res: Response) => {
                 : {})
         };
 
-        const [conversations, total] = await prisma.$transaction([
+        const [rawConversations, total] = await prisma.$transaction([
             prisma.conversation.findMany({
                 where,
                 orderBy: { lastMessageAt: "desc" },
-                skip,
-                take: limit,
+                skip: isUnreadFilter ? 0 : skip,
+                take: isUnreadFilter ? 100 : limit,
                 include: {
                     customer: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
                     seller: {
@@ -62,6 +114,10 @@ export const getConversations = async (req: Request, res: Response) => {
                         take: 1,
                         select: { id: true, message: true, senderType: true, senderName: true, createdAt: true, isInternal: true }
                     },
+                    readReceipts: {
+                        where: { readerType: "ADMIN", readerId: adminId },
+                        take: 1
+                    },
                     _count: {
                         select: {
                             messages: true
@@ -72,9 +128,58 @@ export const getConversations = async (req: Request, res: Response) => {
             prisma.conversation.count({ where })
         ]);
 
+        const conversationsWithUnread = await Promise.all(
+            rawConversations.map(async (c) => {
+                const lastReadAt = c.readReceipts[0]?.lastReadAt || new Date(0);
+                const unreadCount = await prisma.conversationMessage.count({
+                    where: {
+                        conversationId: c.id,
+                        senderType: { not: MessageSenderType.ADMIN },
+                        isInternal: false,
+                        createdAt: { gt: lastReadAt }
+                    }
+                });
+
+                return {
+                    id: c.id,
+                    type: c.type,
+                    customerId: c.customerId,
+                    sellerId: c.sellerId,
+                    subject: c.subject,
+                    status: c.status,
+                    priority: c.priority,
+                    assignedAdminId: c.assignedAdminId,
+                    relatedEntityType: c.relatedEntityType,
+                    relatedEntityId: c.relatedEntityId,
+                    internalNotes: c.internalNotes,
+                    lastMessageAt: c.lastMessageAt,
+                    createdAt: c.createdAt,
+                    updatedAt: c.updatedAt,
+                    customer: c.customer,
+                    seller: c.seller,
+                    assignedAdmin: c.assignedAdmin,
+                    messages: c.messages,
+                    _count: c._count,
+                    unreadCount
+                };
+            })
+        );
+
+        const filtered = isUnreadFilter
+            ? conversationsWithUnread.filter((c) => c.unreadCount > 0)
+            : conversationsWithUnread;
+
+        const paginated = isUnreadFilter ? filtered.slice(skip, skip + limit) : filtered;
+        const finalTotal = isUnreadFilter ? filtered.length : total;
+
         return res.status(200).json({
-            conversations,
-            pagination: { total, page, limit, pages: Math.ceil(total / limit) }
+            conversations: paginated,
+            pagination: {
+                total: finalTotal,
+                page,
+                limit,
+                pages: Math.ceil(finalTotal / limit) || 1
+            }
         });
     } catch (error: any) {
         console.error("GET ADMIN CONVERSATIONS ERROR:", error);
@@ -86,6 +191,7 @@ export const getConversations = async (req: Request, res: Response) => {
 
 export const getConversationDetail = async (req: Request, res: Response) => {
     try {
+        const adminId = req.adminId!;
         const id = String(req.params.id);
 
         const conversation = await prisma.conversation.findUnique({
@@ -112,9 +218,86 @@ export const getConversationDetail = async (req: Request, res: Response) => {
 
         if (!conversation) return res.status(404).json({ message: "Conversation not found" });
 
-        return res.status(200).json({ conversation });
+        // Upsert admin read receipt upon viewing
+        await prisma.conversationReadReceipt.upsert({
+            where: {
+                conversationId_readerType_readerId: {
+                    conversationId: id,
+                    readerType: "ADMIN",
+                    readerId: adminId
+                }
+            },
+            update: { lastReadAt: new Date() },
+            create: {
+                conversationId: id,
+                readerType: "ADMIN",
+                readerId: adminId,
+                lastReadAt: new Date()
+            }
+        });
+
+        // Broadcast read receipt to room
+        broadcastToConversation(id, {
+            type: "read_receipt",
+            conversationId: id,
+            readerType: "ADMIN",
+            readerId: adminId,
+            readAt: new Date().toISOString()
+        });
+
+        // Broadcast unread counts update to all admins
+        broadcastToAdmins({
+            type: "unread_counts_update",
+            conversationId: id
+        });
+
+        return res.status(200).json({ conversation: { ...conversation, unreadCount: 0 } });
     } catch (error: any) {
         console.error("GET CONVERSATION DETAIL ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+// ─── POST /api/admin/conversations/:id/read ───────────────────────────────────
+
+export const markConversationRead = async (req: Request, res: Response) => {
+    try {
+        const adminId = req.adminId!;
+        const id = String(req.params.id);
+
+        await prisma.conversationReadReceipt.upsert({
+            where: {
+                conversationId_readerType_readerId: {
+                    conversationId: id,
+                    readerType: "ADMIN",
+                    readerId: adminId
+                }
+            },
+            update: { lastReadAt: new Date() },
+            create: {
+                conversationId: id,
+                readerType: "ADMIN",
+                readerId: adminId,
+                lastReadAt: new Date()
+            }
+        });
+
+        broadcastToConversation(id, {
+            type: "read_receipt",
+            conversationId: id,
+            readerType: "ADMIN",
+            readerId: adminId,
+            readAt: new Date().toISOString()
+        });
+
+        broadcastToAdmins({
+            type: "unread_counts_update",
+            conversationId: id
+        });
+
+        return res.status(200).json({ success: true });
+    } catch (error: any) {
+        console.error("MARK CONVERSATION READ ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };
@@ -148,7 +331,7 @@ export const sendAdminMessage = async (req: Request, res: Response) => {
 
         const senderName = admin ? `${admin.firstName || "Admin"} ${admin.lastName || ""}`.trim() : "Support Agent";
 
-        const savedMessage = await prisma.$transaction(async (tx) => {
+        const { savedMessage, conv } = await prisma.$transaction(async (tx) => {
             const msg = await tx.conversationMessage.create({
                 data: {
                     conversationId: id,
@@ -162,7 +345,7 @@ export const sendAdminMessage = async (req: Request, res: Response) => {
                 }
             });
 
-            await tx.conversation.update({
+            const updatedConv = await tx.conversation.update({
                 where: { id },
                 data: {
                     lastMessageAt: new Date(),
@@ -170,14 +353,46 @@ export const sendAdminMessage = async (req: Request, res: Response) => {
                 }
             });
 
-            return msg;
+            return { savedMessage: msg, conv: updatedConv };
         });
 
+        // Upsert admin read receipt so admin's own reply marks queue clear
+        await prisma.conversationReadReceipt.upsert({
+            where: {
+                conversationId_readerType_readerId: {
+                    conversationId: id,
+                    readerType: "ADMIN",
+                    readerId: adminId
+                }
+            },
+            update: { lastReadAt: new Date() },
+            create: {
+                conversationId: id,
+                readerType: "ADMIN",
+                readerId: adminId,
+                lastReadAt: new Date()
+            }
+        });
+
+        // Broadcast to conversation subscribers
         broadcastToConversation(id, {
             type: "new_message",
             conversationId: id,
             message: savedMessage
         }, Boolean(isInternal));
+
+        // Broadcast to all admins (for inboxes, notification badges, and list order)
+        broadcastToAdmins({
+            type: "admin_conversation_update",
+            conversationId: id,
+            conversationType: conv.type,
+            lastMessage: savedMessage,
+            lastMessageAt: savedMessage.createdAt
+        });
+        broadcastToAdmins({
+            type: "unread_counts_update",
+            conversationId: id
+        });
 
         return res.status(201).json({ message: savedMessage });
     } catch (error: any) {
@@ -200,6 +415,21 @@ export const updateConversationStatus = async (req: Request, res: Response) => {
         const updated = await prisma.conversation.update({
             where: { id },
             data: { status: status as ConversationStatus }
+        });
+
+        // Broadcast status update
+        broadcastToConversation(id, {
+            type: "conversation_status_updated",
+            conversationId: id,
+            status: updated.status
+        }, false);
+
+        broadcastToAdmins({
+            type: "admin_conversation_update",
+            conversationId: id,
+            conversationType: updated.type,
+            status: updated.status,
+            lastMessageAt: updated.lastMessageAt
         });
 
         return res.status(200).json({ conversation: updated });

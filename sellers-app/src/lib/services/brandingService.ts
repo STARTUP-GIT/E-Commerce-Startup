@@ -19,6 +19,13 @@ export interface BrandingConfig {
   shortName?: string;
   logoUrl?: string;
   faviconUrl?: string;
+  darkLogoUrl?: string;
+  lightLogoUrl?: string;
+  brandDescription?: string;
+  sellerPortalTitle?: string;
+  sellerPortalTagline?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
   heroBadge: string;
   heroHeadingLine1: string;
   heroHeadingLine2: string;
@@ -37,12 +44,12 @@ export interface BrandingConfig {
 export const DEFAULT_BRANDING: BrandingConfig = {
   name: 'Marketplace',
   marketplaceName: 'Marketplace',
-  logo: '/images/logo.png',
-  favicon: '/favicon.ico',
+  logo: '',
+  favicon: '',
   tagline: 'Your local marketplace for everything',
   shortName: 'Marketplace',
-  logoUrl: '/images/logo.png',
-  faviconUrl: '/favicon.ico',
+  logoUrl: '',
+  faviconUrl: '',
   heroBadge: 'The Local Marketplace for Everything',
   heroHeadingLine1: 'Buy Anything.',
   heroHeadingLine2: 'From Anyone.',
@@ -59,35 +66,57 @@ export const DEFAULT_BRANDING: BrandingConfig = {
 
 export const DEFAULT_SELLER_BRANDING: BrandingConfig = {
   ...DEFAULT_BRANDING,
+  name: 'Seller Portal',
+  tagline: 'Manage your storefront, products, and incoming orders.',
+  browserTitle: 'Seller Portal',
 };
 
 const str = (value: unknown, fallback: string | undefined): string =>
   typeof value === 'string' && value.trim() !== '' ? value.trim() : (fallback || '');
 
+const cleanUrl = (url: unknown): string => {
+  if (typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === '/images/logo.png' || trimmed === '/favicon.ico') return '';
+  return trimmed;
+};
+
 const resolveAssetUrl = (value: string): string => {
+  const cleaned = cleanUrl(value);
+  if (!cleaned) return '';
   const backendUrl = import.meta.env.VITE_BACKEND_API_URL?.replace(/\/$/, '');
-  if (!value.startsWith('/') || !backendUrl) return value;
-  return `${backendUrl}${value}`;
+  if (!cleaned.startsWith('/') || !backendUrl) return cleaned;
+  return `${backendUrl}${cleaned}`;
 };
 
 export const normalizeBranding = (
   d: any,
   defaults: BrandingConfig = DEFAULT_BRANDING
 ): BrandingConfig => {
-  const nameVal = d?.name || d?.marketplaceName || defaults.name;
-  const logoVal = resolveAssetUrl(d?.logo || d?.logoUrl || defaults.logo);
-  const rawFavicon = d?.favicon || d?.faviconUrl || '';
-  const faviconVal = resolveAssetUrl(rawFavicon && rawFavicon !== '/favicon.ico' ? rawFavicon : logoVal);
-  const taglineVal = str(d?.tagline, defaults.tagline);
+  const sellerTitle = str(d?.sellerPortalTitle, '') || str(d?.name, '') || str(d?.marketplaceName, '') || defaults.name;
+  const rawLogo = cleanUrl(d?.sellerPortalLogoUrl) || cleanUrl(d?.logo) || cleanUrl(d?.logoUrl) || defaults.logo;
+  const logoVal = resolveAssetUrl(rawLogo);
+  const rawFavicon = cleanUrl(d?.favicon) || cleanUrl(d?.faviconUrl) || rawLogo;
+  const faviconVal = resolveAssetUrl(rawFavicon);
+  const taglineVal = str(d?.sellerPortalTagline, '') || str(d?.tagline, defaults.tagline);
+  const mktName = str(d?.marketplaceName, str(d?.brandName, 'Marketplace'));
+
   return {
-    name: nameVal,
-    marketplaceName: nameVal,
+    name: sellerTitle,
+    marketplaceName: mktName,
     logo: logoVal,
     favicon: faviconVal,
     tagline: taglineVal,
-    shortName: str(d?.shortName, nameVal),
+    shortName: str(d?.shortName, 'Seller'),
     logoUrl: logoVal,
     faviconUrl: faviconVal,
+    darkLogoUrl: resolveAssetUrl(d?.darkLogoUrl),
+    lightLogoUrl: resolveAssetUrl(d?.lightLogoUrl),
+    brandDescription: str(d?.brandDescription, defaults.brandDescription),
+    sellerPortalTitle: str(d?.sellerPortalTitle, sellerTitle),
+    sellerPortalTagline: taglineVal,
+    primaryColor: d?.primaryColor || defaults.primaryColor,
+    secondaryColor: d?.secondaryColor || defaults.secondaryColor,
     heroBadge: str(d?.heroBadge, defaults.heroBadge),
     heroHeadingLine1: str(d?.heroHeadingLine1, defaults.heroHeadingLine1),
     heroHeadingLine2: str(d?.heroHeadingLine2, defaults.heroHeadingLine2),
@@ -97,9 +126,9 @@ export const normalizeBranding = (
     exploreShopsButtonText: str(d?.exploreShopsButtonText, defaults.exploreShopsButtonText),
     browseProductsButtonText: str(d?.browseProductsButtonText, defaults.browseProductsButtonText),
     footerDescription: str(d?.footerDescription, defaults.footerDescription),
-    seoTitle: str(d?.seoTitle, defaults.seoTitle),
+    seoTitle: str(d?.seoTitle, `${sellerTitle} | ${mktName}`),
     seoDescription: str(d?.seoDescription, defaults.seoDescription),
-    browserTitle: str(d?.browserTitle, defaults.browserTitle),
+    browserTitle: str(d?.browserTitle, sellerTitle),
     updatedAt: d?.updatedAt,
   };
 };

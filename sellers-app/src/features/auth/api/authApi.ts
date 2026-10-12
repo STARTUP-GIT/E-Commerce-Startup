@@ -15,12 +15,14 @@ export interface SellerProfile {
 export interface LoginResponse {
   message: string;
   token?: string;
+  refreshToken?: string;
   user: SellerProfile;
 }
 
 export interface RegisterResponse {
   message?: string;
   token?: string;
+  refreshToken?: string;
   user: {
     id: string;
     email: string;
@@ -45,6 +47,11 @@ export const authApi = {
     lastName: string;
   }): Promise<RegisterResponse> => {
     const response = await axiosInstance.post('/seller/api/auth/register', payload);
+    return response.data;
+  },
+
+  refresh: async (refreshToken?: string): Promise<{ success: boolean; token: string; refreshToken: string }> => {
+    const response = await axiosInstance.post('/seller/api/auth/refresh', { refreshToken });
     return response.data;
   },
 

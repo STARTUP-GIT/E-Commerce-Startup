@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { ConversationType, ConversationStatus, MessageSenderType } from "@prisma/client";
 import { prisma } from "../../../config/prisma.js";
-import { broadcastToConversation } from "../../../services/chat/chat.service.js";
+import { broadcastToConversation, broadcastToAdmins } from "../../../services/chat/chat.service.js";
 
 // ─── GET /seller/api/conversations ───────────────────────────────────────────
 
@@ -78,7 +78,7 @@ export const startSellerConversation = async (req: Request, res: Response) => {
 
         const senderName = seller?.shop?.name || `${seller?.firstName || "Seller"} ${seller?.lastName || ""}`.trim();
 
-        const conversation = await prisma.$transaction(async (tx) => {
+        const { conversation, firstMessage } = await prisma.$transaction(async (tx) => {
             const conv = await tx.conversation.create({
                 data: {
                     type: ConversationType.SELLER_ADMIN,
@@ -91,8 +91,9 @@ export const startSellerConversation = async (req: Request, res: Response) => {
                 }
             });
 
+            let msg = null;
             if (initialMessage || (attachments && attachments.length > 0)) {
-                await tx.conversationMessage.create({
+                msg = await tx.conversationMessage.create({
                     data: {
                         conversationId: conv.id,
                         senderType: MessageSenderType.SELLER,
@@ -105,7 +106,20 @@ export const startSellerConversation = async (req: Request, res: Response) => {
                 });
             }
 
-            return conv;
+            return { conversation: conv, firstMessage: msg };
+        });
+
+        // Broadcast new conversation and unread notification to all admins
+        broadcastToAdmins({
+            type: "admin_conversation_update",
+            conversationId: conversation.id,
+            conversationType: ConversationType.SELLER_ADMIN,
+            lastMessage: firstMessage,
+            lastMessageAt: conversation.lastMessageAt
+        });
+        broadcastToAdmins({
+            type: "unread_counts_update",
+            conversationId: conversation.id
         });
 
         return res.status(201).json({ conversation });
@@ -242,6 +256,18 @@ export const sendSellerMessage = async (req: Request, res: Response) => {
             conversationId: id,
             message: savedMessage
         }, false);
+
+        broadcastToAdmins({
+            type: "admin_conversation_update",
+            conversationId: id,
+            conversationType: ConversationType.SELLER_ADMIN,
+            lastMessage: savedMessage,
+            lastMessageAt: savedMessage.createdAt
+        });
+        broadcastToAdmins({
+            type: "unread_counts_update",
+            conversationId: id
+        });
 
         return res.status(201).json({ message: savedMessage });
     } catch (error: any) {

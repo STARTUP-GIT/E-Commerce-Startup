@@ -145,25 +145,26 @@ export function ForgotPasswordPage() {
     }
   };
 
+  const [logoError, setLogoError] = useState(false);
+  const hasValidLogo = Boolean(!logoError && branding?.logo && branding.logo.trim() !== '');
+
   return (
     <div className="min-h-screen bg-background bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.2),rgba(255,255,255,0))] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md flex flex-col items-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg shadow-purple-500/25 mb-4 overflow-hidden shrink-0">
-          {branding?.logo && branding.logo.trim() !== '' ? (
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.04] border border-white/10 mb-4 shadow-lg overflow-hidden shrink-0">
+          {hasValidLogo ? (
             <img
               src={branding.logo}
               alt={branding.name || 'Marketplace'}
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLElement).style.display = 'none';
-              }}
+              className="h-full w-full object-contain p-1.5"
+              onError={() => setLogoError(true)}
             />
           ) : (
-            <Store className="h-6 w-6 text-white" />
+            <Store className="h-6 w-6 text-purple-400" />
           )}
         </div>
         <h2 className="text-center text-3xl font-extrabold tracking-tight text-white">
-          {branding?.name || 'Marketplace'}
+          {branding?.name || 'Seller Portal'}
         </h2>
         <p className="mt-1 text-center text-xs text-white/40 uppercase tracking-widest font-semibold">
           Password Recovery Wizard

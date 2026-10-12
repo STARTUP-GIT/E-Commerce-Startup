@@ -1,7 +1,7 @@
 import express from 'express';
 const router = express.Router();
 
-import { login, register, logout, getProfile, updateProfile, deactivateAccount, editProfile, deleteProfile, googleOAuth, forgotPassword, verifyOtp, resetPassword } from '../controllers/authController.js';
+import { login, register, logout, refresh, getProfile, updateProfile, deactivateAccount, editProfile, deleteProfile, googleOAuth, forgotPassword, verifyOtp, resetPassword } from '../controllers/authController.js';
 
 import { sellerAuth } from '../../../middleware/sellerAuth.js';
 import {
@@ -15,6 +15,7 @@ import {
 router.post('/api/auth/login', loginLimiter, login);
 router.post('/api/auth/register', registerLimiter, register);
 router.post('/api/auth/logout', logout);
+router.post('/api/auth/refresh', passwordLimiter, refresh);
 router.post('/api/auth/google', googleOAuthLimiter, googleOAuth);
 router.post('/api/auth/forgot-password', passwordLimiter, forgotPassword);
 router.post('/api/auth/verify-otp', otpLimiter, verifyOtp);

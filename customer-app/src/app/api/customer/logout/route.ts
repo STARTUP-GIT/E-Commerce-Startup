@@ -10,11 +10,13 @@ const BACKEND_URL = process.env.BACKEND_API_URL?.replace(/\/$/, '');
  * or Server Actions in Next.js App Router.
  */
 export async function POST(_req: NextRequest) {
-  // Tell the backend to invalidate the session if it tracks them
+  // Tell the backend to invalidate the session and revoke DB refresh tokens
   try {
     if (BACKEND_URL) {
+      const cookieHeader = _req.headers.get('cookie');
       await fetch(`${BACKEND_URL}/users/api/auth/logout`, {
         method: 'POST',
+        headers: cookieHeader ? { cookie: cookieHeader } : {},
         credentials: 'include',
       });
     }
@@ -27,6 +29,13 @@ export async function POST(_req: NextRequest) {
 
   // Clear by setting maxAge=0
   response.cookies.set('customer_session', '', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/',
+    maxAge: 0,
+  });
+  response.cookies.set('customer_refresh', '', {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'none' : 'lax',

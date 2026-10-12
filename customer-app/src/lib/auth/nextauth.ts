@@ -48,9 +48,11 @@ export const authOptions: NextAuthOptions = {
         if (credentials?.isGoogleMock === 'true') {
           if (!credentials.email || !credentials.userId) return null;
           return {
-            id:    credentials.userId,
-            email: credentials.email,
-            name:  credentials.name  || '',
+            id:                  credentials.userId,
+            email:               credentials.email,
+            name:                credentials.name  || '',
+            backendToken:        (credentials as any).backendToken,
+            backendRefreshToken: (credentials as any).backendRefreshToken,
           };
         }
 
@@ -81,9 +83,11 @@ export const authOptions: NextAuthOptions = {
 
           // Return user object → NextAuth puts this in the JWT token
           return {
-            id:    data.user.id,
-            email: data.user.email,
-            name:  `${data.user.firstName} ${data.user.lastName || ''}`.trim(),
+            id:                  data.user.id,
+            email:               data.user.email,
+            name:                `${data.user.firstName} ${data.user.lastName || ''}`.trim(),
+            backendToken:        data.token,
+            backendRefreshToken: data.refreshToken,
           };
         } catch (err: any) {
           throw new Error(err?.message || 'Login failed');
@@ -99,9 +103,7 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async signIn({ user, account }) {
-      // Google OAuth path: the browser already has customer_session set by
-      // /api/customer/google (Route Handler). Here we just update the user
-      // object so NextAuth can issue its own JWT.
+      // Google OAuth path: call backend to exchange Google id_token for marketplace session
       if (account?.provider === 'google') {
         try {
           const idToken = account.id_token;
@@ -121,6 +123,8 @@ export const authOptions: NextAuthOptions = {
           user.id    = data.user.id;
           user.email = data.user.email;
           user.name  = `${data.user.firstName} ${data.user.lastName || ''}`.trim();
+          (user as any).backendToken = data.token;
+          (user as any).backendRefreshToken = data.refreshToken;
           return true;
         } catch (err: any) {
           console.error('[NextAuth] Google signIn error:', err?.message);
@@ -139,6 +143,8 @@ export const authOptions: NextAuthOptions = {
         token.id    = user.id;
         token.email = user.email;
         token.name  = user.name;
+        token.backendToken = (user as any).backendToken;
+        token.backendRefreshToken = (user as any).backendRefreshToken;
       }
       return token;
     },
@@ -148,6 +154,8 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = token.id;
         session.user.email       = token.email;
         session.user.name        = token.name;
+        (session as any).backendToken = token.backendToken;
+        (session as any).backendRefreshToken = token.backendRefreshToken;
       }
       return session;
     },

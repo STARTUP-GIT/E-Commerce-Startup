@@ -37,6 +37,20 @@ model MarketplaceBranding {
   browseProductsButtonText String? @db.VarChar(100)
   footerDescription       String? @db.Text
 
+  // Mode-specific logos and brand descriptions
+  darkLogoUrl           String? @db.VarChar(2048)
+  darkLogoPublicId      String? @db.VarChar(255)
+  lightLogoUrl          String? @db.VarChar(2048)
+  lightLogoPublicId     String? @db.VarChar(255)
+  brandDescription      String? @db.Text
+
+  // Application-specific presentation titles
+  customerTitle         String? @db.VarChar(200)
+  sellerPortalTitle     String? @db.VarChar(200)
+  sellerPortalTagline   String? @db.VarChar(300)
+  sellerPortalLogoUrl   String? @db.VarChar(2048)
+  sellerPortalLogoPublicId String? @db.VarChar(255)
+
   updatedBy String? @db.VarChar(30)
 
   @@map("marketplace_branding")

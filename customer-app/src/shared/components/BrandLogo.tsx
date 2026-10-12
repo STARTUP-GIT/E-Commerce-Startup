@@ -36,7 +36,7 @@ export function BrandLogo({
           <img
             src={logoUrl}
             alt={branding?.name || 'Brand Logo'}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain p-1"
             onError={() => setImageError(true)}
           />
         ) : (

@@ -17,10 +17,17 @@ export interface BrandingConfig {
   marketplaceName: string;
   logo: string;
   favicon: string;
-  tagline?: string;
-  shortName?: string;
-  logoUrl?: string;
-  faviconUrl?: string;
+  tagline?: string | null;
+  shortName?: string | null;
+  logoUrl?: string | null;
+  faviconUrl?: string | null;
+  darkLogoUrl?: string | null;
+  lightLogoUrl?: string | null;
+  brandDescription?: string | null;
+  customerTitle?: string | null;
+  sellerPortalTitle?: string | null;
+  sellerPortalTagline?: string | null;
+  sellerPortalLogoUrl?: string | null;
   heroBadge: string;
   heroHeadingLine1: string;
   heroHeadingLine2: string;
@@ -33,6 +40,8 @@ export interface BrandingConfig {
   seoTitle: string;
   seoDescription: string;
   browserTitle: string;
+  primaryColor?: string;
+  secondaryColor?: string;
   updatedAt?: string;
 }
 
@@ -41,12 +50,12 @@ export type BrandingApp = 'customer' | 'seller';
 export const DEFAULT_BRANDING: BrandingConfig = {
   name: 'Marketplace',
   marketplaceName: 'Marketplace',
-  logo: '/images/logo.png',
-  favicon: '/favicon.ico',
+  logo: '',
+  favicon: '',
   tagline: 'Your local marketplace for everything',
   shortName: 'Marketplace',
-  logoUrl: '/images/logo.png',
-  faviconUrl: '/favicon.ico',
+  logoUrl: '',
+  faviconUrl: '',
   heroBadge: 'The Local Marketplace for Everything',
   heroHeadingLine1: 'Buy Anything.',
   heroHeadingLine2: 'From Anyone.',
@@ -72,7 +81,7 @@ export const DEFAULT_SELLER_BRANDING: BrandingConfig = {
   browserTitle: 'Marketplace Seller',
 };
 
-const str = (value: unknown, fallback: string | undefined): string =>
+const str = (value: unknown, fallback?: string | null): string =>
   typeof value === 'string' && value.trim() !== '' ? value.trim() : (fallback || '');
 
 export const normalizeBranding = (

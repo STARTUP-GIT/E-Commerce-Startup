@@ -15,6 +15,16 @@ export interface AdminBranding extends BrandingConfig {
   brandName: string;
   logoPublicId?: string | null;
   faviconPublicId?: string | null;
+  darkLogoUrl?: string | null;
+  darkLogoPublicId?: string | null;
+  lightLogoUrl?: string | null;
+  lightLogoPublicId?: string | null;
+  brandDescription?: string | null;
+  customerTitle?: string | null;
+  sellerPortalTitle?: string | null;
+  sellerPortalTagline?: string | null;
+  sellerPortalLogoUrl?: string | null;
+  sellerPortalLogoPublicId?: string | null;
   primaryColor?: string;
   secondaryColor?: string;
   supportEmail?: string;
@@ -29,8 +39,18 @@ export interface BrandingPayload {
   tagline?: string;
   logoUrl?: string;
   logoPublicId?: string | null;
+  darkLogoUrl?: string | null;
+  darkLogoPublicId?: string | null;
+  lightLogoUrl?: string | null;
+  lightLogoPublicId?: string | null;
   faviconUrl?: string;
   faviconPublicId?: string | null;
+  brandDescription?: string | null;
+  customerTitle?: string | null;
+  sellerPortalTitle?: string | null;
+  sellerPortalTagline?: string | null;
+  sellerPortalLogoUrl?: string | null;
+  sellerPortalLogoPublicId?: string | null;
   browserTitle?: string;
   seoTitle?: string;
   seoDescription?: string;
@@ -99,8 +119,8 @@ export function useUpdateBranding(app: BrandingApp = 'customer') {
   return useMutation({
     mutationFn: (payload: BrandingPayload) => brandingApi.updateBranding(payload, app),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-branding', app] });
-      queryClient.invalidateQueries({ queryKey: ['public-branding', app] });
+      queryClient.invalidateQueries({ queryKey: ['admin-branding'] });
+      queryClient.invalidateQueries({ queryKey: ['public-branding'] });
     },
   });
 }

@@ -2,13 +2,35 @@ import type { Request, Response } from 'express';
 import { prisma } from '../../../config/prisma.js'
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { signAccessToken } from '../../../config/token.js'
-import { setAuthCookie, clearAuthCookie, customersessionCookie } from '../../../config/sessionCookies.js'
+import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../../config/token.js'
+import { setAuthCookie, clearAuthCookie, setRefreshCookie, clearRefreshCookie, customersessionCookie } from '../../../config/sessionCookies.js'
 import { AuthProvider } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import EmailService from '../../../services/email/email.service.js';
+import { disconnectActorSockets } from '../../../services/chat/chat.service.js';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+async function issueCustomerSession(res: Response, customerId: string) {
+    const accessToken = signAccessToken(customerId);
+    const refreshToken = signRefreshToken(customerId);
+    const refreshHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30); // 30 days
+
+    await prisma.refreshToken.create({
+        data: {
+            userId: customerId,
+            userType: "CUSTOMER",
+            tokenHash: refreshHash,
+            expiresAt
+        }
+    });
+
+    setAuthCookie(res, 'customer_session', accessToken);
+    setRefreshCookie(res, refreshToken, 'customer_refresh');
+
+    return { token: accessToken, refreshToken };
+}
 
 
 
@@ -94,11 +116,12 @@ export const register = async (req: Request, res: Response) => {
             console.warn('[REGISTER] Welcome email failed (non-blocking):', emailErr);
         }
 
-        const token = signAccessToken(newuser.id);
-        setAuthCookie(res, 'customer_session', token);
+        const { token, refreshToken } = await issueCustomerSession(res, newuser.id);
 
         return res.status(201).json({
             message: 'Registration successful',
+            token,
+            refreshToken,
             user: {
                 id: newuser.id,
                 email: newuser.email,
@@ -182,12 +205,12 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        const token = signAccessToken(customer.id);
-
-        setAuthCookie(res, 'customer_session', token);
+        const { token, refreshToken } = await issueCustomerSession(res, customer.id);
 
         return res.status(200).json({
             message: "Login successful",
+            token,
+            refreshToken,
             user: {
                 id: customer.id,
                 email: customer.email,
@@ -473,12 +496,12 @@ export const googleOAuth = async (req: Request, res: Response) => {
                 });
             }
 
-            const token = signAccessToken(customer.id);
-
-            setAuthCookie(res, 'customer_session', token);
+            const { token, refreshToken } = await issueCustomerSession(res, customer.id);
 
             return res.status(200).json({
                 message: "Google login successful",
+                token,
+                refreshToken,
                 user: {
                     id: customer.id,
                     email: customer.email,
@@ -542,12 +565,12 @@ export const googleOAuth = async (req: Request, res: Response) => {
             });
         }
 
-        const token = signAccessToken(customer.id);
-
-        setAuthCookie(res, 'customer_session', token);
+        const { token, refreshToken } = await issueCustomerSession(res, customer.id);
 
         return res.status(201).json({
             message: "Google account created successfully",
+            token,
+            refreshToken,
             user: {
                 id: customer.id,
                 email: customer.email,
@@ -570,12 +593,64 @@ export const googleOAuth = async (req: Request, res: Response) => {
 
 
 export const logout = async (req: Request, res: Response) => {
-
     clearAuthCookie(res, 'customer_session');
+    clearRefreshCookie(res, 'customer_refresh');
+
+    const customerId = req.customerId || (req.body && req.body.id);
+    if (customerId) {
+        await prisma.refreshToken.updateMany({
+            where: { userId: customerId, userType: "CUSTOMER", revoked: false },
+            data: { revoked: true }
+        });
+        disconnectActorSockets(customerId, "Logged out");
+    }
 
     return res.status(200).json({
         message: "Logged out successfully"
     });
+};
+
+export const refresh = async (req: Request, res: Response) => {
+    try {
+        const rawToken = req.cookies?.customer_refresh || req.headers["x-refresh-token"];
+        const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
+        if (!token) return res.status(401).json({ message: "No refresh token" });
+
+        let payload: any;
+        try {
+            payload = verifyRefreshToken(token) as any;
+        } catch {
+            return res.status(401).json({ message: "Invalid refresh token", isExpired: true });
+        }
+
+        const userId = payload.id as string;
+        const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+        const stored = await prisma.refreshToken.findFirst({
+            where: { tokenHash, userId, userType: "CUSTOMER", revoked: false, expiresAt: { gt: new Date() } }
+        });
+        if (!stored) return res.status(401).json({ message: "Refresh token invalid or revoked", isExpired: true });
+
+        // Revoke current token (rotation)
+        await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+
+        const newRefresh = signRefreshToken(userId);
+        const newHash = crypto.createHash("sha256").update(newRefresh).digest("hex");
+        const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+        await prisma.refreshToken.create({ data: { userId, userType: "CUSTOMER", tokenHash: newHash, expiresAt } });
+
+        const accessToken = signAccessToken(userId);
+        setAuthCookie(res, "customer_session", accessToken);
+        setRefreshCookie(res, newRefresh, "customer_refresh");
+
+        return res.status(200).json({
+            message: "Refreshed",
+            token: accessToken,
+            refreshToken: newRefresh
+        });
+    } catch (err) {
+        console.error("CUSTOMER REFRESH ERROR", err);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
 };
 
 

@@ -69,6 +69,10 @@ const nextConfig: NextConfig = {
         source: '/api/customer/logout',
         destination: '/api/customer/logout',
       },
+      {
+        source: '/api/customer/refresh',
+        destination: '/api/customer/refresh',
+      },
       // ── Admin-owned branding (single source of truth) ────────────────────
       // Explicit rules so /api/branding never falls through to the
       // /api/:path* catch-all (which would send it to /users/api/branding).

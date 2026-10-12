@@ -326,12 +326,44 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
                             return msg;
                         });
 
+                        if (client.actorType === "ADMIN") {
+                            await prisma.conversationReadReceipt.upsert({
+                                where: {
+                                    conversationId_readerType_readerId: {
+                                        conversationId,
+                                        readerType: "ADMIN",
+                                        readerId: client.actorId
+                                    }
+                                },
+                                update: { lastReadAt: new Date() },
+                                create: {
+                                    conversationId,
+                                    readerType: "ADMIN",
+                                    readerId: client.actorId,
+                                    lastReadAt: new Date()
+                                }
+                            });
+                        }
+
                         // Broadcast message to subscribed clients
                         broadcastToConversation(conversationId, {
                             type: "new_message",
                             conversationId,
                             message: savedMessage
                         }, safeIsInternal);
+
+                        // Broadcast conversation update and unread count notification to all admins
+                        broadcastToAdmins({
+                            type: "admin_conversation_update",
+                            conversationId,
+                            conversationType: conv.type,
+                            lastMessage: savedMessage,
+                            lastMessageAt: savedMessage.createdAt
+                        });
+                        broadcastToAdmins({
+                            type: "unread_counts_update",
+                            conversationId
+                        });
 
                         // Ack to sender
                         return ws.send(JSON.stringify({
@@ -368,6 +400,13 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
                             readerId: client.actorId,
                             readAt: new Date().toISOString()
                         });
+
+                        if (client.actorType === "ADMIN") {
+                            broadcastToAdmins({
+                                type: "unread_counts_update",
+                                conversationId
+                            });
+                        }
                         break;
                     }
 
@@ -404,6 +443,19 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
     return wss;
 }
 
+export function broadcastToAdmins(payload: any, excludeWs?: WebSocket) {
+    const raw = JSON.stringify(payload);
+    for (const [ws, client] of clients.entries()) {
+        if (ws !== excludeWs && ws.readyState === WebSocket.OPEN && client.actorType === "ADMIN") {
+            try {
+                ws.send(raw);
+            } catch {
+                // Ignore socket send error
+            }
+        }
+    }
+}
+
 export function broadcastToConversation(
     conversationId: string,
     payload: any,
@@ -417,8 +469,30 @@ export function broadcastToConversation(
             if (isInternal && client.actorType !== "ADMIN") continue;
 
             if (client.subscribedConversations.has(conversationId)) {
-                ws.send(raw);
+                try {
+                    ws.send(raw);
+                } catch {
+                    // Ignore socket send error
+                }
             }
         }
     }
 }
+
+export function disconnectActorSockets(actorId: string, reason: string = "Session expired") {
+    if (!actorId) return;
+    for (const [ws, client] of clients.entries()) {
+        if (client.actorId === actorId) {
+            try {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: "session_expired", message: reason }));
+                    ws.close(4001, reason);
+                }
+            } catch {
+                // Ignore socket close errors
+            }
+            clients.delete(ws);
+        }
+    }
+}
+

@@ -57,33 +57,56 @@ export async function POST(req: NextRequest) {
     // Build our own response so we can attach the customer_session cookie
     const response = NextResponse.json(data, { status: 200 });
 
-    // Extract customer_session from backend Set-Cookie header and forward it
+    // Extract customer_session and customer_refresh from backend Set-Cookie header and forward
     const rawSetCookie = backendRes.headers.get('set-cookie');
+    const isProduction = process.env.NODE_ENV === 'production';
     if (rawSetCookie) {
-      // The backend may return multiple cookies separated by commas in some
-      // environments. We only want customer_session.
       const cookieEntries = splitSetCookieHeader(rawSetCookie);
       for (const entry of cookieEntries) {
         if (entry.trimStart().startsWith('customer_session=')) {
           const parsed = parseCookieEntry(entry);
           if (parsed) {
-            const isProduction = process.env.NODE_ENV === 'production';
             response.cookies.set('customer_session', parsed.value, {
               httpOnly: true,
               secure: isProduction,
-              // 'lax' — the cookie is only consumed on the customer-app origin
-              // (Next.js proxies all requests to the backend server-side), so
-              // SameSite=None is unnecessary and would widen the CSRF surface.
               sameSite: 'lax',
               path: '/',
-              maxAge: parsed.maxAge ?? 60 * 60 * 24 * 7, // default 7 days
+              maxAge: parsed.maxAge ?? 60 * 60 * 24 * 7,
             });
           }
-          break;
+        } else if (entry.trimStart().startsWith('customer_refresh=')) {
+          const parsed = parseCookieEntry(entry);
+          if (parsed) {
+            response.cookies.set('customer_refresh', parsed.value, {
+              httpOnly: true,
+              secure: isProduction,
+              sameSite: 'lax',
+              path: '/',
+              maxAge: parsed.maxAge ?? 60 * 60 * 24 * 30,
+            });
+          }
         }
       }
-    } else {
-      console.warn('[/api/customer/login] Backend did not return a Set-Cookie header');
+    }
+
+    if (data.token && !response.cookies.has('customer_session')) {
+      response.cookies.set('customer_session', data.token, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7,
+      });
+    }
+
+    if (data.refreshToken && !response.cookies.has('customer_refresh')) {
+      response.cookies.set('customer_refresh', data.refreshToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30,
+      });
     }
 
     return response;

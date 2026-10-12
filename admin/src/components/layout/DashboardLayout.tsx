@@ -49,11 +49,13 @@ import { useConfirmStore } from '@/lib/store/confirmStore';
 
 import { useBranding } from '@/lib/hooks/useBranding';
 import { usePermissions } from '@/lib/hooks/usePermissions';
+import { useConversationUnreadCounts } from '@/features/conversations/hooks/useConversationUnreadCounts';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { branding } = useBranding();
   const { can } = usePermissions();
   const { admin, logout, isLoading } = useAuth();
+  const unreadCounts = useConversationUnreadCounts();
   const { sidebarOpen, toggleSidebar } = useUIStore();
   const pathname = usePathname();
   const router = useRouter();
@@ -220,7 +222,23 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                           }`}
                         >
                           <Icon className="h-4 w-4 shrink-0" />
-                          <span className="truncate">{item.name}</span>
+                          <span className="truncate flex-1">{item.name}</span>
+                          {item.path === '/customer-conversations' && unreadCounts.customerUnread > 0 && (
+                            <span
+                              id="customer-unread-badge"
+                              className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-black rounded-full bg-indigo-500 text-white shadow-sm ring-1 ring-indigo-400/30 animate-fade-in"
+                            >
+                              {unreadCounts.customerUnread > 99 ? '99+' : unreadCounts.customerUnread}
+                            </span>
+                          )}
+                          {item.path === '/seller-conversations' && unreadCounts.sellerUnread > 0 && (
+                            <span
+                              id="seller-unread-badge"
+                              className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-black rounded-full bg-purple-500 text-white shadow-sm ring-1 ring-purple-400/30 animate-fade-in"
+                            >
+                              {unreadCounts.sellerUnread > 99 ? '99+' : unreadCounts.sellerUnread}
+                            </span>
+                          )}
                         </Link>
                       );
                     })}

@@ -36,12 +36,12 @@ export interface BrandingData {
 export const DEFAULT_BRANDING: BrandingData = {
   name: 'Marketplace',
   marketplaceName: 'Marketplace',
-  logo: '/images/logo.png',
-  favicon: '/favicon.ico',
+  logo: '',
+  favicon: '',
   tagline: 'Your local marketplace for everything',
   shortName: 'Marketplace',
-  logoUrl: '/images/logo.png',
-  faviconUrl: '/favicon.ico',
+  logoUrl: '',
+  faviconUrl: '',
   heroBadge: 'The Local Marketplace for Everything',
   heroHeadingLine1: 'Buy Anything.',
   heroHeadingLine2: 'From Anyone.',
@@ -59,15 +59,23 @@ export const DEFAULT_BRANDING: BrandingData = {
 const str = (value: unknown, fallback: string | undefined): string =>
   typeof value === 'string' && value.trim() !== '' ? value.trim() : (fallback || '');
 
+const cleanUrl = (url: unknown): string => {
+  if (typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === '/images/logo.png' || trimmed === '/favicon.ico') return '';
+  return trimmed;
+};
+
 export const normalizeBranding = (d: any): BrandingData => {
-  const nameVal = d?.name || d?.marketplaceName || DEFAULT_BRANDING.name;
-  const logoVal = d?.logo || d?.logoUrl || DEFAULT_BRANDING.logo;
-  const rawFavicon = d?.favicon || d?.faviconUrl || '';
-  const faviconVal = rawFavicon && rawFavicon !== '/favicon.ico' ? rawFavicon : logoVal;
+  const nameVal = d?.customerTitle || d?.name || d?.marketplaceName || DEFAULT_BRANDING.name;
+  const rawLogo = cleanUrl(d?.logo) || cleanUrl(d?.logoUrl) || DEFAULT_BRANDING.logo;
+  const logoVal = rawLogo;
+  const rawFavicon = cleanUrl(d?.favicon) || cleanUrl(d?.faviconUrl) || rawLogo;
+  const faviconVal = rawFavicon;
   const taglineVal = str(d?.tagline, DEFAULT_BRANDING.tagline);
   return {
     name: nameVal,
-    marketplaceName: nameVal,
+    marketplaceName: str(d?.marketplaceName, str(d?.brandName, nameVal)),
     logo: logoVal,
     favicon: faviconVal,
     tagline: taglineVal,

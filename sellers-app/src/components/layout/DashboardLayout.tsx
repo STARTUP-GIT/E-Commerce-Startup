@@ -77,6 +77,21 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const showConfirm = useConfirmStore((state) => state.showConfirm);
   const { sidebar, branding } = useSellerLayout();
+  const [logoError, setLogoError] = React.useState(false);
+
+  React.useEffect(() => {
+    setLogoError(false);
+  }, [branding?.logo]);
+
+  const sellerPortalName = React.useMemo(() => {
+    const raw = (branding?.sellerPortalTitle || branding?.name || '').trim();
+    if (!raw) return 'Seller Portal';
+    if (/seller|portal/i.test(raw)) return raw;
+    return `${raw} Seller Portal`;
+  }, [branding?.sellerPortalTitle, branding?.name]);
+
+  const sellerPortalTagline = branding?.sellerPortalTagline || branding?.tagline || 'Merchant Center';
+  const hasValidLogo = Boolean(!logoError && branding?.logo && branding.logo.trim() !== '');
 
   const handleLogout = () => {
     showConfirm({
@@ -132,26 +147,24 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             to="/dashboard"
             className="h-16 flex items-center px-5 border-b border-white/5 gap-3 hover:bg-white/[0.02] transition-colors"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white overflow-hidden shrink-0 shadow-md">
-              {branding?.logo && branding.logo.trim() !== '' ? (
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.04] border border-white/10 text-white overflow-hidden shrink-0 shadow-sm">
+              {hasValidLogo ? (
                 <img
                   src={branding.logo}
-                  alt={branding.name || 'Seller Portal'}
-                  className="h-full w-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
+                  alt={sellerPortalName}
+                  className="h-full w-full object-contain p-1"
+                  onError={() => setLogoError(true)}
                 />
               ) : (
-                <ShoppingBag className="h-4 w-4 text-white" />
+                <Store className="h-4.5 w-4.5 text-purple-400" />
               )}
             </div>
             <div className="min-w-0">
               <span className="font-bold text-white text-xs tracking-tight block truncate">
-                {branding?.name ? `${branding.name} Seller` : 'Seller Portal'}
+                {sellerPortalName}
               </span>
               <span className="text-[9px] text-white/40 block font-medium truncate tracking-wide">
-                {branding?.tagline || 'Merchant Center'}
+                {sellerPortalTagline}
               </span>
             </div>
           </NavLink>
@@ -262,7 +275,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 to="/dashboard"
                 className="text-white/40 hover:text-purple-400 font-semibold transition-colors flex items-center gap-1"
               >
-                <span>{branding?.name || 'Sante'} Seller Portal</span>
+                <span>{sellerPortalName}</span>
               </NavLink>
               <ChevronRight className="h-3 w-3 text-white/20 shrink-0" />
               <span className="text-white/90 font-bold capitalize select-none" aria-current="page">

@@ -27,6 +27,9 @@ export function RegisterPage() {
     resolver: zodResolver(registerSchema),
   });
 
+  const [logoError, setLogoError] = useState(false);
+  const hasValidLogo = Boolean(!logoError && branding?.logo && branding.logo.trim() !== '');
+
   const onSubmit = async (data: RegisterInput) => {
     setErrorMsg(null);
     try {
@@ -49,22 +52,20 @@ export function RegisterPage() {
       <div className="relative z-10 w-full max-w-[440px] animate-fade-up">
         {/* Portal Header */}
         <div className="flex flex-col items-center mb-6">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-900/80 to-indigo-900/80 glass border border-purple-500/30 mb-3 shadow-lg overflow-hidden shrink-0">
-            {branding?.logo && branding.logo.trim() !== '' ? (
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.04] border border-white/10 mb-3 shadow-lg overflow-hidden shrink-0">
+            {hasValidLogo ? (
               <img
                 src={branding.logo}
                 alt={branding.name || 'Marketplace'}
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
+                className="h-full w-full object-contain p-1.5"
+                onError={() => setLogoError(true)}
               />
             ) : (
               <Store className="h-6 w-6 text-purple-400" />
             )}
           </div>
-          <h1 className="text-2xl font-extrabold text-white text-gradient">{branding?.name || 'Marketplace'}</h1>
-          <p className="text-xs text-white/40 mt-1 uppercase tracking-widest font-semibold">{branding?.tagline || 'Your local marketplace'}</p>
+          <h1 className="text-2xl font-extrabold text-white text-gradient">{branding?.name || 'Seller Portal'}</h1>
+          <p className="text-xs text-white/40 mt-1 uppercase tracking-widest font-semibold">{branding?.tagline || 'Merchant Center'}</p>
         </div>
 
         <Card className="border border-white/10 shadow-2xl">

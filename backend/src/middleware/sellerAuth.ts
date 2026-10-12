@@ -65,16 +65,19 @@ export const sellerAuth = async (req: Request, res: Response, next: NextFunction
 
     let identity: string | null = null;
     let fallbackEmail: string | undefined;
+    let isExpired = false;
 
     // 1) Try the app-signed JWT (returned by login / register / google sync).
     try {
       const decoded: any = verifyAccessToken(token);
       identity = decoded?.id || decoded?.userId || decoded?.sellerId || decoded?.sub || null;
-    } catch {
+    } catch (err: any) {
+      if (err?.name === "TokenExpiredError") isExpired = true;
       try {
         const decoded: any = jwt.verify(token, getJwtSecret());
         identity = decoded?.id || decoded?.userId || decoded?.sellerId || decoded?.sub || null;
-      } catch {
+      } catch (innerErr: any) {
+        if (innerErr?.name === "TokenExpiredError") isExpired = true;
         identity = null;
       }
     }
@@ -87,13 +90,17 @@ export const sellerAuth = async (req: Request, res: Response, next: NextFunction
         identity = supabasePayload?.sub || supabasePayload?.user_id || null;
         fallbackEmail = supabasePayload?.email || supabasePayload?.user_metadata?.email || undefined;
       } catch (supabaseErr: any) {
+        if (supabaseErr?.name === "TokenExpiredError" || supabaseErr?.message?.includes("expired")) {
+          isExpired = true;
+        }
         console.warn("[sellerAuth] Supabase token verification failed:", supabaseErr?.message);
       }
     }
 
     if (!identity) {
       return res.status(401).json({
-        message: "JWT verification failed",
+        message: isExpired ? "Session expired" : "JWT verification failed",
+        isExpired
       });
     }
 

@@ -1,4 +1,4 @@
-﻿import type { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
@@ -15,6 +15,7 @@ import {
     getAdminPermissions,
     invalidatePermissionCache
 } from "../services/permissionService.js";
+import { disconnectActorSockets } from "../../../services/chat/chat.service.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -128,6 +129,7 @@ export const logout = async (req: Request, res: Response) => {
                 where: { userId: req.adminId, userType: "ADMIN", revoked: false },
                 data: { revoked: true }
             });
+            disconnectActorSockets(req.adminId, "Logged out");
         }
         return res.status(200).json({ message: "Logged out successfully" });
     } catch (error: any) {

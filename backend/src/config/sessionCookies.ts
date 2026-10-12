@@ -1,6 +1,7 @@
 import type { Response } from 'express';
 
-type CookieName = 'customer_session' | 'seller_session' | 'admin_session';
+export type CookieName = 'customer_session' | 'seller_session' | 'admin_session';
+export type RefreshCookieName = 'customer_refresh' | 'seller_refresh' | 'admin_refresh';
 
 const isProductionEnv = () =>
   (process.env.NODE_ENV || '').toLowerCase() === 'production' ||
@@ -37,9 +38,9 @@ export const clearAuthCookie = (res: Response, name: CookieName) => {
   });
 };
 
-export const setRefreshCookie = (res: Response, token: string) => {
+export const setRefreshCookie = (res: Response, token: string, name: RefreshCookieName = 'admin_refresh') => {
   const isProduction = isProductionEnv();
-  res.cookie('admin_refresh', token, {
+  res.cookie(name, token, {
     httpOnly: true,
     secure: isProduction,
     sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
@@ -49,9 +50,9 @@ export const setRefreshCookie = (res: Response, token: string) => {
   });
 };
 
-export const clearRefreshCookie = (res: Response) => {
+export const clearRefreshCookie = (res: Response, name: RefreshCookieName = 'admin_refresh') => {
   const isProduction = isProductionEnv();
-  res.clearCookie('admin_refresh', {
+  res.clearCookie(name, {
     httpOnly: true,
     secure: isProduction,
     sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',

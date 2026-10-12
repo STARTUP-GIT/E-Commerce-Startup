@@ -18,9 +18,12 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const searchParams = useSearchParams();
   const oauthError = searchParams ? searchParams.get('error') : null;
+  const isExpired = searchParams ? searchParams.get('expired') === 'true' : false;
 
   let displayError = error;
-  if (!displayError && oauthError) {
+  if (!displayError && isExpired) {
+    displayError = 'Your session has expired. Please sign in again.';
+  } else if (!displayError && oauthError) {
     if (oauthError === 'SellerAccountExists') {
       displayError = 'This account is registered under the Seller Portal. Please log in through the Seller Portal.';
     } else if (oauthError === 'GoogleAuthFailed') {

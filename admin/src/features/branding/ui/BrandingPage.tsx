@@ -10,16 +10,26 @@ import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { ImageUploadField, type UploadResult } from '@/shared/components/ImageUploadField';
 import { useUIStore } from '@/lib/store/uiStore';
-import { Eye, Image as ImageIcon, Lock, Monitor, Palette, Save, ShieldAlert, Store } from 'lucide-react';
+import { Eye, Image as ImageIcon, Lock, Monitor, Palette, Save, ShieldAlert, Store, ShoppingBag, LayoutTemplate, Shield, Check } from 'lucide-react';
 
 interface BrandingFormState {
   brandName: string;
   shortName: string;
   tagline: string;
+  brandDescription: string;
   logoUrl: string;
   logoPublicId: string;
+  darkLogoUrl: string;
+  darkLogoPublicId: string;
+  lightLogoUrl: string;
+  lightLogoPublicId: string;
   faviconUrl: string;
   faviconPublicId: string;
+  customerTitle: string;
+  sellerPortalTitle: string;
+  sellerPortalTagline: string;
+  sellerPortalLogoUrl: string;
+  sellerPortalLogoPublicId: string;
   browserTitle: string;
   seoTitle: string;
   seoDescription: string;
@@ -42,10 +52,20 @@ const EMPTY_FORM: BrandingFormState = {
   brandName: '',
   shortName: '',
   tagline: '',
+  brandDescription: '',
   logoUrl: '',
   logoPublicId: '',
+  darkLogoUrl: '',
+  darkLogoPublicId: '',
+  lightLogoUrl: '',
+  lightLogoPublicId: '',
   faviconUrl: '',
   faviconPublicId: '',
+  customerTitle: '',
+  sellerPortalTitle: '',
+  sellerPortalTagline: '',
+  sellerPortalLogoUrl: '',
+  sellerPortalLogoPublicId: '',
   browserTitle: '',
   seoTitle: '',
   seoDescription: '',
@@ -67,67 +87,68 @@ const EMPTY_FORM: BrandingFormState = {
 export function BrandingPage() {
   const { can } = usePermissions();
   const { showToast } = useUIStore();
-  const [selectedApp, setSelectedApp] = useState<BrandingApp>('customer');
-  const app = selectedApp;
-  const { branding, isLoading } = useAdminBranding(app);
-  const { branding: publicBranding, isLoading: publicLoading } = useBranding(app);
-  const updateMutation = useUpdateBranding(app);
+  const { branding, isLoading } = useAdminBranding('customer');
+  const { branding: customerBranding, isLoading: customerLoading } = useBranding('customer');
+  const { branding: sellerBranding, isLoading: sellerLoading } = useBranding('seller');
+  const updateMutation = useUpdateBranding('customer');
 
   const canView = can('branding.view');
   const canManage = can('branding.manage');
 
-  const [forms, setForms] = useState<Partial<Record<BrandingApp, BrandingFormState>>>({});
-  const form = forms[app] ?? EMPTY_FORM;
+  const [form, setForm] = useState<BrandingFormState>(EMPTY_FORM);
+  const [previewTab, setPreviewTab] = useState<'customer' | 'seller' | 'admin'>('seller');
 
   useEffect(() => {
     if (!branding) return;
 
-    setForms((current) => ({
-      ...current,
-      [app]: {
-        brandName: branding.brandName ?? branding.name ?? '',
-        shortName: branding.shortName ?? '',
-        tagline: branding.tagline ?? '',
-        logoUrl: branding.logoUrl ?? '',
-        logoPublicId: branding.logoPublicId ?? '',
-        faviconUrl: branding.faviconUrl ?? '',
-        faviconPublicId: branding.faviconPublicId ?? '',
-        browserTitle: branding.browserTitle ?? '',
-        seoTitle: branding.seoTitle ?? '',
-        seoDescription: branding.seoDescription ?? '',
-        primaryColor: branding.primaryColor ?? '#FF5722',
-        secondaryColor: branding.secondaryColor ?? '#0EA5E9',
-        supportEmail: branding.supportEmail ?? '',
-        supportPhone: branding.supportPhone ?? '',
-        heroBadge: branding.heroBadge ?? '',
-        heroHeadingLine1: branding.heroHeadingLine1 ?? '',
-        heroHeadingLine2: branding.heroHeadingLine2 ?? '',
-        heroHeadingLine3: branding.heroHeadingLine3 ?? '',
-        heroDescription: branding.heroDescription ?? '',
-        searchPlaceholder: branding.searchPlaceholder ?? '',
-        exploreShopsButtonText: branding.exploreShopsButtonText ?? '',
-        browseProductsButtonText: branding.browseProductsButtonText ?? '',
-        footerDescription: branding.footerDescription ?? '',
-      },
-    }));
-  }, [app, branding]);
+    setForm({
+      brandName: branding.brandName ?? branding.name ?? '',
+      shortName: branding.shortName ?? '',
+      tagline: branding.tagline ?? '',
+      brandDescription: branding.brandDescription ?? '',
+      logoUrl: branding.logoUrl ?? '',
+      logoPublicId: branding.logoPublicId ?? '',
+      darkLogoUrl: branding.darkLogoUrl ?? '',
+      darkLogoPublicId: branding.darkLogoPublicId ?? '',
+      lightLogoUrl: branding.lightLogoUrl ?? '',
+      lightLogoPublicId: branding.lightLogoPublicId ?? '',
+      faviconUrl: branding.faviconUrl ?? '',
+      faviconPublicId: branding.faviconPublicId ?? '',
+      customerTitle: branding.customerTitle ?? '',
+      sellerPortalTitle: branding.sellerPortalTitle ?? '',
+      sellerPortalTagline: branding.sellerPortalTagline ?? '',
+      sellerPortalLogoUrl: branding.sellerPortalLogoUrl ?? '',
+      sellerPortalLogoPublicId: branding.sellerPortalLogoPublicId ?? '',
+      browserTitle: branding.browserTitle ?? '',
+      seoTitle: branding.seoTitle ?? '',
+      seoDescription: branding.seoDescription ?? '',
+      primaryColor: branding.primaryColor ?? '#FF5722',
+      secondaryColor: branding.secondaryColor ?? '#0EA5E9',
+      supportEmail: branding.supportEmail ?? '',
+      supportPhone: branding.supportPhone ?? '',
+      heroBadge: branding.heroBadge ?? '',
+      heroHeadingLine1: branding.heroHeadingLine1 ?? '',
+      heroHeadingLine2: branding.heroHeadingLine2 ?? '',
+      heroHeadingLine3: branding.heroHeadingLine3 ?? '',
+      heroDescription: branding.heroDescription ?? '',
+      searchPlaceholder: branding.searchPlaceholder ?? '',
+      exploreShopsButtonText: branding.exploreShopsButtonText ?? '',
+      browseProductsButtonText: branding.browseProductsButtonText ?? '',
+      footerDescription: branding.footerDescription ?? '',
+    });
+  }, [branding]);
 
   const update = (key: keyof BrandingFormState) => (value: string) =>
-    setForms((current) => ({
-      ...current,
-      [app]: { ...(current[app] ?? EMPTY_FORM), [key]: value },
-    }));
+    setForm((current) => ({ ...current, [key]: value }));
+
   const updateFields = (fields: Partial<BrandingFormState>) =>
-    setForms((current) => ({
-      ...current,
-      [app]: { ...(current[app] ?? EMPTY_FORM), ...fields },
-    }));
+    setForm((current) => ({ ...current, ...fields }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await updateMutation.mutateAsync(form);
-      showToast('Branding updated', 'success');
+      showToast('Centralized branding synchronized across all platforms', 'success');
     } catch {
       showToast('Unable to save branding. Please try again.', 'error');
     }
@@ -139,79 +160,110 @@ export function BrandingPage() {
 
   return (
     <div className="space-y-6 animate-fade-up">
+      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white/95">Branding</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white/95">Centralized Branding</h1>
           <p className="text-xs text-white/45 mt-1">
-            {app === 'customer'
-              ? 'Customise your customer marketplace identity, SEO, and storefront hero content'
-              : 'Customise your seller portal identity, SEO, and browser presentation'}
+            Single source of truth for marketplace identity, logos, colors, and portal presentations across Customer, Seller, and Admin.
           </p>
         </div>
         <div className="flex items-center gap-2">
           {!canManage && (
-            <span className="text-[10px] text-white/40 flex items-center gap-1"><Lock className="h-3 w-3" /> View only</span>
+            <span className="text-[10px] text-white/40 flex items-center gap-1">
+              <Lock className="h-3 w-3" /> View only
+            </span>
           )}
-          <Button type="submit" form="branding-form" size="sm" disabled={!canManage || isLoading || !branding || !forms[app]} isLoading={updateMutation.isPending}>
-            <Save className="mr-2 h-3.5 w-3.5" /> {updateMutation.isPending ? 'Saving…' : 'Save Branding'}
+          <Button
+            type="submit"
+            form="branding-form"
+            size="sm"
+            disabled={!canManage || isLoading}
+            isLoading={updateMutation.isPending}
+            className="bg-purple-600 hover:bg-purple-500 text-white font-bold"
+          >
+            <Save className="mr-2 h-3.5 w-3.5" />
+            {updateMutation.isPending ? 'Propagating changes…' : 'Save & Propagate Everywhere'}
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {(['customer', 'seller'] as BrandingApp[]).map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => setSelectedApp(option)}
-            className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
-              app === option
-                ? 'border-orange-400/60 bg-orange-500/10 text-orange-100'
-                : 'border-white/10 bg-white/[0.02] text-white/60 hover:text-white/80'
-            }`}
-          >
-            {option === 'customer' ? 'Customer Branding' : 'Seller Branding'}
-          </button>
-        ))}
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Editor Form Columns */}
         <div className="lg:col-span-2 space-y-6">
           <form id="branding-form" onSubmit={handleSubmit} className="space-y-6">
-            {isLoading || !branding || !forms[app] ? (
+            {isLoading ? (
               <Card className="border border-white/5">
                 <CardContent className="p-6 space-y-3">
-                  {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-11 w-full" />)}
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <Skeleton key={i} className="h-11 w-full" />
+                  ))}
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-6">
-                <SectionCard icon={ImageIcon} title="Identity" description="The core name and logos used across the marketplace">
+                {/* 1. Core Marketplace Identity */}
+                <SectionCard
+                  icon={ImageIcon}
+                  title="Marketplace Core Identity"
+                  description="Authoritative brand name and descriptions used across all platforms"
+                >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Field label="Brand name">
-                      <Input value={form.brandName} onChange={(e) => update('brandName')(e.target.value)} placeholder="My Marketplace" />
+                    <Field label="Marketplace Brand Name" hint="Appears in headers, invoices, emails, and title tags">
+                      <Input
+                        value={form.brandName}
+                        onChange={(e) => update('brandName')(e.target.value)}
+                        placeholder="e.g. Sante"
+                      />
                     </Field>
-                    <Field label="Short name">
-                      <Input value={form.shortName} onChange={(e) => update('shortName')(e.target.value)} placeholder="Marketplace" />
+                    <Field label="Short Name / Initials" hint="Used for mobile badges and compact indicators">
+                      <Input
+                        value={form.shortName}
+                        onChange={(e) => update('shortName')(e.target.value)}
+                        placeholder="e.g. Sante"
+                      />
                     </Field>
                     <div className="md:col-span-2">
-                      <Field label="Tagline">
-                        <Input value={form.tagline} onChange={(e) => update('tagline')(e.target.value)} placeholder="Your local marketplace for everything" />
+                      <Field label="Central Marketplace Tagline" hint="The primary brand slogan displayed under logos">
+                        <Input
+                          value={form.tagline}
+                          onChange={(e) => update('tagline')(e.target.value)}
+                          placeholder="e.g. Your local marketplace for handcrafted goods"
+                        />
+                      </Field>
+                    </div>
+                    <div className="md:col-span-2">
+                      <Field label="Brand Description" hint="General marketplace purpose and overview">
+                        <textarea
+                          value={form.brandDescription}
+                          onChange={(e) => update('brandDescription')(e.target.value)}
+                          rows={2}
+                          placeholder="Short summary of what this marketplace offers..."
+                          className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white resize-none"
+                        />
                       </Field>
                     </div>
                   </div>
+                </SectionCard>
+
+                {/* 2. Logos & Visual Assets */}
+                <SectionCard
+                  icon={LayoutTemplate}
+                  title="Logos & Visual Assets"
+                  description="Secure Cloudinary-backed assets displayed across all application headers and tabs"
+                >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Field label="Logo" hint="Shown in headers and the storefront preview">
+                    <Field label="Primary Marketplace Logo" hint="Default logo for Customer, Seller, and Admin headers">
                       <ImageUploadField
                         folder="branding"
                         value={form.logoUrl}
                         onChange={(r: UploadResult) => updateFields({ logoUrl: r.url, logoPublicId: r.publicId })}
-                        onRemove={() => updateFields({ logoUrl: '/images/logo.png', logoPublicId: '' })}
+                        onRemove={() => updateFields({ logoUrl: '', logoPublicId: '' })}
                         maxBytes={2 * 1024 * 1024}
                         disabled={!canManage}
                       />
                     </Field>
-                    <Field label="Favicon" hint="Leaving favicon empty falls back to your logo">
+                    <Field label="Favicon" hint="Browser tab icon. Falls back to Primary Logo if left empty">
                       <ImageUploadField
                         folder="branding"
                         value={form.faviconUrl}
@@ -221,92 +273,378 @@ export function BrandingPage() {
                         disabled={!canManage}
                       />
                     </Field>
+                    <Field label="Dark-Mode Logo (Optional)" hint="Alternate logo optimized for dark backgrounds">
+                      <ImageUploadField
+                        folder="branding"
+                        value={form.darkLogoUrl}
+                        onChange={(r: UploadResult) => updateFields({ darkLogoUrl: r.url, darkLogoPublicId: r.publicId })}
+                        onRemove={() => updateFields({ darkLogoUrl: '', darkLogoPublicId: '' })}
+                        maxBytes={2 * 1024 * 1024}
+                        disabled={!canManage}
+                      />
+                    </Field>
+                    <Field label="Light-Mode Logo (Optional)" hint="Alternate logo optimized for light documents and prints">
+                      <ImageUploadField
+                        folder="branding"
+                        value={form.lightLogoUrl}
+                        onChange={(r: UploadResult) => updateFields({ lightLogoUrl: r.url, lightLogoPublicId: r.publicId })}
+                        onRemove={() => updateFields({ lightLogoUrl: '', lightLogoPublicId: '' })}
+                        maxBytes={2 * 1024 * 1024}
+                        disabled={!canManage}
+                      />
+                    </Field>
                   </div>
                 </SectionCard>
 
-                <SectionCard icon={Monitor} title="Browser & SEO" description="What shows in the browser tab and search engine results">
+                {/* 3. Platform-Specific Titles */}
+                <SectionCard
+                  icon={Store}
+                  title="Platform Presentation Titles"
+                  description="Customise how the marketplace names itself in Customer and Seller portals"
+                >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Field label="Browser title">
-                      <Input value={form.browserTitle} onChange={(e) => update('browserTitle')(e.target.value)} placeholder="Browser tab title" />
+                    <Field label="Customer Storefront Title" hint="Leave blank to use the Central Brand Name">
+                      <Input
+                        value={form.customerTitle}
+                        onChange={(e) => update('customerTitle')(e.target.value)}
+                        placeholder={form.brandName || "e.g. Sante Marketplace"}
+                      />
                     </Field>
-                    <Field label="SEO title">
-                      <Input value={form.seoTitle} onChange={(e) => update('seoTitle')(e.target.value)} placeholder="SEO meta title" />
+                    <Field label="Seller Portal Title" hint="Leave blank to auto-derive as '[Brand Name] Seller Portal'">
+                      <Input
+                        value={form.sellerPortalTitle}
+                        onChange={(e) => update('sellerPortalTitle')(e.target.value)}
+                        placeholder={form.brandName ? `${form.brandName} Seller Portal` : "e.g. Sante Seller Portal"}
+                      />
                     </Field>
                     <div className="md:col-span-2">
-                      <Field label="SEO description">
-                        <textarea value={form.seoDescription} onChange={(e) => update('seoDescription')(e.target.value)} rows={3} placeholder="Meta description for search engines" className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white resize-none" />
+                      <Field label="Seller Portal Tagline" hint="Displayed under the seller header logo. Leave blank to inherit Central Tagline">
+                        <Input
+                          value={form.sellerPortalTagline}
+                          onChange={(e) => update('sellerPortalTagline')(e.target.value)}
+                          placeholder={form.tagline || "e.g. Merchant Center & Storefront Operations"}
+                        />
                       </Field>
                     </div>
                   </div>
                 </SectionCard>
 
-                <SectionCard icon={Palette} title="Colours & contact" description="Brand colours and public support contact details">
+                {/* 4. Colors & Public Contacts */}
+                <SectionCard
+                  icon={Palette}
+                  title="Colours & Support Contacts"
+                  description="Brand colors and public support contact details"
+                >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Field label="Primary colour">
+                    <Field label="Primary Brand Colour">
                       <div className="flex gap-2">
-                        <input type="color" value={form.primaryColor} onChange={(e) => update('primaryColor')(e.target.value)} className="h-10 w-12 rounded-xl border border-white/10 bg-white/5 cursor-pointer" />
-                        <Input value={form.primaryColor} onChange={(e) => update('primaryColor')(e.target.value)} placeholder="#FF5722" className="font-mono" />
+                        <input
+                          type="color"
+                          value={form.primaryColor}
+                          onChange={(e) => update('primaryColor')(e.target.value)}
+                          className="h-10 w-12 rounded-xl border border-white/10 bg-white/5 cursor-pointer"
+                        />
+                        <Input
+                          value={form.primaryColor}
+                          onChange={(e) => update('primaryColor')(e.target.value)}
+                          placeholder="#FF5722"
+                          className="font-mono"
+                        />
                       </div>
                     </Field>
-                    <Field label="Secondary colour">
+                    <Field label="Secondary / Accent Colour">
                       <div className="flex gap-2">
-                        <input type="color" value={form.secondaryColor} onChange={(e) => update('secondaryColor')(e.target.value)} className="h-10 w-12 rounded-xl border border-white/10 bg-white/5 cursor-pointer" />
-                        <Input value={form.secondaryColor} onChange={(e) => update('secondaryColor')(e.target.value)} placeholder="#0EA5E9" className="font-mono" />
+                        <input
+                          type="color"
+                          value={form.secondaryColor}
+                          onChange={(e) => update('secondaryColor')(e.target.value)}
+                          className="h-10 w-12 rounded-xl border border-white/10 bg-white/5 cursor-pointer"
+                        />
+                        <Input
+                          value={form.secondaryColor}
+                          onChange={(e) => update('secondaryColor')(e.target.value)}
+                          placeholder="#0EA5E9"
+                          className="font-mono"
+                        />
                       </div>
                     </Field>
-                    <Field label="Support email">
-                      <Input value={form.supportEmail} onChange={(e) => update('supportEmail')(e.target.value)} placeholder="support@example.com" />
+                    <Field label="Support Email">
+                      <Input
+                        value={form.supportEmail}
+                        onChange={(e) => update('supportEmail')(e.target.value)}
+                        placeholder="support@example.com"
+                      />
                     </Field>
-                    <Field label="Support phone">
-                      <Input value={form.supportPhone} onChange={(e) => update('supportPhone')(e.target.value)} placeholder="+1 555 555 5555" />
+                    <Field label="Support Phone">
+                      <Input
+                        value={form.supportPhone}
+                        onChange={(e) => update('supportPhone')(e.target.value)}
+                        placeholder="+1 555 555 5555"
+                      />
                     </Field>
                   </div>
                 </SectionCard>
 
-                {app === 'customer' && <SectionCard icon={Store} title="Hero content" description="Text displayed on the customer storefront landing page">
+                {/* 5. Browser & SEO Metadata */}
+                <SectionCard
+                  icon={Monitor}
+                  title="Browser Tab & SEO Metadata"
+                  description="Defaults applied to web pages, search engine results, and social previews"
+                >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="md:col-span-2">
-                      <Field label="Hero badge">
-                        <Input value={form.heroBadge} onChange={(e) => update('heroBadge')(e.target.value)} placeholder="The Local Marketplace for Everything" />
-                      </Field>
-                    </div>
-                    <Field label="Heading line 1">
-                      <Input value={form.heroHeadingLine1} onChange={(e) => update('heroHeadingLine1')(e.target.value)} placeholder="Buy Anything." />
+                    <Field label="Browser Tab Title">
+                      <Input
+                        value={form.browserTitle}
+                        onChange={(e) => update('browserTitle')(e.target.value)}
+                        placeholder="e.g. Sante | Local Multi-Vendor Marketplace"
+                      />
                     </Field>
-                    <Field label="Heading line 2">
-                      <Input value={form.heroHeadingLine2} onChange={(e) => update('heroHeadingLine2')(e.target.value)} placeholder="From Anyone." />
-                    </Field>
-                    <Field label="Heading line 3">
-                      <Input value={form.heroHeadingLine3} onChange={(e) => update('heroHeadingLine3')(e.target.value)} placeholder="Near You." />
-                    </Field>
-                    <Field label="Search placeholder">
-                      <Input value={form.searchPlaceholder} onChange={(e) => update('searchPlaceholder')(e.target.value)} placeholder="Search products, shops…" />
+                    <Field label="SEO Title">
+                      <Input
+                        value={form.seoTitle}
+                        onChange={(e) => update('seoTitle')(e.target.value)}
+                        placeholder="e.g. Sante - Buy and Sell Local Crafts"
+                      />
                     </Field>
                     <div className="md:col-span-2">
-                      <Field label="Hero description">
-                        <textarea value={form.heroDescription} onChange={(e) => update('heroDescription')(e.target.value)} rows={3} placeholder="Short paragraph under the hero heading" className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white resize-none" />
-                      </Field>
-                    </div>
-                    <Field label="Explore shops button text">
-                      <Input value={form.exploreShopsButtonText} onChange={(e) => update('exploreShopsButtonText')(e.target.value)} placeholder="Explore Shops" />
-                    </Field>
-                    <Field label="Browse products button text">
-                      <Input value={form.browseProductsButtonText} onChange={(e) => update('browseProductsButtonText')(e.target.value)} placeholder="Browse Products" />
-                    </Field>
-                    <div className="md:col-span-2">
-                      <Field label="Footer description">
-                        <textarea value={form.footerDescription} onChange={(e) => update('footerDescription')(e.target.value)} rows={3} placeholder="Text shown in the storefront footer" className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white resize-none" />
+                      <Field label="Meta Description">
+                        <textarea
+                          value={form.seoDescription}
+                          onChange={(e) => update('seoDescription')(e.target.value)}
+                          rows={2}
+                          placeholder="Search engine summary of your marketplace..."
+                          className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white resize-none"
+                        />
                       </Field>
                     </div>
                   </div>
-                </SectionCard>}
+                </SectionCard>
+
+                {/* 6. Customer Storefront Landing Copy */}
+                <SectionCard
+                  icon={ShoppingBag}
+                  title="Customer Storefront Hero Content"
+                  description="Hero banner text and call-to-actions displayed on the customer landing page"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <Field label="Hero Badge Banner">
+                        <Input
+                          value={form.heroBadge}
+                          onChange={(e) => update('heroBadge')(e.target.value)}
+                          placeholder="The Local Marketplace for Everything"
+                        />
+                      </Field>
+                    </div>
+                    <Field label="Heading Line 1">
+                      <Input
+                        value={form.heroHeadingLine1}
+                        onChange={(e) => update('heroHeadingLine1')(e.target.value)}
+                        placeholder="Buy Anything."
+                      />
+                    </Field>
+                    <Field label="Heading Line 2">
+                      <Input
+                        value={form.heroHeadingLine2}
+                        onChange={(e) => update('heroHeadingLine2')(e.target.value)}
+                        placeholder="From Anyone."
+                      />
+                    </Field>
+                    <Field label="Heading Line 3">
+                      <Input
+                        value={form.heroHeadingLine3}
+                        onChange={(e) => update('heroHeadingLine3')(e.target.value)}
+                        placeholder="Near You."
+                      />
+                    </Field>
+                    <Field label="Search Input Placeholder">
+                      <Input
+                        value={form.searchPlaceholder}
+                        onChange={(e) => update('searchPlaceholder')(e.target.value)}
+                        placeholder="Search products, shops on Marketplace…"
+                      />
+                    </Field>
+                    <div className="md:col-span-2">
+                      <Field label="Hero Description">
+                        <textarea
+                          value={form.heroDescription}
+                          onChange={(e) => update('heroDescription')(e.target.value)}
+                          rows={3}
+                          placeholder="Paragraph under hero heading..."
+                          className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white resize-none"
+                        />
+                      </Field>
+                    </div>
+                    <Field label="Explore Shops Button Text">
+                      <Input
+                        value={form.exploreShopsButtonText}
+                        onChange={(e) => update('exploreShopsButtonText')(e.target.value)}
+                        placeholder="Explore Shops"
+                      />
+                    </Field>
+                    <Field label="Browse Products Button Text">
+                      <Input
+                        value={form.browseProductsButtonText}
+                        onChange={(e) => update('browseProductsButtonText')(e.target.value)}
+                        placeholder="Browse Products"
+                      />
+                    </Field>
+                    <div className="md:col-span-2">
+                      <Field label="Footer Description">
+                        <textarea
+                          value={form.footerDescription}
+                          onChange={(e) => update('footerDescription')(e.target.value)}
+                          rows={2}
+                          placeholder="Text in storefront footer..."
+                          className="glass-input w-full rounded-xl px-3 py-2 text-sm text-white resize-none"
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                </SectionCard>
               </div>
             )}
           </form>
         </div>
 
+        {/* Live Synchronized Previews Pane */}
         <div className="space-y-6">
-          <StorefrontPreview app={app} publicBranding={publicBranding} publicLoading={publicLoading} />
+          <Card className="border border-white/10 bg-white/[0.01]">
+            <CardHeader className="border-b border-white/5 pb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-purple-400" />
+                  <CardTitle className="text-xs font-bold text-white/90">
+                    Live Synchronized Previews
+                  </CardTitle>
+                </div>
+                <div className="flex gap-1 bg-white/[0.04] p-0.5 rounded-lg border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewTab('seller')}
+                    className={`px-2 py-1 text-[10px] font-bold rounded-md transition ${
+                      previewTab === 'seller' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white'
+                    }`}
+                  >
+                    Seller Header
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewTab('customer')}
+                    className={`px-2 py-1 text-[10px] font-bold rounded-md transition ${
+                      previewTab === 'customer' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white'
+                    }`}
+                  >
+                    Customer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewTab('admin')}
+                    className={`px-2 py-1 text-[10px] font-bold rounded-md transition ${
+                      previewTab === 'admin' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white'
+                    }`}
+                  >
+                    Admin
+                  </button>
+                </div>
+              </div>
+              <CardDescription className="text-[11px]">
+                Preview how the current settings appear across marketplace applications
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              {previewTab === 'seller' && (
+                <div className="space-y-3">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-purple-400">Seller Portal Header Preview</p>
+                  <div className="p-4 rounded-xl border border-white/10 bg-[#07070a] shadow-inner space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-white/[0.05] border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                        {form.logoUrl ? (
+                          <img src={form.logoUrl} alt="Logo" className="h-full w-full object-contain p-1" />
+                        ) : (
+                          <Store className="h-5 w-5 text-purple-400" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="font-bold text-white text-xs tracking-tight block truncate">
+                          {form.sellerPortalTitle || (form.brandName ? `${form.brandName} Seller Portal` : 'Seller Portal')}
+                        </span>
+                        <span className="text-[9px] text-white/40 block font-medium truncate">
+                          {form.sellerPortalTagline || form.tagline || 'Merchant Center'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t border-white/5 flex items-center gap-2 text-[10px] text-white/50">
+                      <Check className="h-3 w-3 text-emerald-400" />
+                      <span>Synchronized with Central Logo &amp; Identity</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {previewTab === 'customer' && (
+                <div className="space-y-3">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-purple-400">Customer Storefront Header Preview</p>
+                  <div className="p-4 rounded-xl border border-white/10 bg-[#07070a] shadow-inner space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-white border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                        {form.logoUrl ? (
+                          <img src={form.logoUrl} alt="Logo" className="h-full w-full object-contain p-1" />
+                        ) : (
+                          <ShoppingBag className="h-5 w-5 text-black" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="font-bold text-white text-sm tracking-tight block truncate">
+                          {form.customerTitle || form.brandName || 'Marketplace'}
+                        </span>
+                        <span className="text-[9px] text-white/40 block font-medium truncate">
+                          {form.tagline || 'Your local marketplace'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {previewTab === 'admin' && (
+                <div className="space-y-3">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-purple-400">Admin Sidebar Header Preview</p>
+                  <div className="p-4 rounded-xl border border-white/10 bg-[#07070a] shadow-inner space-y-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center overflow-hidden shrink-0">
+                        {form.logoUrl ? (
+                          <img src={form.logoUrl} alt="Logo" className="h-full w-full object-contain p-1" />
+                        ) : (
+                          <Shield className="h-4 w-4 text-black" />
+                        )}
+                      </div>
+                      <div>
+                        <span className="font-black text-white text-xs tracking-tight block uppercase">
+                          {form.brandName || 'Marketplace'}
+                        </span>
+                        <span className="text-[8px] text-white/45 block font-bold -mt-0.5 uppercase tracking-wider">
+                          Enterprise Admin
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 space-y-2 text-xs">
+                <p className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Authoritative Storage Status</p>
+                <div className="flex items-center justify-between text-white/80 text-xs">
+                  <span>Customer Cache:</span>
+                  <span className="font-mono text-emerald-400">{customerLoading ? 'Syncing…' : 'Active'}</span>
+                </div>
+                <div className="flex items-center justify-between text-white/80 text-xs">
+                  <span>Seller Portal Cache:</span>
+                  <span className="font-mono text-emerald-400">{sellerLoading ? 'Syncing…' : 'Active'}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
@@ -327,12 +665,22 @@ function NoPermission({ title }: { title: string }) {
   );
 }
 
-function SectionCard({ icon: Icon, title, description, children }: { icon: React.ElementType; title: string; description: string; children: React.ReactNode }) {
+function SectionCard({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
   return (
     <Card className="border border-white/5">
       <CardHeader className="border-b border-white/5 pb-4">
         <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-white/60" />
+          <Icon className="h-4 w-4 text-purple-400" />
           <CardTitle className="text-xs font-bold text-white/90">{title}</CardTitle>
         </div>
         <CardDescription className="text-[11px]">{description}</CardDescription>
@@ -349,79 +697,5 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       {children}
       {hint && <p className="text-[10px] text-white/30">{hint}</p>}
     </div>
-  );
-}
-
-function PreviewImage({ src, label }: { src: string; label: string }) {
-  return (
-    <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-2">
-      {src ? (
-        <img src={src} alt={label} loading="lazy" className="h-10 w-10 rounded-lg object-cover border border-white/10 bg-white/5" />
-      ) : (
-        <div className="h-10 w-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-          <ImageIcon className="h-4 w-4 text-white/25" />
-        </div>
-      )}
-      <span className="text-[10px] text-white/35">{label}</span>
-    </div>
-  );
-}
-
-function StorefrontPreview({ app, publicBranding, publicLoading }: { app: BrandingApp; publicBranding: BrandingConfig; publicLoading: boolean }) {
-  const name = publicBranding?.name || 'Marketplace';
-  const logo = publicBranding?.logo || '';
-  return (
-    <Card className="border border-white/5">
-      <CardHeader className="border-b border-white/5 pb-4">
-        <div className="flex items-center gap-2">
-          <Eye className="h-4 w-4 text-white/60" />
-          <CardTitle className="text-xs font-bold text-white/90">
-            What the {app === 'customer' ? 'storefront' : 'seller portal'} shows
-          </CardTitle>
-        </div>
-        <CardDescription className="text-[11px]">Public display branding (read-only)</CardDescription>
-      </CardHeader>
-      <CardContent className="pt-4 space-y-4">
-        {publicLoading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-16 w-full" />
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-3">
-              {logo ? (
-                <img src={logo} alt="logo" loading="lazy" className="h-10 w-10 rounded-xl object-cover border border-white/10 bg-white/5" />
-              ) : (
-                <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                  <Store className="h-5 w-5 text-white/40" />
-                </div>
-              )}
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-white/90 truncate">{name}</p>
-                <p className="text-[11px] text-white/40 truncate">{publicBranding?.marketplaceName || name}</p>
-              </div>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 space-y-1.5">
-              <p className="text-[9px] uppercase tracking-wider text-white/30 font-bold">Browser title</p>
-              <p className="text-sm text-white/80 truncate">{publicBranding?.browserTitle || name}</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 space-y-1.5">
-              <p className="text-[9px] uppercase tracking-wider text-white/30 font-bold">
-                {app === 'customer' ? 'Hero' : 'Tagline'}
-              </p>
-              {app === 'customer' ? (
-                <>
-                  <p className="text-xs text-white/60 line-clamp-2">{publicBranding?.heroBadge || '—'}</p>
-                  <p className="text-xs text-white/60 truncate">{(publicBranding?.exploreShopsButtonText || 'Explore Shops') + ' · ' + (publicBranding?.browseProductsButtonText || 'Browse Products')}</p>
-                </>
-              ) : (
-                <p className="text-xs text-white/60 line-clamp-2">{publicBranding?.tagline || '—'}</p>
-              )}
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
   );
 }

@@ -21,7 +21,14 @@ const getAllowedOrigins = (): Set<string> => {
     return new Set([...rawOrigins, ...localDevOrigins]);
 };
 
-const SESSION_COOKIES = ['customer_session', 'seller_session', 'admin_session', 'admin_refresh'];
+const SESSION_COOKIES = [
+    'customer_session',
+    'customer_refresh',
+    'seller_session',
+    'seller_refresh',
+    'admin_session',
+    'admin_refresh'
+];
 
 /**
  * CSRF defense for cookie-authenticated, state-changing requests.

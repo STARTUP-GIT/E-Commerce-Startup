@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/prisma.js";
 import jwt from "jsonwebtoken";
+import { getJwtSecret } from "../config/token.js";
 
 interface JwtPayload {
     id: string;
@@ -16,33 +17,37 @@ declare global {
 
 export const customerAuth = async (req: Request, res: Response, next: NextFunction) => {
     try {
+        const cookieToken = req.cookies?.customer_session;
+        const authHeader = req.headers.authorization;
+        const headerToken = authHeader?.startsWith("Bearer ")
+            ? authHeader.substring(7)
+            : (req.headers["x-customer-token"] as string | undefined);
 
-        const token = req.cookies.customer_session;
+        const token = headerToken || cookieToken;
 
         if (!token) {
-            console.warn('[customerAuth] FAIL — No customer_session cookie received. url:', req.originalUrl);
             return res.status(401).json({
                 message: "Unauthorized",
-                reason: "No customer_session cookie received"
+                reason: "No customer authentication token received",
+                isExpired: false
             });
         }
 
         let decoded: JwtPayload;
         try {
-            decoded = jwt.verify(token, process.env.JWT_SECRET_KEY!) as JwtPayload;
+            decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
         } catch (jwtErr: any) {
-            const reason = jwtErr?.name === 'TokenExpiredError' ? 'JWT expired' : `JWT invalid: ${jwtErr?.message}`;
-            console.warn(`[customerAuth] FAIL — ${reason}. url:`, req.originalUrl);
+            const isExpired = jwtErr?.name === 'TokenExpiredError';
             return res.status(401).json({
                 message: "Unauthorized",
-                reason
+                reason: isExpired ? "JWT expired" : `JWT invalid: ${jwtErr?.message}`,
+                isExpired
             });
         }
 
         const customer = await prisma.customer.findUnique({ where: { id: decoded.id } });
 
         if (!customer) {
-            console.warn('[customerAuth] FAIL — Customer not found in DB. id:', decoded.id, 'url:', req.originalUrl);
             return res.status(401).json({
                 message: "Unauthorized",
                 reason: "Customer not found"
@@ -50,22 +55,18 @@ export const customerAuth = async (req: Request, res: Response, next: NextFuncti
         }
 
         if (customer.isBanned) {
-            console.warn('[customerAuth] FAIL — Customer is banned. id:', decoded.id);
-            return res.status(401).json({ message: "Unauthorized", reason: "Customer is banned" });
+            return res.status(403).json({ message: "Account is banned", reason: "Customer is banned" });
         }
 
         if (customer.isDeactivated) {
-            console.warn('[customerAuth] FAIL — Customer is deactivated. id:', decoded.id);
-            return res.status(401).json({ message: "Unauthorized", reason: "Customer is deactivated" });
+            return res.status(403).json({ message: "Account is deactivated", reason: "Customer is deactivated" });
         }
 
         if (customer.scheduledDeleteAt !== null) {
-            console.warn('[customerAuth] FAIL — Customer scheduled for deletion. id:', decoded.id);
-            return res.status(401).json({ message: "Unauthorized", reason: "Customer account scheduled for deletion" });
+            return res.status(403).json({ message: "Account scheduled for deletion", reason: "Customer account scheduled for deletion" });
         }
 
         req.customerId = decoded.id;
-
         next();
 
     } catch (error) {
@@ -75,21 +76,30 @@ export const customerAuth = async (req: Request, res: Response, next: NextFuncti
             reason: "Unexpected auth error"
         });
     }
-
 };
 
 export const customerAuthOptional = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const token = req.cookies.customer_session;
+        const cookieToken = req.cookies?.customer_session;
+        const authHeader = req.headers.authorization;
+        const headerToken = authHeader?.startsWith("Bearer ")
+            ? authHeader.substring(7)
+            : (req.headers["x-customer-token"] as string | undefined);
+
+        const token = headerToken || cookieToken;
         if (token) {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY!) as JwtPayload;
-            const customer = await prisma.customer.findUnique({ where: { id: decoded.id } });
-            if (customer && !customer.isBanned && !customer.isDeactivated && customer.scheduledDeleteAt === null) {
-                req.customerId = decoded.id;
+            try {
+                const decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
+                const customer = await prisma.customer.findUnique({ where: { id: decoded.id } });
+                if (customer && !customer.isBanned && !customer.isDeactivated && customer.scheduledDeleteAt === null) {
+                    req.customerId = decoded.id;
+                }
+            } catch {
+                // Ignore invalid optional token
             }
         }
         next();
-    } catch (error) {
+    } catch {
         next();
     }
 };

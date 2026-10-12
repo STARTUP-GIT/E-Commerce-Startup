@@ -1,17 +1,40 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../../../config/prisma.js'
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { signAccessToken } from '../../../config/token.js'
-import { setAuthCookie, clearAuthCookie, sellersessionCookie } from '../../../config/sessionCookies.js'
+import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../../../config/token.js'
+import { setAuthCookie, clearAuthCookie, setRefreshCookie, clearRefreshCookie, sellersessionCookie } from '../../../config/sessionCookies.js'
 import { AuthProvider } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
 import { verifySupabaseAccessToken } from '../../../config/supabase.js';
 import EmailService from '../../../services/email/email.service.js';
+import { disconnectActorSockets } from '../../../services/chat/chat.service.js';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const verifySupabaseJwt = (token: string) => verifySupabaseAccessToken(token);
+
+async function issueSellerSession(res: Response, sellerId: string) {
+    const accessToken = signAccessToken(sellerId);
+    const refreshToken = signRefreshToken(sellerId);
+    const refreshHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30); // 30 days
+
+    await prisma.refreshToken.create({
+        data: {
+            userId: sellerId,
+            userType: "SELLER",
+            tokenHash: refreshHash,
+            expiresAt
+        }
+    });
+
+    setAuthCookie(res, 'seller_session', accessToken);
+    setRefreshCookie(res, refreshToken, 'seller_refresh');
+
+    return { token: accessToken, refreshToken };
+}
 
 
 
@@ -87,13 +110,12 @@ export const register = async (req: Request, res: Response) => {
 
     const sellerFrontendUrl = process.env.SELLER_FRONTEND_URL!.replace(/\/$/, '');
 
-    const token = signAccessToken(newSeller.id);
-
-    setAuthCookie(res, 'seller_session', token);
+    const { token, refreshToken } = await issueSellerSession(res, newSeller.id);
 
     return res.status(201).json({
         message: "Registration successful",
         token,
+        refreshToken,
         user: {
             id: newSeller.id,
             email: newSeller.email,
@@ -163,13 +185,12 @@ export const login = async (req: Request, res: Response) => {
             });
         }
 
-        const token = signAccessToken(seller.id);
-
-        setAuthCookie(res, 'seller_session', token);
+        const { token, refreshToken } = await issueSellerSession(res, seller.id);
 
         return res.status(200).json({
             message: "Login successful",
             token,
+            refreshToken,
             user: {
                 id: seller.id,
                 email: seller.email,
@@ -319,13 +340,12 @@ export const googleOAuth = async (req: Request, res: Response) => {
                 });
             }
 
-            const token = signAccessToken(seller.id);
-
-            setAuthCookie(res, 'seller_session', token);
+            const { token, refreshToken } = await issueSellerSession(res, seller.id);
 
             return res.status(200).json({
                 message: "Google login successful",
                 token,
+                refreshToken,
                 user: {
                     id: seller.id,
                     email: seller.email,
@@ -390,13 +410,12 @@ export const googleOAuth = async (req: Request, res: Response) => {
             });
         }
 
-        const token = signAccessToken(seller.id);
-
-        setAuthCookie(res, 'seller_session', token);
+        const { token, refreshToken } = await issueSellerSession(res, seller.id);
 
         return res.status(201).json({
             message: "Google account created successfully",
             token,
+            refreshToken,
             user: {
                 id: seller.id,
                 email: seller.email,
@@ -418,12 +437,64 @@ export const googleOAuth = async (req: Request, res: Response) => {
 
 
 export const logout = async (req: Request, res: Response) => {
-
     clearAuthCookie(res, 'seller_session');
+    clearRefreshCookie(res, 'seller_refresh');
+
+    const sellerId = req.sellerId || (req.body && req.body.id);
+    if (sellerId) {
+        await prisma.refreshToken.updateMany({
+            where: { userId: sellerId, userType: "SELLER", revoked: false },
+            data: { revoked: true }
+        });
+        disconnectActorSockets(sellerId, "Logged out");
+    }
 
     return res.status(200).json({
         message: "Logged out successfully"
     });
+};
+
+export const refresh = async (req: Request, res: Response) => {
+    try {
+        const rawToken = req.cookies?.seller_refresh || req.headers["x-refresh-token"];
+        const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
+        if (!token) return res.status(401).json({ message: "No refresh token" });
+
+        let payload: any;
+        try {
+            payload = verifyRefreshToken(token) as any;
+        } catch {
+            return res.status(401).json({ message: "Invalid refresh token", isExpired: true });
+        }
+
+        const userId = payload.id as string;
+        const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+        const stored = await prisma.refreshToken.findFirst({
+            where: { tokenHash, userId, userType: "SELLER", revoked: false, expiresAt: { gt: new Date() } }
+        });
+        if (!stored) return res.status(401).json({ message: "Refresh token invalid or revoked", isExpired: true });
+
+        // Revoke current token (rotation)
+        await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+
+        const newRefresh = signRefreshToken(userId);
+        const newHash = crypto.createHash("sha256").update(newRefresh).digest("hex");
+        const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+        await prisma.refreshToken.create({ data: { userId, userType: "SELLER", tokenHash: newHash, expiresAt } });
+
+        const accessToken = signAccessToken(userId);
+        setAuthCookie(res, "seller_session", accessToken);
+        setRefreshCookie(res, newRefresh, "seller_refresh");
+
+        return res.status(200).json({
+            message: "Refreshed",
+            token: accessToken,
+            refreshToken: newRefresh
+        });
+    } catch (err) {
+        console.error("SELLER REFRESH ERROR", err);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
 };
 
 export const getProfile = async (req: Request, res: Response) => { 

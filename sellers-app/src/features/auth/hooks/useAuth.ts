@@ -60,6 +60,9 @@ export function useAuth() {
       if (data.token) {
         localStorage.setItem('seller_token', data.token);
       }
+      if (data.refreshToken) {
+        localStorage.setItem('seller_refresh_token', data.refreshToken);
+      }
       // Clear all previous queries to avoid cache leaks across logins
       queryClient.clear();
       // Set query data directly and invalidate cache
@@ -76,6 +79,9 @@ export function useAuth() {
     onSuccess: (data) => {
       if (data.token) {
         localStorage.setItem('seller_token', data.token);
+      }
+      if (data.refreshToken) {
+        localStorage.setItem('seller_refresh_token', data.refreshToken);
       }
       // Clear all previous queries to avoid cache leaks across registrations
       queryClient.clear();
@@ -97,6 +103,7 @@ export function useAuth() {
   const logoutMutation = useMutation({
     mutationFn: async () => {
       localStorage.removeItem('seller_token');
+      localStorage.removeItem('seller_refresh_token');
       try {
         await supabase.auth.signOut({ scope: 'local' });
       } catch {
@@ -110,12 +117,14 @@ export function useAuth() {
     },
     onSuccess: () => {
       localStorage.removeItem('seller_token');
+      localStorage.removeItem('seller_refresh_token');
       queryClient.setQueryData(['profile'], null);
       queryClient.clear();
       navigate('/login');
     },
     onError: () => {
       localStorage.removeItem('seller_token');
+      localStorage.removeItem('seller_refresh_token');
       queryClient.setQueryData(['profile'], null);
       queryClient.clear();
       navigate('/login');
