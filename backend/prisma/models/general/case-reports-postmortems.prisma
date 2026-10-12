@@ -1,0 +1,86 @@
+// =============================================================================
+// Customer Case Reports & Incident Postmortems
+// =============================================================================
+
+model CustomerCaseReport {
+  id              String                @id @default(cuid())
+  reportNumber    String                @unique @db.VarChar(50)
+  customerId      String
+  targetType      ReportTargetType      @default(SELLER)
+  targetId        String                @db.VarChar(50)
+  category        String                @db.VarChar(100)
+  reason          String                @db.Text
+  description     String                @db.Text
+  attachments     String[]              @default([])
+  status          CaseReportStatus      @default(PENDING)
+  priority        SupportTicketPriority @default(MEDIUM)
+  assignedAdminId String?               @db.VarChar(40)
+  resolution      String?               @db.Text
+  internalNotes   String?               @db.Text
+  receivedAt      DateTime              @default(now())
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  customer      Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  assignedAdmin Admin?                @relation("CaseReportAssignedAdmin", fields: [assignedAdminId], references: [id], onDelete: SetNull)
+  timeline      ReportTimelineEvent[]
+
+  @@index([customerId])
+  @@index([targetType, targetId])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedAdminId])
+  @@index([receivedAt])
+  @@map("customer_case_reports")
+}
+
+model ReportTimelineEvent {
+  id        String   @id @default(cuid())
+  reportId  String
+  actorType String   @db.VarChar(20) // "CUSTOMER", "SELLER", "ADMIN", "SYSTEM"
+  actorId   String   @db.VarChar(40)
+  eventType String   @db.VarChar(50)
+  note      String?  @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  report CustomerCaseReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([createdAt])
+  @@map("report_timeline_events")
+}
+
+model PostmortemReport {
+  id                  String           @id @default(cuid())
+  reference           String           @unique @db.VarChar(50)
+  title               String           @db.VarChar(255)
+  summary             String           @db.Text
+  severity            String           @default("SEV2") @db.VarChar(20) // "SEV1", "SEV2", "SEV3"
+  relatedType         String?          @db.VarChar(50) // "REPORT", "ORDER", "SELLER", "SYSTEM"
+  relatedId           String?          @db.VarChar(50)
+  startTime           DateTime
+  detectionTime       DateTime
+  resolutionTime      DateTime?
+  impact              String           @db.Text
+  timeline            Json
+  rootCause           String           @db.Text
+  contributingFactors String           @db.Text
+  resolution          String           @db.Text
+  correctiveActions   Json             // Array of { id, action, owner, deadline, status }
+  preventiveActions   String           @db.Text
+  responsibleOwner    String           @db.VarChar(120)
+  reviewStatus        PostmortemStatus @default(DRAFT)
+  approvedByAdminId   String?          @db.VarChar(40)
+  createdByAdminId    String?          @db.VarChar(40)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  createdByAdmin  Admin? @relation("PostmortemCreatedBy", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  approvedByAdmin Admin? @relation("PostmortemApprovedBy", fields: [approvedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([reviewStatus])
+  @@index([severity])
+  @@index([startTime])
+  @@map("postmortem_reports")
+}

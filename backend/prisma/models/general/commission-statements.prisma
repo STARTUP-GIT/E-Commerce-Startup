@@ -1,0 +1,75 @@
+// =============================================================================
+// Commission Statements & Seller Commission Settlements
+// =============================================================================
+
+model CommissionStatement {
+  id                  String          @id @default(cuid())
+  statementNumber     String          @unique @db.VarChar(50)
+  sellerId            String
+  periodMonth         String          @db.VarChar(7) // "YYYY-MM"
+  startDate           DateTime
+  endDate             DateTime
+  title               String          @db.VarChar(255)
+  status              StatementStatus @default(DRAFT)
+  eligibleOrdersCount Int             @default(0)
+  eligibleOrderIds    String[]        @default([])
+  commissionableBase  Decimal         @default(0) @db.Decimal(12, 2)
+  applicableRate      Float           @default(10.0)
+  commissionAccrued   Decimal         @default(0) @db.Decimal(12, 2)
+  adjustments         Decimal         @default(0) @db.Decimal(12, 2)
+  paymentsReceived    Decimal         @default(0) @db.Decimal(12, 2)
+  outstandingBalance  Decimal         @default(0) @db.Decimal(12, 2)
+  documentUrl         String?         @db.VarChar(2048)
+  notes               String?         @db.Text
+  publishedAt         DateTime?
+  publishedByAdminId  String?         @db.VarChar(40)
+  supersededById      String?         @db.VarChar(40)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  seller             Seller                     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  publishedByAdmin   Admin?                     @relation("StatementPublishedBy", fields: [publishedByAdminId], references: [id], onDelete: SetNull)
+  accessLogs         CommissionStatementAccess[]
+  payments           SellerCommissionPayment[]
+
+  @@index([sellerId])
+  @@index([periodMonth])
+  @@index([status])
+  @@index([publishedAt])
+  @@map("commission_statements")
+}
+
+model CommissionStatementAccess {
+  id          String   @id @default(cuid())
+  statementId String
+  sellerId    String
+  accessedAt  DateTime @default(now())
+
+  statement CommissionStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+
+  @@index([statementId])
+  @@index([sellerId])
+  @@map("commission_statement_access")
+}
+
+model SellerCommissionPayment {
+  id                   String                  @id @default(cuid())
+  sellerId             String
+  statementId          String?
+  amount               Decimal                 @db.Decimal(12, 2)
+  status               CommissionPaymentStatus @default(PENDING)
+  paymentMethod        String                  @default("BANK_TRANSFER") @db.VarChar(50)
+  transactionReference String?                 @db.VarChar(100)
+  notes                String?                 @db.Text
+  confirmedAt          DateTime?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  seller    Seller               @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  statement CommissionStatement? @relation(fields: [statementId], references: [id], onDelete: SetNull)
+
+  @@index([sellerId])
+  @@index([status])
+  @@index([confirmedAt])
+  @@map("seller_commission_payments")
+}

@@ -44,6 +44,15 @@ import adminSellerVerificationRoute from './src/modules/admin/routes/sellerVerif
 import adminSellerStrikeRoute from './src/modules/admin/routes/sellerStrikeRoute.js';
 import adminSellerPayoutRoute from './src/modules/admin/routes/sellerPayoutRoute.js';
 import adminExportRoute from './src/modules/admin/routes/exportRoute.js';
+import adminEnforcementRoute from './src/modules/admin/routes/enforcementRoute.js';
+import adminAppealRoute from './src/modules/admin/routes/appealRoute.js';
+import adminGuidelineRoute from './src/modules/admin/routes/guidelineRoute.js';
+import adminPolicyNoticeRoute from './src/modules/admin/routes/policyNoticeRoute.js';
+import adminCommissionStatementRoute from './src/modules/admin/routes/commissionStatementRoute.js';
+import adminCaseReportRoute from './src/modules/admin/routes/caseReportRoute.js';
+import adminPostmortemRoute from './src/modules/admin/routes/postmortemRoute.js';
+import adminConversationRoute from './src/modules/admin/routes/conversationRoute.js';
+import { setupChatWebSocketServer } from './src/services/chat/chat.service.js';
 import { ensureDefaultRoles } from './src/modules/admin/services/permissionService.js';
 import { ensureDefaultPaymentMethods } from './src/modules/admin/controllers/paymentMethodController.js';
 import { ensureDefaultDeliveryMethods } from './src/modules/admin/controllers/deliveryMethodController.js';
@@ -82,6 +91,14 @@ app.use('/api/admin/content', adminLimiter, adminContentRouter);
 app.use('/api/admin/returns', adminLimiter, adminReturnRoute);
 app.use('/api/admin/seller-verifications', adminLimiter, adminSellerVerificationRoute);
 app.use('/api/admin/seller-strikes', adminLimiter, adminSellerStrikeRoute);
+app.use('/api/admin/seller-enforcement', adminLimiter, adminEnforcementRoute);
+app.use('/api/admin/appeals', adminLimiter, adminAppealRoute);
+app.use('/api/admin/guidelines', adminLimiter, adminGuidelineRoute);
+app.use('/api/admin/policy-notices', adminLimiter, adminPolicyNoticeRoute);
+app.use('/api/admin/commission-statements', adminLimiter, adminCommissionStatementRoute);
+app.use('/api/admin/cases', adminLimiter, adminCaseReportRoute);
+app.use('/api/admin/postmortems', adminLimiter, adminPostmortemRoute);
+app.use('/api/admin/conversations', adminLimiter, adminConversationRoute);
 app.use('/api/admin/seller-payouts', adminLimiter, adminSellerPayoutRoute);
 app.use('/api/admin/exports', adminLimiter, adminExportRoute);
 
@@ -108,6 +125,7 @@ configureErrorHandlers(app);
 
 const PORT = Number(process.env.ADMIN_PORT || process.env.PORT || 3003);
 const server = http.createServer(app);
+setupChatWebSocketServer(server);
 
 server.listen(PORT, () => {
     console.log(`Admin server is running on PORT : ${PORT}`);

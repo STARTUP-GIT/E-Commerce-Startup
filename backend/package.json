@@ -16,7 +16,7 @@
     "start:admin": "node dist/admin.server.js",
     "start:delivery": "node dist/delivery.server.js",
     "start:payment": "node dist/payment.server.js",
-    "test": "node ./tests/runTests.cjs && node ./tests/logger.test.cjs && node ./tests/productionAudit.test.cjs"
+    "test": "node ./tests/runTests.cjs && node ./tests/logger.test.cjs && node ./tests/productionAudit.test.cjs && node ./tests/enforcementAndFinancial.test.cjs"
   },
   "prisma": {
     "schema": "prisma/"
@@ -40,6 +40,7 @@
     "@types/pdfkit": "^0.17.6",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
+    "@types/ws": "^8.18.2",
     "axios": "^1.4.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
@@ -62,6 +63,7 @@
     "razorpay": "^2.9.6",
     "resend": "^6.16.0",
     "typescript": "^5.7.3",
+    "ws": "^8.22.0",
     "zod": "^4.4.3"
   }
 }

@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, IndianRupee, ShoppingBag, Users, Store, MapPin,
-  AlertTriangle, Package, Clock, ArrowUpRight, Activity, CheckCircle2,
+  AlertTriangle, Package, Clock, ArrowUpRight, Activity, CheckCircle2, RotateCcw,
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -53,18 +53,74 @@ export function DashboardPage() {
   const { data: activities, isLoading: isActivitiesLoading } = useRecentActivities();
   const stats = [
     {
-      label: "Total Revenue",
-      value: dashboard?.totalRevenue ? formatPrice(dashboard.totalRevenue) : '₹0.00',
-      desc: 'Lifetime platform order value',
+      label: "Net Platform Earnings",
+      value: dashboard?.netPlatformEarnings !== undefined ? formatPrice(dashboard.netPlatformEarnings) : '₹0.00',
+      desc: 'Platform Fees + Commission Collected',
       icon: IndianRupee,
-      iconColor: 'text-white/40',
+      iconColor: 'text-emerald-400',
+      href: '/commission-statements',
+    },
+    {
+      label: "Platform Fees Collected",
+      value: dashboard?.platformFeesCollected !== undefined ? formatPrice(dashboard.platformFeesCollected) : '₹0.00',
+      desc: 'Immediate customer checkout fee',
+      icon: IndianRupee,
+      iconColor: 'text-indigo-400',
+      href: '/payments',
+    },
+    {
+      label: "Commission Accrued",
+      value: dashboard?.commissionAccrued !== undefined ? formatPrice(dashboard.commissionAccrued) : '₹0.00',
+      desc: 'Accrued across seller orders',
+      icon: TrendingUp,
+      iconColor: 'text-purple-400',
+      href: '/commission-statements',
+    },
+    {
+      label: "Commission Collected",
+      value: dashboard?.commissionCollected !== undefined ? formatPrice(dashboard.commissionCollected) : '₹0.00',
+      desc: 'Settled merchant remittances',
+      icon: CheckCircle2,
+      iconColor: 'text-teal-400',
+      href: '/commission-statements',
+    },
+    {
+      label: "Outstanding Commission",
+      value: dashboard?.outstandingCommission !== undefined ? formatPrice(dashboard.outstandingCommission) : '₹0.00',
+      desc: 'Accrued minus collected balance',
+      icon: Clock,
+      iconColor: 'text-amber-400',
+      href: '/commission-statements',
+    },
+    {
+      label: "Overdue Commission",
+      value: dashboard?.overdueCommission !== undefined ? formatPrice(dashboard.overdueCommission) : '₹0.00',
+      desc: 'Unpaid past settlement period',
+      icon: AlertTriangle,
+      iconColor: 'text-rose-400',
+      href: '/commission-statements',
+    },
+    {
+      label: "Gross Order Value (GOV)",
+      value: dashboard?.grossOrderValue !== undefined ? formatPrice(dashboard.grossOrderValue) : '₹0.00',
+      desc: 'Total customer transaction volume',
+      icon: ShoppingBag,
+      iconColor: 'text-slate-400',
       href: '/orders',
     },
     {
-      label: "Commission Earned",
-      value: dashboard?.platformRevenue ? formatPrice(dashboard.platformRevenue) : '₹0.00',
-      desc: 'Lifetime platform commission',
-      icon: IndianRupee,
+      label: "Refunds Total",
+      value: dashboard?.refundsTotal !== undefined ? formatPrice(dashboard.refundsTotal) : '₹0.00',
+      desc: 'Reversed customer payments',
+      icon: RotateCcw,
+      iconColor: 'text-red-400',
+      href: '/returns',
+    },
+    {
+      label: "Total Orders",
+      value: dashboard?.ordersCount?.total ?? 0,
+      desc: 'All orders on the platform',
+      icon: ShoppingBag,
       iconColor: 'text-white/40',
       href: '/orders',
     },
@@ -77,44 +133,12 @@ export function DashboardPage() {
       href: '/shops',
     },
     {
-      label: "Pending Shop Approvals",
-      value: dashboard?.pendingShopApprovals ?? 0,
-      desc: 'Shops awaiting admin review',
-      icon: Clock,
-      iconColor: 'text-white/40',
-      href: '/shops',
-    },
-    {
       label: "Active Shops",
       value: dashboard?.activeShops ?? 0,
       desc: 'Approved live storefronts',
       icon: CheckCircle2,
       iconColor: 'text-white/40',
       href: '/shops',
-    },
-    {
-      label: "Inactive Shops",
-      value: dashboard?.inactiveShops ?? 0,
-      desc: 'Suspended or disabled shops',
-      icon: AlertTriangle,
-      iconColor: 'text-white/40',
-      href: '/shops',
-    },
-    {
-      label: "Total Orders",
-      value: dashboard?.ordersCount?.total ?? 0,
-      desc: 'All orders on the platform',
-      icon: ShoppingBag,
-      iconColor: 'text-white/40',
-      href: '/orders',
-    },
-    {
-      label: "Total Customers",
-      value: dashboard?.totalCustomers ?? 0,
-      desc: 'Registered customers',
-      icon: Users,
-      iconColor: 'text-white/40',
-      href: '/customers',
     },
     {
       label: "Total Sellers",
@@ -167,20 +191,34 @@ export function DashboardPage() {
         {/* Revenue Chart */}
         <Card className="lg:col-span-2 border border-white/5">
           <CardHeader className="border-b border-white/5 pb-4">
-            <CardTitle className="text-xs font-bold text-white/90">Monthly Revenue</CardTitle>
-            <CardDescription>Platform revenue over the past months</CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <CardTitle className="text-xs font-bold text-white/90">Marketplace Financial Series</CardTitle>
+                <CardDescription>Audited breakdown of Platform Fees, Accrued Commission, Collections & GOV</CardDescription>
+              </div>
+              <div className="flex flex-wrap gap-3 text-[10px] font-semibold text-white/60">
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-400" /> Net Earnings</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-indigo-400" /> Platform Fees</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-purple-400" /> Accrued Comm.</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-slate-400" /> GOV</span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="h-64 w-full">
+            <div className="h-72 w-full">
               {isMonthlyLoading ? (
                 <Skeleton className="h-full w-full" />
               ) : chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="adminRevGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ffffff" stopOpacity={0.1} />
-                        <stop offset="95%" stopColor="#ffffff" stopOpacity={0} />
+                      <linearGradient id="netEarningsGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#34d399" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="platformFeesGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#818cf8" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
@@ -191,7 +229,10 @@ export function DashboardPage() {
                       labelStyle={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold' }}
                       itemStyle={{ fontSize: '11px', color: '#fff' }}
                     />
-                    <Area type="monotone" dataKey="revenue" stroke="#ffffff" strokeWidth={2} fillOpacity={1} fill="url(#adminRevGrad)" />
+                    <Area type="monotone" dataKey="netPlatformEarnings" name="Net Earnings" stroke="#34d399" strokeWidth={2} fillOpacity={1} fill="url(#netEarningsGrad)" />
+                    <Area type="monotone" dataKey="platformFeesCollected" name="Platform Fees" stroke="#818cf8" strokeWidth={1.5} fillOpacity={1} fill="url(#platformFeesGrad)" />
+                    <Area type="monotone" dataKey="commissionAccrued" name="Commission Accrued" stroke="#c084fc" strokeWidth={1.5} fill="none" />
+                    <Area type="monotone" dataKey="grossOrderValue" name="Gross Order Value" stroke="#94a3b8" strokeDasharray="4 4" strokeWidth={1} fill="none" />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (

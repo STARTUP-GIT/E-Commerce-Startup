@@ -22,15 +22,18 @@ export const invalidatePermissionCache = (adminId?: string): void => {
     else permissionCache.clear();
 };
 
-/** Seeds the nine system roles when the table is empty (fresh `db push`). */
+/** Seeds and syncs the system roles so new permission catalog keys are available immediately. */
 export const ensureDefaultRoles = async (): Promise<void> => {
     try {
-        const count = await prisma.adminRole.count();
-        if (count > 0) return;
         for (const role of SYSTEM_ROLES) {
             await prisma.adminRole.upsert({
                 where: { name: role.name },
-                update: {},
+                update: {
+                    displayName: role.displayName,
+                    description: role.description,
+                    isSystem: true,
+                    permissions: role.permissions
+                },
                 create: {
                     name: role.name,
                     displayName: role.displayName,
@@ -40,7 +43,7 @@ export const ensureDefaultRoles = async (): Promise<void> => {
                 }
             });
         }
-        console.log("[RBAC] Seeded default admin roles");
+        console.log("[RBAC] Synced default admin roles and permissions");
     } catch (error) {
         console.error("[RBAC] Failed to seed default admin roles:", error);
     }

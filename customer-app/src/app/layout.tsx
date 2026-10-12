@@ -8,6 +8,7 @@ import { CartDrawer } from "@/features/cart/ui/CartDrawer";
 import { ComingSoonDialog } from "@/components/ui/ComingSoonDialog";
 import { PremiumDialogContainer } from "@/components/ui/PremiumDialogContainer";
 import { AddressSelectorDialog } from "@/components/ui/AddressSelectorDialog";
+import { FloatingSupportWidget } from "@/components/ui/FloatingSupportWidget";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -79,6 +80,7 @@ export default function RootLayout({
               <ComingSoonDialog />
               <AddressSelectorDialog />
               <PremiumDialogContainer />
+              <FloatingSupportWidget />
             </BrandingProvider>
           </ReactQueryProvider>
         </SessionProvider>

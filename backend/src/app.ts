@@ -82,6 +82,24 @@ import adminSellerVerificationRoute from './modules/admin/routes/sellerVerificat
 import adminSellerStrikeRoute from './modules/admin/routes/sellerStrikeRoute.js';
 import adminSellerPayoutRoute from './modules/admin/routes/sellerPayoutRoute.js';
 import adminExportRoute from './modules/admin/routes/exportRoute.js';
+import adminEnforcementRoute from './modules/admin/routes/enforcementRoute.js';
+import adminAppealRoute from './modules/admin/routes/appealRoute.js';
+import adminGuidelineRoute from './modules/admin/routes/guidelineRoute.js';
+import adminPolicyNoticeRoute from './modules/admin/routes/policyNoticeRoute.js';
+import adminCommissionStatementRoute from './modules/admin/routes/commissionStatementRoute.js';
+import adminCaseReportRoute from './modules/admin/routes/caseReportRoute.js';
+import adminPostmortemRoute from './modules/admin/routes/postmortemRoute.js';
+import adminConversationRoute from './modules/admin/routes/conversationRoute.js';
+
+import sellerEnforcementRoute from './modules/seller/routes/enforcementRoute.js';
+import sellerAppealRoute from './modules/seller/routes/appealRoute.js';
+import sellerGuidelineRoute from './modules/seller/routes/guidelineRoute.js';
+import sellerPolicyNoticeRoute from './modules/seller/routes/policyNoticeRoute.js';
+import sellerCommissionStatementRoute from './modules/seller/routes/commissionStatementRoute.js';
+import sellerConversationRoute from './modules/seller/routes/conversationRoute.js';
+
+import customerReportRoute from './modules/customer/routes/reportRoute.js';
+import customerConversationRoute from './modules/customer/routes/conversationRoute.js';
 import { ensureDefaultRoles } from './modules/admin/services/permissionService.js';
 
 ensureDefaultRoles().catch((err) => console.error('[RBAC] Role bootstrap failed:', err));
@@ -179,6 +197,11 @@ app.use('/users/cities', customerCityRoute);
 app.use('/customer/api/location', customerLocationRoute);
 app.use('/', corePaymentRoutes);
 
+app.use('/users/api/reports', customerReportRoute);
+app.use('/customer/api/reports', customerReportRoute);
+app.use('/users/api/conversations', customerConversationRoute);
+app.use('/customer/api/conversations', customerConversationRoute);
+
 //seller routes 
 app.use('/seller', sellerAuth);
 app.use('/seller', shopRoutes);
@@ -191,6 +214,12 @@ app.use('/seller', customOrderRoutes);
 app.use('/seller', notificationRoutes);
 app.use('/seller', payoutRoutes);
 app.use('/seller', reviewRoutes);
+app.use('/seller/api/enforcement', sellerEnforcementRoute);
+app.use('/seller/api/appeals', sellerAppealRoute);
+app.use('/seller/api/guidelines', sellerGuidelineRoute);
+app.use('/seller/api/policy-notices', sellerPolicyNoticeRoute);
+app.use('/seller/api/commission-statements', sellerCommissionStatementRoute);
+app.use('/seller/api/conversations', sellerConversationRoute);
 
 // Admin routes
 app.use('/api/admin/auth', adminLimiter, adminAuthRoute);  // handles /api/admin/auth/login, /api/admin/auth/setup/status etc.
@@ -231,6 +260,14 @@ app.use('/api/admin/content', adminLimiter, adminContentRouter);
 app.use('/api/admin/returns', adminLimiter, adminReturnRoute);
 app.use('/api/admin/seller-verifications', adminLimiter, adminSellerVerificationRoute);
 app.use('/api/admin/seller-strikes', adminLimiter, adminSellerStrikeRoute);
+app.use('/api/admin/seller-enforcement', adminLimiter, adminEnforcementRoute);
+app.use('/api/admin/appeals', adminLimiter, adminAppealRoute);
+app.use('/api/admin/guidelines', adminLimiter, adminGuidelineRoute);
+app.use('/api/admin/policy-notices', adminLimiter, adminPolicyNoticeRoute);
+app.use('/api/admin/commission-statements', adminLimiter, adminCommissionStatementRoute);
+app.use('/api/admin/cases', adminLimiter, adminCaseReportRoute);
+app.use('/api/admin/postmortems', adminLimiter, adminPostmortemRoute);
+app.use('/api/admin/conversations', adminLimiter, adminConversationRoute);
 app.use('/api/admin/seller-payouts', adminLimiter, adminSellerPayoutRoute);
 app.use('/api/admin/exports', adminLimiter, adminExportRoute);
 

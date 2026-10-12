@@ -1,0 +1,71 @@
+// =============================================================================
+// Real-Time Conversations & Messages
+// =============================================================================
+
+model Conversation {
+  id                String             @id @default(cuid())
+  type              ConversationType   @default(CUSTOMER_ADMIN)
+  customerId        String?
+  sellerId          String?
+  subject           String?            @db.VarChar(255)
+  status            ConversationStatus @default(OPEN)
+  priority          SupportTicketPriority @default(MEDIUM)
+  assignedAdminId   String?            @db.VarChar(40)
+  relatedEntityType String?            @db.VarChar(50) // "ORDER", "REPORT", "APPEAL", "STATEMENT"
+  relatedEntityId   String?            @db.VarChar(50)
+  internalNotes     String?            @db.Text
+  lastMessageAt     DateTime           @default(now())
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  customer      Customer?                 @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  seller        Seller?                   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  assignedAdmin Admin?                    @relation("ConversationAssignedAdmin", fields: [assignedAdminId], references: [id], onDelete: SetNull)
+  messages      ConversationMessage[]
+  readReceipts  ConversationReadReceipt[]
+
+  @@index([type])
+  @@index([customerId])
+  @@index([sellerId])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedAdminId])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+model ConversationMessage {
+  id              String            @id @default(cuid())
+  conversationId  String
+  senderType      MessageSenderType @default(CUSTOMER)
+  senderId        String            @db.VarChar(50)
+  senderName      String?           @db.VarChar(120)
+  message         String            @db.Text
+  attachments     String[]          @default([])
+  clientMessageId String?           @db.VarChar(80)
+  isInternal      Boolean           @default(false)
+  readAt          DateTime?
+  createdAt       DateTime          @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
+  @@index([senderType, senderId])
+  @@index([clientMessageId])
+  @@map("conversation_messages")
+}
+
+model ConversationReadReceipt {
+  id             String   @id @default(cuid())
+  conversationId String
+  readerType     String   @db.VarChar(20) // "CUSTOMER", "SELLER", "ADMIN"
+  readerId       String   @db.VarChar(50)
+  lastReadAt     DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, readerType, readerId])
+  @@index([conversationId])
+  @@map("conversation_read_receipts")
+}

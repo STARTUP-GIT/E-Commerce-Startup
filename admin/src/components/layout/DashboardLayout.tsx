@@ -40,6 +40,9 @@ import {
   KeyRound,
   MonitorSmartphone,
   Download,
+  Scale,
+  MessageSquare,
+  FileCheck,
 } from 'lucide-react';
 import { Badge } from '@/shared/components/Badge';
 import { useConfirmStore } from '@/lib/store/confirmStore';
@@ -84,13 +87,34 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { name: 'Customers', path: '/customers', icon: UserCheck, group: 'Customers', permission: 'customers.view' },
     { name: 'Sessions & Devices', path: '/sessions', icon: MonitorSmartphone, group: 'Customers', permission: 'sessions.view' },
     { name: 'Support Tickets', path: '/support-tickets', icon: LifeBuoy, group: 'Customers', permission: 'support.view' },
+    { name: 'Customer Conversations', path: '/customer-conversations', icon: MessageSquare, group: 'Customers', permission: 'support.view' },
 
     // Sellers
     { name: 'Sellers', path: '/sellers', icon: Users, group: 'Sellers', permission: 'sellers.view' },
     { name: 'Shops', path: '/shops', icon: Store, group: 'Sellers', permission: 'sellers.view' },
     { name: 'Seller Verifications', path: '/seller-verifications', icon: BadgeCheck, group: 'Sellers', permission: 'sellers.view' },
-    { name: 'Seller Strikes', path: '/seller-strikes', icon: Gavel, group: 'Sellers', permission: 'sellers.view' },
+    { name: 'Seller Enforcement', path: '/seller-strikes', icon: Gavel, group: 'Sellers', permission: 'enforcement.view' },
+    { name: 'Appeals', path: '/appeals', icon: Scale, group: 'Sellers', permission: 'appeals.view' },
     { name: 'Seller Payouts', path: '/seller-payouts', icon: Wallet, group: 'Sellers', permission: 'payments.view' },
+    { name: 'Seller Conversations', path: '/seller-conversations', icon: MessageSquare, group: 'Sellers', permission: 'support.view' },
+
+    // Policies & Agreements
+    { name: 'Community Guidelines', path: '/community-guidelines', icon: ShieldAlert, group: 'Policies & Agreements', permission: 'guidelines.view' },
+    { name: 'Seller Agreement Tracking', path: '/agreement-tracking', icon: FileCheck, group: 'Policies & Agreements', permission: 'guidelines.view' },
+    { name: 'Issue New Policy', path: '/issue-policy', icon: Bell, group: 'Policies & Agreements', permission: 'policies.view' },
+    { name: 'Commission Statements', path: '/commission-statements', icon: FileText, group: 'Policies & Agreements', permission: 'commission.view' },
+
+    // Reports & Investigations
+    { name: 'Customer Reports', path: '/cases', icon: AlertTriangle, group: 'Reports & Investigations', permission: 'reports.view' },
+    { name: 'Product Reports', path: '/reports', icon: ShieldCheck, group: 'Reports & Investigations', permission: 'reports.view' },
+    { name: 'Postmortems', path: '/postmortems', icon: FileSpreadsheet, group: 'Reports & Investigations', permission: 'postmortems.view' },
+    { name: 'Audit Logs', path: '/audit-logs', icon: FileSpreadsheet, group: 'Reports & Investigations', permission: 'audit_logs.view' },
+
+    // Orders
+    { name: 'Orders', path: '/orders', icon: ShoppingBag, group: 'Orders', permission: 'orders.view' },
+    { name: 'Returns', path: '/returns', icon: RotateCcw, group: 'Orders', permission: 'orders.view' },
+    { name: 'Delivery', path: '/delivery', icon: Truck, group: 'Orders', permission: 'delivery.view' },
+    { name: 'Packing Fee Requests', path: '/packing-fee-requests', icon: CreditCard, group: 'Orders', permission: 'orders.view' },
 
     // Catalog & Content
     { name: 'Products', path: '/products', icon: Box, group: 'Catalog & Content', permission: 'moderation.view' },
@@ -99,32 +123,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { name: 'States', path: '/states', icon: MapPin, group: 'Catalog & Content', permission: 'catalog.view' },
     { name: 'Districts / Cities', path: '/karnataka/districts', icon: MapPin, group: 'Catalog & Content', permission: 'catalog.view' },
 
-    // Orders
-    { name: 'Orders', path: '/orders', icon: ShoppingBag, group: 'Orders', permission: 'orders.view' },
-    { name: 'Returns', path: '/returns', icon: RotateCcw, group: 'Orders', permission: 'orders.view' },
-    { name: 'Delivery', path: '/delivery', icon: Truck, group: 'Orders', permission: 'delivery.view' },
-    { name: 'Packing Fee Requests', path: '/packing-fee-requests', icon: CreditCard, group: 'Orders', permission: 'orders.view' },
-
     // Finance
     { name: 'Payments & Transactions', path: '/payments', icon: CreditCard, group: 'Finance', permission: 'payments.view' },
     { name: 'Payment Methods', path: '/payment-methods', icon: CreditCard, group: 'Finance', permission: 'settings.view' },
     { name: 'Delivery Methods', path: '/delivery-methods', icon: Truck, group: 'Finance', permission: 'settings.view' },
 
-    // Marketing
+    // Marketing & Moderation
     { name: 'Coupons', path: '/coupons', icon: Tag, group: 'Marketing', permission: 'coupons.view' },
     { name: 'Notifications', path: '/notifications', icon: Bell, group: 'Marketing', permission: 'notifications.view' },
-
-    // Moderation
-    { name: 'Moderation Queue', path: '/moderation', icon: ShieldCheck, group: 'Moderation', permission: 'moderation.view' },
-
-    // Reports
-    { name: 'Reports', path: '/reports', icon: AlertTriangle, group: 'Reports', permission: 'reports.view' },
-    { name: 'Exports', path: '/exports', icon: Download, group: 'Reports', permission: 'reports.export' },
+    { name: 'Moderation Queue', path: '/moderation', icon: ShieldCheck, group: 'Marketing', permission: 'moderation.view' },
+    { name: 'Exports', path: '/exports', icon: Download, group: 'Marketing', permission: 'reports.export' },
 
     // Administration
     { name: 'Admin Management', path: '/admin-management', icon: UserCog, group: 'Administration', permission: 'admin.users.manage' },
     { name: 'Roles & Permissions', path: '/roles', icon: KeyRound, group: 'Administration', permission: 'admin.roles.manage' },
-    { name: 'Audit Logs', path: '/audit-logs', icon: FileSpreadsheet, group: 'Administration', permission: 'audit_logs.view' },
     { name: 'Branding', path: '/branding', icon: Palette, group: 'Administration', permission: 'branding.view' },
     { name: 'Settings', path: '/settings', icon: Settings, group: 'Administration', permission: 'settings.view' },
     { name: 'My Profile', path: '/profile', icon: UserCircle, group: 'Administration' },

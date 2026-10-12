@@ -25,6 +25,13 @@ import notificationRoutes from './src/modules/seller/routes/notificationRoute.js
 import payoutRoutes from './src/modules/seller/routes/payoutRoute.js';
 import reviewRoutes from './src/modules/seller/routes/reviewRoute.js';
 import sellerCategoryRoute from './src/modules/seller/routes/categoryRoute.js';
+import sellerEnforcementRoute from './src/modules/seller/routes/enforcementRoute.js';
+import sellerAppealRoute from './src/modules/seller/routes/appealRoute.js';
+import sellerGuidelineRoute from './src/modules/seller/routes/guidelineRoute.js';
+import sellerPolicyNoticeRoute from './src/modules/seller/routes/policyNoticeRoute.js';
+import sellerCommissionStatementRoute from './src/modules/seller/routes/commissionStatementRoute.js';
+import sellerConversationRoute from './src/modules/seller/routes/conversationRoute.js';
+import { setupChatWebSocketServer } from './src/services/chat/chat.service.js';
 import storageRoute from './src/modules/storage/routes/storage.routes.js';
 import { publicBrandingRouter } from './src/modules/admin/routes/brandingRoute.js';
 
@@ -43,6 +50,12 @@ app.use('/seller', notificationRoutes);
 app.use('/seller', payoutRoutes);
 app.use('/seller', reviewRoutes);
 app.use('/seller', sellerCategoryRoute);
+app.use('/seller/api/enforcement', sellerEnforcementRoute);
+app.use('/seller/api/appeals', sellerAppealRoute);
+app.use('/seller/api/guidelines', sellerGuidelineRoute);
+app.use('/seller/api/policy-notices', sellerPolicyNoticeRoute);
+app.use('/seller/api/commission-statements', sellerCommissionStatementRoute);
+app.use('/seller/api/conversations', sellerConversationRoute);
 app.use('/api/storage', storageRoute);
 
 // Marketplace branding (public SSOT)
@@ -63,6 +76,7 @@ const PORT = Number(process.env.PORT || process.env.SELLER_PORT || 3002);
 const HOST = process.env.HOST || '0.0.0.0';
 
 const server = http.createServer(app);
+setupChatWebSocketServer(server);
 
 console.log('[SERVER_START] ' + JSON.stringify({
     portConfigured: !!process.env.PORT,

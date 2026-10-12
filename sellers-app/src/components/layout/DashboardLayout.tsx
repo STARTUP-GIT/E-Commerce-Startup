@@ -19,6 +19,10 @@ import {
   ChevronRight,
   AlertTriangle,
   UserCircle,
+  Gavel,
+  FileText,
+  FileSpreadsheet,
+  MessageSquare,
 } from 'lucide-react';
 import { Badge } from '@/shared/components/Badge';
 
@@ -45,6 +49,14 @@ const getIconForItem = (path?: string) => {
       return CreditCard;
     case '/reviews':
       return Star;
+    case '/enforcement':
+      return Gavel;
+    case '/policies':
+      return FileText;
+    case '/commission-statements':
+      return FileSpreadsheet;
+    case '/support-chat':
+      return MessageSquare;
     case '/profile':
       return UserCircle;
     case '/shop':
@@ -173,7 +185,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 itemPath === '/profile' || 
                 itemPath === '/shop' || 
                 itemPath === '/settings' || 
-                itemPath === '/notifications';
+                itemPath === '/notifications' ||
+                itemPath === '/enforcement' ||
+                itemPath === '/policies' ||
+                itemPath === '/commission-statements' ||
+                itemPath === '/support-chat';
 
               if (!isAllowed) return null;
 

@@ -105,22 +105,37 @@ export const sellerAuth = async (req: Request, res: Response, next: NextFunction
       });
     }
 
-    if (seller.isBanned) {
-      return res.status(403).json({
-        message: "Account is banned",
-      });
-    }
-
     if (seller.isDeactivated) {
       return res.status(403).json({
         message: "Account is deactivated",
       });
     }
 
-    if (seller.status === "DISABLED" || seller.status === "BANNED") {
-      return res.status(403).json({
-        message: "Account access restricted",
-      });
+    const isSuspended = seller.isBanned || seller.status === "DISABLED" || seller.status === "BANNED";
+    if (isSuspended) {
+      // Check if current path is a permitted route for suspended sellers
+      const permittedPrefixes = [
+        "/seller/api/auth/profile",
+        "/seller/api/auth/logout",
+        "/seller/api/appeals",
+        "/seller/api/guidelines",
+        "/seller/api/policy-notices",
+        "/seller/api/commission-statements",
+        "/seller/api/conversations",
+        "/seller/api/notifications",
+        "/seller/api/enforcement",
+        "/seller/api/branding"
+      ];
+
+      const currentPath = req.originalUrl.split("?")[0];
+      const isPermitted = permittedPrefixes.some((prefix) => currentPath.startsWith(prefix));
+
+      if (!isPermitted) {
+        return res.status(403).json({
+          message: "Account access restricted. Only appeals, guidelines, policy notices, statements, and support messaging are available.",
+          isSuspended: true
+        });
+      }
     }
 
     req.sellerId = seller.id;

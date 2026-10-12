@@ -1,0 +1,100 @@
+// =============================================================================
+// Marketplace Operations Enums
+// =============================================================================
+
+enum EnforcementType {
+  WARNING
+  STRIKE
+}
+
+enum EnforcementStatus {
+  ISSUED
+  UNDER_APPEAL
+  UPHELD
+  OVERTURNED
+  WITHDRAWN
+  CLOSED
+}
+
+enum AppealStatus {
+  PENDING
+  UNDER_REVIEW
+  MORE_INFO_REQUESTED
+  UPHELD
+  OVERTURNED
+  PARTIALLY_UPHELD
+  CLOSED
+}
+
+enum SuspensionType {
+  THREE_STRIKES
+  DIRECT_ADMIN
+}
+
+enum GuidelineStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  PUBLISHED
+  SUPERSEDED
+  RETIRED
+}
+
+enum PolicyNoticeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum StatementStatus {
+  DRAFT
+  PUBLISHED
+  SUPERSEDED
+}
+
+enum CommissionPaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum CaseReportStatus {
+  PENDING
+  UNDER_REVIEW
+  INVESTIGATING
+  ACTION_TAKEN
+  RESOLVED
+  DISMISSED
+}
+
+enum ReportTargetType {
+  SELLER
+  SHOP
+  PRODUCT
+  ORDER
+}
+
+enum PostmortemStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  CLOSED
+}
+
+enum ConversationType {
+  CUSTOMER_ADMIN
+  SELLER_ADMIN
+}
+
+enum ConversationStatus {
+  OPEN
+  PENDING
+  RESOLVED
+}
+
+enum MessageSenderType {
+  CUSTOMER
+  SELLER
+  ADMIN
+  SYSTEM
+}

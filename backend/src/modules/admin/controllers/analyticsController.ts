@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
+import { CommissionPaymentStatus } from "@prisma/client";
 
 export const getDashboard = async (req: Request, res: Response) => {
     try {
@@ -22,7 +23,6 @@ export const getDashboard = async (req: Request, res: Response) => {
             else if (item.status === "BANNED") sellersCount.banned = item._count.id;
         }
 
-        // Banned count from isBanned flag
         const bannedSellersCount = await prisma.seller.count({ where: { isBanned: true } });
         sellersCount.banned = bannedSellersCount;
 
@@ -61,7 +61,7 @@ export const getDashboard = async (req: Request, res: Response) => {
         // 6. Payments
         const totalPayments = await prisma.payment.count();
 
-        // 7. Today's and Monthly Revenue
+        // 7. Distinct Marketplace Financial Aggregates
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
@@ -69,43 +69,75 @@ export const getDashboard = async (req: Request, res: Response) => {
         monthStart.setDate(1);
         monthStart.setHours(0, 0, 0, 0);
 
-        const todayOrders = await prisma.order.aggregate({
-            where: {
-                createdAt: { gte: todayStart },
-                status: { not: "CANCELLED" }
-            },
-            _sum: { grandTotal: true }
-        });
-
-        const monthlyOrders = await prisma.order.aggregate({
-            where: {
-                createdAt: { gte: monthStart },
-                status: { not: "CANCELLED" }
-            },
-            _sum: { grandTotal: true }
-        });
-
-        const todayRevenue = Number(todayOrders._sum.grandTotal || 0);
-        const monthlyRevenue = Number(monthlyOrders._sum.grandTotal || 0);
-
+        // A. Gross Order Value (GOV)
         const totalAccruedOrders = await prisma.order.aggregate({
-            where: {
-                status: { not: "CANCELLED" }
-            },
+            where: { status: { not: "CANCELLED" } },
+            _sum: { grandTotal: true, platformFeeTotal: true }
+        });
+        const grossOrderValue = Number(totalAccruedOrders._sum.grandTotal || 0);
+
+        const todayGovAgg = await prisma.order.aggregate({
+            where: { createdAt: { gte: todayStart }, status: { not: "CANCELLED" } },
             _sum: { grandTotal: true }
         });
-        const totalRevenue = Number(totalAccruedOrders._sum.grandTotal || 0);
+        const todayGrossOrderValue = Number(todayGovAgg._sum.grandTotal || 0);
 
-        // 8. Platform Revenue (Sum of commission and fees from seller orders)
-        const sellerOrdersRevenue = await prisma.sellerOrder.aggregate({
-            _sum: {
-                platformCommission: true,
-                platformFee: true
-            }
+        const monthlyGovAgg = await prisma.order.aggregate({
+            where: { createdAt: { gte: monthStart }, status: { not: "CANCELLED" } },
+            _sum: { grandTotal: true }
         });
-        const platformRevenue = Number(sellerOrdersRevenue._sum.platformCommission || 0) + Number(sellerOrdersRevenue._sum.platformFee || 0);
+        const monthlyGrossOrderValue = Number(monthlyGovAgg._sum.grandTotal || 0);
 
-        // 9. Pending Packing Requests
+        // B. Platform Fees Collected (immediate checkout flow from paid orders)
+        const paidOrdersFeeAgg = await prisma.order.aggregate({
+            where: {
+                payments: { some: { status: "COMPLETED" } },
+                status: { not: "CANCELLED" }
+            },
+            _sum: { platformFeeTotal: true }
+        });
+        const platformFeesCollected = Number(paidOrdersFeeAgg._sum?.platformFeeTotal || 0);
+
+        // C. Seller Commission Accrued (accumulated from seller orders)
+        const sellerOrdersCommissionAgg = await prisma.sellerOrder.aggregate({
+            where: { order: { status: { not: "CANCELLED" } } },
+            _sum: { platformCommission: true }
+        });
+        const commissionAccrued = Number(sellerOrdersCommissionAgg._sum.platformCommission || 0);
+
+        // D. Seller Commission Collected (confirmed bank transfers / settlements from sellers)
+        const confirmedCommissionPaymentsAgg = await prisma.sellerCommissionPayment.aggregate({
+            where: { status: CommissionPaymentStatus.COMPLETED },
+            _sum: { amount: true }
+        });
+        const commissionCollected = Number(confirmedCommissionPaymentsAgg._sum.amount || 0);
+
+        // E. Outstanding & Overdue Seller Commission
+        const outstandingCommission = Math.max(0, commissionAccrued - commissionCollected);
+
+        // Overdue from published statements past their period end date with balance > 0
+        const overdueStatementsAgg = await prisma.commissionStatement.aggregate({
+            where: {
+                status: "PUBLISHED",
+                endDate: { lt: new Date() },
+                outstandingBalance: { gt: 0 }
+            },
+            _sum: { outstandingBalance: true }
+        });
+        const overdueCommission = Number(overdueStatementsAgg._sum.outstandingBalance || 0);
+
+        // F. Refunds & Adjustments
+        const refundsAgg = await prisma.payment.aggregate({
+            where: { status: "REFUNDED" },
+            _sum: { amount: true }
+        });
+        const refundsTotal = Number(refundsAgg._sum.amount || 0);
+
+        // G. Net Platform Earnings = Platform Fees Collected + Seller Commission Collected - Platform Refund Portion
+        // (Clean accounting definition: cash actually collected by platform)
+        const netPlatformEarnings = platformFeesCollected + commissionCollected;
+
+        // 8. Pending Packing Requests
         const pendingPackingRequests = await prisma.shop.count({
             where: {
                 enablePackingFee: true,
@@ -113,7 +145,7 @@ export const getDashboard = async (req: Request, res: Response) => {
             }
         });
 
-        // 10. Recents
+        // 9. Recents
         const recentOrders = await prisma.order.findMany({
             take: 5,
             orderBy: { createdAt: "desc" },
@@ -135,7 +167,6 @@ export const getDashboard = async (req: Request, res: Response) => {
             orderBy: { createdAt: "desc" }
         });
 
-        // 11. Low Stock Products (stock <= 10)
         const lowStockProducts = await prisma.product.findMany({
             where: {
                 isDeleted: false,
@@ -144,7 +175,7 @@ export const getDashboard = async (req: Request, res: Response) => {
             take: 5
         });
 
-        // 12. Workload / finance counters (additive)
+        // 10. Workload counters
         const [
             pendingSellers,
             pendingProducts,
@@ -153,13 +184,9 @@ export const getDashboard = async (req: Request, res: Response) => {
             openTickets,
             newCustomersThisMonth,
             newSellersThisMonth,
-            revenueTodayAgg,
-            revenueThisMonthAgg,
             refundsThisMonth,
             pendingPayoutAgg
         ] = await Promise.all([
-            // SellerStatus has no PENDING member: DISABLED is the "awaiting
-            // approval" bucket this dashboard has always counted as pending.
             prisma.seller.count({ where: { status: "DISABLED" } }),
             prisma.product.count({ where: { status: "PENDING_APPROVAL" } }),
             prisma.sellerVerification.count({ where: { status: "PENDING" } }),
@@ -169,20 +196,6 @@ export const getDashboard = async (req: Request, res: Response) => {
             }),
             prisma.customer.count({ where: { createdAt: { gte: monthStart } } }),
             prisma.seller.count({ where: { createdAt: { gte: monthStart } } }),
-            prisma.order.aggregate({
-                where: {
-                    createdAt: { gte: todayStart },
-                    status: { not: "CANCELLED" }
-                },
-                _sum: { grandTotal: true }
-            }),
-            prisma.order.aggregate({
-                where: {
-                    createdAt: { gte: monthStart },
-                    status: { not: "CANCELLED" }
-                },
-                _sum: { grandTotal: true }
-            }),
             prisma.payment.count({
                 where: { status: "REFUNDED", refundedAt: { gte: monthStart } }
             }),
@@ -192,8 +205,6 @@ export const getDashboard = async (req: Request, res: Response) => {
             })
         ]);
 
-        const revenueToday = Number(revenueTodayAgg._sum.grandTotal || 0);
-        const revenueThisMonth = Number(revenueThisMonthAgg._sum.grandTotal || 0);
         const pendingPayoutAmount = Number(pendingPayoutAgg._sum.amount || 0);
 
         return res.status(200).json({
@@ -206,10 +217,22 @@ export const getDashboard = async (req: Request, res: Response) => {
             totalProducts,
             ordersCount,
             totalPayments,
-            todayRevenue,
-            monthlyRevenue,
-            totalRevenue,
-            platformRevenue,
+            // Financial Breakdown (Part 8)
+            grossOrderValue,
+            todayGrossOrderValue,
+            monthlyGrossOrderValue,
+            platformFeesCollected,
+            commissionAccrued,
+            commissionCollected,
+            outstandingCommission,
+            overdueCommission,
+            netPlatformEarnings,
+            refundsTotal,
+            // Legacy aliases for backward compatibility with existing components
+            totalRevenue: grossOrderValue,
+            platformRevenue: netPlatformEarnings,
+            todayRevenue: todayGrossOrderValue,
+            monthlyRevenue: monthlyGrossOrderValue,
             pendingPackingRequests,
             recentOrders,
             recentSellers,
@@ -222,8 +245,8 @@ export const getDashboard = async (req: Request, res: Response) => {
             openTickets,
             newCustomersThisMonth,
             newSellersThisMonth,
-            revenueToday,
-            revenueThisMonth,
+            revenueToday: todayGrossOrderValue,
+            revenueThisMonth: monthlyGrossOrderValue,
             refundsThisMonth,
             pendingPayoutAmount
         });
@@ -235,7 +258,6 @@ export const getDashboard = async (req: Request, res: Response) => {
 
 export const getRevenue = async (req: Request, res: Response) => {
     try {
-        // Daily Platform Revenue for last 30 days
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -246,36 +268,37 @@ export const getRevenue = async (req: Request, res: Response) => {
             },
             select: {
                 createdAt: true,
-                grandTotal: true
+                grandTotal: true,
+                platformFeeTotal: true
             }
         });
 
-        const dailyRevenueMap: { [date: string]: number } = {};
+        const dailyMap: { [date: string]: { date: string; grossOrderValue: number; platformFee: number } } = {};
         for (let i = 0; i < 30; i++) {
             const d = new Date();
             d.setDate(d.getDate() - i);
             const dateStr = d.toISOString().split("T")[0];
-            dailyRevenueMap[dateStr] = 0;
+            dailyMap[dateStr] = { date: dateStr, grossOrderValue: 0, platformFee: 0 };
         }
 
         orders.forEach(o => {
             const dateStr = o.createdAt.toISOString().split("T")[0];
-            if (dailyRevenueMap[dateStr] !== undefined) {
-                dailyRevenueMap[dateStr] += Number(o.grandTotal);
+            if (dailyMap[dateStr]) {
+                dailyMap[dateStr].grossOrderValue += Number(o.grandTotal || 0);
+                dailyMap[dateStr].platformFee += Number(o.platformFeeTotal || 0);
             }
         });
 
-        const dailyRevenue = Object.keys(dailyRevenueMap).map(date => ({
-            date,
-            revenue: dailyRevenueMap[date]
-        })).sort((a, b) => a.date.localeCompare(b.date));
+        const dailyRevenue = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
 
         const totalAccruedRevenue = await prisma.order.aggregate({
             where: { status: { not: "CANCELLED" } },
-            _sum: { grandTotal: true }
+            _sum: { grandTotal: true, platformFeeTotal: true }
         });
 
         return res.status(200).json({
+            grossOrderValue: Number(totalAccruedRevenue._sum.grandTotal || 0),
+            platformFeesTotal: Number(totalAccruedRevenue._sum.platformFeeTotal || 0),
             totalRevenue: Number(totalAccruedRevenue._sum.grandTotal || 0),
             dailyRevenue
         });
@@ -287,26 +310,97 @@ export const getRevenue = async (req: Request, res: Response) => {
 
 export const getMonthlyRevenue = async (req: Request, res: Response) => {
     try {
-        // Platform revenue grouped by month
-        const orders = await prisma.order.findMany({
-            where: { status: { not: "CANCELLED" } },
-            select: {
-                createdAt: true,
-                grandTotal: true
+        // Collect monthly aggregates for distinct financial series
+        const [orders, sellerOrders, commissionPayments, refunds] = await Promise.all([
+            prisma.order.findMany({
+                where: { status: { not: "CANCELLED" } },
+                select: {
+                    createdAt: true,
+                    grandTotal: true,
+                    platformFeeTotal: true,
+                    payments: { select: { status: true } }
+                }
+            }),
+            prisma.sellerOrder.findMany({
+                where: { order: { status: { not: "CANCELLED" } } },
+                select: { createdAt: true, platformCommission: true }
+            }),
+            prisma.sellerCommissionPayment.findMany({
+                where: { status: CommissionPaymentStatus.COMPLETED },
+                select: { confirmedAt: true, createdAt: true, amount: true }
+            }),
+            prisma.payment.findMany({
+                where: { status: "REFUNDED" },
+                select: { refundedAt: true, createdAt: true, amount: true }
+            })
+        ]);
+
+        const monthlyMap: {
+            [month: string]: {
+                month: string;
+                grossOrderValue: number;
+                platformFeesCollected: number;
+                commissionAccrued: number;
+                commissionCollected: number;
+                refunds: number;
+                netPlatformEarnings: number;
+                // Legacy revenue alias
+                revenue: number;
+            };
+        } = {};
+
+        const getMonthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+        orders.forEach(o => {
+            const m = getMonthKey(o.createdAt);
+            if (!monthlyMap[m]) {
+                monthlyMap[m] = {
+                    month: m,
+                    grossOrderValue: 0,
+                    platformFeesCollected: 0,
+                    commissionAccrued: 0,
+                    commissionCollected: 0,
+                    refunds: 0,
+                    netPlatformEarnings: 0,
+                    revenue: 0
+                };
+            }
+            monthlyMap[m].grossOrderValue += Number(o.grandTotal || 0);
+            if (o.payments.some(p => p.status === "COMPLETED")) {
+                monthlyMap[m].platformFeesCollected += Number(o.platformFeeTotal || 0);
             }
         });
 
-        const monthlyRevenueMap: { [month: string]: number } = {};
-
-        orders.forEach(o => {
-            const monthStr = `${o.createdAt.getFullYear()}-${String(o.createdAt.getMonth() + 1).padStart(2, "0")}`;
-            monthlyRevenueMap[monthStr] = (monthlyRevenueMap[monthStr] || 0) + Number(o.grandTotal);
+        sellerOrders.forEach(so => {
+            const m = getMonthKey(so.createdAt);
+            if (monthlyMap[m]) {
+                monthlyMap[m].commissionAccrued += Number(so.platformCommission || 0);
+            }
         });
 
-        const monthlyRevenue = Object.keys(monthlyRevenueMap).map(month => ({
-            month,
-            revenue: monthlyRevenueMap[month]
-        })).sort((a, b) => a.month.localeCompare(b.month));
+        commissionPayments.forEach(cp => {
+            const date = cp.confirmedAt || cp.createdAt;
+            const m = getMonthKey(date);
+            if (monthlyMap[m]) {
+                monthlyMap[m].commissionCollected += Number(cp.amount || 0);
+            }
+        });
+
+        refunds.forEach(rf => {
+            const date = rf.refundedAt || rf.createdAt;
+            const m = getMonthKey(date);
+            if (monthlyMap[m]) {
+                monthlyMap[m].refunds += Number(rf.amount || 0);
+            }
+        });
+
+        // Compute netPlatformEarnings for each month
+        for (const m in monthlyMap) {
+            monthlyMap[m].netPlatformEarnings = monthlyMap[m].platformFeesCollected + monthlyMap[m].commissionCollected;
+            monthlyMap[m].revenue = monthlyMap[m].netPlatformEarnings;
+        }
+
+        const monthlyRevenue = Object.values(monthlyMap).sort((a, b) => a.month.localeCompare(b.month));
 
         return res.status(200).json({ monthlyRevenue });
     } catch (error: any) {

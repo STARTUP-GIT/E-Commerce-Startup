@@ -105,6 +105,51 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
             { key: "sessions.manage", label: "Revoke sessions" },
             { key: "audit_logs.view", label: "View audit logs" }
         ]
+    },
+    {
+        group: "Seller Enforcement & Appeals",
+        permissions: [
+            { key: "enforcement.view", label: "View warnings, strikes and suspensions" },
+            { key: "enforcement.warning", label: "Issue warnings to sellers" },
+            { key: "enforcement.strike", label: "Issue community guidelines strikes" },
+            { key: "enforcement.suspend", label: "Suspend or reinstate sellers" },
+            { key: "appeals.view", label: "View seller appeals" },
+            { key: "appeals.manage", label: "Review, request info & decide appeals" }
+        ]
+    },
+    {
+        group: "Policies & Guidelines",
+        permissions: [
+            { key: "guidelines.view", label: "View community guidelines & acceptance records" },
+            { key: "guidelines.manage", label: "Create & edit guideline drafts" },
+            { key: "guidelines.publish", label: "Approve & publish community guidelines" },
+            { key: "policies.view", label: "View policy notices" },
+            { key: "policies.manage", label: "Create & edit policy notice drafts" },
+            { key: "policies.publish", label: "Publish policy notices" }
+        ]
+    },
+    {
+        group: "Financial Settlements",
+        permissions: [
+            { key: "commissions.view", label: "View commission statements & balances" },
+            { key: "commissions.manage", label: "Create, publish statements & record payments" }
+        ]
+    },
+    {
+        group: "Investigations & Postmortems",
+        permissions: [
+            { key: "cases.view", label: "View customer case reports & timeline" },
+            { key: "cases.manage", label: "Investigate & resolve customer case reports" },
+            { key: "postmortems.view", label: "View incident postmortems" },
+            { key: "postmortems.manage", label: "Create, review & approve postmortems" }
+        ]
+    },
+    {
+        group: "Conversations & Messaging",
+        permissions: [
+            { key: "conversations.view", label: "View customer and seller conversations" },
+            { key: "conversations.manage", label: "Reply and resolve conversations" }
+        ]
     }
 ];
 
@@ -152,6 +197,14 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
             "dashboard.view", "analytics.view",
             "customers.view", "customers.manage",
             "sellers.view", "sellers.manage",
+            "enforcement.view", "enforcement.warning", "enforcement.strike", "enforcement.suspend",
+            "appeals.view", "appeals.manage",
+            "guidelines.view", "guidelines.manage", "guidelines.publish",
+            "policies.view", "policies.manage", "policies.publish",
+            "commissions.view", "commissions.manage",
+            "cases.view", "cases.manage",
+            "postmortems.view", "postmortems.manage",
+            "conversations.view", "conversations.manage",
             "orders.view", "orders.manage",
             "payments.view", "payments.refund",
             "reports.view", "reports.export",
@@ -177,6 +230,7 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
             "dashboard.view", "analytics.view",
             "customers.view", "sellers.view", "orders.view",
             "payments.view", "payments.refund",
+            "commissions.view", "commissions.manage",
             "reports.view", "reports.export",
             "sessions.view", "audit_logs.view", "settings.view"
         )
@@ -190,6 +244,9 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
             "customers.view", "customers.manage", "sellers.view",
             "orders.view", "orders.manage",
             "support.view", "support.manage",
+            "cases.view", "cases.manage",
+            "conversations.view", "conversations.manage",
+            "appeals.view",
             "moderation.view", "reports.view",
             "notifications.view", "sessions.view", "audit_logs.view"
         )
@@ -203,6 +260,8 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
             "customers.view", "sellers.view",
             "catalog.view", "catalog.manage",
             "moderation.view", "moderation.manage",
+            "cases.view", "cases.manage",
+            "enforcement.view", "enforcement.warning",
             "reports.view", "support.view", "audit_logs.view"
         )
     },
@@ -213,6 +272,11 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
         permissions: perms(
             "dashboard.view", "analytics.view",
             "customers.view", "sellers.view", "sellers.manage",
+            "enforcement.view", "enforcement.warning", "enforcement.strike", "enforcement.suspend",
+            "appeals.view", "appeals.manage",
+            "guidelines.view", "policies.view",
+            "commissions.view",
+            "conversations.view", "conversations.manage",
             "orders.view", "reports.view", "reports.export",
             "support.view", "notifications.view", "audit_logs.view"
         )

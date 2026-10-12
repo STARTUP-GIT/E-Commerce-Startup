@@ -29,6 +29,11 @@ const ReviewsPage = lazy(() => import('@/features/reviews/ui/ReviewsPage').then(
 const NotificationsPage = lazy(() => import('@/features/notifications/ui/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const SettingsPage = lazy(() => import('@/features/settings/ui/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const SellerProfilePage = lazy(() => import('@/features/profile/ui/SellerProfilePage').then((m) => ({ default: m.SellerProfilePage })));
+const EnforcementPage = lazy(() => import('@/features/enforcement/ui/EnforcementPage').then((m) => ({ default: m.EnforcementPage })));
+const PoliciesPage = lazy(() => import('@/features/policies/ui/PoliciesPage').then((m) => ({ default: m.PoliciesPage })));
+const CommissionStatementsPage = lazy(() => import('@/features/commission/ui/CommissionStatementsPage').then((m) => ({ default: m.CommissionStatementsPage })));
+const SupportChatPage = lazy(() => import('@/features/support-chat/ui/SupportChatPage').then((m) => ({ default: m.SupportChatPage })));
+import { GuidelineAcceptanceModal } from '@/components/ui/GuidelineAcceptanceModal';
 
 function PageLoader() {
   return (
@@ -170,6 +175,7 @@ function App() {
       <ToastContainer />
       <ComingSoonDialog />
       <PremiumDialogContainer />
+      <GuidelineAcceptanceModal />
       <Suspense fallback={<PageLoader />}>
         <Routes>
         <Route element={<GuestRoute />}>
@@ -185,6 +191,10 @@ function App() {
             <Route path="/profile" element={<SellerProfilePage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/enforcement" element={<EnforcementPage />} />
+            <Route path="/policies" element={<PoliciesPage />} />
+            <Route path="/commission-statements" element={<CommissionStatementsPage />} />
+            <Route path="/support-chat" element={<SupportChatPage />} />
 
             <Route element={<ShopRequiredRoute />}>
             <Route path="/products" element={<ProductListPage />} />

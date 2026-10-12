@@ -27,6 +27,9 @@ import customerCustomOrderRoutes from './src/modules/customer/routes/customOrder
 import customerCityRoute from './src/modules/customer/routes/cityRoute.js';
 import customerCategoryRoute from './src/modules/customer/routes/categoryRoute.js';
 import customerLocationRoute from './src/modules/customer/routes/locationRoute.js';
+import customerReportRoute from './src/modules/customer/routes/reportRoute.js';
+import customerConversationRoute from './src/modules/customer/routes/conversationRoute.js';
+import { setupChatWebSocketServer } from './src/services/chat/chat.service.js';
 import corePaymentRoutes from './src/modules/payments/routes/paymentRoute.js';
 import storageRoute from './src/modules/storage/routes/storage.routes.js';
 import { publicBrandingRouter } from './src/modules/admin/routes/brandingRoute.js';
@@ -49,6 +52,10 @@ app.use('/users', customerCustomOrderRoutes);
 app.use('/users', customerCategoryRoute);
 app.use('/users/cities', customerCityRoute);
 app.use('/customer/api/location', customerLocationRoute);
+app.use('/users/api/reports', customerReportRoute);
+app.use('/customer/api/reports', customerReportRoute);
+app.use('/users/api/conversations', customerConversationRoute);
+app.use('/customer/api/conversations', customerConversationRoute);
 app.use('/', corePaymentRoutes);
 app.use('/api/storage', storageRoute);
 
@@ -67,6 +74,7 @@ configureErrorHandlers(app);
 const PORT = Number(process.env.PORT || process.env.CUSTOMER_PORT || 3001);
 const HOST = process.env.HOST || '0.0.0.0';
 const server = http.createServer(app);
+setupChatWebSocketServer(server);
 
 console.log('[SERVER_START] ' + JSON.stringify({
     portConfigured: !!process.env.PORT,

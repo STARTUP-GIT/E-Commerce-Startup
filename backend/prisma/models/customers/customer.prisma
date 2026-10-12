@@ -35,6 +35,8 @@ model Customer {
   notifications  Notification[]
   customOrders   CustomOrder[]
   productReports ProductReport[]
+  caseReports    CustomerCaseReport[]
+  conversations  Conversation[]
   supportTickets SupportTicket[]
   couponUsages   CouponUsage[]
   refreshTokens  CustomerRefreshToken[]

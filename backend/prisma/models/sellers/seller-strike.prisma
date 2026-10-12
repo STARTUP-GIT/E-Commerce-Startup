@@ -1,27 +1,110 @@
 // =============================================================================
-// SellerStrike — admin-issued strikes against sellers
+// SellerEnforcement — Warnings, Strikes, Suspensions & Appeals
 // =============================================================================
 
 model SellerStrike {
-  id          String         @id @default(cuid())
-  sellerId    String
-  adminId     String
-  severity    StrikeSeverity @default(WARNING)
-  reason      String         @db.Text
-  description String?        @db.Text
-  isActive    Boolean        @default(true)
-  expiresAt   DateTime?
-  issuedAt    DateTime       @default(now())
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id               String            @id @default(cuid())
+  reference        String?           @unique @db.VarChar(40)
+  sellerId         String
+  adminId          String
+  type             EnforcementType   @default(STRIKE)
+  status           EnforcementStatus @default(ISSUED)
+  severity         StrikeSeverity    @default(WARNING)
+  reason           String            @db.Text
+  description      String?           @db.Text
+  guidelineVersion String?           @db.VarChar(50)
+  guidelineClause  String?           @db.VarChar(100)
+  evidenceUrls     String[]          @default([])
+  relatedReportId  String?           @db.VarChar(40)
+  isActive         Boolean           @default(true)
+  expiresAt        DateTime?
+  issuedAt         DateTime          @default(now())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
-  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  admin  Admin  @relation(fields: [adminId], references: [id], onDelete: Restrict)
+  seller Seller        @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  admin  Admin         @relation(fields: [adminId], references: [id], onDelete: Restrict)
+  appeal SellerAppeal?
 
   @@index([sellerId])
   @@index([adminId])
+  @@index([type])
+  @@index([status])
   @@index([isActive])
   @@index([issuedAt])
-  @@index([sellerId, isActive])
+  @@index([sellerId, type, status])
   @@map("seller_strikes")
+}
+
+model SellerSuspension {
+  id                  String         @id @default(cuid())
+  sellerId            String
+  type                SuspensionType @default(THREE_STRIKES)
+  reason              String         @db.Text
+  suspendedAt         DateTime       @default(now())
+  reinstatedAt        DateTime?
+  reinstatementReason String?        @db.Text
+  adminId             String?
+  reinstatedByAdminId String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  seller            Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  admin             Admin? @relation("SuspensionIssuedBy", fields: [adminId], references: [id], onDelete: SetNull)
+  reinstatedByAdmin Admin? @relation("SuspensionReinstatedBy", fields: [reinstatedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([sellerId])
+  @@index([type])
+  @@index([suspendedAt])
+  @@map("seller_suspensions")
+}
+
+model SellerAppeal {
+  id                String       @id @default(cuid())
+  reference         String       @unique @db.VarChar(40)
+  sellerId          String
+  enforcementId     String       @unique
+  status            AppealStatus @default(PENDING)
+  sellerExplanation String       @db.Text
+  sellerAttachments String[]     @default([])
+  orderId           String?      @db.VarChar(40)
+  reportId          String?      @db.VarChar(40)
+  deadline          DateTime?
+  assignedAdminId   String?      @db.VarChar(40)
+  decisionReason    String?      @db.Text
+  decidedByAdminId  String?      @db.VarChar(40)
+  decidedAt         DateTime?
+  internalNotes     String?      @db.Text
+  submittedAt       DateTime     @default(now())
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  seller         Seller        @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  enforcement    SellerStrike  @relation(fields: [enforcementId], references: [id], onDelete: Cascade)
+  assignedAdmin  Admin?        @relation("AppealAssignedAdmin", fields: [assignedAdminId], references: [id], onDelete: SetNull)
+  decidedByAdmin Admin?        @relation("AppealDecidedAdmin", fields: [decidedByAdminId], references: [id], onDelete: SetNull)
+  events         AppealEvent[]
+
+  @@index([sellerId])
+  @@index([status])
+  @@index([submittedAt])
+  @@index([assignedAdminId])
+  @@map("seller_appeals")
+}
+
+model AppealEvent {
+  id        String   @id @default(cuid())
+  appealId  String
+  actorType String   @db.VarChar(20)
+  actorId   String   @db.VarChar(40)
+  eventType String   @db.VarChar(50)
+  note      String?  @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  appeal SellerAppeal @relation(fields: [appealId], references: [id], onDelete: Cascade)
+
+  @@index([appealId])
+  @@index([createdAt])
+  @@map("appeal_events")
 }
