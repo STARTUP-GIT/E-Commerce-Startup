@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useConfirmStore } from '@/lib/store/confirmStore';
@@ -132,6 +133,28 @@ export function SettingsPage({ navigation }: SettingsPageProps) {
               style={{ marginTop: 8 }}
             >
               Save Profile Changes
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Legal & Policies */}
+        <Card style={{ marginTop: 12 }}>
+          <CardHeader>
+            <CardTitle>Legal & Compliance</CardTitle>
+            <CardDescription>Review marketplace agreements and privacy notices</CardDescription>
+          </CardHeader>
+          <CardContent style={{ gap: 10 }}>
+            <Button
+              variant="outline"
+              onPress={() => void Linking.openURL('https://atlasbasket.com/privacy-policy')}
+            >
+              Privacy Policy
+            </Button>
+            <Button
+              variant="outline"
+              onPress={() => void Linking.openURL('https://atlasbasket.com/terms')}
+            >
+              Seller Terms & Conditions
             </Button>
           </CardContent>
         </Card>

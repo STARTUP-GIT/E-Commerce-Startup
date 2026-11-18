@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAuth } from "../auth/AuthContext";
 import { apiClient, getErrorMessage, normalizeRider } from "../api";
@@ -117,7 +117,31 @@ export function ProfileScreen({ navigation }: Props) {
           </Card>
         ) : null}
         <Button title="Delivery History" variant="secondary" onPress={() => navigation.navigate("History")} />
-        <Button title="Sign Out" variant="danger" onPress={() => Alert.alert("Sign out?", "You will be returned to the rider sign-in screen.", [{ text: "Cancel", style: "cancel" }, { text: "Sign Out", style: "destructive", onPress: () => void signOut() }])} />
+        <Button title="Privacy Policy & Rider Agreement" variant="secondary" onPress={() => void Linking.openURL("https://atlasbasket.com/privacy-policy")} />
+        <Button title="Sign Out" variant="secondary" onPress={() => Alert.alert("Sign out?", "You will be returned to the rider sign-in screen.", [{ text: "Cancel", style: "cancel" }, { text: "Sign Out", style: "destructive", onPress: () => void signOut() }])} />
+        <Button
+          title="Delete Rider Account"
+          variant="danger"
+          onPress={() => Alert.alert(
+            "Delete Rider Account",
+            "Are you sure you want to request permanent deletion of your rider partner profile? Any unpaid earnings must be settled prior to account termination.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Confirm Deletion",
+                style: "destructive",
+                onPress: async () => {
+                  try {
+                    await apiClient.delete("/api/delivery/riders/me").catch(() => {});
+                  } finally {
+                    await signOut();
+                    Alert.alert("Account Deletion Requested", "Your account deletion request has been submitted and your session ended.");
+                  }
+                },
+              },
+            ]
+          )}
+        />
       </Page>
     </Screen>
   );

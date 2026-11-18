@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { useNavigation, type NavigationProp } from "@react-navigation/native";
+import { useNavigation, useFocusEffect, type NavigationProp } from "@react-navigation/native";
 import { Clock3, MapPin, Radio, Store, UserRound, X } from "lucide-react-native";
 import { apiClient, getErrorMessage, normalizeDelivery } from "../api";
 import { RouteMap } from "../components/RouteMap";
@@ -55,12 +55,14 @@ export function OffersScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void fetchOffers();
-    const poll = setInterval(() => void fetchOffers(), 4000);
-    const clock = setInterval(() => setNow(Date.now()), 1000);
-    return () => { clearInterval(poll); clearInterval(clock); };
-  }, [fetchOffers]);
+  useFocusEffect(
+    useCallback(() => {
+      void fetchOffers();
+      const poll = setInterval(() => void fetchOffers(), 5000);
+      const clock = setInterval(() => setNow(Date.now()), 1000);
+      return () => { clearInterval(poll); clearInterval(clock); };
+    }, [fetchOffers])
+  );
 
   const actOnOffer = async (offer: Offer, action: "accept" | "reject") => {
     setActingId(offer.deliveryId);

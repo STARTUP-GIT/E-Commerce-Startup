@@ -1,0 +1,41 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://delivery-api.atlasbasket.com",
+        "EXPO_PUBLIC_WS_URL": "wss://delivery-api.atlasbasket.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1039406575053-en4kn2rcvbc8ksajqlqcc5rce0f219r2.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "1039406575053-r5qin6mp5bcfeetaohec04mr9u8t1h38.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "1039406575053-r5qin6mp5bcfeetaohec04mr9u8t1h38.apps.googleusercontent.com"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://delivery-api.atlasbasket.com",
+        "EXPO_PUBLIC_WS_URL": "wss://delivery-api.atlasbasket.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1039406575053-en4kn2rcvbc8ksajqlqcc5rce0f219r2.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "1039406575053-r5qin6mp5bcfeetaohec04mr9u8t1h38.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "1039406575053-r5qin6mp5bcfeetaohec04mr9u8t1h38.apps.googleusercontent.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

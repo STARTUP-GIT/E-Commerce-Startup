@@ -30,8 +30,8 @@ export const API_ROUTES = {
     profileUpdate:  `${BACKEND_BASE_URL}/users/api/auth/profile/update`,
     forgotPassword: `${BACKEND_BASE_URL}/users/api/auth/forgot-password`,
     resetPassword:  `${BACKEND_BASE_URL}/users/api/auth/reset-password`,
-    deactivate:     `${BACKEND_BASE_URL}/users/api/auth/deactivate`,
-    deleteAccount:  `${BACKEND_BASE_URL}/users/api/auth/delete`,
+    deactivate:     `${BACKEND_BASE_URL}/users/api/auth/profile/deactivate`,
+    deleteAccount:  `${BACKEND_BASE_URL}/users/api/auth/profile/delete`,
   },
 
   // ── Addresses & Location ──────────────────────────────────────────────────

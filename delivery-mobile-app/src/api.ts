@@ -2,11 +2,9 @@ import axios from "axios";
 import * as SecureStore from "expo-secure-store";
 import type { Delivery, Rider } from "./types";
 
-const apiBaseUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
-
-if (!apiBaseUrl) {
-  console.error("EXPO_PUBLIC_API_URL is missing; API requests cannot be made.");
-}
+const apiBaseUrl =
+  process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, "") ||
+  "https://delivery-api.atlasbasket.com";
 
 export const TOKEN_KEY = "delivery_partner_token";
 export const RIDER_KEY = "delivery_partner_rider";

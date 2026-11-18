@@ -106,6 +106,18 @@ export const authService = {
     }
   },
 
+  deleteAccount: async (): Promise<void> => {
+    try {
+      await axiosInstance.delete(API_ROUTES.auth.deleteAccount);
+    } finally {
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.TOKEN,
+        STORAGE_KEYS.REFRESH_TOKEN,
+        STORAGE_KEYS.USER,
+      ]);
+    }
+  },
+
   getCurrentStoredUser: async (): Promise<User | null> => {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEYS.USER);

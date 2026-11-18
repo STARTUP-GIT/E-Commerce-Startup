@@ -21,15 +21,28 @@ export interface Shop {
   categories?: any[];
 }
 
+let cachedFeaturedShops: Shop[] | null = null;
+let featuredShopsFetchedAt = 0;
+const FEATURED_SHOPS_CACHE_TTL = 3 * 60 * 1000;
+
 export const shopService = {
   getFeaturedShops: async (limit: number = 24): Promise<{ shops: Shop[] }> => {
+    const now = Date.now();
+    if (cachedFeaturedShops && (now - featuredShopsFetchedAt < FEATURED_SHOPS_CACHE_TTL)) {
+      return { shops: cachedFeaturedShops };
+    }
     try {
       const res = await axiosInstance.get(API_ROUTES.shops.featured, {
         params: { limit },
       });
-      return { shops: res.data?.shops || res.data || [] };
+      const list = res.data?.shops || res.data || [];
+      if (list.length > 0) {
+        cachedFeaturedShops = list;
+        featuredShopsFetchedAt = now;
+      }
+      return { shops: list };
     } catch {
-      return { shops: [] };
+      return { shops: cachedFeaturedShops || [] };
     }
   },
 

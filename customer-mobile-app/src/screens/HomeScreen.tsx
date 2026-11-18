@@ -82,12 +82,8 @@ export const HomeScreen: React.FC = () => {
   const [shops, setShops] = useState<Shop[]>(DEFAULT_SHOPS);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  // Exact full screen height calculation for the Hero viewport
-  // Initially estimate from screen height, then lock to ScrollView's onLayout height
-  const [viewportHeight, setViewportHeight] = useState<number>(() => {
-    const screenH = Dimensions.get('screen').height;
-    return Math.max(680, screenH - Math.max(insets.top, 8) - 52 - 38);
-  });
+  // Stable full screen height calculation for the Hero viewport
+  const viewportHeight = Math.max(620, windowHeight - Math.max(insets.top, 8) - 52 - Math.max(insets.bottom, 16));
 
   useEffect(() => {
     Promise.all([
@@ -115,12 +111,6 @@ export const HomeScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         bounces={true}
-        onLayout={(e) => {
-          const layoutH = e.nativeEvent.layout.height;
-          if (layoutH > 300 && Math.abs(layoutH - viewportHeight) > 2) {
-            setViewportHeight(layoutH);
-          }
-        }}
       >
         {/* ─── Hero Section (100dvh Exact Full Screen Height) ────────────── */}
         <View style={[styles.heroSection, { height: viewportHeight, minHeight: viewportHeight }]}>

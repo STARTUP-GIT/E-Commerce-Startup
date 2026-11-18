@@ -19,6 +19,7 @@ interface AuthContextValue {
     phone?: string;
   }) => Promise<any>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   editProfile: (payload: {
     firstName?: string;
     lastName?: string;
@@ -38,6 +39,7 @@ const AuthContext = createContext<AuthContextValue>({
   googleLogin: async () => ({ user: {} as any, token: '' }),
   register: async () => {},
   logout: async () => {},
+  deleteAccount: async () => {},
   editProfile: async () => ({} as User),
   refreshProfile: async () => null,
 });
@@ -103,6 +105,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null);
   };
 
+  const deleteAccount = async () => {
+    await authService.deleteAccount();
+    setUser(null);
+    setToken(null);
+  };
+
   const editProfile = async (payload: any) => {
     const updated = await authService.editProfile(payload);
     setUser(updated);
@@ -130,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         googleLogin,
         register,
         logout,
+        deleteAccount,
         editProfile,
         refreshProfile,
       }}

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useNavigation, type NavigationProp } from "@react-navigation/native";
+import { useNavigation, useFocusEffect, type NavigationProp } from "@react-navigation/native";
 import { ArrowRight, MapPin, Package } from "lucide-react-native";
 import { apiClient, getErrorMessage, normalizeDelivery } from "../api";
 import { Button, Card, Loading, Page, Screen, Title } from "../components/ui";
@@ -25,11 +25,13 @@ export function ActiveScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void fetchActive();
-    const timer = setInterval(() => void fetchActive(), 10000);
-    return () => clearInterval(timer);
-  }, [fetchActive]);
+  useFocusEffect(
+    useCallback(() => {
+      void fetchActive();
+      const timer = setInterval(() => void fetchActive(), 12000);
+      return () => clearInterval(timer);
+    }, [fetchActive])
+  );
 
   if (loading) return <Loading label="Checking active delivery..." />;
 

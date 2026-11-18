@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -196,6 +197,26 @@ export const SignupScreen: React.FC = () => {
               onError={setError}
               disabled={isLoading}
             />
+          </View>
+
+          <View style={{ marginVertical: 14, alignItems: 'center' }}>
+            <Text style={{ color: colors.foregroundDim, fontSize: 11, textAlign: 'center', lineHeight: 16 }}>
+              By creating an account, you agree to our{' '}
+              <Text
+                onPress={() => Linking.openURL('https://atlasbasket.com/terms')}
+                style={{ color: colors.primary, textDecorationLine: 'underline' }}
+              >
+                Terms of Service
+              </Text>{' '}
+              and{' '}
+              <Text
+                onPress={() => Linking.openURL('https://atlasbasket.com/privacy-policy')}
+                style={{ color: colors.primary, textDecorationLine: 'underline' }}
+              >
+                Privacy Policy
+              </Text>
+              .
+            </Text>
           </View>
 
           <View style={styles.switchRow}>

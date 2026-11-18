@@ -92,6 +92,12 @@ export const Footer: React.FC = () => {
           <TouchableOpacity onPress={() => navigation.navigate('OrderHistory')} style={styles.linkItem}>
             <Text style={styles.linkText}>Track Orders</Text>
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => Linking.openURL('https://atlasbasket.com/privacy-policy')} style={styles.linkItem}>
+            <Text style={styles.linkText}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => Linking.openURL('https://atlasbasket.com/terms')} style={styles.linkItem}>
+            <Text style={styles.linkText}>Terms of Service</Text>
+          </TouchableOpacity>
         </View>
       </View>
 

@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,7 +33,7 @@ import { colors } from '../theme/colors';
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { user, isAuthenticated, logout, editProfile, refreshProfile } = useAuth();
+  const { user, isAuthenticated, logout, deleteAccount, editProfile, refreshProfile } = useAuth();
   const { activeStates, setLocation } = useLocation();
 
   const [activeTab, setActiveTab] = useState<'info' | 'addresses' | 'settings'>('info');
@@ -148,6 +149,28 @@ export const ProfileScreen: React.FC = () => {
     } catch {
       // Ignore
     }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to permanently delete your account? This action cannot be undone and will delete your profile data.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Permanently',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAccount();
+              Alert.alert('Account Deleted', 'Your account has been deleted successfully.');
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Could not delete account. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (!isAuthenticated) {
@@ -355,9 +378,21 @@ export const ProfileScreen: React.FC = () => {
               <Text style={styles.settingsLabel}>Support Chat</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              onPress={() => Linking.openURL('https://atlasbasket.com/privacy-policy')}
+              style={styles.settingsRow}
+            >
+              <Text style={styles.settingsLabel}>Privacy Policy & Terms</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
               <LogOut size={16} color={colors.destructive} />
               <Text style={styles.logoutText}>Sign Out</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleDeleteAccount} style={[styles.logoutBtn, styles.deleteAccountBtn]}>
+              <Trash2 size={16} color="#ef4444" />
+              <Text style={[styles.logoutText, { color: '#ef4444' }]}>Delete Account</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -715,6 +750,12 @@ const styles = StyleSheet.create({
     color: colors.destructive,
     fontSize: 13,
     fontWeight: '700',
+  },
+  deleteAccountBtn: {
+    marginTop: 0,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderMuted,
+    paddingTop: 14,
   },
   modalOverlay: {
     flex: 1,

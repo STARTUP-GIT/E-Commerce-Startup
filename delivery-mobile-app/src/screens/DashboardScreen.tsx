@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { useNavigation, type NavigationProp } from "@react-navigation/native";
+import { useNavigation, useFocusEffect, type NavigationProp } from "@react-navigation/native";
 import * as Location from "expo-location";
 import { Activity, ArrowRight, Bike, Clock3, History, LogOut, MapPin, Package, Power, Radio, Star, UserRound, Wallet } from "lucide-react-native";
 import { apiClient, getErrorMessage, normalizeDelivery, normalizeRider } from "../api";
@@ -67,11 +67,13 @@ export function DashboardScreen() {
     }
   }, [signOut, updateRider]);
 
-  useEffect(() => {
-    void fetchDashboard();
-    const poll = setInterval(() => void fetchDashboard(), 15000);
-    return () => clearInterval(poll);
-  }, [fetchDashboard]);
+  useFocusEffect(
+    useCallback(() => {
+      void fetchDashboard();
+      const poll = setInterval(() => void fetchDashboard(), 20000);
+      return () => clearInterval(poll);
+    }, [fetchDashboard])
+  );
 
   useEffect(() => {
     if (!rider?.isAvailable) return;
@@ -110,6 +112,17 @@ export function DashboardScreen() {
     try {
       let coordinates: { latitude: number; longitude: number } | undefined;
       if (!rider.isAvailable) {
+        const existing = await Location.getForegroundPermissionsAsync();
+        if (!existing.granted) {
+          await new Promise<void>((resolve) => {
+            Alert.alert(
+              "Location Access Disclosure",
+              "AtlasBasket Delivery collects location data to find delivery tasks near you, provide turn-by-turn navigation, and update real-time delivery status for customers while you are online.",
+              [{ text: "Continue", onPress: () => resolve() }],
+              { cancelable: false }
+            );
+          });
+        }
         const permission = await Location.requestForegroundPermissionsAsync();
         if (permission.granted) {
           const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });

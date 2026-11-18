@@ -55,6 +55,10 @@ export interface Review {
   };
 }
 
+let cachedCategories: Category[] | null = null;
+let categoriesFetchedAt = 0;
+const CATEGORIES_CACHE_TTL = 3 * 60 * 1000;
+
 export const productService = {
   formatPrice: (price: number | string | undefined | null): string => {
     if (price === undefined || price === null || isNaN(Number(price))) return '₹0.00';
@@ -65,8 +69,17 @@ export const productService = {
   },
 
   getCategories: async (): Promise<Category[]> => {
+    const now = Date.now();
+    if (cachedCategories && (now - categoriesFetchedAt < CATEGORIES_CACHE_TTL)) {
+      return cachedCategories;
+    }
     const res = await axiosInstance.get(API_ROUTES.categories.allowed);
-    return res.data?.categories || [];
+    const list = res.data?.categories || [];
+    if (list.length > 0) {
+      cachedCategories = list;
+      categoriesFetchedAt = now;
+    }
+    return list;
   },
 
   getProducts: async (params?: {

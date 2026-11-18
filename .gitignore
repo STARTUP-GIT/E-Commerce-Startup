@@ -29,8 +29,6 @@ node_modules/
 playwright.config.ts
 playwright-report
 tests
-package-lock.json
-package.json
 
 # ==============================================================================
 # Scratch Files (Project documentation under Documentation/ is tracked)

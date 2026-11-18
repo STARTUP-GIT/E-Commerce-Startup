@@ -18,11 +18,15 @@
       "userInterfaceStyle": "dark"
     },
     "android": {
+      "package": "com.atlasbasket.customer",
+      "versionCode": 1,
+      "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#0a0a0a",
-        "foregroundImage": "./assets/android-icon-foreground.png"
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.atlasbasket.customer",
       "userInterfaceStyle": "dark"
     },
     "web": {
@@ -30,6 +34,11 @@
     },
     "plugins": [
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2b22e1f5-9ee7-4ce0-ba7e-5c2a93ac447d"
+      }
+    }
   }
 }
