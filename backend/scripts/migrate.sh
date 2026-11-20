@@ -217,11 +217,23 @@ create_pre_migration_backup() {
 
   # Validate backup archive integrity using pg_restore --list
   log_info "Validating backup archive integrity with pg_restore..."
-  local toc_count=0
-  if ! toc_count=$(docker exec -i "${POSTGRES_CONTAINER}" pg_restore --list < "${backup_file}" 2>/dev/null | grep -c -E '^(TABLE|INDEX|SEQUENCE|TABLE DATA)' || echo 0); then
-    log_err "CRITICAL: pg_restore failed to read backup TOC! The archive is corrupted or invalid."
+  local restore_output=""
+  local restore_exit_code=0
+  restore_output=$(docker exec -i "${POSTGRES_CONTAINER}" pg_restore --list < "${backup_file}" 2>&1) || restore_exit_code=$?
+
+  if [ "${restore_exit_code}" -ne 0 ]; then
+    log_err "CRITICAL: pg_restore failed to read backup TOC (exit code: ${restore_exit_code})! The archive is corrupted or invalid."
+    if [ -n "${restore_output}" ]; then
+      log_err "pg_restore output: ${restore_output}"
+    fi
     rm -f "${backup_file}"
     return 1
+  fi
+
+  local toc_count=0
+  if [ -n "${restore_output}" ]; then
+    toc_count=$(echo "${restore_output}" | { grep -E '(^|[0-9]+;.*[[:space:]])(TABLE|INDEX|SEQUENCE|TABLE DATA)([[:space:]]|$)' || true; } | wc -l)
+    toc_count=$(( toc_count + 0 )) 2>/dev/null || toc_count=0
   fi
 
   if [ "${toc_count}" -eq 0 ]; then
@@ -282,7 +294,8 @@ echo "--------------------------------------------------------------------"
 
 # Step 1: Create safety snapshot before running any DDL
 if ! create_pre_migration_backup; then
-  log_warn "Pre-migration database snapshot failed or was skipped. Proceeding with migration..."
+  log_err "CRITICAL: Pre-migration database snapshot failed! Aborting migration to protect data integrity."
+  exit 1
 fi
 
 # Step 2: Execute npx prisma migrate deploy
@@ -341,7 +354,9 @@ docker run --rm \
   npx prisma migrate status --schema ./prisma || STATUS_EXIT_CODE=$?
 
 if [ "${STATUS_EXIT_CODE}" -ne 0 ]; then
-  log_warn "Migration status check returned non-zero code (${STATUS_EXIT_CODE}), but deploy reported success."
+  log_err "CRITICAL: Migration status check returned non-zero code (${STATUS_EXIT_CODE})!"
+  log_err "Database migration status verification failed. DEPLOYMENT IS BLOCKED."
+  exit "${STATUS_EXIT_CODE}"
 fi
 
 echo "===================================================================="

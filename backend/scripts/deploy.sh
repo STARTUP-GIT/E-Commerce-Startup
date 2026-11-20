@@ -350,7 +350,6 @@ for entry in "${SERVICES[@]}"; do
   if ! DOCKER_BUILDKIT=1 docker build \
     --file "${BACKEND_DIR}/${d_file}" \
     --tag "${img_name}:${COMMIT_SHA}" \
-    --tag "${img_name}:latest" \
     "${BACKEND_DIR}"; then
     log_err "Build failed for ${img_name}! Running production containers are untouched."
     exit 1
@@ -606,11 +605,12 @@ active_commit = "${COMMIT_SHA}"
 deploy_ts = "${DEPLOY_TS}"
 deploy_id = "${DEPLOY_ID}"
 
-# Set active release
+# Set active release (pending atomic image promotion)
 data['active_release'] = {
     'release_id': deploy_id,
     'commit': active_commit,
-    'status': 'ACTIVE',
+    'status': 'DEPLOYED_PENDING_PROMOTION',
+    'promoted_to_latest': False,
     'deployed_at': deploy_ts,
     'services': json.loads('${ACTIVE_SERVICES_JSON}')
 }
@@ -673,6 +673,268 @@ EOF
 
   log_ok "Durable deployment manifest updated and verified at: ${DEPLOY_MANIFEST}"
 fi
+
+# ------------------------------------------------------------------------------
+# 10. Atomic Promotion of Verified Release Images to :latest
+# ------------------------------------------------------------------------------
+echo "--------------------------------------------------------------------"
+log_info "Starting atomic image promotion to :latest tag..."
+
+declare -A PREV_LATEST_IMAGE_IDS
+declare -A TARGET_COMMIT_IMAGE_IDS
+
+PROMOTION_ABORTED=0
+PROMOTION_ERROR_MSG=""
+
+# Phase 1: Record existing :latest tags and verify target commit images exist
+log_info "Phase 1: Validating all 5 target images and recording current :latest tags..."
+for entry in "${SERVICES[@]}"; do
+  IFS="|" read -r s_name c_name img_name d_file port env_var <<< "${entry}"
+
+  # 1. Verify target commit-pinned image exists and capture its exact ID
+  target_id=$(docker inspect --format='{{.Id}}' "${img_name}:${COMMIT_SHA}" 2>/dev/null || echo "")
+  if [ -z "${target_id}" ]; then
+    PROMOTION_ABORTED=1
+    PROMOTION_ERROR_MSG="Target image '${img_name}:${COMMIT_SHA}' is missing on Docker daemon!"
+    log_err "CRITICAL: ${PROMOTION_ERROR_MSG}"
+    break
+  fi
+  TARGET_COMMIT_IMAGE_IDS["${s_name}"]="${target_id}"
+
+  # 2. Record current :latest image ID if present (safely handle when absent)
+  prev_id=$(docker inspect --format='{{.Id}}' "${img_name}:latest" 2>/dev/null || echo "")
+  PREV_LATEST_IMAGE_IDS["${s_name}"]="${prev_id}"
+  if [ -n "${prev_id}" ]; then
+    log_info "  -> Recorded current ${img_name}:latest [${prev_id:0:12}]"
+  else
+    log_info "  -> Recorded current ${img_name}:latest [none - tag does not exist]"
+  fi
+done
+
+if [ "${PROMOTION_ABORTED}" -ne 0 ]; then
+  log_err "Pre-promotion verification failed: ${PROMOTION_ERROR_MSG}"
+  log_err "Aborting deployment before any tags are modified."
+  exit 1
+fi
+
+# Phase 2: Promote all five images to :latest
+log_info "Phase 2: Promoting all 5 images to :latest..."
+for entry in "${SERVICES[@]}"; do
+  IFS="|" read -r s_name c_name img_name d_file port env_var <<< "${entry}"
+
+  tag_err=""
+  if ! tag_err=$(docker tag "${img_name}:${COMMIT_SHA}" "${img_name}:latest" 2>&1); then
+    PROMOTION_ABORTED=1
+    PROMOTION_ERROR_MSG="Failed to tag '${img_name}:${COMMIT_SHA}' as :latest! Error: ${tag_err}"
+    log_err "CRITICAL: ${PROMOTION_ERROR_MSG}"
+    break
+  fi
+  log_ok "  -> Tagged ${img_name}:${COMMIT_SHA:0:12} -> :latest"
+done
+
+# Phase 3: Post-tagging verification of all 5 :latest tags
+if [ "${PROMOTION_ABORTED}" -eq 0 ]; then
+  log_info "Phase 3: Verifying all promoted :latest tags point to intended commit images..."
+  for entry in "${SERVICES[@]}"; do
+    IFS="|" read -r s_name c_name img_name d_file port env_var <<< "${entry}"
+    expected_id="${TARGET_COMMIT_IMAGE_IDS[${s_name}]}"
+    actual_id=$(docker inspect --format='{{.Id}}' "${img_name}:latest" 2>/dev/null || echo "")
+
+    if [ -z "${actual_id}" ] || [ "${actual_id}" != "${expected_id}" ]; then
+      PROMOTION_ABORTED=1
+      PROMOTION_ERROR_MSG="Verification mismatch for ${img_name}:latest! Expected ID ${expected_id:0:12}, actual ID ${actual_id:0:12}"
+      log_err "CRITICAL: ${PROMOTION_ERROR_MSG}"
+      break
+    fi
+  done
+fi
+
+# Phase 4: Update Deployment Manifest to ACTIVE (Success Path)
+if [ "${PROMOTION_ABORTED}" -eq 0 ]; then
+  log_info "Phase 4: Updating deployment manifest to ACTIVE status..."
+  if [ -z "${PYTHON_BIN}" ]; then
+    PROMOTION_ABORTED=1
+    PROMOTION_ERROR_MSG="Python binary not available for manifest update!"
+    log_err "CRITICAL: ${PROMOTION_ERROR_MSG}"
+  elif [ ! -f "${DEPLOY_MANIFEST}" ]; then
+    PROMOTION_ABORTED=1
+    PROMOTION_ERROR_MSG="Deployment manifest file not found at ${DEPLOY_MANIFEST}!"
+    log_err "CRITICAL: ${PROMOTION_ERROR_MSG}"
+  else
+    manifest_success_err=""
+    if ! manifest_success_err=$(${PYTHON_BIN} - <<EOF 2>&1
+import json, os, datetime, sys
+
+manifest_path = "${DEPLOY_MANIFEST}"
+try:
+    with open(manifest_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    if 'active_release' in data and data['active_release']:
+        data['active_release']['promoted_to_latest'] = True
+        data['active_release']['status'] = 'ACTIVE'
+        data['active_release']['promoted_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    else:
+        sys.stderr.write("No active_release found in manifest to promote\n")
+        sys.exit(1)
+
+    tmp_path = manifest_path + '.tmp'
+    with open(tmp_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2)
+    os.replace(tmp_path, manifest_path)
+
+    # Read-back verification
+    with open(manifest_path, 'r', encoding='utf-8') as f:
+        verify_data = json.load(f)
+    active = verify_data.get('active_release')
+    if not active or active.get('status') != 'ACTIVE' or active.get('promoted_to_latest') is not True:
+        sys.stderr.write("Read-back verification failed: active_release status is not ACTIVE\n")
+        sys.exit(1)
+except Exception as e:
+    sys.stderr.write(f"Manifest update failed: {e}\n")
+    sys.exit(1)
+EOF
+); then
+      PROMOTION_ABORTED=1
+      PROMOTION_ERROR_MSG="Failed to update deployment manifest to ACTIVE: ${manifest_success_err}"
+      log_err "CRITICAL: ${PROMOTION_ERROR_MSG}"
+    else
+      log_ok "Deployment manifest updated and verified as ACTIVE."
+    fi
+  fi
+fi
+
+# Phase 5: Handle Failure & Atomic Tag Rollback
+if [ "${PROMOTION_ABORTED}" -ne 0 ]; then
+  echo ""
+  log_err "===================================================================="
+  log_err "ATOMIC PROMOTION FAILED! Triggering rollback of all :latest tags..."
+  log_err "Reason: ${PROMOTION_ERROR_MSG}"
+  log_err "===================================================================="
+
+  ROLLBACK_FAILED=0
+
+  for entry in "${SERVICES[@]}"; do
+    IFS="|" read -r s_name c_name img_name d_file port env_var <<< "${entry}"
+    orig_id="${PREV_LATEST_IMAGE_IDS[${s_name}]:-}"
+
+    if [ -n "${orig_id}" ]; then
+      # Previous :latest tag existed: re-tag original image ID to :latest
+      log_info "Restoring ${img_name}:latest -> ${orig_id:0:12}..."
+      if ! r_err=$(docker tag "${orig_id}" "${img_name}:latest" 2>&1); then
+        ROLLBACK_FAILED=1
+        log_err "Failed to restore original :latest tag for ${img_name} (${orig_id:0:12})! Error: ${r_err}"
+      else
+        log_ok "  -> Restored ${img_name}:latest [${orig_id:0:12}]"
+      fi
+    else
+      # No previous :latest tag existed: remove newly created :latest tag safely
+      current_tag_id=$(docker inspect --format='{{.Id}}' "${img_name}:latest" 2>/dev/null || echo "")
+      if [ -n "${current_tag_id}" ]; then
+        log_info "Removing newly created ${img_name}:latest (no prior tag existed)..."
+        if ! rmi_err=$(docker rmi "${img_name}:latest" 2>&1); then
+          ROLLBACK_FAILED=1
+          log_err "Failed to remove newly created tag ${img_name}:latest! Error: ${rmi_err}"
+        else
+          log_ok "  -> Removed ${img_name}:latest"
+        fi
+      else
+        log_info "No tag ${img_name}:latest to remove (was not tagged prior to abort)."
+      fi
+    fi
+  done
+
+  # Verify the final state of all five tags against their recorded pre-promotion image IDs
+  log_info "Verifying final state of all 5 :latest tags against pre-promotion state..."
+  for entry in "${SERVICES[@]}"; do
+    IFS="|" read -r s_name c_name img_name d_file port env_var <<< "${entry}"
+    orig_id="${PREV_LATEST_IMAGE_IDS[${s_name}]:-}"
+    final_id=$(docker inspect --format='{{.Id}}' "${img_name}:latest" 2>/dev/null || echo "")
+
+    if [ -n "${orig_id}" ]; then
+      if [ "${final_id}" != "${orig_id}" ]; then
+        ROLLBACK_FAILED=1
+        log_err "CRITICAL: Rollback verification mismatch for ${img_name}:latest! Expected ID ${orig_id:0:12}, actual ID ${final_id:0:12}"
+      else
+        log_ok "  -> Verified ${img_name}:latest matches pre-promotion ID [${orig_id:0:12}]"
+      fi
+    else
+      if [ -n "${final_id}" ]; then
+        ROLLBACK_FAILED=1
+        log_err "CRITICAL: Rollback verification failed for ${img_name}:latest! Tag exists (${final_id:0:12}) but was not present prior to promotion."
+      else
+        log_ok "  -> Verified ${img_name}:latest does not exist (as expected pre-promotion)"
+      fi
+    fi
+  done
+
+  # Record promotion failure in durable manifest
+  if [ -n "${PYTHON_BIN}" ] && [ -f "${DEPLOY_MANIFEST}" ]; then
+    export PROMOTION_ERROR_MSG
+    manifest_fail_err=""
+    if ! manifest_fail_err=$(${PYTHON_BIN} - <<EOF 2>&1
+import json, os, datetime, sys
+
+manifest_path = "${DEPLOY_MANIFEST}"
+try:
+    with open(manifest_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    if 'active_release' in data and data['active_release']:
+        data['active_release']['promoted_to_latest'] = False
+        data['active_release']['status'] = 'PROMOTION_FAILED'
+    else:
+        data['active_release'] = {
+            'commit': '${COMMIT_SHA}',
+            'status': 'PROMOTION_FAILED',
+            'promoted_to_latest': False
+        }
+    data['last_failure'] = {
+        'status': 'PROMOTION_FAILED',
+        'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        'failed_commit': '${COMMIT_SHA}',
+        'error': os.environ.get('PROMOTION_ERROR_MSG', 'Atomic promotion failed')
+    }
+    tmp_path = manifest_path + '.tmp'
+    with open(tmp_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2)
+    os.replace(tmp_path, manifest_path)
+
+    # Read-back verification of BOTH active_release and last_failure
+    with open(manifest_path, 'r', encoding='utf-8') as f:
+        verify_data = json.load(f)
+    active = verify_data.get('active_release')
+    if not active or active.get('status') != 'PROMOTION_FAILED' or active.get('promoted_to_latest') is not False:
+        sys.stderr.write("Read-back verification failed: active_release status is not PROMOTION_FAILED or promoted_to_latest is not false\n")
+        sys.exit(1)
+    if verify_data.get('last_failure', {}).get('status') != 'PROMOTION_FAILED':
+        sys.stderr.write("Read-back verification failed: last_failure status is not PROMOTION_FAILED\n")
+        sys.exit(1)
+except Exception as e:
+    sys.stderr.write(f"Manifest failure update failed: {e}\n")
+    sys.exit(1)
+EOF
+); then
+      log_err "CRITICAL: Manifest consistency failure! Unable to update or verify deployment manifest with failure status: ${manifest_fail_err}"
+      log_err "CRITICAL: Deployment manifest state is UNVERIFIED / INCONSISTENT. Do not rely on manifest active status."
+    else
+      log_ok "Deployment manifest updated and verified with PROMOTION_FAILED status."
+    fi
+  else
+    log_err "CRITICAL: Manifest consistency failure! Deployment manifest or Python binary not available to record failure status."
+  fi
+
+  echo "===================================================================="
+  if [ "${ROLLBACK_FAILED}" -ne 0 ]; then
+    log_err "CRITICAL: ROLLBACK_FAILED! One or more :latest tags could not be reverted or verified."
+  else
+    log_ok "All :latest tags successfully reverted and verified to pre-promotion state."
+  fi
+  log_err "Image promotion failed. Aborting deployment pipeline."
+  echo "===================================================================="
+  exit 1
+fi
+
+# Phase 6: Final Success Confirmation
+log_ok "All 5 image tags (:latest) successfully promoted and verified for release ${COMMIT_SHA:0:12}."
 
 echo ""
 echo "Current Production Backend Containers:"
