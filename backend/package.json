@@ -13,7 +13,7 @@
     "migrate:deploy": "node scripts/prisma-dev.cjs migrate deploy",
     "db:pull": "node scripts/prisma-dev.cjs db pull",
     "db:studio": "node scripts/prisma-dev.cjs studio",
-    "postinstall": "node scripts/setup-prisma-hook.cjs",
+    "postinstall": "node -e \"try{require('./scripts/setup-prisma-hook.cjs')}catch(e){}\"",
     "build": "prisma generate && tsc",
     "start": "node dist/seller.server.js",
     "dev:customer": "node dist/customer.server.js",
