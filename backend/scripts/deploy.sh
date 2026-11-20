@@ -219,6 +219,7 @@ if ! flock -n 200; then
   exit 1
 fi
 log_ok "Exclusive deployment lock acquired on ${LOCK_FILE}."
+export ATLASBASKET_DEPLOY_LOCK_HELD=1
 
 # ------------------------------------------------------------------------------
 # 5. Pre-Flight Checks & Dependency Validation (Deployment-Blocking)

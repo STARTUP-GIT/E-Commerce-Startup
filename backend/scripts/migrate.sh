@@ -51,8 +51,8 @@ log_err()  { echo -e "\033[1;31m[ERROR]\033[0m $*" >&2; }
 # ------------------------------------------------------------------------------
 # 2. Concurrency Serialization (flock)
 # ------------------------------------------------------------------------------
-# Check if file descriptor 200 is already held by parent deploy.sh; if not, acquire lock
-if ! flock -n 200 2>/dev/null; then
+# Check if lock is already held by calling parent deploy.sh; if not, acquire own lock
+if [ "${ATLASBASKET_DEPLOY_LOCK_HELD:-0}" = "1" ]; then
   # Already held by calling script (e.g. deploy.sh), safe to proceed
   :
 else
