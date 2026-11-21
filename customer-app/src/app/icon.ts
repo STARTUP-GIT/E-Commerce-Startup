@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.BACKEND_API_URL?.replace(/\/$/, '');
+const BACKEND_URL = (process.env.BACKEND_API_URL || 'https://api.atlasbasket.com').replace(/\/$/, '');
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';

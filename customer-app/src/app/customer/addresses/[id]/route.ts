@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-const BACKEND_URL = process.env.BACKEND_API_URL?.replace(/\/$/, '');
+const BACKEND_URL = (process.env.BACKEND_API_URL || 'https://api.atlasbasket.com').replace(/\/$/, '');
 
 async function proxyRequestWithId(req: NextRequest, id: string) {
   if (!BACKEND_URL) {

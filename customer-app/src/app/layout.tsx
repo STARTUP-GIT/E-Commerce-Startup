@@ -19,7 +19,7 @@ const inter = Inter({
   display: "swap",
 });
 
-const BACKEND_URL = process.env.BACKEND_API_URL?.replace(/\/$/, "");
+const BACKEND_URL = (process.env.BACKEND_API_URL || 'https://api.atlasbasket.com').replace(/\/$/, "");
 
 export const viewport: Viewport = {
   width: "device-width",

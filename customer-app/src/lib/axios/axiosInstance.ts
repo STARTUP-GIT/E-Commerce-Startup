@@ -15,16 +15,12 @@ import { useLocationStore } from '@/lib/store/locationStore';
  *  ─────────────────────────────────────────────────────────────────────────────
  */
 const isServer = typeof window === 'undefined';
-const serverBackendUrl = process.env.BACKEND_API_URL;
-
-if (isServer && !serverBackendUrl) {
-  throw new Error('BACKEND_API_URL is required for server-side API calls.');
-}
+const serverBackendUrl = process.env.BACKEND_API_URL || 'https://api.atlasbasket.com';
 
 // Server-side: backend mounts all customer routes at /users (see app.ts lines 149-163).
 // Client-side: empty baseURL → Next.js rewrites proxy to /users/api/* on the backend.
 const axiosInstance = axios.create({
-  baseURL: isServer ? `${serverBackendUrl!.replace(/\/$/, '')}/users` : '',
+  baseURL: isServer ? `${serverBackendUrl.replace(/\/$/, '')}/users` : '',
   withCredentials: true,
 });
 

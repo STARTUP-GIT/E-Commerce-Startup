@@ -13,11 +13,7 @@ import type { NextConfig } from 'next';
  */
 const nextConfig: NextConfig = {
   async rewrites() {
-    const backendUrl = process.env.BACKEND_API_URL;
-
-    if (!backendUrl) {
-      throw new Error('BACKEND_API_URL is required for Customer API rewrites.');
-    }
+    const backendUrl = process.env.BACKEND_API_URL || 'https://api.atlasbasket.com';
 
     return [
       {
