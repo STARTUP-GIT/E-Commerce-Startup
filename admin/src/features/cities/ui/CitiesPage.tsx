@@ -55,7 +55,7 @@ function CitiesForm() {
     defaultValues: { 
       name: '', 
       state: pathStateName, 
-      isActive: true 
+      isActive: false 
     } 
   });
 
@@ -67,8 +67,8 @@ function CitiesForm() {
     mutationFn: (v: any) => cityApi.createCity(v),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cities'] });
-      showToast('District (City) added.', 'success');
-      createForm.reset({ name: '', state: pathStateName, isActive: true });
+      showToast('District added (defaults to disabled).', 'success');
+      createForm.reset({ name: '', state: pathStateName, isActive: false });
       setShowForm(false);
     },
     onError: (e: any) => showToast(e.message, 'error'),
@@ -219,7 +219,7 @@ function CitiesForm() {
                 key={city.id}
                 onClick={() => setSelectedDistrictId(city.id)}
                 className={`border glass-hover transition-all cursor-pointer group hover:border-purple-500/40 ${
-                  city.isActive ? 'border-white/8 bg-white/[0.01]' : 'border-white/3 opacity-60 bg-transparent'
+                  city.isActive ? 'border-white/8 bg-white/[0.01]' : 'border-white/3 opacity-70 bg-transparent'
                 }`}
               >
                 <CardContent className="p-5">
@@ -229,29 +229,19 @@ function CitiesForm() {
                         <MapPin className="h-5 w-5 text-white/40 group-hover:text-purple-400 transition-colors" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-bold text-white/95 group-hover:text-purple-300 transition-colors">
-                            {city.displayName || city.name}
-                          </p>
-                          {city.displayName && (
-                            <span className="text-[9px] text-white/30 font-mono">({city.name})</span>
-                          )}
-                        </div>
-                        <p className="text-[9px] text-white/40 mt-0.5">{city.state || 'Karnataka'}</p>
+                        <p className="text-sm font-bold text-white/95 group-hover:text-purple-300 transition-colors">
+                          {city.name}
+                        </p>
+                        <p className="text-[10px] text-white/40 mt-0.5">{city.state || pathStateName}</p>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <Badge variant={city.isActive ? 'success' : 'secondary'} className="text-[8px]">
-                        {city.isActive ? 'Active' : 'Inactive'}
+                      <Badge variant={city.isActive ? 'success' : 'secondary'} className="text-[9px] font-bold">
+                        {city.isActive ? 'Enabled' : 'Disabled'}
                       </Badge>
                       {!isStateEnabled && (
-                        <Badge variant="warning" className="text-[7px] py-0 px-1">
-                          Disabled by State
-                        </Badge>
-                      )}
-                      {city.maintenanceMode && (
-                        <Badge variant="warning" className="text-[7px] py-0 px-1">
-                          Maintenance
+                        <Badge variant="warning" className="text-[8px] py-0 px-1.5 font-bold">
+                          Unavailable: State Disabled
                         </Badge>
                       )}
                     </div>
@@ -273,10 +263,16 @@ function CitiesForm() {
                       size="sm"
                       variant={city.isActive ? 'outline' : 'default'}
                       className="text-[10px] font-bold h-8 px-3"
-                      isLoading={toggleMutation.isPending}
+                      isLoading={toggleMutation.isPending && (toggleMutation.variables as any)?.id === city.id}
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleMutation.mutate({ id: city.id, isActive: !city.isActive });
+                        if (city.isActive) {
+                          if (window.confirm(`Are you sure you want to disable district "${city.name}"? This will make this district unavailable for browsing and ordering.`)) {
+                            toggleMutation.mutate({ id: city.id, isActive: false });
+                          }
+                        } else {
+                          toggleMutation.mutate({ id: city.id, isActive: true });
+                        }
                       }}
                     >
                       {city.isActive ? 'Disable' : 'Enable'}
@@ -288,7 +284,9 @@ function CitiesForm() {
                       isLoading={deleteMutation.isPending}
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteMutation.mutate(city.id);
+                        if (window.confirm(`Are you sure you want to delete district "${city.name}"?`)) {
+                          deleteMutation.mutate(city.id);
+                        }
                       }}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
