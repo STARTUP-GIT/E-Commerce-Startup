@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useLocationStore } from '@/lib/store/locationStore';
 import { Button } from '@/shared/components/Button';
@@ -123,9 +124,17 @@ export function ComingSoonDialog() {
               </Text>
             </View>
 
-            <View style={styles.iconCircle}>
-              <Rocket size={32} color={Colors.purpleLight} />
-            </View>
+            {serviceabilityDetails?.bannerUrl ? (
+              <Image
+                source={{ uri: serviceabilityDetails.bannerUrl }}
+                style={styles.bannerImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.iconCircle}>
+                <Rocket size={32} color={Colors.purpleLight} />
+              </View>
+            )}
 
             <Text style={styles.title}>Seller Onboarding Not Available Yet</Text>
 
@@ -263,6 +272,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 11,
     fontWeight: '700',
+  },
+  bannerImage: {
+    width: '100%',
+    height: 130,
+    borderRadius: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   iconCircle: {
     width: 64,

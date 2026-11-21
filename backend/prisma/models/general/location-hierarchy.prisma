@@ -3,8 +3,8 @@ model CityTown {
   districtId   String
   name         String        @db.VarChar(100)
   displayName  String?       @db.VarChar(100)
-  isActive     Boolean       @default(true)
-  launchStatus String        @default("LAUNCHED") // LAUNCHED, COMING_SOON, PLANNED, MAINTENANCE
+  isActive     Boolean       @default(false)
+  launchStatus String        @default("COMING_SOON") // LAUNCHED, COMING_SOON, PLANNED, MAINTENANCE
   info         String?
   displayOrder Int           @default(0)
   createdAt    DateTime      @default(now())
@@ -26,8 +26,8 @@ model ServiceArea {
   name             String    @db.VarChar(100)
   postalCodes      String[]  @default([])
   boundaries       Json?
-  isActive         Boolean   @default(true)
-  deliveryEligible Boolean   @default(true)
+  isActive         Boolean   @default(false)
+  deliveryEligible Boolean   @default(false)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   district         City      @relation(fields: [districtId], references: [id], onDelete: Cascade)
@@ -86,4 +86,19 @@ model LocationAuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("location_audit_logs")
+}
+
+model LocationCatalogue {
+  id          String   @id @default(cuid())
+  state       String   @db.VarChar(100)
+  district    String   @db.VarChar(100)
+  cityTown    String   @db.VarChar(100)
+  serviceArea String?  @db.VarChar(100)
+  postalCode  String   @db.VarChar(20)
+  createdAt   DateTime @default(now())
+
+  @@index([state, district])
+  @@index([district, cityTown])
+  @@index([postalCode])
+  @@map("location_catalogues")
 }

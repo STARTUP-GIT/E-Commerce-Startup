@@ -103,4 +103,14 @@ export const cityApi = {
     const response = await axiosInstance.get('/api/admin/location-requests/summary');
     return response.data;
   },
+
+  // Authoritative Location Catalogue
+  getCatalogueTowns: async (districtId: string): Promise<{ towns: Array<{ name: string; displayName: string; isAlreadyAdded: boolean }> }> => {
+    const response = await axiosInstance.get(`/api/admin/cities/${districtId}/catalogue-towns`);
+    return response.data;
+  },
+  getCatalogueAreas: async (districtId: string, params?: { townId?: string; townName?: string }): Promise<{ areas: Array<{ name: string; cityTown: string; postalCodes: string[]; isAlreadyAdded: boolean }> }> => {
+    const response = await axiosInstance.get(`/api/admin/cities/${districtId}/catalogue-areas`, { params });
+    return response.data;
+  },
 };

@@ -93,57 +93,71 @@ export function ComingSoonScreen() {
           </button>
         </motion.div>
 
-        {/* Hero Illustration */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="relative mb-6"
-        >
-          <div className="relative w-48 h-48 sm:w-56 sm:h-56 mx-auto flex items-center justify-center">
-            {/* Concentric radar rings */}
-            <div className="absolute inset-0 rounded-full border border-purple-500/20 animate-ping opacity-25" style={{ animationDuration: '3s' }} />
-            <div className="absolute inset-4 rounded-full border border-purple-500/30 animate-pulse" />
-            <div className="absolute inset-10 rounded-full bg-gradient-to-tr from-purple-600/20 to-indigo-600/20 backdrop-blur-xl border border-white/10" />
+        {/* Hero Illustration or Admin Cloudinary Banner */}
+        {serviceabilityDetails?.bannerUrl ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative mb-6 max-w-md w-full rounded-2xl overflow-hidden border border-white/15 shadow-[0_0_40px_rgba(168,85,247,0.25)]"
+          >
+            <img
+              src={serviceabilityDetails.bannerUrl}
+              alt={currentCityDisplay}
+              className="w-full h-48 sm:h-52 object-cover"
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="relative mb-6"
+          >
+            <div className="relative w-48 h-48 sm:w-56 sm:h-56 mx-auto flex items-center justify-center">
+              {/* Concentric radar rings */}
+              <div className="absolute inset-0 rounded-full border border-purple-500/20 animate-ping opacity-25" style={{ animationDuration: '3s' }} />
+              <div className="absolute inset-4 rounded-full border border-purple-500/30 animate-pulse" />
+              <div className="absolute inset-10 rounded-full bg-gradient-to-tr from-purple-600/20 to-indigo-600/20 backdrop-blur-xl border border-white/10" />
 
-            {/* Custom SVG Illustration */}
-            <svg
-              className="w-28 h-28 sm:w-32 sm:h-32 text-purple-400 drop-shadow-[0_0_35px_rgba(168,85,247,0.4)]"
-              viewBox="0 0 120 120"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              {/* City skyline silhouettes */}
-              <path
-                d="M15 95V75H28V95H34V60H48V95H56V48H72V95H80V68H94V95H105"
-                stroke="rgba(255,255,255,0.2)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <line x1="10" y1="95" x2="110" y2="95" stroke="rgba(255,255,255,0.3)" strokeWidth="2" />
-              
-              {/* Animated Map Pin */}
-              <g className="animate-bounce" style={{ animationDuration: '2s' }}>
+              {/* Custom SVG Illustration */}
+              <svg
+                className="w-28 h-28 sm:w-32 sm:h-32 text-purple-400 drop-shadow-[0_0_35px_rgba(168,85,247,0.4)]"
+                viewBox="0 0 120 120"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                {/* City skyline silhouettes */}
                 <path
-                  d="M60 22C48.9543 22 40 30.9543 40 42C40 56.5 60 78 60 78C60 78 80 56.5 80 42C80 30.9543 71.0457 22 60 22Z"
-                  fill="url(#pinGradient)"
-                  stroke="#ffffff"
-                  strokeWidth="2.5"
+                  d="M15 95V75H28V95H34V60H48V95H56V48H72V95H80V68H94V95H105"
+                  stroke="rgba(255,255,255,0.2)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
-                <circle cx="60" cy="42" r="7" fill="#ffffff" />
-              </g>
+                <line x1="10" y1="95" x2="110" y2="95" stroke="rgba(255,255,255,0.3)" strokeWidth="2" />
+                
+                {/* Animated Map Pin */}
+                <g className="animate-bounce" style={{ animationDuration: '2s' }}>
+                  <path
+                    d="M60 22C48.9543 22 40 30.9543 40 42C40 56.5 60 78 60 78C60 78 80 56.5 80 42C80 30.9543 71.0457 22 60 22Z"
+                    fill="url(#pinGradient)"
+                    stroke="#ffffff"
+                    strokeWidth="2.5"
+                  />
+                  <circle cx="60" cy="42" r="7" fill="#ffffff" />
+                </g>
 
-              {/* Gradient definitions */}
-              <defs>
-                <linearGradient id="pinGradient" x1="40" y1="22" x2="80" y2="78" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#9333ea" />
-                  <stop offset="1" stopColor="#4f46e5" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
-        </motion.div>
+                {/* Gradient definitions */}
+                <defs>
+                  <linearGradient id="pinGradient" x1="40" y1="22" x2="80" y2="78" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#9333ea" />
+                    <stop offset="1" stopColor="#4f46e5" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+          </motion.div>
+        )}
 
         {/* Heading */}
         <motion.h1

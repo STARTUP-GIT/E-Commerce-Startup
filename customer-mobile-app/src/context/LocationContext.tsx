@@ -45,16 +45,16 @@ interface LocationContextValue {
 
 const LocationContext = createContext<LocationContextValue>({
   selectedAddressId: null,
-  selectedState: 'Karnataka',
-  selectedDistrict: 'Mysuru',
+  selectedState: '',
+  selectedDistrict: '',
   formattedAddress: undefined,
-  isServiceable: true,
+  isServiceable: false,
   isCheckingLocation: false,
   serviceabilityDetails: null,
   locationPermissionDenied: false,
   setLocation: async () => {},
   detectLocation: async () => {},
-  checkServiceability: async () => true,
+  checkServiceability: async () => false,
   addressSelectorOpen: false,
   setAddressSelectorOpen: () => {},
   comingSoonOpen: false,
@@ -67,10 +67,10 @@ const LocationContext = createContext<LocationContextValue>({
 
 export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-  const [selectedState, setSelectedState] = useState<string>('Karnataka');
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('Mysuru');
+  const [selectedState, setSelectedState] = useState<string>('');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   const [formattedAddress, setFormattedAddress] = useState<string | undefined>(undefined);
-  const [isServiceable, setIsServiceable] = useState<boolean>(true);
+  const [isServiceable, setIsServiceable] = useState<boolean>(false);
   const [isCheckingLocation, setIsCheckingLocation] = useState<boolean>(false);
   const [serviceabilityDetails, setServiceabilityDetails] = useState<ServiceabilityInfo | null>(null);
   const [locationPermissionDenied, setLocationPermissionDenied] = useState<boolean>(false);
@@ -87,7 +87,11 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const targetState = state || selectedState;
     const targetDistrict = district || selectedDistrict;
 
-    if (!targetState || !targetDistrict) return true;
+    if (!targetState || !targetDistrict) {
+      setIsServiceable(false);
+      setServiceabilityDetails(null);
+      return false;
+    }
 
     setIsCheckingLocation(true);
     try {
@@ -99,7 +103,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return serviceable;
     } catch {
       setIsCheckingLocation(false);
-      return true;
+      return false;
     }
   }, [selectedState, selectedDistrict]);
 
@@ -159,7 +163,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setLocationPermissionDenied(true);
         await AsyncStorage.setItem(PERMISSION_DENIED_KEY, 'true');
         setIsCheckingLocation(false);
-        await checkServiceability();
+        setAddressSelectorOpen(true);
         return;
       }
 
@@ -172,10 +176,10 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         position.coords.longitude
       );
 
-      if (res && res.resolvedLocation) {
-        const district = res.resolvedLocation.district || res.resolvedLocation.city || 'Mysuru';
-        const state = res.resolvedLocation.state || 'Karnataka';
-        const serviceable = res.serviceability ? Boolean(res.serviceability.isServiceable) : true;
+      if (res && res.resolvedLocation && res.resolvedLocation.state && (res.resolvedLocation.district || res.resolvedLocation.city)) {
+        const district = res.resolvedLocation.district || res.resolvedLocation.city;
+        const state = res.resolvedLocation.state;
+        const serviceable = res.serviceability ? Boolean(res.serviceability.isServiceable) : false;
 
         setSelectedState(state);
         setSelectedDistrict(district);
@@ -192,9 +196,13 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           setComingSoonState(state);
           setComingSoonDistrict(district);
         }
+      } else {
+        // Unresolved: prompt user without falling back to an enabled district
+        setAddressSelectorOpen(true);
       }
     } catch (err) {
       console.warn('Native location detection error:', err);
+      setAddressSelectorOpen(true);
     } finally {
       setIsCheckingLocation(false);
     }
@@ -231,14 +239,14 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         } else {
           // First launch: request permission if not asked before
           const asked = await AsyncStorage.getItem(PERMISSION_ASKED_KEY);
-          if (!asked) {
+          if (!asked && !permissionDenied) {
             await detectLocation(false);
           } else {
-            await checkServiceability();
+            setAddressSelectorOpen(true);
           }
         }
       } catch {
-        // Fallback defaults
+        setAddressSelectorOpen(true);
       }
     };
 

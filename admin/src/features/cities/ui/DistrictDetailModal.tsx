@@ -9,10 +9,11 @@ import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { useUIStore } from '@/lib/store/uiStore';
+import { ImageUploadField } from '@/shared/components/ImageUploadField';
 import {
   MapPin, ShieldAlert, CheckCircle2, AlertTriangle, Building2,
   Users, Store, ShoppingBag, Settings, Truck, Rocket, MessageSquare,
-  History, Plus, Trash2, Edit3, Save, X, ExternalLink
+  History, Plus, Trash2, Edit3, Save, X, ExternalLink, ChevronDown
 } from 'lucide-react';
 
 interface DistrictDetailModalProps {
@@ -40,6 +41,19 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['district-details', districtId],
     queryFn: () => cityApi.getDistrictDetails(districtId!),
+    enabled: !!districtId && isOpen,
+  });
+
+  // Authoritative catalogue queries
+  const { data: catalogueTownsData } = useQuery({
+    queryKey: ['catalogue-towns', districtId],
+    queryFn: () => cityApi.getCatalogueTowns(districtId!),
+    enabled: !!districtId && isOpen,
+  });
+
+  const { data: catalogueAreasData } = useQuery({
+    queryKey: ['catalogue-areas', districtId, newAreaTownId],
+    queryFn: () => cityApi.getCatalogueAreas(districtId!, { townId: newAreaTownId || undefined }),
     enabled: !!districtId && isOpen,
   });
 
@@ -302,8 +316,30 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
             </div>
           )}
 
-          {/* Navigation Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-white/10 scrollbar-none">
+          {/* Responsive Navigation Tabs with Overflow Prevention */}
+          {/* Mobile Dropdown View */}
+          <div className="block md:hidden pb-1 border-b border-white/10">
+            <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block mb-1">
+              Configuration Section
+            </label>
+            <div className="relative">
+              <select
+                value={activeTab}
+                onChange={(e) => setActiveTab(e.target.value)}
+                className="w-full bg-[#14141f] border border-white/15 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none cursor-pointer appearance-none"
+              >
+                {tabs.map((tab) => (
+                  <option key={tab.id} value={tab.id} className="bg-[#14141f] text-white">
+                    {tab.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-white/40 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Desktop Responsive Scrollable Sticky Tabs */}
+          <div className="hidden md:flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-white/10 scrollbar-none sticky top-0 bg-[#0d0d12]/95 backdrop-blur-md z-10">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -311,13 +347,13 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                     isActive
                       ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30 shadow-xs'
-                      : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                      : 'text-white/50 hover:text-white/80 hover:bg-white/5 border border-transparent'
                   }`}
                 >
-                  <Icon className="h-3.5 w-3.5" />
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -513,25 +549,63 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
 
               {showAddTownForm && (
                 <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
-                  <span className="text-[10px] font-bold text-white/40 uppercase block">New Town Details</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Input
-                      placeholder="Town / City name (e.g. Nanjangud)"
-                      value={newTownName}
-                      onChange={(e) => setNewTownName(e.target.value)}
-                    />
-                    <Input
-                      placeholder="Display name (optional)"
-                      value={newTownDisplayName}
-                      onChange={(e) => setNewTownDisplayName(e.target.value)}
-                    />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-white/40 uppercase block">
+                      Select Town from Authoritative Catalogue
+                    </span>
+                    <Badge variant="outline" className="text-[9px]">Disabled by Default</Badge>
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-white/50 block font-medium">Catalogue Town / Municipal Area</label>
+                      <select
+                        value={newTownName}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setNewTownName(val);
+                          if (!newTownDisplayName || newTownDisplayName === newTownName) {
+                            setNewTownDisplayName(val);
+                          }
+                        }}
+                        className="w-full bg-[#14141f] border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none cursor-pointer"
+                      >
+                        <option value="">-- Choose Catalogue Town --</option>
+                        {(catalogueTownsData?.towns || []).map((t) => (
+                          <option
+                            key={t.name}
+                            value={t.name}
+                            disabled={t.isAlreadyAdded}
+                            className={t.isAlreadyAdded ? "text-white/30 bg-[#0d0d12]" : "text-white bg-[#14141f]"}
+                          >
+                            {t.name} {t.isAlreadyAdded ? "(Already Added)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-white/50 block font-medium">Display Name (Optional override)</label>
+                      <Input
+                        placeholder="e.g. Nanjangud"
+                        value={newTownDisplayName}
+                        onChange={(e) => setNewTownDisplayName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-white/40">
+                    All new cities and towns are created in <strong>Disabled</strong> status by default to protect live operations until ready.
+                  </p>
                   <div className="flex justify-end gap-2">
                     <Button variant="ghost" size="sm" onClick={() => setShowAddTownForm(false)}>Cancel</Button>
                     <Button
                       size="sm"
+                      disabled={!newTownName}
                       isLoading={addTownMutation.isPending}
-                      onClick={() => addTownMutation.mutate({ name: newTownName, displayName: newTownDisplayName })}
+                      onClick={() => addTownMutation.mutate({
+                        name: newTownName,
+                        displayName: newTownDisplayName || newTownName,
+                        isActive: false,
+                        launchStatus: "COMING_SOON"
+                      })}
                     >
                       Save Town
                     </Button>
@@ -591,38 +665,83 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
 
               {showAddAreaForm && (
                 <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
-                  <span className="text-[10px] font-bold text-white/40 uppercase block">New Service Area</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <Input
-                      placeholder="Area name (e.g. Vijayanagar)"
-                      value={newAreaName}
-                      onChange={(e) => setNewAreaName(e.target.value)}
-                    />
-                    <Input
-                      placeholder="PIN codes (e.g. 570017, 570018)"
-                      value={newAreaPostalCodes}
-                      onChange={(e) => setNewAreaPostalCodes(e.target.value)}
-                    />
-                    <select
-                      value={newAreaTownId}
-                      onChange={(e) => setNewAreaTownId(e.target.value)}
-                      className="bg-[#14141f] border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none"
-                    >
-                      <option value="">Direct District Area (No Town)</option>
-                      {district.cityTowns.map((t: any) => (
-                        <option key={t.id} value={t.id}>{t.displayName || t.name}</option>
-                      ))}
-                    </select>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-white/40 uppercase block">
+                      Select Service Area from Authoritative Catalogue
+                    </span>
+                    <Badge variant="outline" className="text-[9px]">Disabled by Default</Badge>
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-white/50 block font-medium">Filter by Town (Optional)</label>
+                      <select
+                        value={newAreaTownId}
+                        onChange={(e) => {
+                          setNewAreaTownId(e.target.value);
+                          setNewAreaName('');
+                          setNewAreaPostalCodes('');
+                        }}
+                        className="w-full bg-[#14141f] border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none cursor-pointer"
+                      >
+                        <option value="">All District Catalogue Areas</option>
+                        {district.cityTowns.map((t: any) => (
+                          <option key={t.id} value={t.id}>{t.displayName || t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-white/50 block font-medium">Catalogue Area Name</label>
+                      <select
+                        value={newAreaName}
+                        onChange={(e) => {
+                          const selectedName = e.target.value;
+                          setNewAreaName(selectedName);
+                          const matched = catalogueAreasData?.areas?.find((a: any) => a.name === selectedName);
+                          if (matched && matched.postalCodes?.length) {
+                            setNewAreaPostalCodes(matched.postalCodes.join(', '));
+                          }
+                        }}
+                        className="w-full bg-[#14141f] border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none cursor-pointer"
+                      >
+                        <option value="">-- Choose Catalogue Area --</option>
+                        {(catalogueAreasData?.areas || []).map((a: any) => (
+                          <option
+                            key={a.name}
+                            value={a.name}
+                            disabled={a.isAlreadyAdded}
+                            className={a.isAlreadyAdded ? "text-white/30 bg-[#0d0d12]" : "text-white bg-[#14141f]"}
+                          >
+                            {a.name} ({a.cityTown}) {a.isAlreadyAdded ? "(Already Added)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-white/50 block font-medium">Auto-Populated PIN Code(s)</label>
+                      <Input
+                        placeholder="PIN codes auto-fill here"
+                        value={newAreaPostalCodes}
+                        onChange={(e) => setNewAreaPostalCodes(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-white/40">
+                    All new service areas default to <strong>Disabled</strong> and unserviceable until activated.
+                  </p>
                   <div className="flex justify-end gap-2">
                     <Button variant="ghost" size="sm" onClick={() => setShowAddAreaForm(false)}>Cancel</Button>
                     <Button
                       size="sm"
+                      disabled={!newAreaName}
                       isLoading={addAreaMutation.isPending}
                       onClick={() => addAreaMutation.mutate({
                         name: newAreaName,
                         postalCodes: newAreaPostalCodes,
-                        cityTownId: newAreaTownId || undefined
+                        cityTownId: newAreaTownId || undefined,
+                        isActive: false,
+                        deliveryEligible: false
                       })}
                     >
                       Save Area
@@ -893,12 +1012,14 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                     onChange={(e) => setLaunchForm({ ...launchForm, expectedLaunchDate: e.target.value })}
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Banner or Media URL</label>
-                  <Input
+                <div className="space-y-1 sm:col-span-2">
+                  <ImageUploadField
                     value={launchForm.bannerUrl}
-                    onChange={(e) => setLaunchForm({ ...launchForm, bannerUrl: e.target.value })}
-                    placeholder="https://..."
+                    folder="district-banners"
+                    label="District Launch Banner / Landmark"
+                    hint="Cloudinary-backed banner displayed on the Coming Soon screen and regional landing pages"
+                    onChange={(result) => setLaunchForm((prev: any) => ({ ...prev, bannerUrl: result.url }))}
+                    onRemove={() => setLaunchForm((prev: any) => ({ ...prev, bannerUrl: '' }))}
                   />
                 </div>
               </div>

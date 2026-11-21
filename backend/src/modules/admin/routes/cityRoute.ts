@@ -16,7 +16,9 @@ import {
     updateServiceArea,
     deleteServiceArea,
     getDistrictRequests,
-    getDistrictAuditLogs
+    getDistrictAuditLogs,
+    getCatalogueTowns,
+    getCatalogueAreas
 } from "../controllers/districtDetailController.js";
 import { adminAuth } from "../../../middleware/adminAuth.js";
 import { requirePermission } from "../../../middleware/requirePermission.js";
@@ -54,5 +56,9 @@ router.delete("/:id/service-areas/:areaId", requirePermission("catalog.manage"),
 // Requests & Audit Trail
 router.get("/:id/requests", requirePermission("catalog.view"), getDistrictRequests);
 router.get("/:id/audit-logs", requirePermission("catalog.view"), getDistrictAuditLogs);
+
+// Authoritative Location Catalogue
+router.get("/:id/catalogue-towns", requirePermission("catalog.view"), getCatalogueTowns);
+router.get("/:id/catalogue-areas", requirePermission("catalog.view"), getCatalogueAreas);
 
 export default router;

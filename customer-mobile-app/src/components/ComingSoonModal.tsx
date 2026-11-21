@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Linking,
+  Image,
 } from 'react-native';
 import {
   MapPin,
@@ -160,12 +161,20 @@ export const ComingSoonModal: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Illustration Icon */}
-            <View style={styles.iconCircleOuter}>
-              <View style={styles.iconCircleInner}>
-                <MapPin size={32} color={colors.primary} />
+            {/* Illustration Icon or Cloudinary Banner */}
+            {serviceabilityDetails?.bannerUrl ? (
+              <Image
+                source={{ uri: serviceabilityDetails.bannerUrl }}
+                style={styles.bannerImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.iconCircleOuter}>
+                <View style={styles.iconCircleInner}>
+                  <MapPin size={32} color={colors.primary} />
+                </View>
               </View>
-            </View>
+            )}
 
             {/* Heading */}
             <Text style={styles.title}>Coming soon to your city</Text>
@@ -405,6 +414,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textDecorationLine: 'underline',
     marginLeft: 4,
+  },
+  bannerImage: {
+    width: '100%',
+    height: 140,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   iconCircleOuter: {
     width: 80,

@@ -41,17 +41,19 @@ export const resolveLocation = async (req: Request, res: Response) => {
             userRole: userRole || "CUSTOMER"
         });
 
+        const hasResolvedLocation = Boolean(resolvedState && (resolvedDistrict || resolvedCity));
+
         return res.status(200).json({
-            resolvedLocation: {
-                state: resolvedState || "Karnataka",
-                district: resolvedDistrict || "Mysuru",
-                city: resolvedCity || resolvedDistrict || "Mysuru",
+            resolvedLocation: hasResolvedLocation ? {
+                state: resolvedState!,
+                district: (resolvedDistrict || resolvedCity)!,
+                city: (resolvedCity || resolvedDistrict)!,
                 serviceArea: resolvedServiceArea,
                 postalCode,
                 latitude: latitude !== undefined ? Number(latitude) : undefined,
                 longitude: longitude !== undefined ? Number(longitude) : undefined,
                 formattedAddress
-            },
+            } : null,
             serviceability
         });
     } catch (error: any) {

@@ -25,6 +25,8 @@ import {
   LogOut,
   Menu,
   ChevronRight,
+  ChevronDown,
+  Search,
   ShieldAlert,
   ShieldCheck,
   UserCircle,
@@ -142,81 +144,110 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     name: string;
     path: string;
     icon: LucideIcon;
-    group: string;
+    group: 'Dashboard' | 'Marketplace' | 'Operations' | 'Locations' | 'Communication' | 'Configuration' | 'System';
     permission?: string;
   }
 
   const navItems: NavItem[] = [
-    // Overview
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, group: 'Overview', permission: 'dashboard.view' },
-    { name: 'Analytics', path: '/analytics', icon: TrendingUp, group: 'Overview', permission: 'analytics.view' },
+    // 1. Dashboard
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, group: 'Dashboard', permission: 'dashboard.view' },
+    { name: 'Analytics', path: '/analytics', icon: TrendingUp, group: 'Dashboard', permission: 'analytics.view' },
 
-    // Customers
-    { name: 'Customers', path: '/customers', icon: UserCheck, group: 'Customers', permission: 'customers.view' },
-    { name: 'Sessions & Devices', path: '/sessions', icon: MonitorSmartphone, group: 'Customers', permission: 'sessions.view' },
-    { name: 'Support Tickets', path: '/support-tickets', icon: LifeBuoy, group: 'Customers', permission: 'support.view' },
-    { name: 'Customer Conversations', path: '/customer-conversations', icon: MessageSquare, group: 'Customers', permission: 'support.view' },
+    // 2. Marketplace
+    { name: 'Customers', path: '/customers', icon: UserCheck, group: 'Marketplace', permission: 'customers.view' },
+    { name: 'Sessions & Devices', path: '/sessions', icon: MonitorSmartphone, group: 'Marketplace', permission: 'sessions.view' },
+    { name: 'Sellers', path: '/sellers', icon: Users, group: 'Marketplace', permission: 'sellers.view' },
+    { name: 'Shops', path: '/shops', icon: Store, group: 'Marketplace', permission: 'sellers.view' },
+    { name: 'Seller Verifications', path: '/seller-verifications', icon: BadgeCheck, group: 'Marketplace', permission: 'sellers.view' },
+    { name: 'Seller Enforcement', path: '/seller-strikes', icon: Gavel, group: 'Marketplace', permission: 'enforcement.view' },
+    { name: 'Appeals', path: '/appeals', icon: Scale, group: 'Marketplace', permission: 'appeals.view' },
+    { name: 'Seller Payouts', path: '/seller-payouts', icon: Wallet, group: 'Marketplace', permission: 'payments.view' },
+    { name: 'Products', path: '/products', icon: Box, group: 'Marketplace', permission: 'moderation.view' },
+    { name: 'Categories', path: '/categories', icon: Grid, group: 'Marketplace', permission: 'catalog.view' },
 
-    // Sellers
-    { name: 'Sellers', path: '/sellers', icon: Users, group: 'Sellers', permission: 'sellers.view' },
-    { name: 'Shops', path: '/shops', icon: Store, group: 'Sellers', permission: 'sellers.view' },
-    { name: 'Seller Verifications', path: '/seller-verifications', icon: BadgeCheck, group: 'Sellers', permission: 'sellers.view' },
-    { name: 'Seller Enforcement', path: '/seller-strikes', icon: Gavel, group: 'Sellers', permission: 'enforcement.view' },
-    { name: 'Appeals', path: '/appeals', icon: Scale, group: 'Sellers', permission: 'appeals.view' },
-    { name: 'Seller Payouts', path: '/seller-payouts', icon: Wallet, group: 'Sellers', permission: 'payments.view' },
-    { name: 'Seller Conversations', path: '/seller-conversations', icon: MessageSquare, group: 'Sellers', permission: 'support.view' },
+    // 3. Operations
+    { name: 'Orders', path: '/orders', icon: ShoppingBag, group: 'Operations', permission: 'orders.view' },
+    { name: 'Returns', path: '/returns', icon: RotateCcw, group: 'Operations', permission: 'orders.view' },
+    { name: 'Packing Fee Requests', path: '/packing-fee-requests', icon: CreditCard, group: 'Operations', permission: 'orders.view' },
+    { name: 'Delivery Fleet & Operations', path: '/delivery', icon: Truck, group: 'Operations', permission: 'delivery.view' },
 
-    // Policies & Agreements
-    { name: 'Community Guidelines', path: '/community-guidelines', icon: ShieldAlert, group: 'Policies & Agreements', permission: 'guidelines.view' },
-    { name: 'Seller Agreement Tracking', path: '/agreement-tracking', icon: FileCheck, group: 'Policies & Agreements', permission: 'guidelines.view' },
-    { name: 'Issue New Policy', path: '/issue-policy', icon: Bell, group: 'Policies & Agreements', permission: 'policies.view' },
-    { name: 'Commission Statements', path: '/commission-statements', icon: FileText, group: 'Policies & Agreements', permission: 'commission.view' },
+    // 4. Locations
+    { name: 'States', path: '/states', icon: MapPin, group: 'Locations', permission: 'catalog.view' },
+    { name: 'Districts / Cities', path: '/karnataka/districts', icon: MapPin, group: 'Locations', permission: 'catalog.view' },
+    { name: 'Location Requests', path: '/location-requests', icon: MessageSquare, group: 'Locations', permission: 'catalog.view' },
 
-    // Reports & Investigations
-    { name: 'Customer Reports', path: '/cases', icon: AlertTriangle, group: 'Reports & Investigations', permission: 'reports.view' },
-    { name: 'Product Reports', path: '/reports', icon: ShieldCheck, group: 'Reports & Investigations', permission: 'reports.view' },
-    { name: 'Postmortems', path: '/postmortems', icon: FileSpreadsheet, group: 'Reports & Investigations', permission: 'postmortems.view' },
-    { name: 'Audit Logs', path: '/audit-logs', icon: FileSpreadsheet, group: 'Reports & Investigations', permission: 'audit_logs.view' },
+    // 5. Communication
+    { name: 'Support Tickets', path: '/support-tickets', icon: LifeBuoy, group: 'Communication', permission: 'support.view' },
+    { name: 'Customer Conversations', path: '/customer-conversations', icon: MessageSquare, group: 'Communication', permission: 'support.view' },
+    { name: 'Seller Conversations', path: '/seller-conversations', icon: MessageSquare, group: 'Communication', permission: 'support.view' },
 
-    // Orders
-    { name: 'Orders', path: '/orders', icon: ShoppingBag, group: 'Orders', permission: 'orders.view' },
-    { name: 'Returns', path: '/returns', icon: RotateCcw, group: 'Orders', permission: 'orders.view' },
-    { name: 'Packing Fee Requests', path: '/packing-fee-requests', icon: CreditCard, group: 'Orders', permission: 'orders.view' },
+    // 6. Configuration
+    { name: 'Community Guidelines', path: '/community-guidelines', icon: ShieldAlert, group: 'Configuration', permission: 'guidelines.view' },
+    { name: 'Issue New Policy', path: '/issue-policy', icon: Bell, group: 'Configuration', permission: 'policies.view' },
+    { name: 'Seller Agreement Tracking', path: '/agreement-tracking', icon: FileCheck, group: 'Configuration', permission: 'guidelines.view' },
+    { name: 'Commission Statements', path: '/commission-statements', icon: FileText, group: 'Configuration', permission: 'commission.view' },
+    { name: 'Customer Branding', path: '/customer-branding', icon: Palette, group: 'Configuration', permission: 'branding.view' },
+    { name: 'Seller Branding', path: '/seller-branding', icon: Store, group: 'Configuration', permission: 'branding.view' },
+    { name: 'Delivery Branding', path: '/delivery-branding', icon: Truck, group: 'Configuration', permission: 'branding.view' },
+    { name: 'Payment Methods', path: '/payment-methods', icon: CreditCard, group: 'Configuration', permission: 'settings.view' },
+    { name: 'Delivery Methods', path: '/delivery-methods', icon: Truck, group: 'Configuration', permission: 'settings.view' },
+    { name: 'Content Management', path: '/content', icon: FileText, group: 'Configuration', permission: 'content.view' },
+    { name: 'Settings', path: '/settings', icon: Settings, group: 'Configuration', permission: 'settings.view' },
 
-    // Delivery Management
-    { name: 'Delivery Fleet & Operations', path: '/delivery', icon: Truck, group: 'Delivery Fleet', permission: 'delivery.view' },
-
-    // Catalog & Content
-    { name: 'Products', path: '/products', icon: Box, group: 'Catalog & Content', permission: 'moderation.view' },
-    { name: 'Categories', path: '/categories', icon: Grid, group: 'Catalog & Content', permission: 'catalog.view' },
-    { name: 'Content Management', path: '/content', icon: FileText, group: 'Catalog & Content', permission: 'content.view' },
-    { name: 'States', path: '/states', icon: MapPin, group: 'Catalog & Content', permission: 'catalog.view' },
-    { name: 'Districts / Cities', path: '/karnataka/districts', icon: MapPin, group: 'Catalog & Content', permission: 'catalog.view' },
-    { name: 'Location Requests', path: '/location-requests', icon: MessageSquare, group: 'Catalog & Content', permission: 'catalog.view' },
-
-    // Finance
-    { name: 'Payments & Transactions', path: '/payments', icon: CreditCard, group: 'Finance', permission: 'payments.view' },
-    { name: 'Payment Methods', path: '/payment-methods', icon: CreditCard, group: 'Finance', permission: 'settings.view' },
-    { name: 'Delivery Methods', path: '/delivery-methods', icon: Truck, group: 'Finance', permission: 'settings.view' },
-
-    // Marketing & Moderation
-    { name: 'Coupons', path: '/coupons', icon: Tag, group: 'Marketing', permission: 'coupons.view' },
-    { name: 'Notifications', path: '/notifications', icon: Bell, group: 'Marketing', permission: 'notifications.view' },
-    { name: 'Moderation Queue', path: '/moderation', icon: ShieldCheck, group: 'Marketing', permission: 'moderation.view' },
-    { name: 'Exports', path: '/exports', icon: Download, group: 'Marketing', permission: 'reports.export' },
-
-    // Administration
-    { name: 'Admin Management', path: '/admin-management', icon: UserCog, group: 'Administration', permission: 'admin.users.manage' },
-    { name: 'Roles & Permissions', path: '/roles', icon: KeyRound, group: 'Administration', permission: 'admin.roles.manage' },
-    { name: 'Customer Branding', path: '/customer-branding', icon: Palette, group: 'Administration', permission: 'branding.view' },
-    { name: 'Seller Branding', path: '/seller-branding', icon: Store, group: 'Administration', permission: 'branding.view' },
-    { name: 'Delivery Branding', path: '/delivery-branding', icon: Truck, group: 'Administration', permission: 'branding.view' },
-    { name: 'Settings', path: '/settings', icon: Settings, group: 'Administration', permission: 'settings.view' },
-    { name: 'My Profile', path: '/profile', icon: UserCircle, group: 'Administration' },
+    // 7. System
+    { name: 'Customer Reports', path: '/cases', icon: AlertTriangle, group: 'System', permission: 'reports.view' },
+    { name: 'Product Reports', path: '/reports', icon: ShieldCheck, group: 'System', permission: 'reports.view' },
+    { name: 'Postmortems', path: '/postmortems', icon: FileSpreadsheet, group: 'System', permission: 'postmortems.view' },
+    { name: 'Audit Logs', path: '/audit-logs', icon: FileSpreadsheet, group: 'System', permission: 'audit_logs.view' },
+    { name: 'Moderation Queue', path: '/moderation', icon: ShieldCheck, group: 'System', permission: 'moderation.view' },
+    { name: 'Admin Management', path: '/admin-management', icon: UserCog, group: 'System', permission: 'admin.users.manage' },
+    { name: 'Roles & Permissions', path: '/roles', icon: KeyRound, group: 'System', permission: 'admin.roles.manage' },
+    { name: 'Payments & Transactions', path: '/payments', icon: CreditCard, group: 'System', permission: 'payments.view' },
+    { name: 'Notifications', path: '/notifications', icon: Bell, group: 'System', permission: 'notifications.view' },
+    { name: 'Coupons', path: '/coupons', icon: Tag, group: 'System', permission: 'coupons.view' },
+    { name: 'Exports', path: '/exports', icon: Download, group: 'System', permission: 'reports.export' },
+    { name: 'My Profile', path: '/profile', icon: UserCircle, group: 'System' },
   ];
 
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('atlasbasket_admin_nav_collapsed');
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return {};
+  });
+
+  const toggleGroup = (group: string) => {
+    setCollapsedGroups(prev => {
+      const next = { ...prev, [group]: !prev[group] };
+      try {
+        localStorage.setItem('atlasbasket_admin_nav_collapsed', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
   const visibleNavItems = navItems.filter((item) => !item.permission || can(item.permission));
-  const navGroups = Array.from(new Set(visibleNavItems.map((item) => item.group)));
+  const navGroups: Array<NavItem['group']> = [
+    'Dashboard',
+    'Marketplace',
+    'Operations',
+    'Locations',
+    'Communication',
+    'Configuration',
+    'System'
+  ];
+
+  const filteredNavItems = searchQuery.trim()
+    ? visibleNavItems.filter((item) =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.group.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.path.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : visibleNavItems;
 
   const activePageName = () => {
     const matched =
@@ -269,46 +300,100 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
+          {/* Search Box */}
+          <div className="px-4 pt-3 pb-1">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-white/30" />
+              <input
+                type="text"
+                placeholder="Search menu..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white/[0.03] border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-white/30 outline-none focus:border-white/25 transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-2 text-white/40 hover:text-white text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Nav links */}
-          <nav className="flex-1 px-4 py-3 overflow-y-auto space-y-4">
-            {navGroups.map((group) => (
-              <div key={group}>
-                <span className="px-3 block mb-1 text-[9px] font-black uppercase tracking-[0.15em] text-white/30">
-                  {group}
-                </span>
-                <div className="space-y-0.5">
-                  {visibleNavItems
-                    .filter((item) => item.group === group)
-                    .map((item) => {
-                      const Icon = item.icon;
-                      const isActive = pathname.startsWith(item.path);
-                      const badgeInfo = getBadgeForPath(item.path);
-                      return (
-                        <Link
-                          key={item.path}
-                          href={item.path}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                            isActive
-                              ? 'bg-white/10 text-white border border-white/15 shadow-sm'
-                              : 'text-white/60 hover:text-white/95 hover:bg-white/[0.03] border border-transparent'
-                          }`}
-                        >
-                          <Icon className="h-4 w-4 shrink-0" />
-                          <span className="truncate flex-1">{item.name}</span>
-                          {badgeInfo && (
-                            <span
-                              id={badgeInfo.id}
-                              className={`ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] rounded-full shadow-sm ring-1 animate-fade-in ${badgeInfo.colorClass}`}
-                            >
-                              {badgeInfo.count > 99 ? '99+' : badgeInfo.count}
-                            </span>
-                          )}
-                        </Link>
-                      );
-                    })}
+          <nav className="flex-1 px-4 py-2 overflow-y-auto space-y-3 scrollbar-none">
+            {navGroups.map((group) => {
+              const groupItems = filteredNavItems.filter((item) => item.group === group);
+              if (groupItems.length === 0) return null;
+
+              // Check if any item in this group is currently active
+              const hasActiveChild = groupItems.some((item) => pathname.startsWith(item.path));
+              // When searching, force all matching groups to expand
+              const isCollapsed = searchQuery.trim() ? false : (collapsedGroups[group] ?? (!hasActiveChild && group !== 'Dashboard'));
+
+              // Compute total badge count in this group
+              const totalGroupBadges = groupItems.reduce((acc, item) => {
+                const badge = getBadgeForPath(item.path);
+                return acc + (badge?.count || 0);
+              }, 0);
+
+              return (
+                <div key={group} className="rounded-xl border border-white/[0.04] bg-white/[0.01] p-1.5">
+                  <button
+                    onClick={() => toggleGroup(group)}
+                    className="w-full px-2 py-1.5 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.12em] text-white/40 hover:text-white/80 transition-colors cursor-pointer rounded-lg hover:bg-white/[0.02]"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      {isCollapsed ? (
+                        <ChevronRight className="h-3 w-3 text-white/40" />
+                      ) : (
+                        <ChevronDown className="h-3 w-3 text-white/40" />
+                      )}
+                      <span>{group}</span>
+                    </span>
+                    {totalGroupBadges > 0 && isCollapsed && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-purple-500 text-white text-[9px] font-bold">
+                        {totalGroupBadges > 99 ? '99+' : totalGroupBadges}
+                      </span>
+                    )}
+                  </button>
+
+                  {!isCollapsed && (
+                    <div className="space-y-0.5 mt-1">
+                      {groupItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = pathname.startsWith(item.path);
+                        const badgeInfo = getBadgeForPath(item.path);
+                        return (
+                          <Link
+                            key={item.path}
+                            href={item.path}
+                            className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                              isActive
+                                ? 'bg-white/10 text-white border border-white/15 shadow-sm'
+                                : 'text-white/60 hover:text-white/95 hover:bg-white/[0.03] border border-transparent'
+                            }`}
+                          >
+                            <Icon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate flex-1 text-[11px]">{item.name}</span>
+                            {badgeInfo && (
+                              <span
+                                id={badgeInfo.id}
+                                className={`ml-auto inline-flex items-center justify-center min-w-4 h-4 px-1 text-[9px] rounded-full shadow-sm ring-1 animate-fade-in ${badgeInfo.colorClass}`}
+                              >
+                                {badgeInfo.count > 99 ? '99+' : badgeInfo.count}
+                              </span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </nav>
 
           {/* User info & Logout */}

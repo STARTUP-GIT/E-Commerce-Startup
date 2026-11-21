@@ -76,13 +76,13 @@ export const useLocationStore = create<LocationState>((set, get) => ({
   setActiveStatesData: (states, districtRequired) => set({ activeStates: states, districtRequired }),
 
   // Initial location values
-  selectedState: 'Karnataka',
-  selectedDistrict: 'Mysuru',
+  selectedState: '',
+  selectedDistrict: '',
   formattedAddress: undefined,
   isManualSelection: false,
 
   // Serviceability state
-  isServiceable: true,
+  isServiceable: false,
   isCheckingServiceability: false,
   isDetectingLocation: false,
   locationPermissionDenied: false,
@@ -92,7 +92,10 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     const state = targetState || get().selectedState;
     const district = targetDistrict || get().selectedDistrict;
 
-    if (!state || !district) return true;
+    if (!state || !district) {
+      set({ isServiceable: false, serviceabilityDetails: null });
+      return false;
+    }
 
     set({ isCheckingServiceability: true });
     try {
@@ -210,10 +213,10 @@ export const useLocationStore = create<LocationState>((set, get) => ({
       });
 
       const data = res.data;
-      if (data && data.resolvedLocation) {
-        const district = data.resolvedLocation.district || data.resolvedLocation.city || 'Mysuru';
-        const state = data.resolvedLocation.state || 'Karnataka';
-        const serviceable = data.serviceability ? Boolean(data.serviceability.isServiceable) : true;
+      if (data && data.resolvedLocation && data.resolvedLocation.state && (data.resolvedLocation.district || data.resolvedLocation.city)) {
+        const district = data.resolvedLocation.district || data.resolvedLocation.city;
+        const state = data.resolvedLocation.state;
+        const serviceable = data.serviceability ? Boolean(data.serviceability.isServiceable) : false;
 
         set({
           selectedState: state,
@@ -245,6 +248,11 @@ export const useLocationStore = create<LocationState>((set, get) => ({
             comingSoonDistrict: district,
           });
         }
+      } else {
+        set({
+          isDetectingLocation: false,
+          isServiceable: false,
+        });
       }
     } catch (err) {
       console.warn('Native seller location detection error:', err);

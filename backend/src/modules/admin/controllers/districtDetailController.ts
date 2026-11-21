@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 import { invalidatePublicCache } from "../../../middleware/cache.js";
+import { AUTHORITATIVE_LOCATION_CATALOGUE } from "../../../services/location/locationCatalogueData.js";
 
 // Helper to record an audit log
 const logAudit = async (
@@ -382,8 +383,8 @@ export const createCityTown = async (req: Request, res: Response) => {
                 districtId,
                 name: normalizedName,
                 displayName: displayName?.trim() || null,
-                isActive: isActive !== undefined ? Boolean(isActive) : true,
-                launchStatus: launchStatus || "LAUNCHED",
+                isActive: isActive !== undefined ? Boolean(isActive) : false,
+                launchStatus: launchStatus || "COMING_SOON",
                 info: info?.trim() || null,
                 displayOrder: displayOrder !== undefined ? Number(displayOrder) : 0,
             }
@@ -495,8 +496,8 @@ export const createServiceArea = async (req: Request, res: Response) => {
                 name: normalizedName,
                 postalCodes: normalizedPostalCodes,
                 boundaries: boundaries || null,
-                isActive: isActive !== undefined ? Boolean(isActive) : true,
-                deliveryEligible: deliveryEligible !== undefined ? Boolean(deliveryEligible) : true,
+                isActive: isActive !== undefined ? Boolean(isActive) : false,
+                deliveryEligible: deliveryEligible !== undefined ? Boolean(deliveryEligible) : false,
             }
         });
 
@@ -607,6 +608,165 @@ export const getDistrictAuditLogs = async (req: Request, res: Response) => {
 
         return res.status(200).json({ logs });
     } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+/**
+ * GET /api/admin/cities/:id/catalogue-towns
+ * Returns available authoritative cities/towns from LocationCatalogue for this district.
+ */
+export const getCatalogueTowns = async (req: Request, res: Response) => {
+    try {
+        const districtId = req.params.id as string;
+        const district = await prisma.city.findUnique({
+            where: { id: districtId },
+            include: { cityTowns: { select: { name: true } } }
+        });
+
+        if (!district) {
+            return res.status(404).json({ message: "District not found" });
+        }
+
+        const existingTownNames = new Set(district.cityTowns.map(t => t.name.toLowerCase()));
+
+        // Query database catalogue first
+        let catalogueItems: Array<{ cityTown: string }> = [];
+        try {
+            catalogueItems = await prisma.locationCatalogue.findMany({
+                where: {
+                    district: { equals: district.name, mode: "insensitive" }
+                },
+                select: { cityTown: true },
+                distinct: ["cityTown"],
+                orderBy: { cityTown: "asc" }
+            });
+        } catch {
+            // fallback if table not yet migrated
+        }
+
+        // If DB table is empty or unpopulated, use AUTHORITATIVE_LOCATION_CATALOGUE fallback
+        let towns: string[] = [];
+        if (catalogueItems && catalogueItems.length > 0) {
+            towns = Array.from(new Set(catalogueItems.map(c => c.cityTown))).sort();
+        } else {
+            const matches = AUTHORITATIVE_LOCATION_CATALOGUE.filter(
+                c => c.district.toLowerCase() === district.name.toLowerCase()
+            );
+            towns = Array.from(new Set(matches.map(m => m.cityTown))).sort();
+        }
+
+        const result = towns.map(townName => ({
+            name: townName,
+            displayName: townName,
+            isAlreadyAdded: existingTownNames.has(townName.toLowerCase())
+        }));
+
+        return res.status(200).json({ towns: result });
+    } catch (error: any) {
+        console.error("GET CATALOGUE TOWNS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+/**
+ * GET /api/admin/cities/:id/catalogue-areas?townId=...&townName=...
+ * Returns available authoritative service areas & PIN codes from LocationCatalogue for this district/town.
+ */
+export const getCatalogueAreas = async (req: Request, res: Response) => {
+    try {
+        const districtId = req.params.id as string;
+        const { townId, townName } = req.query as { townId?: string; townName?: string };
+
+        const district = await prisma.city.findUnique({
+            where: { id: districtId },
+            include: {
+                cityTowns: { select: { id: true, name: true } },
+                serviceAreas: { select: { name: true } }
+            }
+        });
+
+        if (!district) {
+            return res.status(404).json({ message: "District not found" });
+        }
+
+        let targetTownName = townName?.trim();
+        if (townId && !targetTownName) {
+            const matchedTown = district.cityTowns.find(t => t.id === townId);
+            if (matchedTown) targetTownName = matchedTown.name;
+        }
+
+        const existingAreaNames = new Set(district.serviceAreas.map(a => a.name.toLowerCase()));
+
+        // Query database catalogue first
+        let catalogueItems: Array<{ serviceArea: string | null; postalCode: string; cityTown: string }> = [];
+        try {
+            const whereClause: any = {
+                district: { equals: district.name, mode: "insensitive" }
+            };
+            if (targetTownName) {
+                whereClause.cityTown = { equals: targetTownName, mode: "insensitive" };
+            }
+            catalogueItems = await prisma.locationCatalogue.findMany({
+                where: whereClause,
+                select: { serviceArea: true, postalCode: true, cityTown: true },
+                orderBy: { serviceArea: "asc" }
+            });
+        } catch {
+            // fallback if table not yet migrated
+        }
+
+        const areaMap = new Map<string, { serviceArea: string; postalCodes: Set<string>; cityTown: string }>();
+
+        if (catalogueItems && catalogueItems.length > 0) {
+            for (const item of catalogueItems) {
+                if (!item.serviceArea) continue;
+                const existing = areaMap.get(item.serviceArea.toLowerCase());
+                if (existing) {
+                    existing.postalCodes.add(item.postalCode);
+                } else {
+                    areaMap.set(item.serviceArea.toLowerCase(), {
+                        serviceArea: item.serviceArea,
+                        postalCodes: new Set([item.postalCode]),
+                        cityTown: item.cityTown
+                    });
+                }
+            }
+        } else {
+            const matches = AUTHORITATIVE_LOCATION_CATALOGUE.filter(c => {
+                const districtMatch = c.district.toLowerCase() === district.name.toLowerCase();
+                if (!districtMatch) return false;
+                if (targetTownName) {
+                    return c.cityTown.toLowerCase() === targetTownName.toLowerCase();
+                }
+                return true;
+            });
+
+            for (const item of matches) {
+                if (!item.serviceArea) continue;
+                const existing = areaMap.get(item.serviceArea.toLowerCase());
+                if (existing) {
+                    existing.postalCodes.add(item.postalCode);
+                } else {
+                    areaMap.set(item.serviceArea.toLowerCase(), {
+                        serviceArea: item.serviceArea,
+                        postalCodes: new Set([item.postalCode]),
+                        cityTown: item.cityTown
+                    });
+                }
+            }
+        }
+
+        const result = Array.from(areaMap.values()).map(entry => ({
+            name: entry.serviceArea,
+            cityTown: entry.cityTown,
+            postalCodes: Array.from(entry.postalCodes),
+            isAlreadyAdded: existingAreaNames.has(entry.serviceArea.toLowerCase())
+        }));
+
+        return res.status(200).json({ areas: result });
+    } catch (error: any) {
+        console.error("GET CATALOGUE AREAS ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };

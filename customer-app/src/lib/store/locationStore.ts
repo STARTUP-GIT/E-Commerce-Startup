@@ -15,6 +15,18 @@ export interface ServiceabilityDetails {
   cityTown?: string;
 }
 
+export interface DetectedCoordinates {
+  latitude: number;
+  longitude: number;
+}
+
+export interface ResolvedLocation {
+  state: string;
+  district: string;
+  city: string;
+  formattedAddress?: string;
+}
+
 interface LocationState {
   comingSoonOpen: boolean;
   comingSoonState: string;
@@ -32,14 +44,20 @@ interface LocationState {
   districtRequired: boolean;
   setActiveStatesData: (states: string[], districtRequired: boolean) => void;
   
-  // Selected location tracking
+  // 1. Actual detected coordinates
+  detectedCoordinates: DetectedCoordinates | null;
+  // 2. Reverse-geocoded actual location
+  actualLocation: ResolvedLocation | null;
+  // 3. User-confirmed location
+  confirmedLocation: { state: string; district: string } | null;
+  // 4. Selected shopping/delivery location
   selectedAddressId: string | null;
   selectedState: string;
   selectedDistrict: string;
   formattedAddress?: string;
   isManualSelection: boolean;
   
-  // Serviceability & availability
+  // 5. Location availability & serviceability status
   isServiceable: boolean;
   isCheckingServiceability: boolean;
   isDetectingLocation: boolean;
@@ -79,15 +97,18 @@ export const useLocationStore = create<LocationState>((set, get) => ({
   districtRequired: true,
   setActiveStatesData: (states, districtRequired) => set({ activeStates: states, districtRequired }),
   
-  // Initial location values
+  // Initial location values - Unset by default; never silently fallback to Mysuru
+  detectedCoordinates: null,
+  actualLocation: null,
+  confirmedLocation: null,
   selectedAddressId: null,
-  selectedState: 'Karnataka',
-  selectedDistrict: 'Mysuru',
+  selectedState: '',
+  selectedDistrict: '',
   formattedAddress: undefined,
   isManualSelection: false,
   
   // Serviceability state
-  isServiceable: true,
+  isServiceable: false,
   isCheckingServiceability: false,
   isDetectingLocation: false,
   locationPermissionDenied: false,
@@ -103,7 +124,10 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     const state = targetState || get().selectedState;
     const district = targetDistrict || get().selectedDistrict;
 
-    if (!state || !district) return true;
+    if (!state || !district) {
+      set({ isServiceable: false, serviceabilityDetails: null });
+      return false;
+    }
 
     set({ isCheckingServiceability: true });
     try {
@@ -133,11 +157,12 @@ export const useLocationStore = create<LocationState>((set, get) => ({
       selectedAddressId: addressId, 
       selectedState: sanitizedState, 
       selectedDistrict: sanitizedDistrict,
+      confirmedLocation: sanitizedState && sanitizedDistrict ? { state: sanitizedState, district: sanitizedDistrict } : null,
       isManualSelection: isManual,
       isCheckingServiceability: true,
     });
 
-    let serviceable = true;
+    let serviceable = false;
     let details: ServiceabilityDetails | null = null;
 
     try {
@@ -158,7 +183,7 @@ export const useLocationStore = create<LocationState>((set, get) => ({
       isCheckingServiceability: false,
     });
 
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && sanitizedState && sanitizedDistrict) {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           addressId,
@@ -178,12 +203,16 @@ export const useLocationStore = create<LocationState>((set, get) => ({
 
   detectLocation: async (force = false) => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
-      await get().checkLocationServiceability();
+      if (get().selectedState && get().selectedDistrict) {
+        await get().checkLocationServiceability();
+      } else {
+        set({ addressSelectorOpen: true });
+      }
       return;
     }
 
     const currentIsManual = get().isManualSelection;
-    if (currentIsManual && !force) {
+    if (currentIsManual && !force && get().selectedDistrict) {
       // Respect user's explicit selection
       await get().checkLocationServiceability();
       return;
@@ -195,6 +224,8 @@ export const useLocationStore = create<LocationState>((set, get) => ({
       async (pos) => {
         try {
           const { latitude, longitude } = pos.coords;
+          const coords: DetectedCoordinates = { latitude, longitude };
+          
           const res = await fetch('/api/locations/resolve', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -209,35 +240,53 @@ export const useLocationStore = create<LocationState>((set, get) => ({
             const data = await res.json();
             const resolved = data.resolvedLocation;
             const serviceability = data.serviceability;
-            const district = resolved?.district || resolved?.city || 'Mysuru';
-            const state = resolved?.state || 'Karnataka';
-            const isServiceable = serviceability ? Boolean(serviceability.isServiceable) : true;
 
-            set({
-              selectedState: state,
-              selectedDistrict: district,
-              formattedAddress: resolved?.formattedAddress,
-              isServiceable,
-              serviceabilityDetails: serviceability || null,
-              isDetectingLocation: false,
-              isManualSelection: false,
-            });
+            if (resolved && resolved.state && (resolved.district || resolved.city)) {
+              const district = resolved.district || resolved.city;
+              const state = resolved.state;
+              const isServiceable = serviceability ? Boolean(serviceability.isServiceable) : false;
 
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({
-              state,
-              district,
-              formattedAddress: resolved?.formattedAddress,
-              isManual: false,
-              isServiceable,
-              serviceabilityDetails: serviceability,
-            }));
-            return;
+              set({
+                detectedCoordinates: coords,
+                actualLocation: {
+                  state,
+                  district,
+                  city: resolved.city || district,
+                  formattedAddress: resolved.formattedAddress,
+                },
+                selectedState: state,
+                selectedDistrict: district,
+                formattedAddress: resolved.formattedAddress,
+                isServiceable,
+                serviceabilityDetails: serviceability || null,
+                isDetectingLocation: false,
+                isManualSelection: false,
+                locationPermissionDenied: false,
+              });
+
+              localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                state,
+                district,
+                formattedAddress: resolved.formattedAddress,
+                isManual: false,
+                isServiceable,
+                serviceabilityDetails: serviceability,
+              }));
+              return;
+            }
           }
         } catch (err) {
           console.warn('Coordinates resolution failed:', err);
         }
-        set({ isDetectingLocation: false });
-        await get().checkLocationServiceability();
+        
+        // If resolution did not produce a valid location, do NOT substitute Mysuru
+        set({
+          isDetectingLocation: false,
+          isServiceable: false,
+        });
+        if (!get().selectedDistrict) {
+          set({ addressSelectorOpen: true });
+        }
       },
       (error) => {
         console.warn('Geolocation denied or timed out:', error.message);
@@ -250,7 +299,10 @@ export const useLocationStore = create<LocationState>((set, get) => ({
           locationPermissionDenied: true,
           isDetectingLocation: false,
         });
-        get().checkLocationServiceability();
+        // If no location has ever been selected, prompt the user with address selector
+        if (!get().selectedDistrict) {
+          set({ addressSelectorOpen: true });
+        }
       },
       { timeout: 8000, enableHighAccuracy: true }
     );
@@ -281,14 +333,18 @@ export const useLocationStore = create<LocationState>((set, get) => ({
         }
       }
 
-      // If no stored location and permission was not permanently denied, attempt detection
+      // In incognito or fresh visit: no stored location
+      // Attempt detection; if denied or fails, it will open the address selector
       if (!isDenied) {
         await get().detectLocation(false);
       } else {
-        await get().checkLocationServiceability();
+        set({
+          locationPermissionDenied: true,
+          addressSelectorOpen: true,
+        });
       }
     } catch {
-      await get().checkLocationServiceability();
+      set({ addressSelectorOpen: true });
     }
   },
 }));

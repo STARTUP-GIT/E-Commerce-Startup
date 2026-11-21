@@ -552,14 +552,15 @@ export class ServiceabilityService {
             logger.warn(`[ServiceabilityService] Nominatim reverse geocode error: ${err?.message}`);
         }
 
-        // Safe fallback default if geocoding services unreachable
+        // If geocoding services unreachable or resolution fails, return empty result
+        // NEVER substitute an arbitrary enabled district like Mysuru
         return {
-            state: "Karnataka",
-            district: "Mysuru",
-            city: "Mysuru",
+            state: "",
+            district: "",
+            city: "",
             latitude,
             longitude,
-            formattedAddress: "Mysuru, Karnataka, India"
+            formattedAddress: undefined
         };
     }
 
