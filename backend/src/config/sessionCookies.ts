@@ -33,9 +33,20 @@ export const setAuthCookie = (res: Response, name: CookieName, token: string) =>
 export const clearAuthCookie = (res: Response, name: CookieName) => {
   const isProduction = isProductionEnv();
   res.clearCookie(name, {
-    ...cookieOptions(isProduction),
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
     path: '/',
   });
+  if (isProduction) {
+    res.clearCookie(name, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      partitioned: true,
+      path: '/',
+    } as any);
+  }
 };
 
 export const setRefreshCookie = (res: Response, token: string, name: RefreshCookieName = 'admin_refresh') => {
@@ -56,9 +67,17 @@ export const clearRefreshCookie = (res: Response, name: RefreshCookieName = 'adm
     httpOnly: true,
     secure: isProduction,
     sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
-    ...(isProduction ? { partitioned: true } : {}),
     path: '/',
   });
+  if (isProduction) {
+    res.clearCookie(name, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      partitioned: true,
+      path: '/',
+    } as any);
+  }
 };
 
 export const customersessionCookie = () => ({

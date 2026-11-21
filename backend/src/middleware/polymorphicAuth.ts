@@ -1,6 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/prisma.js";
 import jwt from "jsonwebtoken";
+import { getJwtSecret, verifyAccessToken } from "../config/token.js";
+import { extractCandidateTokens } from "./tokenExtractor.js";
 
 interface JwtPayload {
     id: string;
@@ -19,55 +21,83 @@ declare global {
 
 export const polymorphicAuth = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const adminToken = req.cookies.admin_session || (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.split(" ")[1] : null);
-        const customerToken = req.cookies.customer_session;
-        const sellerToken = req.cookies.seller_session;
-        const partnerToken = req.cookies.delivery_partner_session;
+        const adminTokens = extractCandidateTokens(req, "admin_session", "x-admin-token");
+        const customerTokens = extractCandidateTokens(req, "customer_session", "x-customer-token");
+        const sellerTokens = extractCandidateTokens(req, "seller_session", "x-seller-token");
+        const partnerTokens = extractCandidateTokens(req, "delivery_partner_session", "x-partner-token");
 
         // Try Admin
-        if (adminToken) {
+        for (const token of adminTokens) {
             try {
-                const decoded = jwt.verify(adminToken, process.env.JWT_SECRET_KEY!) as JwtPayload;
-                const admin = await prisma.admin.findUnique({ where: { id: decoded.id } });
-                if (admin && admin.isActive) {
-                    req.adminId = decoded.id;
-                    return next();
+                let decoded: JwtPayload | null = null;
+                try {
+                    decoded = verifyAccessToken(token) as JwtPayload;
+                } catch {
+                    decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
+                }
+                if (decoded?.id) {
+                    const admin = await prisma.admin.findUnique({ where: { id: decoded.id } });
+                    if (admin && admin.isActive) {
+                        req.adminId = decoded.id;
+                        return next();
+                    }
                 }
             } catch (e) {}
         }
 
         // Try Customer
-        if (customerToken) {
+        for (const token of customerTokens) {
             try {
-                const decoded = jwt.verify(customerToken, process.env.JWT_SECRET_KEY!) as JwtPayload;
-                const customer = await prisma.customer.findUnique({ where: { id: decoded.id } });
-                if (customer && !customer.isBanned && !customer.isDeactivated && customer.scheduledDeleteAt === null) {
-                    req.customerId = decoded.id;
-                    return next();
+                let decoded: JwtPayload | null = null;
+                try {
+                    decoded = verifyAccessToken(token) as JwtPayload;
+                } catch {
+                    decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
+                }
+                if (decoded?.id) {
+                    const customer = await prisma.customer.findUnique({ where: { id: decoded.id } });
+                    if (customer && !customer.isBanned && !customer.isDeactivated && customer.scheduledDeleteAt === null) {
+                        req.customerId = decoded.id;
+                        return next();
+                    }
                 }
             } catch (e) {}
         }
 
         // Try Seller
-        if (sellerToken) {
+        for (const token of sellerTokens) {
             try {
-                const decoded = jwt.verify(sellerToken, process.env.JWT_SECRET_KEY!) as JwtPayload;
-                const seller = await prisma.seller.findUnique({ where: { id: decoded.id } });
-                if (seller && !seller.isBanned && !seller.isDeactivated && seller.status === "ACTIVE" && seller.scheduledDeleteAt === null) {
-                    req.sellerId = decoded.id;
-                    return next();
+                let decoded: JwtPayload | null = null;
+                try {
+                    decoded = verifyAccessToken(token) as JwtPayload;
+                } catch {
+                    decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
+                }
+                if (decoded?.id) {
+                    const seller = await prisma.seller.findUnique({ where: { id: decoded.id } });
+                    if (seller && !seller.isBanned && !seller.isDeactivated && seller.status === "ACTIVE" && seller.scheduledDeleteAt === null) {
+                        req.sellerId = decoded.id;
+                        return next();
+                    }
                 }
             } catch (e) {}
         }
 
         // Try Delivery Partner
-        if (partnerToken) {
+        for (const token of partnerTokens) {
             try {
-                const decoded = jwt.verify(partnerToken, process.env.JWT_SECRET_KEY!) as JwtPayload;
-                const partner = await prisma.deliveryPartner.findUnique({ where: { id: decoded.id } });
-                if (partner && partner.status !== "SUSPENDED" && partner.status !== "INACTIVE") {
-                    req.deliveryPartnerId = decoded.id;
-                    return next();
+                let decoded: JwtPayload | null = null;
+                try {
+                    decoded = verifyAccessToken(token) as JwtPayload;
+                } catch {
+                    decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
+                }
+                if (decoded?.id) {
+                    const partner = await prisma.deliveryPartner.findUnique({ where: { id: decoded.id } });
+                    if (partner && partner.status !== "SUSPENDED" && partner.status !== "INACTIVE") {
+                        req.deliveryPartnerId = decoded.id;
+                        return next();
+                    }
                 }
             } catch (e) {}
         }

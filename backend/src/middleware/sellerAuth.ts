@@ -3,6 +3,7 @@ import { prisma } from "../config/prisma.js";
 import type { Request, Response, NextFunction } from "express";
 import { getJwtSecret, verifyAccessToken } from "../config/token.js";
 import { verifySupabaseAccessToken } from "../config/supabase.js";
+import { extractCandidateTokens } from "./tokenExtractor.js";
 
 declare global {
   namespace Express {
@@ -36,80 +37,64 @@ async function resolveSeller(identity: string, email?: string) {
 
 export const sellerAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // The frontend authenticates with a Bearer app JWT (Authorization header),
-    // so a fresh header token MUST take precedence over any (possibly stale)
-    // seller_session cookie. Preferring the cookie would let an expired cookie
-    // from a previous login override a freshly-issued, valid header token and
-    // produce spurious 401s on /seller/api/auth/profile.
-    const cookieToken = req.cookies?.seller_session;
-    const authHeader = req.headers.authorization;
-    const headerToken = authHeader?.startsWith("Bearer ")
-      ? authHeader.substring(7)
-      : (req.headers["x-seller-token"] as string | undefined);
+    const candidateTokens = extractCandidateTokens(req, "seller_session", "x-seller-token");
 
-    const token = headerToken || cookieToken;
-
-    // TEMPORARY SAFE DIAGNOSTICS — do not log any token value.
-    console.log("[sellerAuth:debug]", JSON.stringify({
-      path: req.originalUrl,
-      hasAuthorizationHeader: !!req.headers.authorization,
-      hasBearerToken: typeof req.headers.authorization === "string" && req.headers.authorization.startsWith("Bearer "),
-      hasXSellertoken: !!req.headers["x-seller-token"],
-      hasCookie: !!req.cookies?.seller_session,
-      tokenSource: headerToken ? "header" : (cookieToken ? "cookie" : "none"),
-    }));
-
-    if (!token) {
+    if (candidateTokens.length === 0) {
       return res.status(401).json({ message: "Unauthorized - missing seller token" });
     }
 
-    let identity: string | null = null;
-    let fallbackEmail: string | undefined;
-    let isExpired = false;
+    let authenticatedSeller: any = null;
+    let isAnyExpired = false;
 
-    // 1) Try the app-signed JWT (returned by login / register / google sync).
-    try {
-      const decoded: any = verifyAccessToken(token);
-      identity = decoded?.id || decoded?.userId || decoded?.sellerId || decoded?.sub || null;
-    } catch (err: any) {
-      if (err?.name === "TokenExpiredError") isExpired = true;
+    for (const token of candidateTokens) {
+      let identity: string | null = null;
+      let fallbackEmail: string | undefined;
+
+      // 1) Try the app-signed JWT (returned by login / register / google sync).
       try {
-        const decoded: any = jwt.verify(token, getJwtSecret());
+        const decoded: any = verifyAccessToken(token);
         identity = decoded?.id || decoded?.userId || decoded?.sellerId || decoded?.sub || null;
-      } catch (innerErr: any) {
-        if (innerErr?.name === "TokenExpiredError") isExpired = true;
-        identity = null;
-      }
-    }
-
-    // 2) Optional legacy Supabase token verification fallback (only if SUPABASE_URL configured)
-    if (!identity && (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)) {
-      try {
-        const supabasePayload: any = await verifySupabaseAccessToken(token);
-        identity = supabasePayload?.sub || supabasePayload?.user_id || null;
-        fallbackEmail = supabasePayload?.email || supabasePayload?.user_metadata?.email || undefined;
-      } catch (supabaseErr: any) {
-        if (supabaseErr?.name === "TokenExpiredError" || supabaseErr?.message?.includes("expired")) {
-          isExpired = true;
+      } catch (err: any) {
+        if (err?.name === "TokenExpiredError") isAnyExpired = true;
+        try {
+          const decoded: any = jwt.verify(token, getJwtSecret());
+          identity = decoded?.id || decoded?.userId || decoded?.sellerId || decoded?.sub || null;
+        } catch (innerErr: any) {
+          if (innerErr?.name === "TokenExpiredError") isAnyExpired = true;
+          identity = null;
         }
-        console.warn("[sellerAuth] Supabase token verification failed:", supabaseErr?.message);
+      }
+
+      // 2) Optional legacy Supabase token verification fallback (only if SUPABASE_URL configured)
+      if (!identity && (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)) {
+        try {
+          const supabasePayload: any = await verifySupabaseAccessToken(token);
+          identity = supabasePayload?.sub || supabasePayload?.user_id || null;
+          fallbackEmail = supabasePayload?.email || supabasePayload?.user_metadata?.email || undefined;
+        } catch (supabaseErr: any) {
+          if (supabaseErr?.name === "TokenExpiredError" || supabaseErr?.message?.includes("expired")) {
+            isAnyExpired = true;
+          }
+        }
+      }
+
+      if (!identity) continue;
+
+      const seller = await resolveSeller(identity, fallbackEmail);
+      if (seller) {
+        authenticatedSeller = seller;
+        break;
       }
     }
 
-    if (!identity) {
+    if (!authenticatedSeller) {
       return res.status(401).json({
-        message: isExpired ? "Session expired" : "JWT verification failed",
-        isExpired
+        message: isAnyExpired ? "Session expired" : "JWT verification failed",
+        isExpired: isAnyExpired
       });
     }
 
-    const seller = await resolveSeller(identity, fallbackEmail);
-
-    if (!seller) {
-      return res.status(401).json({
-        message: "Seller not found",
-      });
-    }
+    const seller = authenticatedSeller;
 
     if (seller.isDeactivated) {
       return res.status(403).json({

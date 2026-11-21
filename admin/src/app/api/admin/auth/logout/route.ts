@@ -38,6 +38,11 @@ export async function POST(req: NextRequest) {
       maxAge: 0,
     });
 
+    if (isProduction) {
+      response.headers.append('Set-Cookie', 'admin_session=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; SameSite=None; Partitioned');
+      response.headers.append('Set-Cookie', 'admin_refresh=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; SameSite=None; Partitioned');
+    }
+
     return response;
   } catch (error: any) {
     console.error('[/api/admin/auth/logout] Logout error', error);

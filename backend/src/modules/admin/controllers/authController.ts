@@ -5,6 +5,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../../config/token.js";
 import { setAuthCookie, clearAuthCookie, setRefreshCookie, clearRefreshCookie } from "../../../config/sessionCookies.js";
+import { extractCandidateTokens } from "../../../middleware/tokenExtractor.js";
 import { OAuth2Client } from "google-auth-library";
 import EmailService from "../../../services/email/email.service.js";
 import { logAdminAction } from "../utils/actionLogger.js";
@@ -142,36 +143,43 @@ export const logout = async (req: Request, res: Response) => {
 
 export const refresh = async (req: Request, res: Response) => {
     try {
-        const rawToken = req.cookies?.admin_refresh || req.headers["x-refresh-token"];
-        const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
-        if (!token) return res.status(401).json({ message: "No refresh token" });
-
-        let payload: any;
-        try {
-            payload = verifyRefreshToken(token) as any;
-        } catch (err) {
-            return res.status(401).json({ message: "Invalid refresh token" });
+        const candidateTokens = extractCandidateTokens(req, "admin_refresh", "x-refresh-token");
+        if (candidateTokens.length === 0) {
+            return res.status(401).json({ message: "No refresh token" });
         }
 
-        const userId = payload.id as string;
-        const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-        const stored = await prisma.refreshToken.findFirst({
-            where: { tokenHash, userId, userType: "ADMIN", revoked: false, expiresAt: { gt: new Date() } }
-        });
-        if (!stored) return res.status(401).json({ message: "Refresh token invalid or revoked" });
+        for (const token of candidateTokens) {
+            let payload: any;
+            try {
+                payload = verifyRefreshToken(token) as any;
+            } catch {
+                continue;
+            }
 
-        await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+            const userId = payload?.id as string;
+            if (!userId) continue;
 
-        const newRefresh = signRefreshToken(userId);
-        const newHash = crypto.createHash("sha256").update(newRefresh).digest("hex");
-        const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
-        await prisma.refreshToken.create({ data: { userId, userType: "ADMIN", tokenHash: newHash, expiresAt } });
+            const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+            const stored = await prisma.refreshToken.findFirst({
+                where: { tokenHash, userId, userType: "ADMIN", revoked: false, expiresAt: { gt: new Date() } }
+            });
+            if (!stored) continue;
 
-        const accessToken = signAccessToken(userId);
-        setAuthCookie(res, "admin_session", accessToken);
-        setRefreshCookie(res, newRefresh);
+            await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
 
-        return res.status(200).json({ message: "Refreshed" });
+            const newRefresh = signRefreshToken(userId);
+            const newHash = crypto.createHash("sha256").update(newRefresh).digest("hex");
+            const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+            await prisma.refreshToken.create({ data: { userId, userType: "ADMIN", tokenHash: newHash, expiresAt } });
+
+            const accessToken = signAccessToken(userId);
+            setAuthCookie(res, "admin_session", accessToken);
+            setRefreshCookie(res, newRefresh);
+
+            return res.status(200).json({ message: "Refreshed" });
+        }
+
+        return res.status(401).json({ message: "Refresh token invalid or revoked" });
     } catch (err) {
         console.error("REFRESH ERROR", err);
         return res.status(500).json({ message: "Internal Server Error" });

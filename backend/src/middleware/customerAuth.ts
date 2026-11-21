@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/prisma.js";
 import jwt from "jsonwebtoken";
 import { getJwtSecret } from "../config/token.js";
+import { extractCandidateTokens } from "./tokenExtractor.js";
 
 interface JwtPayload {
     id: string;
@@ -17,15 +18,9 @@ declare global {
 
 export const customerAuth = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const cookieToken = req.cookies?.customer_session;
-        const authHeader = req.headers.authorization;
-        const headerToken = authHeader?.startsWith("Bearer ")
-            ? authHeader.substring(7)
-            : (req.headers["x-customer-token"] as string | undefined);
+        const candidateTokens = extractCandidateTokens(req, "customer_session", "x-customer-token");
 
-        const token = headerToken || cookieToken;
-
-        if (!token) {
+        if (candidateTokens.length === 0) {
             return res.status(401).json({
                 message: "Unauthorized",
                 reason: "No customer authentication token received",
@@ -33,41 +28,50 @@ export const customerAuth = async (req: Request, res: Response, next: NextFuncti
             });
         }
 
-        let decoded: JwtPayload;
-        try {
-            decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
-        } catch (jwtErr: any) {
-            const isExpired = jwtErr?.name === 'TokenExpiredError';
-            return res.status(401).json({
-                message: "Unauthorized",
-                reason: isExpired ? "JWT expired" : `JWT invalid: ${jwtErr?.message}`,
-                isExpired
-            });
+        let authenticatedCustomerId: string | null = null;
+        let lastErrorReason = "Invalid token";
+        let isAnyExpired = false;
+
+        for (const token of candidateTokens) {
+            let decoded: JwtPayload | null = null;
+            try {
+                decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
+            } catch (jwtErr: any) {
+                if (jwtErr?.name === 'TokenExpiredError') isAnyExpired = true;
+                continue;
+            }
+
+            if (!decoded?.id) continue;
+
+            const customer = await prisma.customer.findUnique({ where: { id: decoded.id } });
+            if (!customer) continue;
+
+            if (customer.isBanned) {
+                return res.status(403).json({ message: "Account is banned", reason: "Customer is banned" });
+            }
+
+            if (customer.isDeactivated) {
+                return res.status(403).json({ message: "Account is deactivated", reason: "Customer is deactivated" });
+            }
+
+            if (customer.scheduledDeleteAt !== null) {
+                return res.status(403).json({ message: "Account scheduled for deletion", reason: "Customer account scheduled for deletion" });
+            }
+
+            authenticatedCustomerId = customer.id;
+            break;
         }
 
-        const customer = await prisma.customer.findUnique({ where: { id: decoded.id } });
-
-        if (!customer) {
-            return res.status(401).json({
-                message: "Unauthorized",
-                reason: "Customer not found"
-            });
+        if (authenticatedCustomerId) {
+            req.customerId = authenticatedCustomerId;
+            return next();
         }
 
-        if (customer.isBanned) {
-            return res.status(403).json({ message: "Account is banned", reason: "Customer is banned" });
-        }
-
-        if (customer.isDeactivated) {
-            return res.status(403).json({ message: "Account is deactivated", reason: "Customer is deactivated" });
-        }
-
-        if (customer.scheduledDeleteAt !== null) {
-            return res.status(403).json({ message: "Account scheduled for deletion", reason: "Customer account scheduled for deletion" });
-        }
-
-        req.customerId = decoded.id;
-        next();
+        return res.status(401).json({
+            message: "Unauthorized",
+            reason: isAnyExpired ? "JWT expired" : lastErrorReason,
+            isExpired: isAnyExpired
+        });
 
     } catch (error) {
         console.error('[customerAuth] Unexpected error:', error);

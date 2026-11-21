@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/prisma.js";
 import jwt from "jsonwebtoken";
 import { getJwtSecret, verifyAccessToken } from "../config/token.js";
+import { extractCandidateTokens } from "./tokenExtractor.js";
 
 interface JwtPayload {
     id: string;
@@ -17,42 +18,59 @@ declare global {
 
 export const adminAuth = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        let token = req.cookies.admin_session;
+        const candidateTokens = extractCandidateTokens(req, "admin_session", "x-admin-token");
 
-        // Fallback to Authorization Header
-        if (!token && req.headers.authorization?.startsWith("Bearer ")) {
-            token = req.headers.authorization.split(" ")[1];
-        }
-
-        if (!token) {
+        if (candidateTokens.length === 0) {
             return res.status(401).json({
                 message: "Unauthorized"
             });
         }
 
-        let decoded: JwtPayload;
-        try {
-            decoded = verifyAccessToken(token) as JwtPayload;
-        } catch {
+        let authenticatedAdminId: string | null = null;
+        let hasInactiveAccount = false;
+
+        for (const token of candidateTokens) {
+            let decoded: JwtPayload | null = null;
             try {
-                decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
+                decoded = verifyAccessToken(token) as JwtPayload;
             } catch {
-                return res.status(401).json({ message: "Invalid token" });
+                try {
+                    decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
+                } catch {
+                    decoded = null;
+                }
+            }
+
+            if (!decoded?.id) continue;
+
+            const admin = await prisma.admin.findUnique({
+                where: { id: decoded.id }
+            });
+
+            if (admin) {
+                if (admin.isActive) {
+                    authenticatedAdminId = admin.id;
+                    break;
+                } else {
+                    hasInactiveAccount = true;
+                }
             }
         }
 
-        const admin = await prisma.admin.findUnique({
-            where: { id: decoded.id }
-        });
+        if (authenticatedAdminId) {
+            req.adminId = authenticatedAdminId;
+            return next();
+        }
 
-        if (!admin || !admin.isActive) {
+        if (hasInactiveAccount) {
             return res.status(401).json({
                 message: "Unauthorized or deactivated admin account"
             });
         }
 
-        req.adminId = decoded.id;
-        next();
+        return res.status(401).json({
+            message: "Invalid token"
+        });
 
     } catch (error) {
         return res.status(401).json({

@@ -1,23 +1,43 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { prisma } from "../config/prisma.js";
+import { getJwtSecret, verifyAccessToken } from "../config/token.js";
+import { extractCandidateTokens } from "./tokenExtractor.js";
 
 const authToken = (req: Request) => {
-  const customer = req.cookies?.customer_session;
-  const seller = req.cookies?.seller_session;
-  const admin = req.cookies?.admin_session;
+  const adminTokens = extractCandidateTokens(req, "admin_session");
+  for (const token of adminTokens) {
+    try {
+      const payload = (verifyAccessToken(token) || jwt.verify(token, getJwtSecret())) as { id: string };
+      if (payload?.id) return { token, type: "admin" as const, payload };
+    } catch {}
+  }
 
-  if (admin) return { token: admin, type: "admin" as const };
-  if (seller) return { token: seller, type: "seller" as const };
-  if (customer) return { token: customer, type: "customer" as const };
+  const sellerTokens = extractCandidateTokens(req, "seller_session");
+  for (const token of sellerTokens) {
+    try {
+      const payload = (verifyAccessToken(token) || jwt.verify(token, getJwtSecret())) as { id: string };
+      if (payload?.id) return { token, type: "seller" as const, payload };
+    } catch {}
+  }
+
+  const customerTokens = extractCandidateTokens(req, "customer_session");
+  for (const token of customerTokens) {
+    try {
+      const payload = (verifyAccessToken(token) || jwt.verify(token, getJwtSecret())) as { id: string };
+      if (payload?.id) return { token, type: "customer" as const, payload };
+    } catch {}
+  }
 
   const auth = req.headers.authorization;
-
   if (auth?.startsWith("Bearer ")) {
-    return {
-      token: auth.split(" ")[1],
-      type: "bearer" as const,
-    };
+    const token = auth.split(" ")[1]?.trim();
+    if (token) {
+      try {
+        const payload = (verifyAccessToken(token) || jwt.verify(token, getJwtSecret())) as { id: string };
+        if (payload?.id) return { token, type: "bearer" as const, payload };
+      } catch {}
+    }
   }
 
   return null;
@@ -42,10 +62,10 @@ const authGuard = async (
   }
 
   try {
-    const payload = jwt.verify(
+    const payload = auth.payload || (jwt.verify(
       auth.token,
-      process.env.JWT_SECRET_KEY!
-    ) as { id: string };
+      getJwtSecret()
+    ) as { id: string });
 
     if (!payload?.id) {
       return res.status(401).json({
