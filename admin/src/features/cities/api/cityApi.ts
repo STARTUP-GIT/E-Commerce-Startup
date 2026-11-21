@@ -23,6 +23,10 @@ export const cityApi = {
     const response = await axiosInstance.get(`/api/admin/cities/${id}/details`);
     return response.data;
   },
+  toggleDistrictMaster: async (id: string, payload: { isActive: boolean; bulkEnableAreas?: boolean }) => {
+    const response = await axiosInstance.put(`/api/admin/cities/${id}/master-toggle`, payload);
+    return response.data;
+  },
   updateGeneralSettings: async (id: string, payload: any) => {
     const response = await axiosInstance.put(`/api/admin/cities/${id}/general-settings`, payload);
     return response.data;

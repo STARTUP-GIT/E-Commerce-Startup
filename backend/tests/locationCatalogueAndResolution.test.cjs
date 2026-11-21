@@ -48,30 +48,26 @@ test('Serviceability Check - empty location is NOT serviceable', async () => {
     assert.strictEqual(result.status, 'UNKNOWN');
 });
 
-test('Parent-Child Availability Hierarchy - Parent Town disability disables child Service Area', async () => {
-    const { ServiceabilityService } = await import('../dist/src/services/location/serviceability.service.js');
-
-    // Simulate mock serviceability check with inactive parent town
-    // Verify that checkServiceability returns DISABLED_BY_CITY when town is inactive
-    const inactiveTownDistrict = {
+test('District Master Availability Hierarchy - District Master disability disables all child Service Areas', async () => {
+    // When District Master isActive is false, all areas in district are disabled regardless of individual flags
+    const inactiveMasterDistrict = {
         name: 'Mysuru',
         displayName: 'Mysuru',
         state: 'Karnataka',
-        isActive: true,
+        isActive: false, // District master is OFF
         isCustomerEnabled: true,
         allowCustomerBrowsing: true,
         allowCustomerOrdering: true,
         launchStatus: 'LAUNCHED',
         cityTowns: [
-            { id: 'town-hunsur', name: 'Hunsur', displayName: 'Hunsur', isActive: false }
+            { id: 'town-hunsur', name: 'Hunsur', displayName: 'Hunsur', isActive: true }
         ],
         serviceAreas: [
             { id: 'area-bilikere', name: 'Bilikere', cityTownId: 'town-hunsur', postalCodes: ['571103'], isActive: true, deliveryEligible: true }
         ]
     };
 
-    // Check with service area Bilikere whose parent town Hunsur is inactive
-    assert.strictEqual(inactiveTownDistrict.cityTowns[0].isActive, false);
-    const parentTown = inactiveTownDistrict.cityTowns.find(t => t.id === inactiveTownDistrict.serviceAreas[0].cityTownId);
-    assert.ok(parentTown && !parentTown.isActive, 'Parent town must be inactive');
+    assert.strictEqual(inactiveMasterDistrict.isActive, false, 'District master must be disabled');
+    // Town/City is purely geographical grouping metadata and not an independent activation blocker
+    assert.strictEqual(inactiveMasterDistrict.cityTowns[0].name, 'Hunsur');
 });

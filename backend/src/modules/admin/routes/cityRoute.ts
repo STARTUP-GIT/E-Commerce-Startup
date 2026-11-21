@@ -3,6 +3,7 @@ import { createCity, getCities, updateCity, deleteCity } from "../controllers/ci
 import {
     getDistrictDetails,
     updateDistrictGeneralSettings,
+    toggleDistrictMaster,
     updateDistrictCustomerSettings,
     updateDistrictSellerSettings,
     updateDistrictDeliverySettings,
@@ -36,6 +37,7 @@ router.delete("/:id", requirePermission("catalog.manage"), deleteCity);
 // Detailed District Management (Tabs)
 router.get("/:id/details", requirePermission("catalog.view"), getDistrictDetails);
 router.put("/:id/general-settings", requirePermission("catalog.manage"), updateDistrictGeneralSettings);
+router.put("/:id/master-toggle", requirePermission("catalog.manage"), toggleDistrictMaster);
 router.put("/:id/customer-settings", requirePermission("catalog.manage"), updateDistrictCustomerSettings);
 router.put("/:id/seller-settings", requirePermission("catalog.manage"), updateDistrictSellerSettings);
 router.put("/:id/delivery-settings", requirePermission("catalog.manage"), updateDistrictDeliverySettings);

@@ -372,12 +372,57 @@ export const updateDistrictGeneralSettings = async (req: Request, res: Response)
             }
         });
 
+        if (isActive !== undefined && Boolean(isActive) && req.body.bulkEnableAreas) {
+            await prisma.serviceArea.updateMany({
+                where: { districtId: id },
+                data: { isActive: true, deliveryEligible: true }
+            });
+        }
+
         await logAudit(req, "DISTRICT", id, "UPDATE_GENERAL_SETTINGS", existing, updated);
         invalidatePublicCache();
 
         return res.status(200).json({ message: "District general settings updated", district: updated });
     } catch (error: any) {
         console.error("UPDATE DISTRICT GENERAL SETTINGS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+/**
+ * PUT /api/admin/cities/:id/master-toggle
+ * Single authoritative district master availability control
+ */
+export const toggleDistrictMaster = async (req: Request, res: Response) => {
+    try {
+        const id = req.params.id as string;
+        const { isActive, bulkEnableAreas } = req.body;
+
+        const existing = await prisma.city.findUnique({ where: { id } });
+        if (!existing) return res.status(404).json({ message: "District not found" });
+
+        const updated = await prisma.city.update({
+            where: { id },
+            data: { isActive: Boolean(isActive) }
+        });
+
+        // When activating entire district and bulkEnableAreas is true, activate all child service areas
+        if (Boolean(isActive) && bulkEnableAreas) {
+            await prisma.serviceArea.updateMany({
+                where: { districtId: id },
+                data: { isActive: true, deliveryEligible: true }
+            });
+        }
+
+        await logAudit(req, "DISTRICT", id, "MASTER_TOGGLE", existing, updated);
+        invalidatePublicCache();
+
+        return res.status(200).json({
+            message: `District master ${updated.isActive ? "enabled" : "disabled"} successfully`,
+            district: updated
+        });
+    } catch (error: any) {
+        console.error("TOGGLE DISTRICT MASTER ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };
