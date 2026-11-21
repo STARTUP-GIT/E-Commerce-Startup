@@ -24,7 +24,6 @@ const BACKEND_URL = process.env.BACKEND_API_URL?.replace(/\/$/, "");
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
 };
 

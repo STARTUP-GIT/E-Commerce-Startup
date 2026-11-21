@@ -28,7 +28,11 @@ function ShopMarquee() {
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
-  const shops = data?.shops || [];
+  const rawShops = data?.shops || [];
+  // Ensure unique shops by ID to eliminate duplicate links side-by-side
+  const uniqueShops = Array.from(new Map(rawShops.map((s: any) => [s.id, s])).values());
+  // Only duplicate for continuous loop marquee if we have 6 or more distinct shops
+  const displayShops = uniqueShops.length >= 6 ? [...uniqueShops, ...uniqueShops] : uniqueShops;
 
   return (
     <div className="border-t border-white/[0.06] bg-white/[0.015] min-h-[29px] overflow-hidden marquee-container flex items-center">
@@ -38,15 +42,15 @@ function ShopMarquee() {
             <div key={i} className="skeleton-glass h-3 rounded-full flex-shrink-0" style={{ width: `${56 + i * 14}px` }} />
           ))}
         </div>
-      ) : shops.length > 0 ? (
+      ) : displayShops.length > 0 ? (
         <div className="marquee-track flex items-center gap-0.5 py-1">
-          {[...shops, ...shops].map((shop, i) => (
+          {displayShops.map((shop: any, i) => (
             <Link
               key={`${shop.id}-${i}`}
               href={`/shops/${shop.slug || shop.id}`}
-              className="flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-medium text-white/40 hover:text-white hover:bg-white/[0.06] transition-all whitespace-nowrap group"
+              className="flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-semibold text-zinc-300 hover:text-white hover:bg-white/[0.08] transition-all whitespace-nowrap group"
             >
-              <Store className="h-2.5 w-2.5 text-white/25 group-hover:text-white/70 transition-colors" />
+              <Store className="h-2.5 w-2.5 text-zinc-400 group-hover:text-white transition-colors" />
               {shop.name}
             </Link>
           ))}
@@ -283,7 +287,8 @@ export function Navbar() {
               {/* Cart Button */}
               <button
                 onClick={() => setCartOpen(true)}
-                className="relative flex h-9 w-9 items-center justify-center rounded-lg text-white/55 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
+                aria-label="Shopping Cart"
+                className="relative flex h-9 w-9 items-center justify-center rounded-lg text-white/70 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
               >
                 <ShoppingCart className="h-4.5 w-4.5" />
                 {cartCount > 0 && (
@@ -361,9 +366,9 @@ export function Navbar() {
 
               {/* Mobile / tablet menu toggle — shown below lg */}
               <button
-                className="2xl:hidden flex h-9 w-9 items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
+                className="2xl:hidden flex h-9 w-9 items-center justify-center rounded-lg text-white/70 hover:text-white hover:bg-white/[0.07] transition-all cursor-pointer"
                 onClick={() => setMobileNavOpen(!mobileNavOpen)}
-                aria-label="Toggle Navigation Menu"
+                aria-label="Menu"
               >
                 {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>

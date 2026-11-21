@@ -10,6 +10,8 @@ import {
   ArrowRight, MapPin, Store, Printer,
   Paintbrush, Home as HomeIcon, Shirt, Cpu,
   Users, Clock, ShieldCheck, ChevronRight, Grid3X3,
+  BookOpen, Sprout, ShoppingBag, Briefcase, Dumbbell,
+  PenTool, Gamepad2, Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSiteLayout } from '@/lib/hooks/useSiteLayout';
@@ -21,6 +23,23 @@ const valueProps = [
   { icon: Clock,       title: 'Fast Turnaround',         desc: 'Same-day pickup or lightning-fast regional delivery.' },
   { icon: ShieldCheck, title: 'Secure Payments',         desc: 'End-to-end encrypted transactions powered by Stripe.' },
 ];
+
+function getCategoryIcon(nameOrSlug?: string) {
+  const norm = (nameOrSlug || '').toLowerCase();
+  if (norm.includes('3d') || norm.includes('print')) return Printer;
+  if (norm.includes('art') || norm.includes('craft')) return Paintbrush;
+  if (norm.includes('book')) return BookOpen;
+  if (norm.includes('fashion') || norm.includes('cloth') || norm.includes('apparel')) return Shirt;
+  if (norm.includes('garden') || norm.includes('plant')) return Sprout;
+  if (norm.includes('grocer') || norm.includes('food')) return ShoppingBag;
+  if (norm.includes('home') || norm.includes('kitchen')) return HomeIcon;
+  if (norm.includes('office') || norm.includes('suppl')) return Briefcase;
+  if (norm.includes('sport') || norm.includes('fitness')) return Dumbbell;
+  if (norm.includes('station')) return PenTool;
+  if (norm.includes('toy') || norm.includes('game')) return Gamepad2;
+  if (norm.includes('tech') || norm.includes('electro') || norm.includes('gadget')) return Cpu;
+  return Sparkles;
+}
 
 function ShopCard({ shop, index }: { shop: any; index: number }) {
   const banner = shop.bannerUrl
@@ -75,11 +94,11 @@ function ShopCard({ shop, index }: { shop: any; index: number }) {
           <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#fff', lineHeight: 1.2 }} className="group-hover:opacity-70 transition-opacity line-clamp-1">
             {shop.name}
           </h4>
-          <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.42)', marginTop: '8px', lineHeight: 1.6 }} className="line-clamp-2 flex-1">
+          <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.65)', marginTop: '8px', lineHeight: 1.6 }} className="line-clamp-2 flex-1">
             {shop.description || 'Premium local craft maker.'}
           </p>
           <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'flex-end' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(255,255,255,0.45)' }} className="flex items-center gap-1 group-hover:text-white transition-colors">
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(255,255,255,0.65)' }} className="flex items-center gap-1 group-hover:text-white transition-colors">
               Browse shop <ChevronRight style={{ width: 13, height: 13 }} />
             </span>
           </div>
@@ -131,7 +150,7 @@ export function HomePage() {
 
             <div>
               {/* Eyebrow badge */}
-              <div className="inline-flex max-w-full items-center gap-2 px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white/[0.06] border border-white/10 text-[10px] sm:text-xs font-bold tracking-[0.02em] sm:tracking-widest text-white/65 uppercase mb-6 sm:mb-10">
+              <div className="inline-flex max-w-full items-center gap-2 px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-full bg-white/[0.06] border border-white/10 text-[10px] sm:text-xs font-bold tracking-[0.02em] sm:tracking-widest text-zinc-300 uppercase mb-6 sm:mb-10">
                 <span className="w-1.5 h-1.5 rounded-full bg-white/70 inline-block animate-pulse" />
                 {branding.heroBadge || DEFAULT_BRANDING.heroBadge}
               </div>
@@ -149,7 +168,7 @@ export function HomePage() {
             </div>
 
             {/* Subheading */}
-            <p className="mt-6 text-sm sm:text-base md:text-lg text-white/55 max-w-[22rem] sm:max-w-[560px] mx-auto leading-[1.5] max-[340px]:leading-[1.4] sm:leading-relaxed font-normal sm:mt-0 sm:mb-12">
+            <p className="mt-6 text-sm sm:text-base md:text-lg text-zinc-300 max-w-[22rem] sm:max-w-[560px] mx-auto leading-[1.5] max-[340px]:leading-[1.4] sm:leading-relaxed font-normal sm:mt-0 sm:mb-12">
               {branding.heroDescription || DEFAULT_BRANDING.heroDescription}
             </p>
 
@@ -181,39 +200,42 @@ export function HomePage() {
           {/* Header */}
           <div className="flex items-end justify-between mb-6 sm:mb-8">
             <div>
-              <p className="text-[10px] sm:text-xs font-bold text-white/30 uppercase tracking-widest mb-2">Browse by</p>
+              <p className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">Browse by</p>
               <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-none">Categories</h2>
             </div>
             <Link href="/categories">
-              <span className="text-xs sm:text-sm font-bold text-white/35 flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors">
+              <span className="text-xs sm:text-sm font-bold text-zinc-400 flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors">
                 View all <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </span>
             </Link>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
-            {homeCategories.slice(0, 12).map((cat: any) => (
-              <Link key={cat.id} href={`/products?category=${cat.id}`} className="group block w-[calc(50%-6px)] sm:w-[calc(33.333%-11px)] md:w-[calc(25%-12px)] lg:w-[calc(20%-13px)] xl:w-[calc(16.667%-14px)]">
-                <div
-                  className="glass-card glass-hover p-4 sm:p-7 flex flex-col items-center text-center gap-3 sm:gap-4 h-full"
-                >
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+            {homeCategories.slice(0, 12).map((cat: any) => {
+              const CatIcon = getCategoryIcon(cat.name || cat.slug);
+              return (
+                <Link key={cat.id} href={`/products?category=${cat.id}`} className="group block w-full">
                   <div
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/[0.08] flex items-center justify-center overflow-hidden group-hover:bg-white group-hover:scale-110 transition-all duration-200"
+                    className="glass-card glass-hover p-4 sm:p-7 flex flex-col items-center text-center gap-3 sm:gap-4 h-full"
                   >
-                    {cat.imageUrl ? (
-                      <img src={cat.imageUrl} alt={cat.name} loading="lazy" className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" />
-                    ) : (
-                      <Grid3X3 className="h-5 w-5 sm:h-6 sm:w-6 text-white/75 group-hover:text-black transition-colors" />
-                    )}
+                    <div
+                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/[0.08] flex items-center justify-center overflow-hidden group-hover:bg-white group-hover:scale-110 transition-all duration-200"
+                    >
+                      {cat.imageUrl ? (
+                        <img src={cat.imageUrl} alt={cat.name} loading="lazy" className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" />
+                      ) : (
+                        <CatIcon className="h-5 w-5 sm:h-6 sm:w-6 text-white/80 group-hover:text-black transition-colors" />
+                      )}
+                    </div>
+                    <span
+                      className="text-xs sm:text-sm font-extrabold text-white/80 leading-snug group-hover:text-white transition-colors line-clamp-2"
+                    >
+                      {cat.name}
+                    </span>
                   </div>
-                  <span
-                    className="text-xs sm:text-sm font-extrabold text-white/80 leading-snug group-hover:text-white transition-colors line-clamp-2"
-                  >
-                    {cat.name}
-                  </span>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </section>
       );
@@ -224,11 +246,11 @@ export function HomePage() {
         <section key={sectionId} className="max-w-[1280px] mx-auto px-4 sm:px-6 pb-16 sm:pb-24">
           <div className="flex items-end justify-between mb-8 sm:mb-12">
             <div>
-              <p className="text-[10px] sm:text-xs font-bold text-white/30 uppercase tracking-widest mb-2">Handpicked</p>
+              <p className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">Handpicked</p>
               <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-none">Featured Creators</h2>
             </div>
             <Link href="/shops">
-              <span className="text-xs sm:text-sm font-bold text-white/35 flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors">
+              <span className="text-xs sm:text-sm font-bold text-zinc-400 flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors">
                 All Shops <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </span>
             </Link>
@@ -252,7 +274,17 @@ export function HomePage() {
                 </div>
               ))}
             </div>
-          ) : shops.length > 0 ? (
+          ) : shops.length === 1 ? (
+            <div className="max-w-md mx-auto sm:max-w-lg">
+              <ShopCard shop={shops[0]} index={0} />
+            </div>
+          ) : shops.length === 2 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 max-w-4xl mx-auto gap-5">
+              {shops.map((shop, i) => (
+                <ShopCard key={shop.id} shop={shop} index={i} />
+              ))}
+            </div>
+          ) : shops.length >= 3 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {shops.slice(0, 6).map((shop, i) => (
                 <ShopCard key={shop.id} shop={shop} index={i} />
@@ -261,7 +293,7 @@ export function HomePage() {
           ) : (
             <div className="glass-card p-12 sm:p-20 text-center">
               <Store className="h-12 w-12 text-white/20 mx-auto mb-4" />
-              <p className="text-sm sm:text-base text-white/35">No shops available yet.</p>
+              <p className="text-sm sm:text-base text-zinc-400">No shops available yet.</p>
             </div>
           )}
         </section>
@@ -283,19 +315,19 @@ export function HomePage() {
 
             <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-8 md:gap-12">
               <div className="max-w-[540px]">
-                <p className="text-[10px] sm:text-xs font-bold text-white/30 uppercase tracking-widest mb-3">
+                <p className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">
                   Made Just for You
                 </p>
                 <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight mb-4">
                   Need Something<br />One-of-a-Kind?
                 </h2>
-                <p className="text-xs sm:text-sm text-white/45 leading-relaxed mb-6">
+                <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed mb-6">
                   Commission anything custom — from 3D-printed parts to tailored clothing, bespoke artwork, or personalised gifts. Local makers, real results.
                 </p>
                 <div className="flex flex-wrap gap-4 sm:gap-6">
                   {['Verify designs', 'Local creators', 'Track production'].map(s => (
-                    <span key={s} className="text-xs sm:text-sm text-white/45 font-semibold flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/45 inline-block" />
+                    <span key={s} className="text-xs sm:text-sm text-zinc-300 font-semibold flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/70 inline-block" />
                       {s}
                     </span>
                   ))}
@@ -330,7 +362,7 @@ export function HomePage() {
                 </div>
                 <div>
                   <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>{title}</h3>
-                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.38)', lineHeight: 1.7 }}>{desc}</p>
+                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.65)', lineHeight: 1.7 }}>{desc}</p>
                 </div>
               </div>
             ))}
@@ -341,48 +373,22 @@ export function HomePage() {
 
     if ((key.includes('guest') || key.includes('signup') || key.includes('flash')) && !session) {
       return (
-        <section key={sectionId} style={{ background: '#ffffff' }}>
-          <div style={{
-            maxWidth: '1280px', margin: '0 auto',
-            padding: 'clamp(60px, 10vw, 100px) 24px',
-            display: 'flex', flexWrap: 'wrap',
-            alignItems: 'center', justifyContent: 'space-between', gap: '40px',
-          }}>
-            <div>
-              <h2 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, color: '#000', letterSpacing: '-0.03em', lineHeight: 1.05 }}>
-                Your neighbourhood.<br />Your marketplace.
-              </h2>
-              <p style={{ fontSize: '16px', color: 'rgba(0,0,0,0.5)', marginTop: '12px', maxWidth: '400px', lineHeight: 1.6 }}>
-                Join {marketplaceName} free — browse local sellers, follow your favourite shops, and get anything delivered or picked up nearby.
-              </p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flexShrink: 1, maxWidth: '100%' }}>
-              <Link href="/signup" style={{ maxWidth: '100%' }}>
-                <button
-                  style={{
-                    height: '48px', padding: '0 22px', borderRadius: '14px',
-                    background: '#000', color: '#fff', border: 'none',
-                    fontSize: '14px', fontWeight: 800, cursor: 'pointer',
-                    transition: 'opacity 0.15s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
-                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                >
+        <section key={sectionId} className="bg-white">
+          <div className="max-w-3xl mx-auto py-16 sm:py-24 px-6 text-center flex flex-col items-center">
+            <h2 className="text-3xl sm:text-5xl md:text-6xl font-black text-black tracking-tight leading-tight">
+              Your neighbourhood.<br />Your marketplace.
+            </h2>
+            <p className="text-sm sm:text-base text-black/70 mt-4 max-w-lg leading-relaxed">
+              Join {marketplaceName} free — browse local sellers, follow your favourite shops, and get anything delivered or picked up nearby.
+            </p>
+            <div className="flex items-center justify-center gap-3 mt-8">
+              <Link href="/signup">
+                <button className="h-12 px-6 rounded-2xl bg-black text-white text-sm font-bold hover:opacity-90 transition-opacity cursor-pointer shadow-md">
                   Create Account
                 </button>
               </Link>
-              <Link href="/login" style={{ maxWidth: '100%' }}>
-                <button
-                  style={{
-                    height: '48px', padding: '0 22px', borderRadius: '14px',
-                    background: 'transparent', color: '#000',
-                    border: '1.5px solid rgba(0,0,0,0.2)',
-                    fontSize: '14px', fontWeight: 700, cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.35)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.2)'; }}
-                >
+              <Link href="/login">
+                <button className="h-12 px-6 rounded-2xl bg-transparent text-black border border-black/25 text-sm font-bold hover:bg-black/5 hover:border-black/50 transition-all cursor-pointer">
                   Sign In
                 </button>
               </Link>
