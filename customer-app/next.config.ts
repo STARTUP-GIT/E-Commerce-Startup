@@ -92,6 +92,15 @@ const nextConfig: NextConfig = {
         source: '/api/branding/:path*',
         destination: `${backendUrl.replace(/\/$/, '')}/api/branding/:path*`,
       },
+      // ── Shared locations & serviceability ──────────────────────────────
+      {
+        source: '/api/locations',
+        destination: `${backendUrl.replace(/\/$/, '')}/api/locations`,
+      },
+      {
+        source: '/api/locations/:path*',
+        destination: `${backendUrl.replace(/\/$/, '')}/api/locations/:path*`,
+      },
       {
         // Everything else under /api/** → backend
         source: '/api/:path*',

@@ -23,6 +23,8 @@ export function AddressSelectorDialog() {
     selectedDistrict,
     setLocation,
     setComingSoon,
+    detectLocation,
+    isDetectingLocation,
   } = useLocationStore();
 
   const [customState, setCustomState] = useState('');
@@ -65,7 +67,7 @@ export function AddressSelectorDialog() {
     setAddressSelectorOpen(false);
   };
 
-  const handleSelectAddress = (addr: any) => {
+  const handleSelectAddress = async (addr: any) => {
     // Check if the address belongs to an operational location
     const isStateActive = activeStates.some(
       (s) => s.name.toLowerCase() === addr.state.toLowerCase()
@@ -76,7 +78,7 @@ export function AddressSelectorDialog() {
       return;
     }
 
-    setLocation(addr.id, addr.state, addr.city);
+    await setLocation(addr.id, addr.state, addr.city, true);
     
     // Invalidate queries immediately
     queryClient.invalidateQueries({ queryKey: ['shops'] });
@@ -85,6 +87,16 @@ export function AddressSelectorDialog() {
     queryClient.invalidateQueries({ queryKey: ['recommendations'] });
     queryClient.invalidateQueries({ queryKey: ['delivery-availability'] });
 
+    handleClose();
+  };
+
+  const handleDetectLocation = async () => {
+    await detectLocation(true);
+    queryClient.invalidateQueries({ queryKey: ['shops'] });
+    queryClient.invalidateQueries({ queryKey: ['products'] });
+    queryClient.invalidateQueries({ queryKey: ['nearby-shops'] });
+    queryClient.invalidateQueries({ queryKey: ['recommendations'] });
+    queryClient.invalidateQueries({ queryKey: ['delivery-availability'] });
     handleClose();
   };
 
@@ -105,26 +117,13 @@ export function AddressSelectorDialog() {
     }
   };
 
-  const handleDistrictChange = (districtName: string) => {
+  const handleDistrictChange = async (districtName: string) => {
     if (!districtName) return;
 
     setCustomDistrict(districtName);
 
-    // Check if selected district is active
-    const allDistricts = districtsData?.allDistricts || [];
-    const districtObj = allDistricts.find((d) => d.name === districtName);
-
-    if (districtObj && !districtObj.isEnabled) {
-      setComingSoon(true, customState, districtName, () => {
-        setCustomDistrict('');
-        setAddressSelectorOpen(true);
-      });
-      setAddressSelectorOpen(false);
-      return;
-    }
-
     // Set custom location
-    setLocation(null, customState, districtName);
+    await setLocation(null, customState, districtName, true);
 
     // Invalidate queries immediately
     queryClient.invalidateQueries({ queryKey: ['shops'] });
@@ -191,6 +190,29 @@ export function AddressSelectorDialog() {
                   </p>
 
                   <div className="flex-1 overflow-y-auto space-y-5 pr-1 py-1">
+                        {/* Current GPS Detection Option */}
+                        <button
+                          type="button"
+                          onClick={handleDetectLocation}
+                          disabled={isDetectingLocation}
+                          className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/15 text-white transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 group-hover:scale-105 transition-transform">
+                              {isDetectingLocation ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+                              ) : (
+                                <Navigation className="h-4 w-4 text-purple-400" />
+                              )}
+                            </div>
+                            <div className="text-left">
+                              <span className="block text-xs font-bold text-white">Use Current Location</span>
+                              <span className="block text-[10px] text-white/50">Detect automatically via device GPS</span>
+                            </div>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-white/40 group-hover:text-white transition-colors" />
+                        </button>
+
                         {/* Saved Addresses Section */}
                         {orderedAddresses.length > 0 && (
                           <div className="space-y-2">

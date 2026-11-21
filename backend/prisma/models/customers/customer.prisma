@@ -28,6 +28,7 @@ model Customer {
   caseReports           CustomerCaseReport[]
   refreshTokens         CustomerRefreshToken[]
   locationSubscriptions LocationNotificationSubscription[]
+  locationRequests      LocationRequest[]
   notifications         Notification[]
   orders                Order[]
   payments              Payment[]

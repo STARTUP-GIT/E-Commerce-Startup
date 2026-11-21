@@ -28,6 +28,7 @@ import customerCustomOrderRoutes from './src/modules/customer/routes/customOrder
 import customerCityRoute from './src/modules/customer/routes/cityRoute.js';
 import customerCategoryRoute from './src/modules/customer/routes/categoryRoute.js';
 import customerLocationRoute from './src/modules/customer/routes/locationRoute.js';
+import sharedLocationRoute from './src/modules/general/routes/sharedLocationRoute.js';
 import customerReportRoute from './src/modules/customer/routes/reportRoute.js';
 import customerConversationRoute from './src/modules/customer/routes/conversationRoute.js';
 import customerAddressRoute from './src/modules/customer/routes/addressRoute.js';
@@ -54,6 +55,9 @@ app.use('/customer', customerNotificationRoutes);
 app.use('/users', customerCustomOrderRoutes);
 app.use('/users', customerCategoryRoute);
 app.use('/users/cities', customerCityRoute);
+app.use('/api/locations', sharedLocationRoute);
+app.use('/customer/api/locations', sharedLocationRoute);
+app.use('/users/api/locations', sharedLocationRoute);
 app.use('/customer/api/location', customerLocationRoute);
 app.use('/users/api/location', customerLocationRoute);
 app.use('/customer/addresses', customerAddressRoute);

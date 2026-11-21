@@ -44,6 +44,15 @@ export const API_ROUTES = {
     districts:  (state: string) => `${BACKEND_BASE_URL}/customer/addresses/locations/districts?state=${encodeURIComponent(state)}`,
   },
 
+  locations: {
+    states:              `${BACKEND_BASE_URL}/api/locations/states`,
+    districts:           (state: string) => `${BACKEND_BASE_URL}/api/locations/districts?state=${encodeURIComponent(state)}`,
+    resolve:             `${BACKEND_BASE_URL}/api/locations/resolve`,
+    checkServiceability: `${BACKEND_BASE_URL}/api/locations/check-serviceability`,
+    availableCities:     `${BACKEND_BASE_URL}/api/locations/available-cities`,
+    request:             `${BACKEND_BASE_URL}/api/locations/request`,
+  },
+
   // ── Shops ─────────────────────────────────────────────────────────────────
   shops: {
     list:       `${BACKEND_BASE_URL}/users/api/shops`,

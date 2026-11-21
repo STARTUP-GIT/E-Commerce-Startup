@@ -22,6 +22,8 @@ export const AddressSelectorModal: React.FC = () => {
     selectedState,
     selectedDistrict,
     setLocation,
+    detectLocation,
+    isCheckingLocation,
     setComingSoon,
     activeStates,
     allStates,
@@ -117,6 +119,28 @@ export const AddressSelectorModal: React.FC = () => {
           </View>
 
           <ScrollView style={styles.contentScroll} showsVerticalScrollIndicator={false}>
+            {/* Use Current GPS Location Button */}
+            <TouchableOpacity
+              onPress={async () => {
+                await detectLocation(true);
+                setAddressSelectorOpen(false);
+              }}
+              style={styles.gpsBtn}
+              activeOpacity={0.8}
+            >
+              <View style={styles.gpsIconCircle}>
+                {isCheckingLocation ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <MapPin size={16} color={colors.primary} />
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.gpsTitle}>Use Current Location</Text>
+                <Text style={styles.gpsSubtitle}>Detect automatically via device GPS</Text>
+              </View>
+            </TouchableOpacity>
+
             {/* User Saved Addresses */}
             {isAuthenticated && (
               <View style={styles.section}>
@@ -255,6 +279,35 @@ const styles = StyleSheet.create({
   },
   contentScroll: {
     padding: 16,
+  },
+  gpsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.3)',
+    marginBottom: 16,
+  },
+  gpsIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(168, 85, 247, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gpsTitle: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  gpsSubtitle: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 10,
+    marginTop: 2,
   },
   section: {
     marginBottom: 20,

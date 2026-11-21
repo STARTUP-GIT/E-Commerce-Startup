@@ -7,6 +7,7 @@ export interface LocationCoordinatesInputProps {
   latitude?: number | null | string;
   longitude?: number | null | string;
   onChange: (coords: { latitude: number | null; longitude: number | null }) => void;
+  onLocationResolved?: (loc: { state: string; district: string; formattedAddress?: string }) => void;
   disabled?: boolean;
   className?: string;
   helperText?: string;
@@ -16,6 +17,7 @@ export function LocationCoordinatesInput({
   latitude,
   longitude,
   onChange,
+  onLocationResolved,
   disabled = false,
   className = '',
   helperText = 'Coordinates allow delivery personnel to navigate directly to your shop pickup location.',
@@ -152,7 +154,7 @@ export function LocationCoordinatesInput({
     setIsLocating(true);
 
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         setIsLocating(false);
         const lat = Number(pos.coords.latitude.toFixed(6));
         const lng = Number(pos.coords.longitude.toFixed(6));
@@ -161,6 +163,29 @@ export function LocationCoordinatesInput({
         setLngInput(String(lng));
         onChange({ latitude: lat, longitude: lng });
         setGeoSuccess('Retrieved current device location. Please review coordinates before saving.');
+
+        if (onLocationResolved) {
+          try {
+            const res = await fetch('/api/locations/resolve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ latitude: lat, longitude: lng, userRole: 'SELLER' }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const loc = data.resolvedLocation;
+              if (loc?.state && (loc?.district || loc?.city)) {
+                onLocationResolved({
+                  state: loc.state,
+                  district: loc.district || loc.city,
+                  formattedAddress: loc.formattedAddress,
+                });
+              }
+            }
+          } catch {
+            // Geocoding lookup is best-effort enhancement
+          }
+        }
       },
       (err) => {
         setIsLocating(false);

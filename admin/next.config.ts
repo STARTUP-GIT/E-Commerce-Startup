@@ -28,6 +28,14 @@ const nextConfig: NextConfig = {
         destination: "/api/admin/auth/login",
       },
       {
+        source: "/api/admin/auth/refresh",
+        destination: "/api/admin/auth/refresh",
+      },
+      {
+        source: "/api/admin/auth/logout",
+        destination: "/api/admin/auth/logout",
+      },
+      {
         source: "/api/admin/auth/forgot-password",
         destination: `${adminBackendUrl.replace(/\/$/, "")}/api/admin/auth/forgot-password`,
       },

@@ -48,6 +48,7 @@ model Seller {
   verifications        SellerVerification[]
   approvedByAdmin      Admin?                     @relation("SellerApprovedBy", fields: [approvedByAdminId], references: [id])
   shopAgreements       ShopAgreement[]
+  locationRequests     LocationRequest[]
   shopApprovalRequests ShopApprovalRequest[]
   shop                 Shop?
   supportTickets       SupportTicket[]

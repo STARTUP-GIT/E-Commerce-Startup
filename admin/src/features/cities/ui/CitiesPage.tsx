@@ -11,8 +11,9 @@ import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { useUIStore } from '@/lib/store/uiStore';
-import { MapPin, Plus, Trash2, Filter, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { MapPin, Plus, Trash2, Filter, AlertCircle, CheckCircle2, Sliders, ExternalLink } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import { DistrictDetailModal } from './DistrictDetailModal';
 
 function CitiesForm() {
   const queryClient = useQueryClient();
@@ -20,6 +21,7 @@ function CitiesForm() {
   const router = useRouter();
   const { showToast } = useUIStore();
   const [showForm, setShowForm] = useState(false);
+  const [selectedDistrictId, setSelectedDistrictId] = useState<string | null>(null);
 
   // Read stateName from dynamic path /[stateName]/districts
   const pathStateNameRaw = (params.stateName as string) || 'karnataka';
@@ -213,29 +215,69 @@ function CitiesForm() {
           {/* Grid of Regions */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {stateCities.map((city: any) => (
-              <Card key={city.id} className={`border glass-hover transition-all ${city.isActive ? 'border-white/8 bg-white/[0.01]' : 'border-white/3 opacity-60 bg-transparent'}`}>
+              <Card
+                key={city.id}
+                onClick={() => setSelectedDistrictId(city.id)}
+                className={`border glass-hover transition-all cursor-pointer group hover:border-purple-500/40 ${
+                  city.isActive ? 'border-white/8 bg-white/[0.01]' : 'border-white/3 opacity-60 bg-transparent'
+                }`}
+              >
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                        <MapPin className="h-5 w-5 text-white/40" />
+                      <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-purple-500/30 group-hover:bg-purple-500/10 transition-colors">
+                        <MapPin className="h-5 w-5 text-white/40 group-hover:text-purple-400 transition-colors" />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-white/95">{city.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-bold text-white/95 group-hover:text-purple-300 transition-colors">
+                            {city.displayName || city.name}
+                          </p>
+                          {city.displayName && (
+                            <span className="text-[9px] text-white/30 font-mono">({city.name})</span>
+                          )}
+                        </div>
                         <p className="text-[9px] text-white/40 mt-0.5">{city.state || 'Karnataka'}</p>
                       </div>
                     </div>
-                    <Badge variant={city.isActive ? 'success' : 'secondary'} className="text-[8px]">
-                      {city.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant={city.isActive ? 'success' : 'secondary'} className="text-[8px]">
+                        {city.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                      {!isStateEnabled && (
+                        <Badge variant="warning" className="text-[7px] py-0 px-1">
+                          Disabled by State
+                        </Badge>
+                      )}
+                      {city.maintenanceMode && (
+                        <Badge variant="warning" className="text-[7px] py-0 px-1">
+                          Maintenance
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-2 mt-4">
+
+                  <div className="flex gap-2 mt-4" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-[10px] font-bold h-8 flex-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedDistrictId(city.id);
+                      }}
+                    >
+                      <Sliders className="mr-1 h-3 w-3" /> Manage
+                    </Button>
                     <Button
                       size="sm"
                       variant={city.isActive ? 'outline' : 'default'}
-                      className="flex-1 text-[10px] font-bold h-8"
+                      className="text-[10px] font-bold h-8 px-3"
                       isLoading={toggleMutation.isPending}
-                      onClick={() => toggleMutation.mutate({ id: city.id, isActive: !city.isActive })}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleMutation.mutate({ id: city.id, isActive: !city.isActive });
+                      }}
                     >
                       {city.isActive ? 'Disable' : 'Enable'}
                     </Button>
@@ -244,7 +286,10 @@ function CitiesForm() {
                       variant="ghost"
                       className="h-8 w-8 p-0 text-red-400 hover:bg-red-500/10 shrink-0"
                       isLoading={deleteMutation.isPending}
-                      onClick={() => deleteMutation.mutate(city.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteMutation.mutate(city.id);
+                      }}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -253,6 +298,12 @@ function CitiesForm() {
               </Card>
             ))}
           </div>
+
+          <DistrictDetailModal
+            districtId={selectedDistrictId}
+            isOpen={!!selectedDistrictId}
+            onClose={() => setSelectedDistrictId(null)}
+          />
         </div>
       )}
     </div>

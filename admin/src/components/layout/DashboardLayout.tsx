@@ -192,6 +192,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { name: 'Content Management', path: '/content', icon: FileText, group: 'Catalog & Content', permission: 'content.view' },
     { name: 'States', path: '/states', icon: MapPin, group: 'Catalog & Content', permission: 'catalog.view' },
     { name: 'Districts / Cities', path: '/karnataka/districts', icon: MapPin, group: 'Catalog & Content', permission: 'catalog.view' },
+    { name: 'Location Requests', path: '/location-requests', icon: MessageSquare, group: 'Catalog & Content', permission: 'catalog.view' },
 
     // Finance
     { name: 'Payments & Transactions', path: '/payments', icon: CreditCard, group: 'Finance', permission: 'payments.view' },

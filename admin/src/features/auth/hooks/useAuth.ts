@@ -18,27 +18,25 @@ export function useAuth() {
     queryFn: async () => {
       try {
         const res = await authApi.getProfile();
-        return res.admin;
-      } catch (err) {
-        return null;
+        return res?.admin ?? null;
+      } catch (err: any) {
+        if (err?.response?.status === 401 || err?.response?.status === 403) {
+          return null;
+        }
+        throw err;
       }
     },
     staleTime: 5 * 60 * 1000,
-    retry: false,
+    retry: 1,
     enabled: status === 'authenticated',
   });
 
   const login = async (credentials: { email: string; password?: string }) => {
     try {
-      // Step 1: Call the backend DIRECTLY from the browser via Next.js proxy.
-      //         The backend responds with Set-Cookie: admin_session=...
-      //         which Next.js forwards to the browser. The cookie is stored
-      //         NATURALLY in the browser's cookie jar — no server-side
-      //         cookies() forwarding required.
-      await authApi.login(credentials);
+      // Step 1: Call the backend via Next.js proxy route handler.
+      const loginRes = await authApi.login(credentials);
 
       // Step 2: Create the NextAuth session (server-side call via authorize).
-      //         The admin_session cookie from Step 1 is already in the browser.
       const result = await signIn('credentials', {
         redirect: false,
         email: credentials.email,
@@ -49,12 +47,30 @@ export function useAuth() {
         throw new Error(result.error);
       }
 
-      // Refetch profile to validate the backend session
-      await queryClient.refetchQueries({ queryKey: ['profile'] });
-      const profileData = queryClient.getQueryData(['profile']);
+      // Step 3: Fetch profile directly from backend to verify active session
+      let profileData: any = null;
+      try {
+        const profileRes = await authApi.getProfile();
+        profileData = profileRes?.admin || loginRes?.admin;
+      } catch (profileErr: any) {
+        if (loginRes?.admin) {
+          profileData = loginRes.admin;
+        } else {
+          throw new Error('Session verification failed: profile endpoint returned unauthorized.');
+        }
+      }
 
       if (!profileData) {
         throw new Error('Session verification failed: profile endpoint returned unauthorized.');
+      }
+
+      queryClient.setQueryData(['profile'], profileData);
+      if (updateSession) {
+        try {
+          await updateSession();
+        } catch {
+          // Ignore session sync error
+        }
       }
 
       showToast('Welcome back, Admin!', 'success');
@@ -78,7 +94,7 @@ export function useAuth() {
   }) => {
     try {
       // Step 1: Establish admin_session cookie directly from the browser.
-      await axiosInstance.post('/api/admin/auth/google', googlePayload);
+      const googleRes = await axiosInstance.post('/api/admin/auth/google', googlePayload);
 
       // Step 2: Create the NextAuth session.
       const result = await signIn('credentials', {
@@ -91,12 +107,30 @@ export function useAuth() {
         throw new Error(result.error);
       }
 
-      // Refetch profile to validate the backend session
-      await queryClient.refetchQueries({ queryKey: ['profile'] });
-      const profileData = queryClient.getQueryData(['profile']);
+      // Step 3: Fetch profile directly from backend
+      let profileData: any = null;
+      try {
+        const profileRes = await authApi.getProfile();
+        profileData = profileRes?.admin || googleRes.data?.admin;
+      } catch (profileErr: any) {
+        if (googleRes.data?.admin) {
+          profileData = googleRes.data.admin;
+        } else {
+          throw new Error('Session verification failed: profile endpoint returned unauthorized.');
+        }
+      }
 
       if (!profileData) {
         throw new Error('Session verification failed: profile endpoint returned unauthorized.');
+      }
+
+      queryClient.setQueryData(['profile'], profileData);
+      if (updateSession) {
+        try {
+          await updateSession();
+        } catch {
+          // Ignore session sync error
+        }
       }
 
       showToast('Signed in via Google successfully!', 'success');

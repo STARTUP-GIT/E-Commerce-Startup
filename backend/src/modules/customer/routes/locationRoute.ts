@@ -6,8 +6,13 @@ import {
     subscribeLocationNotifyMe,
     withdrawLocationNotifyMe
 } from "../controllers/locationController.js";
+import {
+    resolveLocation,
+    getAvailableCities,
+    submitLocationRequest
+} from "../../general/controllers/sharedLocationController.js";
 import { cache } from "../../../middleware/cache.js";
-import { publicReadLimiter } from "../../../middleware/rateLimiter.js";
+import { publicReadLimiter, writeLimiter } from "../../../middleware/rateLimiter.js";
 import { customerAuthOptional } from "../../../middleware/customerAuth.js";
 
 const router = express.Router();
@@ -15,7 +20,11 @@ const router = express.Router();
 router.get("/states", publicReadLimiter, cache(300), getEnabledStates);
 router.get("/districts", publicReadLimiter, cache(300), getEnabledDistricts);
 
-// Serviceability checking
+// Serviceability and detection
+router.post("/resolve", resolveLocation);
+router.get("/available-cities", publicReadLimiter, cache(180), getAvailableCities);
+router.post("/request", writeLimiter, submitLocationRequest);
+
 router.post("/check-serviceability", checkLocationServiceability);
 router.get("/serviceability", (req, res) => {
     req.body = {

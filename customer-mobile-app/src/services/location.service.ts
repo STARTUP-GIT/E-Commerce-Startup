@@ -87,4 +87,55 @@ export const locationService = {
     const res = await axiosInstance.delete(API_ROUTES.addresses.byId(id));
     return res.data;
   },
+
+  resolveCoordinates: async (latitude: number, longitude: number): Promise<any> => {
+    try {
+      const res = await axiosInstance.post(API_ROUTES.locations.resolve, {
+        latitude,
+        longitude,
+        userRole: 'CUSTOMER',
+      });
+      return res.data;
+    } catch (err: any) {
+      console.warn('Coordinates resolution API failed:', err.message);
+      return null;
+    }
+  },
+
+  checkServiceability: async (state: string, district: string): Promise<any> => {
+    try {
+      const res = await axiosInstance.get(
+        `${API_ROUTES.locations.checkServiceability}?state=${encodeURIComponent(state)}&district=${encodeURIComponent(district)}&userRole=CUSTOMER`
+      );
+      return res.data;
+    } catch (err: any) {
+      console.warn('Location serviceability API failed:', err.message);
+      return { isServiceable: true };
+    }
+  },
+
+  getAvailableCities: async (): Promise<any[]> => {
+    try {
+      const res = await axiosInstance.get(API_ROUTES.locations.availableCities);
+      return res.data?.cities || [];
+    } catch {
+      return [];
+    }
+  },
+
+  submitLocationRequest: async (payload: {
+    state: string;
+    district: string;
+    requesterName?: string;
+    requesterEmail?: string;
+    requesterPhone?: string;
+    notes?: string;
+    requestType?: 'CUSTOMER' | 'SELLER';
+  }): Promise<any> => {
+    const res = await axiosInstance.post(API_ROUTES.locations.request, {
+      ...payload,
+      requestType: payload.requestType || 'CUSTOMER',
+    });
+    return res.data;
+  },
 };

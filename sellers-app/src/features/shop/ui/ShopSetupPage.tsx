@@ -263,6 +263,14 @@ export function ShopSetupPage() {
                   latitude={coordinates.latitude}
                   longitude={coordinates.longitude}
                   onChange={setCoordinates}
+                  onLocationResolved={(loc) => {
+                    if (!selectedState && loc.state) {
+                      setValue('state', loc.state, { shouldValidate: true });
+                    }
+                    if (!selectedDistrict && loc.district) {
+                      setValue('city', loc.district, { shouldValidate: true });
+                    }
+                  }}
                   helperText="Specify store pickup coordinates for delivery dispatch, or use your device's current location."
                 />
 

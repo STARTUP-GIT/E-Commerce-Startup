@@ -1,0 +1,89 @@
+model CityTown {
+  id           String        @id @default(cuid())
+  districtId   String
+  name         String        @db.VarChar(100)
+  displayName  String?       @db.VarChar(100)
+  isActive     Boolean       @default(true)
+  launchStatus String        @default("LAUNCHED") // LAUNCHED, COMING_SOON, PLANNED, MAINTENANCE
+  info         String?
+  displayOrder Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  district     City          @relation(fields: [districtId], references: [id], onDelete: Cascade)
+  serviceAreas ServiceArea[]
+
+  @@unique([districtId, name])
+  @@index([districtId])
+  @@index([isActive])
+  @@index([launchStatus])
+  @@map("city_towns")
+}
+
+model ServiceArea {
+  id               String    @id @default(cuid())
+  districtId       String
+  cityTownId       String?
+  name             String    @db.VarChar(100)
+  postalCodes      String[]  @default([])
+  boundaries       Json?
+  isActive         Boolean   @default(true)
+  deliveryEligible Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  district         City      @relation(fields: [districtId], references: [id], onDelete: Cascade)
+  cityTown         CityTown? @relation(fields: [cityTownId], references: [id], onDelete: SetNull)
+
+  @@unique([districtId, name])
+  @@index([districtId])
+  @@index([cityTownId])
+  @@index([isActive])
+  @@map("service_areas")
+}
+
+model LocationRequest {
+  id          String    @id @default(cuid())
+  requestType String    @default("CUSTOMER") // CUSTOMER or SELLER
+  customerId  String?
+  sellerId    String?
+  name        String?   @db.VarChar(150)
+  email       String?   @db.VarChar(320)
+  phone       String?   @db.VarChar(30)
+  state       String    @db.VarChar(100)
+  district    String?   @db.VarChar(100)
+  city        String?   @db.VarChar(100)
+  postalCode  String?   @db.VarChar(20)
+  latitude    Decimal?  @db.Decimal(10, 8)
+  longitude   Decimal?  @db.Decimal(11, 8)
+  status      String    @default("PENDING") // PENDING, REVIEWED, APPROVED_FOR_FUTURE, REJECTED
+  adminNotes  String?
+  priority    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  seller      Seller?   @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+
+  @@index([state, district])
+  @@index([status])
+  @@index([requestType])
+  @@index([customerId])
+  @@index([sellerId])
+  @@index([createdAt])
+  @@map("location_requests")
+}
+
+model LocationAuditLog {
+  id             String   @id @default(cuid())
+  adminId        String?
+  adminEmail     String?
+  adminName      String?
+  entityType     String   // STATE, DISTRICT, CITY_TOWN, SERVICE_AREA
+  entityId       String
+  action         String   // CREATE, UPDATE, DELETE, STATUS_TOGGLE
+  previousValues Json?
+  newValues      Json?
+  createdAt      DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("location_audit_logs")
+}
