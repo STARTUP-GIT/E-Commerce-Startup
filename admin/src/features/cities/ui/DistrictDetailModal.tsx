@@ -140,24 +140,44 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
   const toggleMasterMutation = useMutation({
     mutationFn: (payload: { isActive: boolean }) =>
       cityApi.toggleDistrictMaster(districtId!, payload),
-    onSuccess: (data: any) => {
-      const districtName = district?.displayName || district?.name || 'this district';
-      const defaultMsg = data.district?.isActive
-        ? `All service areas in ${districtName} have been enabled.`
-        : `All service areas in ${districtName} have been disabled.`;
-      showToast(data.message || defaultMsg, 'success');
+    onSuccess: (data: any, variables: { isActive: boolean }) => {
+      const msg = variables.isActive
+        ? 'Entire district enabled successfully.'
+        : 'Entire district disabled successfully.';
+      showToast(data.message || msg, 'success');
       queryClient.invalidateQueries({ queryKey: ['district-details', districtId] });
       queryClient.invalidateQueries({ queryKey: ['cities'] });
     },
     onError: (err: any) => {
-      showToast(err.response?.data?.message || err.message || 'Failed to update district status', 'error');
+      showToast(err.response?.data?.message || err.message || 'Operation failed', 'error');
     }
   });
 
-  const getAreaEffectiveStatus = () => {
+  // Individual Service Area Mutation
+  const toggleAreaMutation = useMutation({
+    mutationFn: ({ areaId, isActive }: { areaId: string; isActive: boolean }) =>
+      cityApi.updateServiceArea(districtId!, areaId, {
+        isActive,
+        deliveryEligible: isActive
+      }),
+    onSuccess: (data: any, variables: { areaId: string; isActive: boolean }) => {
+      const msg = variables.isActive
+        ? 'Service area enabled successfully.'
+        : 'Service area disabled successfully.';
+      showToast(data.message || msg, 'success');
+      queryClient.invalidateQueries({ queryKey: ['district-details', districtId] });
+      queryClient.invalidateQueries({ queryKey: ['cities'] });
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.message || err.message || 'Failed to update service area', 'error');
+    }
+  });
+
+  const getAreaEffectiveStatus = (area: any) => {
     if (!isParentStateActive) {
       return {
-        label: 'Unavailable (State Disabled)',
+        label: 'Unavailable',
+        reason: 'State disabled',
         variant: 'destructive' as const,
         description: `Parent state "${district?.state}" is inactive`
       };
@@ -165,12 +185,22 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
     if (!district?.isActive) {
       return {
         label: 'Disabled',
+        reason: 'District disabled',
         variant: 'secondary' as const,
-        description: `District "${district?.name}" is disabled`
+        description: `District "${district?.name}" master switch is OFF`
+      };
+    }
+    if (!area.isActive) {
+      return {
+        label: 'Disabled',
+        reason: null,
+        variant: 'secondary' as const,
+        description: 'Individually disabled'
       };
     }
     return {
       label: 'Enabled',
+      reason: null,
       variant: 'success' as const,
       description: 'Active & serviceable'
     };
@@ -498,11 +528,11 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                       )}
                     </div>
                     <p className="text-xs text-white/50">
-                      Controls service availability for all service areas within this district.
+                      Master control for {district.displayName || district.name}. Turning it ON activates the district and all service areas; turning it OFF suspends the entire district.
                     </p>
                     {!district.isActive && (
                       <p className="text-[11px] text-amber-300/80 pt-0.5">
-                        All service areas within {district.name} are currently unavailable because the district master switch is OFF.
+                        District master is OFF: All service areas within {district.name} are currently unavailable. Individual toggles are disabled.
                       </p>
                     )}
                     {!isParentStateActive && (
@@ -512,23 +542,30 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-                    <Button
-                      size="sm"
-                      variant={district.isActive ? 'outline' : 'default'}
-                      className={`text-xs font-bold px-5 h-9 tracking-wider transition-all cursor-pointer ${
-                        district.isActive
-                          ? 'border-red-500/40 text-red-300 hover:bg-red-500/10 hover:border-red-500/60'
-                          : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20'
-                      }`}
-                      isLoading={toggleMasterMutation.isPending}
-                      disabled={toggleMasterMutation.isPending}
-                      onClick={() => {
-                        toggleMasterMutation.mutate({ isActive: !district.isActive });
-                      }}
-                    >
-                      {district.isActive ? 'DISABLE ENTIRE DISTRICT' : 'ENABLE ENTIRE DISTRICT'}
-                    </Button>
+                  <div className="flex items-center gap-3 self-start sm:self-center shrink-0">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xs font-bold text-white/70">
+                        {district.isActive ? 'District Enabled' : 'District Disabled'}
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={district.isActive}
+                        disabled={toggleMasterMutation.isPending}
+                        onClick={() => {
+                          toggleMasterMutation.mutate({ isActive: !district.isActive });
+                        }}
+                        className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          district.isActive ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-white/20 hover:bg-white/30'
+                        } ${toggleMasterMutation.isPending ? 'opacity-50 cursor-wait' : ''}`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition duration-200 ease-in-out ${
+                            district.isActive ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -550,21 +587,28 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 w-full sm:w-auto shrink-0">
-                    {(['ALL', 'ACTIVE', 'DISABLED'] as const).map((filter) => (
-                      <button
-                        key={filter}
-                        onClick={() => setAreaStatusFilter(filter)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                          areaStatusFilter === filter
-                            ? 'bg-white/15 text-white border border-white/20'
-                            : 'bg-white/[0.02] text-white/40 hover:text-white/80 border border-white/5'
-                        }`}
-                      >
-                        {filter === 'ALL' ? `All (${(district.serviceAreas || []).length})` :
-                         filter === 'ACTIVE' ? `Enabled (${district.isActive ? (district.serviceAreas || []).length : 0})` :
-                         `Disabled (${!district.isActive ? (district.serviceAreas || []).length : 0})`}
-                      </button>
-                    ))}
+                    {(['ALL', 'ACTIVE', 'DISABLED'] as const).map((filter) => {
+                      const totalCount = (district.serviceAreas || []).length;
+                      const activeCount = district.isActive
+                        ? (district.serviceAreas || []).filter((a: any) => a.isActive).length
+                        : 0;
+                      const disabledCount = totalCount - activeCount;
+                      return (
+                        <button
+                          key={filter}
+                          onClick={() => setAreaStatusFilter(filter)}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                            areaStatusFilter === filter
+                              ? 'bg-white/15 text-white border border-white/20'
+                              : 'bg-white/[0.02] text-white/40 hover:text-white/80 border border-white/5'
+                          }`}
+                        >
+                          {filter === 'ALL' ? `All (${totalCount})` :
+                           filter === 'ACTIVE' ? `Enabled (${activeCount})` :
+                           `Disabled (${disabledCount})`}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -613,7 +657,6 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
 
               {/* Grouped Service Areas */}
               {(() => {
-                const isAreaEnabled = district.isActive;
                 const mappedAreas = (district.serviceAreas || []).filter((area: any) => {
                   const matchesSearch = !areaSearch.trim() ||
                     area.name.toLowerCase().includes(areaSearch.toLowerCase()) ||
@@ -622,10 +665,11 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                     areaTownFilter === 'ALL' ? true :
                     areaTownFilter === 'ROOT' ? !area.cityTownId :
                     area.cityTownId === areaTownFilter;
+                  const isEffectiveActive = district.isActive && Boolean(area.isActive);
                   const matchesStatus =
                     areaStatusFilter === 'ALL' ? true :
-                    areaStatusFilter === 'ACTIVE' ? isAreaEnabled :
-                    !isAreaEnabled;
+                    areaStatusFilter === 'ACTIVE' ? isEffectiveActive :
+                    !isEffectiveActive;
                   return matchesSearch && matchesTown && matchesStatus;
                 });
 
@@ -689,14 +733,17 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {group.areas.map((area: any) => {
-                              const effStatus = getAreaEffectiveStatus();
+                              const effStatus = getAreaEffectiveStatus(area);
+                              const isAreaPending = toggleAreaMutation.isPending &&
+                                (toggleAreaMutation.variables as any)?.areaId === area.id;
+
                               return (
                                 <div
                                   key={area.id}
                                   className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] flex items-center justify-between gap-3 shadow-sm hover:border-white/20 transition-all"
                                 >
-                                  <div className="space-y-1">
-                                    <span className="text-sm font-bold text-white block">
+                                  <div className="space-y-1 min-w-0 flex-1">
+                                    <span className="text-sm font-bold text-white block truncate">
                                       {area.name}
                                     </span>
                                     <span className="text-[10px] text-white/40 block">
@@ -716,7 +763,62 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                                       <Badge variant={effStatus.variant} className="text-[9px] font-bold">
                                         {effStatus.label}
                                       </Badge>
+                                      {effStatus.reason && (
+                                        <span className="text-[10px] text-amber-400/80 font-medium">
+                                          ({effStatus.reason})
+                                        </span>
+                                      )}
                                     </div>
+                                  </div>
+
+                                  {/* Individual Service Area Toggle Switch */}
+                                  <div className="flex flex-col items-end gap-1 shrink-0 pl-2">
+                                    {!district.isActive ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          role="switch"
+                                          aria-checked={false}
+                                          disabled={true}
+                                          title="District disabled"
+                                          className="relative inline-flex h-6 w-11 shrink-0 cursor-not-allowed rounded-full border-2 border-transparent bg-white/10 opacity-40 transition-colors"
+                                        >
+                                          <span className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white/60 shadow-xs translate-x-0" />
+                                        </button>
+                                        <span className="text-[9px] text-white/30 font-medium">
+                                          District disabled
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <button
+                                          type="button"
+                                          role="switch"
+                                          aria-checked={Boolean(area.isActive)}
+                                          disabled={isAreaPending}
+                                          onClick={() => {
+                                            toggleAreaMutation.mutate({
+                                              areaId: area.id,
+                                              isActive: !area.isActive
+                                            });
+                                          }}
+                                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                            area.isActive
+                                              ? 'bg-emerald-500 hover:bg-emerald-400'
+                                              : 'bg-white/20 hover:bg-white/30'
+                                          } ${isAreaPending ? 'opacity-50 cursor-wait' : ''}`}
+                                        >
+                                          <span
+                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out ${
+                                              area.isActive ? 'translate-x-5' : 'translate-x-0'
+                                            }`}
+                                          />
+                                        </button>
+                                        <span className={`text-[9px] font-bold ${area.isActive ? 'text-emerald-400' : 'text-white/40'}`}>
+                                          {isAreaPending ? 'Updating...' : area.isActive ? 'Enabled' : 'Disabled'}
+                                        </span>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                               );

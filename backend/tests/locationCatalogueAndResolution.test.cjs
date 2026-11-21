@@ -109,4 +109,32 @@ test('Universal District Master Control - Transactional Synchronization of All S
     const disabledDistrict = disableEntireDistrict(enabledDistrict);
     assert.strictEqual(disabledDistrict.isActive, false, 'District master must be disabled');
     assert.ok(disabledDistrict.serviceAreas.every(a => !a.isActive && !a.deliveryEligible), 'Every service area must be Disabled');
+
+    // 4. Master ON again: Enables all areas again as requested by the master operation
+    const reEnabledDistrict = enableEntireDistrict(disabledDistrict);
+    assert.strictEqual(reEnabledDistrict.isActive, true, 'District master must be re-enabled');
+    assert.ok(reEnabledDistrict.serviceAreas.every(a => a.isActive && a.deliveryEligible), 'Every service area must be re-enabled');
+
+    // 5. Individual Toggle Rules under Master ON:
+    // Admin can disable one specific service area (e.g., sa-2 Jayalakshmipuram) without affecting others
+    const toggleIndividualArea = (d, areaId, targetActive) => {
+        if (!d.isActive && targetActive) {
+            throw new Error("Cannot enable service area while district master is disabled.");
+        }
+        return {
+            ...d,
+            serviceAreas: d.serviceAreas.map(a => a.id === areaId ? { ...a, isActive: targetActive, deliveryEligible: targetActive } : a)
+        };
+    };
+
+    const withOneAreaDisabled = toggleIndividualArea(reEnabledDistrict, 'sa-2', false);
+    assert.strictEqual(withOneAreaDisabled.serviceAreas.find(a => a.id === 'sa-1').isActive, true, 'sa-1 remains enabled');
+    assert.strictEqual(withOneAreaDisabled.serviceAreas.find(a => a.id === 'sa-2').isActive, false, 'sa-2 is individually disabled');
+    assert.strictEqual(withOneAreaDisabled.serviceAreas.find(a => a.id === 'sa-3').isActive, true, 'sa-3 remains enabled');
+
+    // 6. Master OFF prevents individual activation
+    const turnedOffDistrict = disableEntireDistrict(withOneAreaDisabled);
+    assert.throws(() => {
+        toggleIndividualArea(turnedOffDistrict, 'sa-2', true);
+    }, /Cannot enable service area while district master is disabled/);
 });

@@ -445,8 +445,9 @@ export const toggleDistrictMaster = async (req: Request, res: Response) => {
             return city;
         });
 
-        const districtName = existing.displayName || existing.name;
-        const actionMessage = `All service areas in ${districtName} have been ${targetActive ? "enabled" : "disabled"}.`;
+        const actionMessage = targetActive
+            ? "Entire district enabled successfully."
+            : "Entire district disabled successfully.";
 
         await logAudit(req, "DISTRICT", id, "MASTER_TOGGLE", existing, updated);
         invalidatePublicCache();
@@ -789,6 +790,22 @@ export const updateServiceArea = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Service area not found in this district" });
         }
 
+        const district = await prisma.city.findUnique({
+            where: { id },
+            select: { id: true, name: true, displayName: true, isActive: true }
+        });
+        if (!district) {
+            return res.status(404).json({ message: "District not found" });
+        }
+
+        // Validate the master state on every individual activation request.
+        // Do not allow an individual area to become available while its district master is OFF.
+        if (isActive !== undefined && Boolean(isActive) && !district.isActive) {
+            return res.status(400).json({
+                message: "Cannot enable service area while district master is disabled."
+            });
+        }
+
         const data: any = {};
         if (name?.trim()) data.name = name.trim();
         if (cityTownId !== undefined) data.cityTownId = cityTownId || null;
@@ -811,7 +828,11 @@ export const updateServiceArea = async (req: Request, res: Response) => {
         await logAudit(req, "SERVICE_AREA", areaId, "UPDATE_SERVICE_AREA", existing, updated);
         invalidatePublicCache();
 
-        return res.status(200).json({ message: "Service area updated successfully", serviceArea: updated });
+        const actionMessage = isActive !== undefined
+            ? (Boolean(isActive) ? "Service area enabled successfully." : "Service area disabled successfully.")
+            : "Service area updated successfully.";
+
+        return res.status(200).json({ message: actionMessage, serviceArea: updated });
     } catch (error: any) {
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
