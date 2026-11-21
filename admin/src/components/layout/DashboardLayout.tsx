@@ -135,6 +135,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         return badges.sellerPayouts > 0
           ? { count: badges.sellerPayouts, colorClass: 'bg-teal-500 ring-teal-400/30 text-white font-black', id: 'payouts-badge' }
           : null;
+      case '/location-requests':
+        return (badges.locationRequests || 0) > 0
+          ? { count: badges.locationRequests, colorClass: 'bg-emerald-500 ring-emerald-400/30 text-white font-black', id: 'location-requests-badge' }
+          : null;
       default:
         return null;
     }
@@ -353,8 +357,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       )}
                       <span>{group}</span>
                     </span>
-                    {totalGroupBadges > 0 && isCollapsed && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-purple-500 text-white text-[9px] font-bold">
+                    {totalGroupBadges > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-purple-500 text-white text-[9px] font-bold shadow-sm ring-1 ring-purple-400/30">
                         {totalGroupBadges > 99 ? '99+' : totalGroupBadges}
                       </span>
                     )}

@@ -49,7 +49,8 @@ export const getSidebarBadges = async (req: Request, res: Response) => {
             ordersPending,
             returnsPending,
             packingFeeRequestsPending,
-            sellerPayoutsPending
+            sellerPayoutsPending,
+            locationRequestsPending
         ] = await Promise.all([
             // Shops awaiting action: shops in PENDING status or with active approval request awaiting review or final approval
             prisma.shop.count({
@@ -105,6 +106,10 @@ export const getSidebarBadges = async (req: Request, res: Response) => {
             // Seller Payouts: pending payout processing
             prisma.sellerPayout.count({
                 where: { status: "PENDING" }
+            }),
+            // Location Requests: pending customer/seller requests
+            prisma.locationRequest.count({
+                where: { status: "PENDING" }
             })
         ]);
 
@@ -122,6 +127,7 @@ export const getSidebarBadges = async (req: Request, res: Response) => {
             returns: returnsPending,
             packingFeeRequests: packingFeeRequestsPending,
             sellerPayouts: sellerPayoutsPending,
+            locationRequests: locationRequestsPending,
         });
     } catch (error: any) {
         console.error("GET SIDEBAR BADGES ERROR:", error);
