@@ -80,9 +80,27 @@ export const updateCity = async (req: Request, res: Response) => {
             data.isActive = !!isActive;
         }
 
-        const updated = await prisma.city.update({
-            where: { id },
-            data
+        const updated = await prisma.$transaction(async (tx) => {
+            const cityUpdated = await tx.city.update({
+                where: { id },
+                data
+            });
+
+            if (isActive !== undefined) {
+                await tx.serviceArea.updateMany({
+                    where: { districtId: id },
+                    data: {
+                        isActive: !!isActive,
+                        deliveryEligible: !!isActive
+                    }
+                });
+                await tx.cityTown.updateMany({
+                    where: { districtId: id },
+                    data: { isActive: !!isActive }
+                });
+            }
+
+            return cityUpdated;
         });
 
         invalidatePublicCache();

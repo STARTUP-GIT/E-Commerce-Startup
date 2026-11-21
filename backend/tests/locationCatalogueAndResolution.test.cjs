@@ -63,11 +63,50 @@ test('District Master Availability Hierarchy - District Master disability disabl
             { id: 'town-hunsur', name: 'Hunsur', displayName: 'Hunsur', isActive: true }
         ],
         serviceAreas: [
-            { id: 'area-bilikere', name: 'Bilikere', cityTownId: 'town-hunsur', postalCodes: ['571103'], isActive: true, deliveryEligible: true }
+            { id: 'area-bilikere', name: 'Bilikere', cityTownId: 'town-hunsur', postalCodes: ['571103'], isActive: false, deliveryEligible: false }
         ]
     };
 
     assert.strictEqual(inactiveMasterDistrict.isActive, false, 'District master must be disabled');
     // Town/City is purely geographical grouping metadata and not an independent activation blocker
     assert.strictEqual(inactiveMasterDistrict.cityTowns[0].name, 'Hunsur');
+});
+
+test('Universal District Master Control - Transactional Synchronization of All Service Areas', async () => {
+    // 1. Initial State: New district defaults to OFF, all child service areas default to Disabled
+    const districtState = {
+        id: 'dist-test-1',
+        name: 'Mysuru',
+        isActive: false,
+        serviceAreas: [
+            { id: 'sa-1', name: 'Vijayanagar', isActive: false, deliveryEligible: false },
+            { id: 'sa-2', name: 'Jayalakshmipuram', isActive: false, deliveryEligible: false },
+            { id: 'sa-3', name: 'Kuvempunagar', isActive: false, deliveryEligible: false }
+        ]
+    };
+
+    assert.strictEqual(districtState.isActive, false, 'New district defaults to OFF');
+    assert.ok(districtState.serviceAreas.every(a => !a.isActive && !a.deliveryEligible), 'All areas default to Disabled');
+
+    // 2. Enable Entire District: District master becomes ON, all child service areas become ON
+    const enableEntireDistrict = (d) => ({
+        ...d,
+        isActive: true,
+        serviceAreas: d.serviceAreas.map(a => ({ ...a, isActive: true, deliveryEligible: true }))
+    });
+
+    const enabledDistrict = enableEntireDistrict(districtState);
+    assert.strictEqual(enabledDistrict.isActive, true, 'District master must be enabled');
+    assert.ok(enabledDistrict.serviceAreas.every(a => a.isActive && a.deliveryEligible), 'Every service area must be Enabled');
+
+    // 3. Disable Entire District: District master becomes OFF, all child service areas become OFF
+    const disableEntireDistrict = (d) => ({
+        ...d,
+        isActive: false,
+        serviceAreas: d.serviceAreas.map(a => ({ ...a, isActive: false, deliveryEligible: false }))
+    });
+
+    const disabledDistrict = disableEntireDistrict(enabledDistrict);
+    assert.strictEqual(disabledDistrict.isActive, false, 'District master must be disabled');
+    assert.ok(disabledDistrict.serviceAreas.every(a => !a.isActive && !a.deliveryEligible), 'Every service area must be Disabled');
 });

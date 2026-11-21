@@ -136,33 +136,25 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
     onError: (err: any) => showToast(err.message || 'Failed to update launch config', 'error')
   });
 
-  // District Master Mutation
+  // Universal District Master Mutation
   const toggleMasterMutation = useMutation({
-    mutationFn: (payload: { isActive: boolean; bulkEnableAreas?: boolean }) =>
+    mutationFn: (payload: { isActive: boolean }) =>
       cityApi.toggleDistrictMaster(districtId!, payload),
     onSuccess: (data: any) => {
-      showToast(data.message || 'District master status updated', 'success');
+      const districtName = district?.displayName || district?.name || 'this district';
+      const defaultMsg = data.district?.isActive
+        ? `All service areas in ${districtName} have been enabled.`
+        : `All service areas in ${districtName} have been disabled.`;
+      showToast(data.message || defaultMsg, 'success');
       queryClient.invalidateQueries({ queryKey: ['district-details', districtId] });
       queryClient.invalidateQueries({ queryKey: ['cities'] });
     },
-    onError: (err: any) => showToast(err.message || 'Failed to update district master status', 'error')
+    onError: (err: any) => {
+      showToast(err.response?.data?.message || err.message || 'Failed to update district status', 'error');
+    }
   });
 
-  // Area Mutation
-  const toggleAreaMutation = useMutation({
-    mutationFn: ({ areaId, isActive, deliveryEligible }: { areaId: string; isActive: boolean; deliveryEligible?: boolean }) =>
-      cityApi.updateServiceArea(districtId!, areaId, {
-        isActive,
-        deliveryEligible: deliveryEligible !== undefined ? deliveryEligible : isActive
-      }),
-    onSuccess: () => {
-      showToast('Service area status updated', 'success');
-      queryClient.invalidateQueries({ queryKey: ['district-details', districtId] });
-    },
-    onError: (err: any) => showToast(err.message || 'Failed to update service area', 'error')
-  });
-
-  const getAreaEffectiveStatus = (area: any) => {
+  const getAreaEffectiveStatus = () => {
     if (!isParentStateActive) {
       return {
         label: 'Unavailable (State Disabled)',
@@ -172,27 +164,13 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
     }
     if (!district?.isActive) {
       return {
-        label: 'Disabled (District Master OFF)',
-        variant: 'warning' as const,
-        description: `District "${district?.name}" master switch is OFF`
-      };
-    }
-    if (!area.isActive) {
-      return {
-        label: 'Locally Disabled',
+        label: 'Disabled',
         variant: 'secondary' as const,
-        description: 'Disabled at service area level'
-      };
-    }
-    if (!area.deliveryEligible) {
-      return {
-        label: 'Delivery Ineligible',
-        variant: 'warning' as const,
-        description: 'Area active but marked ineligible for delivery'
+        description: `District "${district?.name}" is disabled`
       };
     }
     return {
-      label: 'Effectively Available',
+      label: 'Enabled',
       variant: 'success' as const,
       description: 'Active & serviceable'
     };
@@ -538,30 +516,18 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                     <Button
                       size="sm"
                       variant={district.isActive ? 'outline' : 'default'}
-                      className="text-xs font-bold px-4 h-9"
+                      className={`text-xs font-bold px-5 h-9 tracking-wider transition-all cursor-pointer ${
+                        district.isActive
+                          ? 'border-red-500/40 text-red-300 hover:bg-red-500/10 hover:border-red-500/60'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20'
+                      }`}
                       isLoading={toggleMasterMutation.isPending}
+                      disabled={toggleMasterMutation.isPending}
                       onClick={() => {
-                        const totalAreas = (district.serviceAreas || []).length;
-                        if (district.isActive) {
-                          if (
-                            window.confirm(
-                              `Disable service availability for this entire district? (${totalAreas} affected areas)\n\nThis will make all service areas in ${district.name} effectively unavailable to customers and sellers. Individual area configurations will be preserved.`
-                            )
-                          ) {
-                            toggleMasterMutation.mutate({ isActive: false });
-                          }
-                        } else {
-                          if (
-                            window.confirm(
-                              `Enable all eligible service areas in this district? (${totalAreas} affected areas)\n\nThis will activate service availability for ${district.name} and bulk-enable all its service areas.`
-                            )
-                          ) {
-                            toggleMasterMutation.mutate({ isActive: true, bulkEnableAreas: true });
-                          }
-                        }
+                        toggleMasterMutation.mutate({ isActive: !district.isActive });
                       }}
                     >
-                      {district.isActive ? 'Disable Entire District' : 'Enable Entire District'}
+                      {district.isActive ? 'DISABLE ENTIRE DISTRICT' : 'ENABLE ENTIRE DISTRICT'}
                     </Button>
                   </div>
                 </div>
@@ -595,8 +561,8 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                         }`}
                       >
                         {filter === 'ALL' ? `All (${(district.serviceAreas || []).length})` :
-                         filter === 'ACTIVE' ? `Active (${(district.serviceAreas || []).filter((a: any) => a.isActive).length})` :
-                         `Disabled (${(district.serviceAreas || []).filter((a: any) => !a.isActive).length})`}
+                         filter === 'ACTIVE' ? `Enabled (${district.isActive ? (district.serviceAreas || []).length : 0})` :
+                         `Disabled (${!district.isActive ? (district.serviceAreas || []).length : 0})`}
                       </button>
                     ))}
                   </div>
@@ -647,6 +613,7 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
 
               {/* Grouped Service Areas */}
               {(() => {
+                const isAreaEnabled = district.isActive;
                 const mappedAreas = (district.serviceAreas || []).filter((area: any) => {
                   const matchesSearch = !areaSearch.trim() ||
                     area.name.toLowerCase().includes(areaSearch.toLowerCase()) ||
@@ -657,8 +624,8 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                     area.cityTownId === areaTownFilter;
                   const matchesStatus =
                     areaStatusFilter === 'ALL' ? true :
-                    areaStatusFilter === 'ACTIVE' ? area.isActive :
-                    !area.isActive;
+                    areaStatusFilter === 'ACTIVE' ? isAreaEnabled :
+                    !isAreaEnabled;
                   return matchesSearch && matchesTown && matchesStatus;
                 });
 
@@ -718,14 +685,11 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                                 {group.areas.length} {group.areas.length === 1 ? 'Area' : 'Areas'}
                               </Badge>
                             </div>
-                            <span className="text-[10px] text-white/40">
-                              Parent City / Town Grouping
-                            </span>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {group.areas.map((area: any) => {
-                              const effStatus = getAreaEffectiveStatus(area);
+                              const effStatus = getAreaEffectiveStatus();
                               return (
                                 <div
                                   key={area.id}
@@ -753,26 +717,6 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                                         {effStatus.label}
                                       </Badge>
                                     </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant={area.isActive ? 'outline' : 'default'}
-                                      className="h-8 text-[10px] font-bold px-3"
-                                      isLoading={toggleAreaMutation.isPending && (toggleAreaMutation.variables as any)?.areaId === area.id}
-                                      onClick={() => {
-                                        if (area.isActive) {
-                                          if (window.confirm(`Are you sure you want to disable service area "${area.name}"? Delivery will be disabled for this specific area.`)) {
-                                            toggleAreaMutation.mutate({ areaId: area.id, isActive: false, deliveryEligible: false });
-                                          }
-                                        } else {
-                                          toggleAreaMutation.mutate({ areaId: area.id, isActive: true, deliveryEligible: true });
-                                        }
-                                      }}
-                                    >
-                                      {area.isActive ? 'Disable' : 'Enable'}
-                                    </Button>
                                   </div>
                                 </div>
                               );

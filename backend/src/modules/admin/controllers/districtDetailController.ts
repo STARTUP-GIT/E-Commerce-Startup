@@ -358,26 +358,37 @@ export const updateDistrictGeneralSettings = async (req: Request, res: Response)
         const existing = await prisma.city.findUnique({ where: { id } });
         if (!existing) return res.status(404).json({ message: "District not found" });
 
-        const updated = await prisma.city.update({
-            where: { id },
-            data: {
-                displayName: displayName !== undefined ? displayName?.trim() || null : existing.displayName,
-                description: description !== undefined ? description?.trim() || null : existing.description,
-                launchStatus: launchStatus || existing.launchStatus,
-                displayOrder: displayOrder !== undefined ? Number(displayOrder) : existing.displayOrder,
-                maintenanceMode: maintenanceMode !== undefined ? Boolean(maintenanceMode) : existing.maintenanceMode,
-                isActive: isActive !== undefined ? Boolean(isActive) : existing.isActive,
-                isCustomerEnabled: isCustomerEnabled !== undefined ? Boolean(isCustomerEnabled) : existing.isCustomerEnabled,
-                isSellerEnabled: isSellerEnabled !== undefined ? Boolean(isSellerEnabled) : existing.isSellerEnabled,
-            }
-        });
-
-        if (isActive !== undefined && Boolean(isActive) && req.body.bulkEnableAreas) {
-            await prisma.serviceArea.updateMany({
-                where: { districtId: id },
-                data: { isActive: true, deliveryEligible: true }
+        const updated = await prisma.$transaction(async (tx) => {
+            const city = await tx.city.update({
+                where: { id },
+                data: {
+                    displayName: displayName !== undefined ? displayName?.trim() || null : existing.displayName,
+                    description: description !== undefined ? description?.trim() || null : existing.description,
+                    launchStatus: launchStatus || existing.launchStatus,
+                    displayOrder: displayOrder !== undefined ? Number(displayOrder) : existing.displayOrder,
+                    maintenanceMode: maintenanceMode !== undefined ? Boolean(maintenanceMode) : existing.maintenanceMode,
+                    isActive: isActive !== undefined ? Boolean(isActive) : existing.isActive,
+                    isCustomerEnabled: isCustomerEnabled !== undefined ? Boolean(isCustomerEnabled) : existing.isCustomerEnabled,
+                    isSellerEnabled: isSellerEnabled !== undefined ? Boolean(isSellerEnabled) : existing.isSellerEnabled,
+                }
             });
-        }
+
+            if (isActive !== undefined) {
+                await tx.serviceArea.updateMany({
+                    where: { districtId: id },
+                    data: {
+                        isActive: Boolean(isActive),
+                        deliveryEligible: Boolean(isActive)
+                    }
+                });
+                await tx.cityTown.updateMany({
+                    where: { districtId: id },
+                    data: { isActive: Boolean(isActive) }
+                });
+            }
+
+            return city;
+        });
 
         await logAudit(req, "DISTRICT", id, "UPDATE_GENERAL_SETTINGS", existing, updated);
         invalidatePublicCache();
@@ -391,34 +402,57 @@ export const updateDistrictGeneralSettings = async (req: Request, res: Response)
 
 /**
  * PUT /api/admin/cities/:id/master-toggle
- * Single authoritative district master availability control
+ * Universal district master availability control
+ * Enables or disables district and all child service areas transactionally
  */
 export const toggleDistrictMaster = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const { isActive, bulkEnableAreas } = req.body;
+        const { isActive } = req.body;
 
-        const existing = await prisma.city.findUnique({ where: { id } });
+        if (isActive === undefined) {
+            return res.status(400).json({ message: "isActive status boolean is required" });
+        }
+
+        const targetActive = Boolean(isActive);
+
+        const existing = await prisma.city.findUnique({
+            where: { id },
+            select: { id: true, name: true, displayName: true, isActive: true }
+        });
         if (!existing) return res.status(404).json({ message: "District not found" });
 
-        const updated = await prisma.city.update({
-            where: { id },
-            data: { isActive: Boolean(isActive) }
+        // Update district and all child service areas in a single database transaction
+        const updated = await prisma.$transaction(async (tx) => {
+            const city = await tx.city.update({
+                where: { id },
+                data: { isActive: targetActive }
+            });
+
+            await tx.serviceArea.updateMany({
+                where: { districtId: id },
+                data: {
+                    isActive: targetActive,
+                    deliveryEligible: targetActive
+                }
+            });
+
+            await tx.cityTown.updateMany({
+                where: { districtId: id },
+                data: { isActive: targetActive }
+            });
+
+            return city;
         });
 
-        // When activating entire district and bulkEnableAreas is true, activate all child service areas
-        if (Boolean(isActive) && bulkEnableAreas) {
-            await prisma.serviceArea.updateMany({
-                where: { districtId: id },
-                data: { isActive: true, deliveryEligible: true }
-            });
-        }
+        const districtName = existing.displayName || existing.name;
+        const actionMessage = `All service areas in ${districtName} have been ${targetActive ? "enabled" : "disabled"}.`;
 
         await logAudit(req, "DISTRICT", id, "MASTER_TOGGLE", existing, updated);
         invalidatePublicCache();
 
         return res.status(200).json({
-            message: `District master ${updated.isActive ? "enabled" : "disabled"} successfully`,
+            message: actionMessage,
             district: updated
         });
     } catch (error: any) {
