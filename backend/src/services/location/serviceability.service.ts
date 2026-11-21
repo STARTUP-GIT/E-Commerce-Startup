@@ -389,42 +389,41 @@ export class ServiceabilityService {
                 a => a.name.toLowerCase() === rawServiceArea.toLowerCase()
             );
 
-            if (matchedArea && !matchedArea.isActive) {
-                return {
-                    status: "NOT_SERVICEABLE",
-                    isServiceable: false,
-                    inheritedStatus: "DISABLED_BY_SERVICE_AREA",
-                    state: stateRecord.name,
-                    district: district.displayName || district.name,
-                    city: resolvedCityTownName,
-                    serviceArea: matchedArea.name,
-                    message: `Service is currently unavailable in the ${matchedArea.name} coverage area.`,
-                    allowCustomerBrowsing: district.allowCustomerBrowsing,
-                    allowCustomerOrdering: false,
-                    allowSellerRegistration: false,
-                    allowShopCreation: false,
-                    deliveryEnabled: false,
-                    availableStates: activeStates,
-                    availableDistricts: stateActiveDistricts,
-                };
-            }
-        }
+            if (matchedArea) {
+                // If service area has a parent town, verify town is active
+                if (matchedArea.cityTownId) {
+                    const parentTown = district.cityTowns.find(t => t.id === matchedArea.cityTownId);
+                    if (parentTown && !parentTown.isActive) {
+                        return {
+                            status: "NOT_SERVICEABLE",
+                            isServiceable: false,
+                            inheritedStatus: "DISABLED_BY_CITY",
+                            state: stateRecord.name,
+                            district: district.displayName || district.name,
+                            city: parentTown.displayName || parentTown.name,
+                            serviceArea: matchedArea.name,
+                            message: `Service in ${matchedArea.name} is unavailable because parent town ${parentTown.displayName || parentTown.name} is disabled.`,
+                            allowCustomerBrowsing: district.allowCustomerBrowsing,
+                            allowCustomerOrdering: false,
+                            allowSellerRegistration: false,
+                            allowShopCreation: false,
+                            deliveryEnabled: false,
+                            availableStates: activeStates,
+                            availableDistricts: stateActiveDistricts,
+                        };
+                    }
+                }
 
-        // 6. Postal Code Check (if district has configured service areas with postal codes)
-        if (postalCode && district.serviceAreas.length > 0) {
-            const areasWithPostalCodes = district.serviceAreas.filter(a => a.postalCodes && a.postalCodes.length > 0);
-            if (areasWithPostalCodes.length > 0) {
-                const matchingArea = areasWithPostalCodes.find(a => a.postalCodes.includes(postalCode));
-                if (matchingArea && !matchingArea.isActive) {
+                if (!matchedArea.isActive) {
                     return {
                         status: "NOT_SERVICEABLE",
                         isServiceable: false,
                         inheritedStatus: "DISABLED_BY_SERVICE_AREA",
                         state: stateRecord.name,
                         district: district.displayName || district.name,
-                        postalCode,
-                        serviceArea: matchingArea.name,
-                        message: `Delivery is currently paused for PIN code ${postalCode} (${matchingArea.name}).`,
+                        city: resolvedCityTownName,
+                        serviceArea: matchedArea.name,
+                        message: `Service is currently unavailable in the ${matchedArea.name} coverage area.`,
                         allowCustomerBrowsing: district.allowCustomerBrowsing,
                         allowCustomerOrdering: false,
                         allowSellerRegistration: false,
@@ -433,6 +432,60 @@ export class ServiceabilityService {
                         availableStates: activeStates,
                         availableDistricts: stateActiveDistricts,
                     };
+                }
+            }
+        }
+
+        // 6. Postal Code Check (if district has configured service areas with postal codes)
+        if (postalCode && district.serviceAreas.length > 0) {
+            const areasWithPostalCodes = district.serviceAreas.filter(a => a.postalCodes && a.postalCodes.length > 0);
+            if (areasWithPostalCodes.length > 0) {
+                const matchingArea = areasWithPostalCodes.find(a => a.postalCodes.includes(postalCode));
+                if (matchingArea) {
+                    // If matching service area belongs to a parent town, verify town is active
+                    if (matchingArea.cityTownId) {
+                        const parentTown = district.cityTowns.find(t => t.id === matchingArea.cityTownId);
+                        if (parentTown && !parentTown.isActive) {
+                            return {
+                                status: "NOT_SERVICEABLE",
+                                isServiceable: false,
+                                inheritedStatus: "DISABLED_BY_CITY",
+                                state: stateRecord.name,
+                                district: district.displayName || district.name,
+                                postalCode,
+                                city: parentTown.displayName || parentTown.name,
+                                serviceArea: matchingArea.name,
+                                message: `Delivery to PIN code ${postalCode} (${matchingArea.name}) is unavailable because parent town ${parentTown.displayName || parentTown.name} is disabled.`,
+                                allowCustomerBrowsing: district.allowCustomerBrowsing,
+                                allowCustomerOrdering: false,
+                                allowSellerRegistration: false,
+                                allowShopCreation: false,
+                                deliveryEnabled: false,
+                                availableStates: activeStates,
+                                availableDistricts: stateActiveDistricts,
+                            };
+                        }
+                    }
+
+                    if (!matchingArea.isActive) {
+                        return {
+                            status: "NOT_SERVICEABLE",
+                            isServiceable: false,
+                            inheritedStatus: "DISABLED_BY_SERVICE_AREA",
+                            state: stateRecord.name,
+                            district: district.displayName || district.name,
+                            postalCode,
+                            serviceArea: matchingArea.name,
+                            message: `Delivery is currently paused for PIN code ${postalCode} (${matchingArea.name}).`,
+                            allowCustomerBrowsing: district.allowCustomerBrowsing,
+                            allowCustomerOrdering: false,
+                            allowSellerRegistration: false,
+                            allowShopCreation: false,
+                            deliveryEnabled: false,
+                            availableStates: activeStates,
+                            availableDistricts: stateActiveDistricts,
+                        };
+                    }
                 }
             }
         }

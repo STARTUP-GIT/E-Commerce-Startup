@@ -32,38 +32,16 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
   // --- Town State ---
   const [townSearch, setTownSearch] = useState('');
   const [townStatusFilter, setTownStatusFilter] = useState<'ALL' | 'ACTIVE' | 'DISABLED'>('ALL');
-  const [showAddTownModal, setShowAddTownModal] = useState(false);
-  const [catalogueTownSearch, setCatalogueTownSearch] = useState('');
-  const [catalogueTownFilter, setCatalogueTownFilter] = useState<'AVAILABLE' | 'ALL' | 'MAPPED'>('AVAILABLE');
-  const [selectedCatalogueTown, setSelectedCatalogueTown] = useState<any>(null);
 
   // --- Service Area State ---
   const [areaSearch, setAreaSearch] = useState('');
   const [areaTownFilter, setAreaTownFilter] = useState<string>('ALL');
   const [areaStatusFilter, setAreaStatusFilter] = useState<'ALL' | 'ACTIVE' | 'DISABLED'>('ALL');
-  const [showAddAreaModal, setShowAddAreaModal] = useState(false);
-  const [catalogueAreaSearch, setCatalogueAreaSearch] = useState('');
-  const [catalogueAreaTownScope, setCatalogueAreaTownScope] = useState<string>('ALL');
-  const [catalogueAreaFilter, setCatalogueAreaFilter] = useState<'AVAILABLE' | 'ALL' | 'MAPPED'>('AVAILABLE');
-  const [selectedCatalogueArea, setSelectedCatalogueArea] = useState<any>(null);
 
   // Fetch full details
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['district-details', districtId],
     queryFn: () => cityApi.getDistrictDetails(districtId!),
-    enabled: !!districtId && isOpen,
-  });
-
-  // Authoritative catalogue queries
-  const { data: catalogueTownsData } = useQuery({
-    queryKey: ['catalogue-towns', districtId],
-    queryFn: () => cityApi.getCatalogueTowns(districtId!),
-    enabled: !!districtId && isOpen,
-  });
-
-  const { data: catalogueAreasData } = useQuery({
-    queryKey: ['catalogue-areas', districtId],
-    queryFn: () => cityApi.getCatalogueAreas(districtId!),
     enabled: !!districtId && isOpen,
   });
 
@@ -162,53 +140,18 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
     onError: (err: any) => showToast(err.message || 'Failed to update launch config', 'error')
   });
 
-  // Town Mutations
-  const addTownMutation = useMutation({
-    mutationFn: (payload: any) => cityApi.createCityTown(districtId!, payload),
-    onSuccess: () => {
-      showToast('Town mapped successfully (defaults to disabled)', 'success');
-      setSelectedCatalogueTown(null);
-      setShowAddTownModal(false);
-      queryClient.invalidateQueries({ queryKey: ['district-details', districtId] });
-      queryClient.invalidateQueries({ queryKey: ['catalogue-towns', districtId] });
-    },
-    onError: (err: any) => showToast(err.message || 'Failed to map town', 'error')
-  });
-
+  // Town Mutation
   const toggleTownMutation = useMutation({
     mutationFn: ({ townId, isActive }: { townId: string; isActive: boolean }) =>
       cityApi.updateCityTown(districtId!, townId, { isActive }),
     onSuccess: () => {
       showToast('Town status updated', 'success');
       queryClient.invalidateQueries({ queryKey: ['district-details', districtId] });
-      queryClient.invalidateQueries({ queryKey: ['catalogue-towns', districtId] });
     },
     onError: (err: any) => showToast(err.message || 'Failed to update town', 'error')
   });
 
-  const deleteTownMutation = useMutation({
-    mutationFn: (townId: string) => cityApi.deleteCityTown(districtId!, townId),
-    onSuccess: () => {
-      showToast('Town unmapped', 'info');
-      queryClient.invalidateQueries({ queryKey: ['district-details', districtId] });
-      queryClient.invalidateQueries({ queryKey: ['catalogue-towns', districtId] });
-    },
-    onError: (err: any) => showToast(err.message || 'Failed to delete town', 'error')
-  });
-
-  // Area Mutations
-  const addAreaMutation = useMutation({
-    mutationFn: (payload: any) => cityApi.createServiceArea(districtId!, payload),
-    onSuccess: () => {
-      showToast('Service area mapped successfully (defaults to disabled)', 'success');
-      setSelectedCatalogueArea(null);
-      setShowAddAreaModal(false);
-      queryClient.invalidateQueries({ queryKey: ['district-details', districtId] });
-      queryClient.invalidateQueries({ queryKey: ['catalogue-areas', districtId] });
-    },
-    onError: (err: any) => showToast(err.message || 'Failed to map service area', 'error')
-  });
-
+  // Area Mutation
   const toggleAreaMutation = useMutation({
     mutationFn: ({ areaId, isActive, deliveryEligible }: { areaId: string; isActive: boolean; deliveryEligible?: boolean }) =>
       cityApi.updateServiceArea(districtId!, areaId, {
@@ -218,19 +161,8 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
     onSuccess: () => {
       showToast('Service area status updated', 'success');
       queryClient.invalidateQueries({ queryKey: ['district-details', districtId] });
-      queryClient.invalidateQueries({ queryKey: ['catalogue-areas', districtId] });
     },
     onError: (err: any) => showToast(err.message || 'Failed to update service area', 'error')
-  });
-
-  const deleteAreaMutation = useMutation({
-    mutationFn: (areaId: string) => cityApi.deleteServiceArea(districtId!, areaId),
-    onSuccess: () => {
-      showToast('Service area unmapped', 'info');
-      queryClient.invalidateQueries({ queryKey: ['district-details', districtId] });
-      queryClient.invalidateQueries({ queryKey: ['catalogue-areas', districtId] });
-    },
-    onError: (err: any) => showToast(err.message || 'Failed to delete service area', 'error')
   });
 
   const getTownEffectiveStatus = (town: any) => {
@@ -603,25 +535,19 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
           {/* TAB 3: CITIES AND TOWNS */}
           {activeTab === 'towns' && (
             <div className="space-y-4">
-              {/* Header and Controls */}
+              {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-white/5">
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold text-white">Cities & Towns</h3>
                     <Badge variant="outline" className="text-[10px]">
-                      {(district.cityTowns || []).length} Mapped
+                      {(district.cityTowns || []).length} Available
                     </Badge>
                   </div>
                   <p className="text-[10px] text-white/40 mt-0.5">
-                    Municipal subdivisions within {district.name}.
+                    Municipal subdivisions within {district.name}. Automatically populated from database.
                   </p>
                 </div>
-                <Button size="sm" onClick={() => {
-                  setSelectedCatalogueTown(null);
-                  setShowAddTownModal(true);
-                }}>
-                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Map Town from Catalogue
-                </Button>
               </div>
 
               {/* Search & Filter Bar */}
@@ -630,7 +556,7 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                   <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-white/30" />
                   <input
                     type="text"
-                    placeholder="Search mapped towns..."
+                    placeholder="Search towns by name..."
                     value={townSearch}
                     onChange={(e) => setTownSearch(e.target.value)}
                     className="w-full bg-white/[0.03] border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-white/30 outline-none focus:border-white/20 transition-all"
@@ -658,7 +584,7 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                 </div>
               </div>
 
-              {/* Mapped Towns Cards Grid */}
+              {/* Town Cards Grid */}
               {(() => {
                 const mappedTowns = (district.cityTowns || []).filter((town: any) => {
                   const matchesSearch = !townSearch.trim() ||
@@ -679,7 +605,7 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                       <p className="text-[10px] text-white/40 max-w-sm mx-auto">
                         {townSearch.trim() || townStatusFilter !== 'ALL'
                           ? 'Try adjusting your search query or status filter.'
-                          : `No sub-cities/towns mapped yet. All service areas in ${district.name} currently operate at the district root.`}
+                          : `No database towns registered for ${district.name}.`}
                       </p>
                     </div>
                   );
@@ -692,7 +618,7 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                       return (
                         <div
                           key={town.id}
-                          className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] flex items-center justify-between gap-3 shadow-sm"
+                          className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] flex items-center justify-between gap-3 shadow-sm hover:border-white/20 transition-all"
                         >
                           <div className="space-y-1">
                             <span className="text-sm font-bold text-white block">
@@ -721,7 +647,7 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                               isLoading={toggleTownMutation.isPending && (toggleTownMutation.variables as any)?.townId === town.id}
                               onClick={() => {
                                 if (town.isActive) {
-                                  if (window.confirm(`Are you sure you want to disable town "${town.name}"? Customers will not be able to order in this town.`)) {
+                                  if (window.confirm(`Are you sure you want to disable town "${town.name}"? Customers and sellers will not be able to operate in this town.`)) {
                                     toggleTownMutation.mutate({ townId: town.id, isActive: false });
                                   }
                                 } else {
@@ -730,18 +656,6 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                               }}
                             >
                               {town.isActive ? 'Disable' : 'Enable'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0 text-red-400 hover:bg-red-500/10 shrink-0"
-                              onClick={() => {
-                                if (window.confirm(`Are you sure you want to delete town "${town.name}"?`)) {
-                                  deleteTownMutation.mutate(town.id);
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         </div>
@@ -756,25 +670,19 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
           {/* TAB 4: SERVICE AREAS */}
           {activeTab === 'areas' && (
             <div className="space-y-4">
-              {/* Header and Controls */}
+              {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-white/5">
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold text-white">Service Areas</h3>
                     <Badge variant="outline" className="text-[10px]">
-                      {(district.serviceAreas || []).length} Configured
+                      {(district.serviceAreas || []).length} Available
                     </Badge>
                   </div>
                   <p className="text-[10px] text-white/40 mt-0.5">
-                    Coverage localities and PIN codes within {district.name}.
+                    Coverage localities and PIN codes within {district.name}, grouped by parent town.
                   </p>
                 </div>
-                <Button size="sm" onClick={() => {
-                  setSelectedCatalogueArea(null);
-                  setShowAddAreaModal(true);
-                }}>
-                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Map Service Area from Catalogue
-                </Button>
               </div>
 
               {/* Search & Filter Controls */}
@@ -855,7 +763,7 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                 )}
               </div>
 
-              {/* Mapped Service Areas Cards Grid */}
+              {/* Grouped Service Areas */}
               {(() => {
                 const mappedAreas = (district.serviceAreas || []).filter((area: any) => {
                   const matchesSearch = !areaSearch.trim() ||
@@ -880,82 +788,125 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                       <p className="text-[10px] text-white/40 max-w-sm mx-auto">
                         {areaSearch.trim() || areaTownFilter !== 'ALL' || areaStatusFilter !== 'ALL'
                           ? 'Try adjusting your search query or filters.'
-                          : 'No explicit service areas configured. Entire district follows the master district availability rule.'}
+                          : `No service areas registered for ${district.name}.`}
                       </p>
                     </div>
                   );
                 }
 
+                // Group by parent town/city (or 'District Root' if no town)
+                const groupsMap = new Map<string, { townName: string; isTownActive: boolean | null; areas: any[] }>();
+                
+                // Initialize groups in town order if district has towns
+                for (const town of (district.cityTowns || [])) {
+                  groupsMap.set(town.id, {
+                    townName: town.displayName || town.name,
+                    isTownActive: town.isActive,
+                    areas: []
+                  });
+                }
+                
+                const rootGroup = {
+                  townName: `${district.name} (District Root)`,
+                  isTownActive: district.isActive,
+                  areas: [] as any[]
+                };
+
+                for (const area of mappedAreas) {
+                  if (area.cityTownId && groupsMap.has(area.cityTownId)) {
+                    groupsMap.get(area.cityTownId)!.areas.push(area);
+                  } else {
+                    rootGroup.areas.push(area);
+                  }
+                }
+
+                const groupsToRender = Array.from(groupsMap.values()).filter(g => g.areas.length > 0);
+                if (rootGroup.areas.length > 0) {
+                  groupsToRender.push(rootGroup);
+                }
+
                 return (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {mappedAreas.map((area: any) => {
-                      const isUnavailableFromParent = !isParentStateActive || !district.isActive || (area.cityTown && !area.cityTown.isActive);
+                  <div className="space-y-6">
+                    {groupsToRender.map((group) => {
+                      const isTownDisabled = group.isTownActive === false;
                       return (
-                        <div
-                          key={area.id}
-                          className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] flex items-center justify-between gap-3 shadow-sm"
-                        >
-                          <div className="space-y-1">
-                            <span className="text-sm font-bold text-white block">
-                              {area.name}
-                            </span>
-                            <span className="text-[10px] text-white/40 block">
-                              Parent: {area.cityTown?.name || 'District Root'}
-                            </span>
-                            <div className="flex flex-wrap gap-1 py-0.5">
-                              {(area.postalCodes || []).map((pin: string) => (
-                                <span key={pin} className="px-1.5 py-0.2 rounded bg-white/5 font-mono text-[9px] text-white/70 border border-white/5">
-                                  {pin}
-                                </span>
-                              ))}
-                              {(!area.postalCodes || area.postalCodes.length === 0) && (
-                                <span className="text-[9px] text-white/30 italic">All district PIN codes</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 pt-0.5">
-                              <Badge variant={area.isActive ? 'success' : 'secondary'} className="text-[9px] font-bold">
-                                {area.isActive ? 'Enabled' : 'Disabled'}
+                        <div key={group.townName} className="space-y-3">
+                          <div className="flex items-center justify-between pb-1.5 border-b border-white/10">
+                            <div className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4 text-purple-400" />
+                              <h4 className="text-xs font-bold text-white tracking-wide uppercase">{group.townName}</h4>
+                              <Badge variant="outline" className="text-[9px]">
+                                {group.areas.length} {group.areas.length === 1 ? 'Area' : 'Areas'}
                               </Badge>
-                              {isUnavailableFromParent && (
-                                <Badge variant="warning" className="text-[8px] font-bold">
-                                  {!isParentStateActive ? 'Unavailable: State Disabled' :
-                                   !district.isActive ? 'Unavailable: District Disabled' :
-                                   'Unavailable: Town Disabled'}
-                                </Badge>
-                              )}
                             </div>
+                            {isTownDisabled && (
+                              <Badge variant="warning" className="text-[9px] font-bold">
+                                Town Disabled — Child areas effectively unavailable
+                              </Badge>
+                            )}
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant={area.isActive ? 'outline' : 'default'}
-                              className="h-8 text-[10px] font-bold px-3"
-                              isLoading={toggleAreaMutation.isPending && (toggleAreaMutation.variables as any)?.areaId === area.id}
-                              onClick={() => {
-                                if (area.isActive) {
-                                  if (window.confirm(`Are you sure you want to disable service area "${area.name}"? Delivery will be disabled for this area.`)) {
-                                    toggleAreaMutation.mutate({ areaId: area.id, isActive: false, deliveryEligible: false });
-                                  }
-                                } else {
-                                  toggleAreaMutation.mutate({ areaId: area.id, isActive: true, deliveryEligible: true });
-                                }
-                              }}
-                            >
-                              {area.isActive ? 'Disable' : 'Enable'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0 text-red-400 hover:bg-red-500/10 shrink-0"
-                              onClick={() => {
-                                if (window.confirm(`Are you sure you want to delete service area "${area.name}"?`)) {
-                                  deleteAreaMutation.mutate(area.id);
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {group.areas.map((area: any) => {
+                              const isUnavailableFromParent = !isParentStateActive || !district.isActive || (area.cityTown && !area.cityTown.isActive);
+                              return (
+                                <div
+                                  key={area.id}
+                                  className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] flex items-center justify-between gap-3 shadow-sm hover:border-white/20 transition-all"
+                                >
+                                  <div className="space-y-1">
+                                    <span className="text-sm font-bold text-white block">
+                                      {area.name}
+                                    </span>
+                                    <span className="text-[10px] text-white/40 block">
+                                      Parent: {area.cityTown?.name || district.name}
+                                    </span>
+                                    <div className="flex flex-wrap gap-1 py-0.5">
+                                      {(area.postalCodes || []).map((pin: string) => (
+                                        <span key={pin} className="px-1.5 py-0.2 rounded bg-white/5 font-mono text-[9px] text-white/70 border border-white/5">
+                                          {pin}
+                                        </span>
+                                      ))}
+                                      {(!area.postalCodes || area.postalCodes.length === 0) && (
+                                        <span className="text-[9px] text-white/30 italic">All district PIN codes</span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 pt-0.5">
+                                      <Badge variant={area.isActive ? 'success' : 'secondary'} className="text-[9px] font-bold">
+                                        {area.isActive ? 'Enabled' : 'Disabled'}
+                                      </Badge>
+                                      {isUnavailableFromParent && (
+                                        <Badge variant="warning" className="text-[8px] font-bold">
+                                          {!isParentStateActive ? 'Unavailable: State Disabled' :
+                                           !district.isActive ? 'Unavailable: District Disabled' :
+                                           'Unavailable: Town Disabled'}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant={area.isActive ? 'outline' : 'default'}
+                                      className="h-8 text-[10px] font-bold px-3"
+                                      isLoading={toggleAreaMutation.isPending && (toggleAreaMutation.variables as any)?.areaId === area.id}
+                                      onClick={() => {
+                                        if (area.isActive) {
+                                          if (window.confirm(`Are you sure you want to disable service area "${area.name}"? Delivery will be disabled for this area.`)) {
+                                            toggleAreaMutation.mutate({ areaId: area.id, isActive: false, deliveryEligible: false });
+                                          }
+                                        } else {
+                                          toggleAreaMutation.mutate({ areaId: area.id, isActive: true, deliveryEligible: true });
+                                        }
+                                      }}
+                                    >
+                                      {area.isActive ? 'Disable' : 'Enable'}
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );
@@ -1299,363 +1250,6 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
           )}
         </div>
       )}
-
-      {/* ─── MODAL 1: SEARCHABLE CATALOGUE TOWN SELECTION ─── */}
-      <Dialog
-        isOpen={showAddTownModal}
-        onClose={() => {
-          setShowAddTownModal(false);
-          setSelectedCatalogueTown(null);
-        }}
-        maxWidth="max-w-xl"
-        title={
-          <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-purple-400" />
-            <span>Map Town from Catalogue</span>
-          </div>
-        }
-        description={`Select an official administrative subdivision for ${district?.name}. All new mappings default to Disabled.`}
-      >
-        <div className="space-y-4">
-          {/* Search & Filter */}
-          <div className="space-y-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-white/30" />
-              <input
-                type="text"
-                placeholder="Search catalogue towns by name..."
-                value={catalogueTownSearch}
-                onChange={(e) => setCatalogueTownSearch(e.target.value)}
-                className="w-full bg-white/[0.03] border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-white/30 outline-none focus:border-white/20 transition-all"
-              />
-              {catalogueTownSearch && (
-                <button onClick={() => setCatalogueTownSearch('')} className="absolute right-2.5 top-2 text-white/40 hover:text-white text-xs">✕</button>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5">
-              {(['AVAILABLE', 'ALL', 'MAPPED'] as const).map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setCatalogueTownFilter(filter)}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                    catalogueTownFilter === filter
-                      ? 'bg-purple-500 text-white'
-                      : 'bg-white/5 text-white/50 hover:text-white'
-                  }`}
-                >
-                  {filter === 'AVAILABLE' ? 'Available to Map' : filter === 'ALL' ? 'All Catalogue Records' : 'Already Mapped'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Catalogue Cards Grid */}
-          <div className="max-h-[260px] overflow-y-auto space-y-2 pr-1 scrollbar-none">
-            {(() => {
-              const items = (catalogueTownsData?.towns || []).filter((t: any) => {
-                const matchesSearch = !catalogueTownSearch.trim() ||
-                  t.name.toLowerCase().includes(catalogueTownSearch.toLowerCase());
-                const matchesFilter =
-                  catalogueTownFilter === 'ALL' ? true :
-                  catalogueTownFilter === 'AVAILABLE' ? !t.isAlreadyAdded :
-                  t.isAlreadyAdded;
-                return matchesSearch && matchesFilter;
-              });
-
-              if (items.length === 0) {
-                return (
-                  <div className="text-center py-8 border border-dashed border-white/10 rounded-xl text-xs text-white/40">
-                    No catalogue records found matching your query.
-                  </div>
-                );
-              }
-
-              return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {items.map((t: any) => {
-                    const isSelected = selectedCatalogueTown?.name === t.name;
-                    return (
-                      <div
-                        key={t.name}
-                        onClick={() => {
-                          if (t.isAlreadyAdded) return;
-                          setSelectedCatalogueTown(t);
-                        }}
-                        className={`p-3 rounded-xl border text-left transition-all ${
-                          t.isAlreadyAdded
-                            ? 'border-white/5 bg-white/[0.01] opacity-50 cursor-not-allowed'
-                            : isSelected
-                            ? 'border-purple-500 bg-purple-500/10 cursor-pointer ring-1 ring-purple-500/30'
-                            : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04] cursor-pointer'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-1">
-                          <span className="text-xs font-bold text-white block">{t.name}</span>
-                          {t.isAlreadyAdded ? (
-                            <Badge variant="secondary" className="text-[8px]">Already Mapped</Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-[8px] text-purple-300 border-purple-500/30">Available</Badge>
-                          )}
-                        </div>
-                        <span className="text-[9px] text-white/40 block mt-1">
-                          Parent District: {district?.name}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Selected Town Confirmation Details */}
-          {selectedCatalogueTown && (
-            <div className="p-3.5 rounded-xl border border-purple-500/30 bg-purple-500/5 flex items-center justify-between gap-3">
-              <div>
-                <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wider block">Selected Catalogue Town</span>
-                <span className="text-sm font-bold text-white">{selectedCatalogueTown.name}</span>
-                <span className="text-[10px] text-white/40 block">Parent: {district?.name}</span>
-              </div>
-              <Badge variant="secondary" className="text-[9px]">Disabled by Default</Badge>
-            </div>
-          )}
-
-          {/* Modal Actions */}
-          <div className="flex justify-end gap-2 pt-2 border-t border-white/5">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setShowAddTownModal(false);
-                setSelectedCatalogueTown(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              disabled={!selectedCatalogueTown || addTownMutation.isPending}
-              isLoading={addTownMutation.isPending}
-              onClick={() => {
-                if (!selectedCatalogueTown) return;
-                addTownMutation.mutate({
-                  name: selectedCatalogueTown.name,
-                  isActive: false,
-                  launchStatus: 'COMING_SOON'
-                });
-              }}
-            >
-              Confirm & Map Town
-            </Button>
-          </div>
-        </div>
-      </Dialog>
-
-      {/* ─── MODAL 2: SEARCHABLE CATALOGUE SERVICE AREA SELECTION ─── */}
-      <Dialog
-        isOpen={showAddAreaModal}
-        onClose={() => {
-          setShowAddAreaModal(false);
-          setSelectedCatalogueArea(null);
-        }}
-        maxWidth="max-w-2xl"
-        title={
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-purple-400" />
-            <span>Map Service Area from Catalogue</span>
-          </div>
-        }
-        description={`Select an official locality with validated postal PIN codes for ${district?.name}. Defaults to Disabled.`}
-      >
-        <div className="space-y-4">
-          {/* Town Scope Filter and Search */}
-          <div className="space-y-2">
-            {(district?.cityTowns || []).length > 0 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider shrink-0 mr-1">
-                  Catalogue Scope:
-                </span>
-                <button
-                  onClick={() => setCatalogueAreaTownScope('ALL')}
-                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 transition-all ${
-                    catalogueAreaTownScope === 'ALL'
-                      ? 'bg-purple-500 text-white'
-                      : 'bg-white/5 text-white/40 hover:text-white/70'
-                  }`}
-                >
-                  All District Areas
-                </button>
-                {district.cityTowns.map((t: any) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setCatalogueAreaTownScope(t.id)}
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 transition-all ${
-                      catalogueAreaTownScope === t.id
-                        ? 'bg-purple-500 text-white'
-                        : 'bg-white/5 text-white/40 hover:text-white/70'
-                    }`}
-                  >
-                    {t.name}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row items-center gap-2">
-              <div className="relative flex-1 w-full">
-                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-white/30" />
-                <input
-                  type="text"
-                  placeholder="Search localities by name or PIN code..."
-                  value={catalogueAreaSearch}
-                  onChange={(e) => setCatalogueAreaSearch(e.target.value)}
-                  className="w-full bg-white/[0.03] border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-white/30 outline-none focus:border-white/20 transition-all"
-                />
-                {catalogueAreaSearch && (
-                  <button onClick={() => setCatalogueAreaSearch('')} className="absolute right-2.5 top-2 text-white/40 hover:text-white text-xs">✕</button>
-                )}
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                {(['AVAILABLE', 'ALL', 'MAPPED'] as const).map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() => setCatalogueAreaFilter(filter)}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                      catalogueAreaFilter === filter
-                        ? 'bg-purple-500 text-white'
-                        : 'bg-white/5 text-white/50 hover:text-white'
-                    }`}
-                  >
-                    {filter === 'AVAILABLE' ? 'Available' : filter === 'ALL' ? 'All' : 'Mapped'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Catalogue Areas Grid */}
-          <div className="max-h-[260px] overflow-y-auto space-y-2 pr-1 scrollbar-none">
-            {(() => {
-              const areas = (catalogueAreasData?.areas || []).filter((a: any) => {
-                const matchesTownScope = catalogueAreaTownScope === 'ALL' ? true :
-                  a.cityTown?.toLowerCase() === (district?.cityTowns || []).find((t: any) => t.id === catalogueAreaTownScope)?.name?.toLowerCase();
-                const matchesSearch = !catalogueAreaSearch.trim() ||
-                  a.name.toLowerCase().includes(catalogueAreaSearch.toLowerCase()) ||
-                  (a.postalCodes || []).some((p: string) => p.includes(catalogueAreaSearch.trim()));
-                const matchesFilter =
-                  catalogueAreaFilter === 'ALL' ? true :
-                  catalogueAreaFilter === 'AVAILABLE' ? !a.isAlreadyAdded :
-                  a.isAlreadyAdded;
-                return matchesTownScope && matchesSearch && matchesFilter;
-              });
-
-              if (areas.length === 0) {
-                return (
-                  <div className="text-center py-8 border border-dashed border-white/10 rounded-xl text-xs text-white/40">
-                    No catalogue service areas found for this filter.
-                  </div>
-                );
-              }
-
-              return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {areas.map((a: any) => {
-                    const isSelected = selectedCatalogueArea?.name === a.name;
-                    return (
-                      <div
-                        key={a.name}
-                        onClick={() => {
-                          if (a.isAlreadyAdded) return;
-                          setSelectedCatalogueArea(a);
-                        }}
-                        className={`p-3 rounded-xl border text-left transition-all ${
-                          a.isAlreadyAdded
-                            ? 'border-white/5 bg-white/[0.01] opacity-50 cursor-not-allowed'
-                            : isSelected
-                            ? 'border-purple-500 bg-purple-500/10 cursor-pointer ring-1 ring-purple-500/30'
-                            : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04] cursor-pointer'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-1">
-                          <span className="text-xs font-bold text-white block">{a.name}</span>
-                          {a.isAlreadyAdded ? (
-                            <Badge variant="secondary" className="text-[8px]">Already Mapped</Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-[8px] text-purple-300 border-purple-500/30">Available</Badge>
-                          )}
-                        </div>
-                        <span className="text-[9px] text-white/40 block mt-0.5">
-                          Parent: {a.cityTown || 'District Root'}
-                        </span>
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {(a.postalCodes || []).map((pin: string) => (
-                            <span key={pin} className="px-1.5 py-0.2 rounded bg-white/5 font-mono text-[9px] text-white/70">
-                              {pin}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Selected Service Area Confirmation Details */}
-          {selectedCatalogueArea && (
-            <div className="p-3.5 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wider block">Selected Service Area</span>
-                  <span className="text-sm font-bold text-white">{selectedCatalogueArea.name}</span>
-                </div>
-                <Badge variant="secondary" className="text-[9px]">Disabled by Default</Badge>
-              </div>
-              <div className="flex items-center justify-between text-xs text-white/60 pt-1 border-t border-white/5">
-                <span>Parent: <strong className="text-white">{selectedCatalogueArea.cityTown || 'District Root'}</strong></span>
-                <span>PIN(s): <strong className="text-white font-mono">{Array.isArray(selectedCatalogueArea.postalCodes) ? selectedCatalogueArea.postalCodes.join(', ') : selectedCatalogueArea.postalCodes}</strong></span>
-              </div>
-            </div>
-          )}
-
-          {/* Modal Actions */}
-          <div className="flex justify-end gap-2 pt-2 border-t border-white/5">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setShowAddAreaModal(false);
-                setSelectedCatalogueArea(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              disabled={!selectedCatalogueArea || addAreaMutation.isPending}
-              isLoading={addAreaMutation.isPending}
-              onClick={() => {
-                if (!selectedCatalogueArea) return;
-                const matchedTown = (district?.cityTowns || []).find(
-                  (t: any) => t.name.toLowerCase() === selectedCatalogueArea.cityTown?.toLowerCase()
-                );
-                addAreaMutation.mutate({
-                  name: selectedCatalogueArea.name,
-                  cityTownId: matchedTown ? matchedTown.id : undefined,
-                  postalCodes: Array.isArray(selectedCatalogueArea.postalCodes)
-                    ? selectedCatalogueArea.postalCodes.join(', ')
-                    : selectedCatalogueArea.postalCodes,
-                  isActive: false,
-                  deliveryEligible: false
-                });
-              }}
-            >
-              Confirm & Map Area
-            </Button>
-          </div>
-        </div>
-      </Dialog>
     </Dialog>
   );
 }

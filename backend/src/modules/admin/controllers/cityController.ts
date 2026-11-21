@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { prisma } from "../../../config/prisma.js";
 import { invalidatePublicCache } from "../../../middleware/cache.js";
+import { ensureDistrictLocationsPopulated } from "./districtDetailController.js";
 
 export const createCity = async (req: Request, res: Response) => {
     try {
@@ -19,9 +20,12 @@ export const createCity = async (req: Request, res: Response) => {
             data: {
                 name: normalized,
                 state: state?.trim() || "Karnataka",
-                isActive: isActive !== undefined ? !!isActive : true
+                isActive: isActive !== undefined ? !!isActive : false
             }
         });
+
+        // Automatically populate database towns and service areas from catalogue (disabled by default)
+        await ensureDistrictLocationsPopulated(city.id, city.name);
 
         invalidatePublicCache();
 

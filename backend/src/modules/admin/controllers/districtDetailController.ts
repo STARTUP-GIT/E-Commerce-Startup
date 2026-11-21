@@ -46,6 +46,170 @@ const logAudit = async (
 };
 
 /**
+ * Automatically ensures that all towns and service areas from the authoritative catalogue
+ * exist in the database for the given district, defaulting to DISABLED.
+ * Existing records and statuses are preserved.
+ */
+export async function ensureDistrictLocationsPopulated(districtId: string, districtName: string) {
+    try {
+        let catalogueItems: Array<{ cityTown: string; serviceArea: string | null; postalCode: string }> = [];
+        try {
+            catalogueItems = await prisma.locationCatalogue.findMany({
+                where: { district: { equals: districtName, mode: "insensitive" } },
+                select: { cityTown: true, serviceArea: true, postalCode: true }
+            });
+        } catch {
+            // fallback if table query fails
+        }
+
+        if (!catalogueItems || catalogueItems.length === 0) {
+            const matches = AUTHORITATIVE_LOCATION_CATALOGUE.filter(
+                c => c.district.toLowerCase() === districtName.toLowerCase()
+            );
+            catalogueItems = matches.map(c => ({
+                cityTown: c.cityTown,
+                serviceArea: c.serviceArea,
+                postalCode: c.postalCode
+            }));
+
+            // Also seed into locationCatalogue table if empty
+            if (matches.length > 0) {
+                try {
+                    for (const m of matches) {
+                        const exists = await prisma.locationCatalogue.findFirst({
+                            where: {
+                                district: m.district,
+                                cityTown: m.cityTown,
+                                serviceArea: m.serviceArea,
+                                postalCode: m.postalCode
+                            }
+                        });
+                        if (!exists) {
+                            await prisma.locationCatalogue.create({
+                                data: {
+                                    state: m.state,
+                                    district: m.district,
+                                    cityTown: m.cityTown,
+                                    serviceArea: m.serviceArea,
+                                    postalCode: m.postalCode
+                                }
+                            });
+                        }
+                    }
+                } catch {
+                    // Ignore duplicate key or migration pending
+                }
+            }
+        }
+
+        if (!catalogueItems || catalogueItems.length === 0) return;
+
+        // 1. Ensure all unique towns exist in city_towns table
+        const uniqueTownNames = Array.from(new Set(catalogueItems.map(c => c.cityTown.trim()))).filter(Boolean);
+        const existingTowns = await prisma.cityTown.findMany({
+            where: { districtId }
+        });
+        const townMap = new Map<string, any>();
+        for (const t of existingTowns) {
+            townMap.set(t.name.toLowerCase(), t);
+        }
+
+        for (const townName of uniqueTownNames) {
+            if (!townMap.has(townName.toLowerCase())) {
+                try {
+                    const createdTown = await prisma.cityTown.create({
+                        data: {
+                            districtId,
+                            name: townName,
+                            displayName: townName,
+                            isActive: false, // Default to disabled!
+                            launchStatus: "COMING_SOON"
+                        }
+                    });
+                    townMap.set(townName.toLowerCase(), createdTown);
+                } catch {
+                    // Handle concurrency race
+                }
+            }
+        }
+
+        // 2. Ensure all service areas exist in service_areas table with parent town and postal codes
+        const areaMap = new Map<string, { name: string; cityTown: string; postalCodes: Set<string> }>();
+        for (const item of catalogueItems) {
+            if (!item.serviceArea?.trim()) continue;
+            const areaName = item.serviceArea.trim();
+            const key = areaName.toLowerCase();
+            const existing = areaMap.get(key);
+            if (existing) {
+                if (item.postalCode?.trim()) existing.postalCodes.add(item.postalCode.trim());
+            } else {
+                areaMap.set(key, {
+                    name: areaName,
+                    cityTown: item.cityTown.trim(),
+                    postalCodes: new Set(item.postalCode?.trim() ? [item.postalCode.trim()] : [])
+                });
+            }
+        }
+
+        const existingAreas = await prisma.serviceArea.findMany({
+            where: { districtId }
+        });
+        const existingAreaMap = new Map<string, any>();
+        for (const a of existingAreas) {
+            existingAreaMap.set(a.name.toLowerCase(), a);
+        }
+
+        for (const [key, areaData] of areaMap.entries()) {
+            const parentTown = townMap.get(areaData.cityTown.toLowerCase());
+            const cityTownId = parentTown ? parentTown.id : null;
+            const postalCodesArray = Array.from(areaData.postalCodes);
+
+            if (!existingAreaMap.has(key)) {
+                try {
+                    await prisma.serviceArea.create({
+                        data: {
+                            districtId,
+                            cityTownId,
+                            name: areaData.name,
+                            postalCodes: postalCodesArray,
+                            isActive: false, // Default to disabled!
+                            deliveryEligible: false
+                        }
+                    });
+                } catch {
+                    // Handle concurrency race
+                }
+            } else {
+                const existing = existingAreaMap.get(key);
+                const updates: any = {};
+                if (!existing.cityTownId && cityTownId) {
+                    updates.cityTownId = cityTownId;
+                }
+                const currentPins = new Set(existing.postalCodes || []);
+                let hasNewPins = false;
+                for (const pin of postalCodesArray) {
+                    if (!currentPins.has(pin)) {
+                        currentPins.add(pin);
+                        hasNewPins = true;
+                    }
+                }
+                if (hasNewPins) {
+                    updates.postalCodes = Array.from(currentPins);
+                }
+                if (Object.keys(updates).length > 0) {
+                    await prisma.serviceArea.update({
+                        where: { id: existing.id },
+                        data: updates
+                    });
+                }
+            }
+        }
+    } catch (err) {
+        console.error(`[ensureDistrictLocationsPopulated] Error populating locations for district ${districtName}:`, err);
+    }
+}
+
+/**
  * GET /api/admin/cities/:id/details
  * Fetch full district details, overview stats, child cities/towns, service areas, and requests
  */
@@ -54,12 +218,24 @@ export const getDistrictDetails = async (req: Request, res: Response) => {
         const id = req.params.id as string;
         if (!id) return res.status(400).json({ message: "District ID is required" });
 
+        const districtBasic = await prisma.city.findUnique({
+            where: { id },
+            select: { id: true, name: true }
+        });
+
+        if (!districtBasic) {
+            return res.status(404).json({ message: "District not found" });
+        }
+
+        // Auto-populate towns and service areas from database catalogue if needed
+        await ensureDistrictLocationsPopulated(districtBasic.id, districtBasic.name);
+
         const district = await prisma.city.findUnique({
             where: { id },
             include: {
                 cityTowns: { orderBy: { name: "asc" } },
                 serviceAreas: {
-                    include: { cityTown: { select: { id: true, name: true } } },
+                    include: { cityTown: { select: { id: true, name: true, displayName: true, isActive: true } } },
                     orderBy: { name: "asc" }
                 }
             }
@@ -349,6 +525,13 @@ export const updateDistrictLaunchConfig = async (req: Request, res: Response) =>
 export const listCityTowns = async (req: Request, res: Response) => {
     try {
         const districtId = req.params.id as string;
+        const district = await prisma.city.findUnique({
+            where: { id: districtId },
+            select: { id: true, name: true }
+        });
+        if (district) {
+            await ensureDistrictLocationsPopulated(district.id, district.name);
+        }
         const towns = await prisma.cityTown.findMany({
             where: { districtId },
             include: { serviceAreas: { select: { id: true, name: true, isActive: true } } },
@@ -454,9 +637,16 @@ export const deleteCityTown = async (req: Request, res: Response) => {
 export const listServiceAreas = async (req: Request, res: Response) => {
     try {
         const districtId = req.params.id as string;
+        const district = await prisma.city.findUnique({
+            where: { id: districtId },
+            select: { id: true, name: true }
+        });
+        if (district) {
+            await ensureDistrictLocationsPopulated(district.id, district.name);
+        }
         const serviceAreas = await prisma.serviceArea.findMany({
             where: { districtId },
-            include: { cityTown: { select: { id: true, name: true, displayName: true } } },
+            include: { cityTown: { select: { id: true, name: true, displayName: true, isActive: true } } },
             orderBy: { name: "asc" }
         });
         return res.status(200).json({ serviceAreas });
