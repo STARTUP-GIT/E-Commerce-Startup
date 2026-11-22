@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { authApi } from '../api/authApi';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/shared/components/Card';
 import { Input } from '@/shared/components/Input';
+import { PasswordInput } from '@/shared/components/PasswordInput';
 import { Button } from '@/shared/components/Button';
 import { ShieldCheck, Mail, Lock, KeyRound, ArrowLeft, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -205,36 +206,28 @@ export function ForgotPasswordPage() {
               <form onSubmit={passwordForm.handleSubmit(handlePasswordSubmit)} className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">New Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-3 h-4.5 w-4.5 text-white/25 pointer-events-none" />
-                    <Input
-                      type="password"
-                      placeholder="••••••••"
-                      autoComplete="new-password"
-                      error={!!passwordForm.formState.errors.newPassword}
-                      className="pl-11"
-                      {...passwordForm.register('newPassword')}
-                      disabled={loading}
-                    />
-                  </div>
+                  <PasswordInput
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    leftIcon={<Lock className="h-4.5 w-4.5" />}
+                    error={!!passwordForm.formState.errors.newPassword}
+                    {...passwordForm.register('newPassword')}
+                    disabled={loading}
+                  />
                   {passwordForm.formState.errors.newPassword && (
                     <p className="text-[10px] font-semibold text-red-400 mt-1">{passwordForm.formState.errors.newPassword.message}</p>
                   )}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Confirm Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-3 h-4.5 w-4.5 text-white/25 pointer-events-none" />
-                    <Input
-                      type="password"
-                      placeholder="••••••••"
-                      autoComplete="new-password"
-                      error={!!passwordForm.formState.errors.confirmPassword}
-                      className="pl-11"
-                      {...passwordForm.register('confirmPassword')}
-                      disabled={loading}
-                    />
-                  </div>
+                  <PasswordInput
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    leftIcon={<Lock className="h-4.5 w-4.5" />}
+                    error={!!passwordForm.formState.errors.confirmPassword}
+                    {...passwordForm.register('confirmPassword')}
+                    disabled={loading}
+                  />
                   {passwordForm.formState.errors.confirmPassword && (
                     <p className="text-[10px] font-semibold text-red-400 mt-1">{passwordForm.formState.errors.confirmPassword.message}</p>
                   )}

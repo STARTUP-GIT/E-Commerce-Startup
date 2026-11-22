@@ -139,6 +139,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         return (badges.locationRequests || 0) > 0
           ? { count: badges.locationRequests, colorClass: 'bg-emerald-500 ring-emerald-400/30 text-white font-black', id: 'location-requests-badge' }
           : null;
+      case '/admin-management':
+        return (badges.adminAccessRequests || 0) > 0
+          ? { count: badges.adminAccessRequests, colorClass: 'bg-amber-500 ring-amber-400/30 text-black font-black', id: 'admin-access-badge' }
+          : null;
       default:
         return null;
     }

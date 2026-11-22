@@ -2,8 +2,7 @@
  * Central catalogue of every permission the Admin panel understands.
  *
  * There is exactly ONE authorization model in this product: Admin roles.
- * `AdminRole.permissions` stores a subset of the keys below; the platform
- * application's permission system has been removed.
+ * `AdminRole.permissions` stores a subset of the keys below.
  *
  * This file is also exposed to the Admin frontend through
  * `GET /api/admin/roles/permissions` so the Roles & Permissions screen never
@@ -22,144 +21,109 @@ export interface PermissionGroup {
 
 export const PERMISSION_CATALOG: PermissionGroup[] = [
     {
-        group: "Dashboard & Analytics",
+        group: "DASHBOARD",
         permissions: [
             { key: "dashboard.view", label: "View dashboard" },
-            { key: "analytics.view", label: "View analytics reports" }
+            { key: "analytics.view", label: "View analytics" }
         ]
     },
     {
-        group: "Customers",
+        group: "MARKETPLACE",
         permissions: [
             { key: "customers.view", label: "View customers" },
-            { key: "customers.manage", label: "Edit / disable customers" }
+            { key: "customers.manage", label: "Manage customers" },
+            { key: "sellers.view", label: "View sellers" },
+            { key: "sellers.manage", label: "Manage sellers" },
+            { key: "products.view", label: "View products" },
+            { key: "products.manage", label: "Manage products" },
+            { key: "categories.manage", label: "Manage categories" },
+            { key: "catalog.view", label: "View catalog" },
+            { key: "catalog.manage", label: "Manage catalog" }
         ]
     },
     {
-        group: "Sellers & Shops",
-        permissions: [
-            { key: "sellers.view", label: "View sellers, shops & verifications" },
-            { key: "sellers.manage", label: "Approve, ban, strikes & payouts" }
-        ]
-    },
-    {
-        group: "Orders",
+        group: "OPERATIONS",
         permissions: [
             { key: "orders.view", label: "View orders" },
-            { key: "orders.manage", label: "Manage orders & returns" }
+            { key: "orders.manage", label: "Manage orders" },
+            { key: "delivery.view", label: "View deliveries" },
+            { key: "delivery.manage", label: "Manage deliveries" },
+            { key: "returns.view", label: "View returns" },
+            { key: "returns.manage", label: "Manage returns" },
+            { key: "cases.view", label: "View customer cases" },
+            { key: "cases.manage", label: "Manage customer cases" }
         ]
     },
     {
-        group: "Payments",
+        group: "LOCATIONS",
         permissions: [
-            { key: "payments.view", label: "View transactions & payouts" },
-            { key: "payments.refund", label: "Initiate refunds" }
+            { key: "locations.districts.view", label: "View districts" },
+            { key: "locations.districts.manage", label: "Manage districts" },
+            { key: "locations.towns.manage", label: "Manage towns" },
+            { key: "locations.areas.manage", label: "Manage service areas" },
+            { key: "locations.availability.manage", label: "Manage location availability" }
         ]
     },
     {
-        group: "Reports & Exports",
+        group: "COMMUNICATION",
         permissions: [
-            { key: "reports.view", label: "View reports" },
-            { key: "reports.export", label: "Export CSV / PDF reports" }
-        ]
-    },
-    {
-        group: "Support & Moderation",
-        permissions: [
-            { key: "support.view", label: "View support tickets" },
-            { key: "support.manage", label: "Reply / resolve support tickets" },
-            { key: "moderation.view", label: "View reviews & reports" },
-            { key: "moderation.manage", label: "Approve / hide reviews & products" }
-        ]
-    },
-    {
-        group: "Content & Branding",
-        permissions: [
-            { key: "content.view", label: "View CMS content blocks" },
-            { key: "content.manage", label: "Create / publish content blocks" },
-            { key: "branding.view", label: "View branding settings" },
-            { key: "branding.manage", label: "Update marketplace branding" }
-        ]
-    },
-    {
-        group: "Catalogue & Delivery",
-        permissions: [
-            { key: "catalog.view", label: "View categories, cities & states" },
-            { key: "catalog.manage", label: "Manage catalogue reference data" },
-            { key: "delivery.view", label: "View delivery methods" },
-            { key: "delivery.manage", label: "Manage delivery methods" },
-            { key: "coupons.view", label: "View coupons" },
-            { key: "coupons.manage", label: "Create / edit coupons" },
+            { key: "conversations.view", label: "View conversations" },
+            { key: "conversations.manage", label: "Reply to conversations" },
             { key: "notifications.view", label: "View notifications" },
-            { key: "notifications.manage", label: "Send notifications" },
-            { key: "settings.view", label: "View marketplace settings" },
-            { key: "settings.manage", label: "Update marketplace settings" }
+            { key: "notifications.manage", label: "Manage notifications" }
         ]
     },
     {
-        group: "Administration",
+        group: "FINANCE",
         permissions: [
-            { key: "admin.users.manage", label: "Manage admin accounts" },
+            { key: "payments.view", label: "View payments" },
+            { key: "commissions.manage", label: "Manage settlements" },
+            { key: "reports.view", label: "View financial reports" },
+            { key: "reports.export", label: "Export reports" },
+            { key: "platform_fees.manage", label: "Manage platform fees" },
+            { key: "gst.view", label: "View GST configuration" },
+            { key: "gst.manage", label: "Modify GST configuration" },
+            { key: "payments.refund", label: "Manage refunds" }
+        ]
+    },
+    {
+        group: "SYSTEM",
+        permissions: [
+            { key: "admin.users.view", label: "View administrators" },
+            { key: "admin.users.manage", label: "Manage administrators (add, edit, suspend)" },
             { key: "admin.roles.manage", label: "Manage roles & permissions" },
-            { key: "sessions.view", label: "View active sessions" },
+            { key: "audit_logs.view", label: "View audit logs" },
+            { key: "settings.view", label: "View system settings" },
+            { key: "settings.manage", label: "Manage system settings" },
+            { key: "sessions.view", label: "View sessions" },
             { key: "sessions.manage", label: "Revoke sessions" },
-            { key: "audit_logs.view", label: "View audit logs" }
+            { key: "branding.view", label: "View branding" },
+            { key: "branding.manage", label: "Manage branding & delivery logo" }
         ]
     },
     {
-        group: "Seller Enforcement & Appeals",
+        group: "ENFORCEMENT & COMPLIANCE",
         permissions: [
-            { key: "enforcement.view", label: "View warnings, strikes and suspensions" },
+            { key: "enforcement.view", label: "View warnings & strikes" },
             { key: "enforcement.warning", label: "Issue warnings to sellers" },
-            { key: "enforcement.strike", label: "Issue community guidelines strikes" },
+            { key: "enforcement.strike", label: "Issue strikes" },
             { key: "enforcement.suspend", label: "Suspend or reinstate sellers" },
             { key: "appeals.view", label: "View seller appeals" },
-            { key: "appeals.manage", label: "Review, request info & decide appeals" }
-        ]
-    },
-    {
-        group: "Policies & Guidelines",
-        permissions: [
-            { key: "guidelines.view", label: "View community guidelines & acceptance records" },
-            { key: "guidelines.manage", label: "Create & edit guideline drafts" },
-            { key: "guidelines.publish", label: "Approve & publish community guidelines" },
-            { key: "policies.view", label: "View policy notices" },
-            { key: "policies.manage", label: "Create & edit policy notice drafts" },
-            { key: "policies.publish", label: "Publish policy notices" }
-        ]
-    },
-    {
-        group: "Financial Settlements",
-        permissions: [
-            { key: "commissions.view", label: "View commission statements & balances" },
-            { key: "commissions.manage", label: "Create, publish statements & record payments" }
-        ]
-    },
-    {
-        group: "Investigations & Postmortems",
-        permissions: [
-            { key: "cases.view", label: "View customer case reports & timeline" },
-            { key: "cases.manage", label: "Investigate & resolve customer case reports" },
-            { key: "postmortems.view", label: "View incident postmortems" },
-            { key: "postmortems.manage", label: "Create, review & approve postmortems" }
-        ]
-    },
-    {
-        group: "Conversations & Messaging",
-        permissions: [
-            { key: "conversations.view", label: "View customer and seller conversations" },
-            { key: "conversations.manage", label: "Reply and resolve conversations" }
+            { key: "appeals.manage", label: "Review and decide appeals" },
+            { key: "guidelines.view", label: "View community guidelines" },
+            { key: "guidelines.manage", label: "Manage guidelines" },
+            { key: "policies.view", label: "View policies" },
+            { key: "policies.manage", label: "Manage policies" },
+            { key: "postmortems.view", label: "View postmortems" },
+            { key: "postmortems.manage", label: "Manage postmortems" },
+            { key: "moderation.view", label: "View reviews & reports" },
+            { key: "moderation.manage", label: "Approve or hide reviews" }
         ]
     }
 ];
 
 export const ALL_PERMISSIONS: string[] = PERMISSION_CATALOG.flatMap((g) =>
     g.permissions.map((p) => p.key)
-);
-
-/** Group prefix used for `group.*` wildcard matching, e.g. `customers.*`. */
-export const permissionGroups: string[] = Array.from(
-    new Set(ALL_PERMISSIONS.map((key) => key.split(".")[0]))
 );
 
 export interface RoleDefinition {
@@ -171,145 +135,172 @@ export interface RoleDefinition {
 
 const perms = (...keys: string[]) => keys;
 
-/**
- * The nine system roles. Seeded on demand by `ensureDefaultRoles()` so a fresh
- * database (created with `prisma db push`) behaves exactly like one created by
- * the migration.
- */
 export const SYSTEM_ROLES: RoleDefinition[] = [
-    {
-        name: "OWNER",
-        displayName: "Owner",
-        description: "Full marketplace ownership. Unrestricted access.",
-        permissions: [...ALL_PERMISSIONS]
-    },
     {
         name: "SUPER_ADMIN",
         displayName: "Super Admin",
-        description: "Everything an owner can do, including role management.",
+        description: "Full unrestricted platform administration, access approval, and role management.",
+        permissions: [...ALL_PERMISSIONS]
+    },
+    {
+        name: "ADMIN",
+        displayName: "Admin",
+        description: "Day-to-day marketplace operations and administration across modules.",
+        permissions: perms(
+            "dashboard.view", "analytics.view",
+            "customers.view", "customers.manage",
+            "sellers.view", "sellers.manage",
+            "products.view", "products.manage", "categories.manage",
+            "orders.view", "orders.manage", "delivery.view", "delivery.manage", "returns.view", "returns.manage",
+            "locations.districts.view", "locations.districts.manage", "locations.towns.manage", "locations.areas.manage", "locations.availability.manage",
+            "conversations.view", "conversations.manage", "notifications.view", "notifications.manage",
+            "payments.view", "commissions.manage", "reports.view", "reports.export", "platform_fees.manage", "gst.view", "gst.manage", "payments.refund",
+            "admin.users.view", "audit_logs.view", "settings.view", "settings.manage", "branding.view", "branding.manage",
+            "moderation.view", "moderation.manage", "guidelines.view", "policies.view", "appeals.view", "appeals.manage"
+        )
+    },
+    {
+        name: "OPERATIONS_MANAGER",
+        displayName: "Operations Manager",
+        description: "Oversees orders, delivery dispatches, refunds, and resolution cases.",
+        permissions: perms(
+            "dashboard.view", "analytics.view",
+            "orders.view", "orders.manage",
+            "delivery.view", "delivery.manage",
+            "returns.view", "returns.manage",
+            "cases.view", "cases.manage",
+            "payments.view", "payments.refund",
+            "locations.districts.view", "locations.availability.manage",
+            "conversations.view", "conversations.manage",
+            "notifications.view"
+        )
+    },
+    {
+        name: "MARKETPLACE_MANAGER",
+        displayName: "Marketplace Manager",
+        description: "Oversees product catalogue, seller approvals, customer accounts, and categories.",
+        permissions: perms(
+            "dashboard.view", "analytics.view",
+            "customers.view", "customers.manage",
+            "sellers.view", "sellers.manage",
+            "products.view", "products.manage", "categories.manage",
+            "catalog.view", "catalog.manage",
+            "moderation.view", "moderation.manage",
+            "reports.view"
+        )
+    },
+    {
+        name: "SELLER_SUPPORT",
+        displayName: "Seller Support",
+        description: "Handles seller communications, verification assistance, and onboarding inquiries.",
+        permissions: perms(
+            "dashboard.view",
+            "sellers.view",
+            "conversations.view", "conversations.manage",
+            "appeals.view",
+            "guidelines.view", "policies.view",
+            "notifications.view"
+        )
+    },
+    {
+        name: "CUSTOMER_SUPPORT",
+        displayName: "Customer Support",
+        description: "Assists customers with orders, returns, and support conversations.",
+        permissions: perms(
+            "dashboard.view",
+            "customers.view",
+            "orders.view", "orders.manage", "returns.view",
+            "conversations.view", "conversations.manage",
+            "cases.view", "cases.manage",
+            "notifications.view"
+        )
+    },
+    {
+        name: "FINANCE_MANAGER",
+        displayName: "Finance Manager",
+        description: "Manages settlements, payouts, financial reporting, platform fees, and GST configuration.",
+        permissions: perms(
+            "dashboard.view", "analytics.view",
+            "payments.view", "commissions.manage",
+            "reports.view", "reports.export",
+            "platform_fees.manage", "gst.view", "gst.manage",
+            "payments.refund", "orders.view"
+        )
+    },
+    {
+        name: "DELIVERY_MANAGER",
+        displayName: "Delivery Manager",
+        description: "Manages delivery fleets, partner assignments, and delivery branding.",
+        permissions: perms(
+            "dashboard.view",
+            "delivery.view", "delivery.manage",
+            "locations.districts.view", "locations.towns.manage", "locations.areas.manage", "locations.availability.manage",
+            "branding.view", "branding.manage",
+            "orders.view"
+        )
+    },
+    {
+        name: "LOCATION_MANAGER",
+        displayName: "Location Manager",
+        description: "Full control over districts, towns, service areas, and availability toggles.",
+        permissions: perms(
+            "dashboard.view",
+            "locations.districts.view", "locations.districts.manage",
+            "locations.towns.manage", "locations.areas.manage",
+            "locations.availability.manage"
+        )
+    },
+    {
+        name: "ANALYST",
+        displayName: "Read-only Analyst",
+        description: "Read-only view of dashboard metrics, analytics, and operational reports.",
+        permissions: perms(
+            "dashboard.view", "analytics.view",
+            "reports.view", "reports.export",
+            "orders.view", "customers.view", "sellers.view",
+            "locations.districts.view", "payments.view", "audit_logs.view"
+        )
+    },
+    // Backwards-compatible legacy roles
+    {
+        name: "OWNER",
+        displayName: "Owner",
+        description: "Unrestricted owner access.",
         permissions: [...ALL_PERMISSIONS]
     },
     {
         name: "ADMINISTRATOR",
         displayName: "Administrator",
-        description: "Day-to-day marketplace operations without admin-user or role management.",
-        permissions: perms(
-            "dashboard.view", "analytics.view",
-            "customers.view", "customers.manage",
-            "sellers.view", "sellers.manage",
-            "enforcement.view", "enforcement.warning", "enforcement.strike", "enforcement.suspend",
-            "appeals.view", "appeals.manage",
-            "guidelines.view", "guidelines.manage", "guidelines.publish",
-            "policies.view", "policies.manage", "policies.publish",
-            "commissions.view", "commissions.manage",
-            "cases.view", "cases.manage",
-            "postmortems.view", "postmortems.manage",
-            "conversations.view", "conversations.manage",
-            "orders.view", "orders.manage",
-            "payments.view", "payments.refund",
-            "reports.view", "reports.export",
-            "support.view", "support.manage",
-            "moderation.view", "moderation.manage",
-            "content.view", "content.manage",
-            "branding.view", "branding.manage",
-            "settings.view", "settings.manage",
-            "notifications.view", "notifications.manage",
-            "coupons.view", "coupons.manage",
-            "catalog.view", "catalog.manage",
-            "delivery.view", "delivery.manage",
-            "returns.view", "returns.manage",
-            "sessions.view", "sessions.manage",
-            "audit_logs.view"
-        )
-    },
-    {
-        name: "FINANCE",
-        displayName: "Finance",
-        description: "Payments, refunds, payouts, commissions and financial reporting.",
-        permissions: perms(
-            "dashboard.view", "analytics.view",
-            "customers.view", "sellers.view", "orders.view",
-            "payments.view", "payments.refund",
-            "commissions.view", "commissions.manage",
-            "reports.view", "reports.export",
-            "sessions.view", "audit_logs.view", "settings.view"
-        )
-    },
-    {
-        name: "SUPPORT",
-        displayName: "Support",
-        description: "Customer and seller support, tickets and order resolution.",
-        permissions: perms(
-            "dashboard.view",
-            "customers.view", "customers.manage", "sellers.view",
-            "orders.view", "orders.manage",
-            "support.view", "support.manage",
-            "cases.view", "cases.manage",
-            "conversations.view", "conversations.manage",
-            "appeals.view",
-            "moderation.view", "reports.view",
-            "notifications.view", "sessions.view", "audit_logs.view"
-        )
+        description: "Full operational administration.",
+        permissions: [...ALL_PERMISSIONS]
     },
     {
         name: "MODERATOR",
         displayName: "Moderator",
-        description: "Content moderation: reviews, reports and product approvals.",
-        permissions: perms(
-            "dashboard.view",
-            "customers.view", "sellers.view",
-            "catalog.view", "catalog.manage",
-            "moderation.view", "moderation.manage",
-            "cases.view", "cases.manage",
-            "enforcement.view", "enforcement.warning",
-            "reports.view", "support.view", "audit_logs.view"
-        )
-    },
-    {
-        name: "SELLER_MANAGER",
-        displayName: "Seller Manager",
-        description: "Seller onboarding, verification, performance and payouts.",
-        permissions: perms(
-            "dashboard.view", "analytics.view",
-            "customers.view", "sellers.view", "sellers.manage",
-            "enforcement.view", "enforcement.warning", "enforcement.strike", "enforcement.suspend",
-            "appeals.view", "appeals.manage",
-            "guidelines.view", "policies.view",
-            "commissions.view",
-            "conversations.view", "conversations.manage",
-            "orders.view", "reports.view", "reports.export",
-            "support.view", "notifications.view", "audit_logs.view"
-        )
-    },
-    {
-        name: "DEVELOPER",
-        displayName: "Developer",
-        description: "Product, content and configuration access for engineering.",
-        permissions: perms(
-            "dashboard.view", "analytics.view",
-            "catalog.view", "catalog.manage",
-            "content.view", "content.manage",
-            "reports.view", "settings.view",
-            "sessions.view", "audit_logs.view"
-        )
-    },
-    {
-        name: "DEVOPS",
-        displayName: "DevOps",
-        description: "Operational visibility: sessions, settings and audit trails.",
-        permissions: perms(
-            "dashboard.view", "analytics.view",
-            "sessions.view", "sessions.manage",
-            "settings.view", "reports.view", "audit_logs.view"
-        )
+        description: "Content moderation.",
+        permissions: perms("dashboard.view", "moderation.view", "moderation.manage", "customers.view", "sellers.view", "reports.view")
     }
 ];
 
-/** Roles whose holders always receive every permission. */
 export const UNRESTRICTED_ROLES = new Set(["OWNER", "SUPER_ADMIN"]);
-
-/** Fallback for an admin whose role row is missing or was hard-deleted. */
-export const FALLBACK_ROLE = "ADMINISTRATOR";
+export const FALLBACK_ROLE = "ADMIN";
 
 export const isValidPermissionKey = (key: string): boolean =>
     ALL_PERMISSIONS.includes(key);
+
+export const matchesPermission = (granted: string[], required: string): boolean => {
+    if (granted.includes("*")) return true;
+    if (granted.includes(required)) return true;
+
+    // Wildcard support: e.g. "customers.*" grants "customers.view"
+    const prefix = required.split(".")[0];
+    if (granted.includes(`${prefix}.*`)) return true;
+
+    // Backward compatibility mappings
+    if (required === "admin.users.manage" && (granted.includes("admin.users.create") || granted.includes("admin.users.manage"))) return true;
+    if (required === "locations.districts.view" && (granted.includes("catalog.view") || granted.includes("locations.districts.view"))) return true;
+    if (required === "locations.districts.manage" && (granted.includes("catalog.manage") || granted.includes("locations.districts.manage"))) return true;
+    if (required === "branding.manage" && granted.includes("settings.manage")) return true;
+
+    return false;
+};

@@ -7,6 +7,7 @@ import { setupSchema, type SetupInput } from '../services/authService';
 import { authApi } from '../api/authApi';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/shared/components/Card';
 import { Input } from '@/shared/components/Input';
+import { PasswordInput } from '@/shared/components/PasswordInput';
 import { Button } from '@/shared/components/Button';
 import { ShieldCheck, Mail, Lock, User, KeyRound } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -174,18 +175,14 @@ export function SetupPage({ initialized = false }: { initialized?: boolean }) {
                 <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">
                   One-Time Setup Key
                 </label>
-                <div className="relative">
-                  <KeyRound className="absolute left-3.5 top-3 h-4.5 w-4.5 text-white/25 pointer-events-none" />
-                  <Input
-                    type="password"
-                    autoComplete="off"
-                    placeholder="Provided by your deployment administrator"
-                    error={!!setupForm.formState.errors.bootstrapSecret}
-                    className="pl-11"
-                    {...setupForm.register('bootstrapSecret')}
-                    disabled={isSettingUp}
-                  />
-                </div>
+                <PasswordInput
+                  autoComplete="off"
+                  placeholder="Provided by your deployment administrator"
+                  leftIcon={<KeyRound className="h-4.5 w-4.5" />}
+                  error={!!setupForm.formState.errors.bootstrapSecret}
+                  {...setupForm.register('bootstrapSecret')}
+                  disabled={isSettingUp}
+                />
                 {setupForm.formState.errors.bootstrapSecret && (
                   <p className="text-[10px] font-semibold text-red-400 mt-1">
                     {setupForm.formState.errors.bootstrapSecret.message}
@@ -197,18 +194,14 @@ export function SetupPage({ initialized = false }: { initialized?: boolean }) {
                 <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">
                   Password
                 </label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-3 h-4.5 w-4.5 text-white/25 pointer-events-none" />
-                  <Input
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="At least 12 characters"
-                    error={!!setupForm.formState.errors.password}
-                    className="pl-11"
-                    {...setupForm.register('password')}
-                    disabled={isSettingUp}
-                  />
-                </div>
+                <PasswordInput
+                  autoComplete="new-password"
+                  placeholder="At least 12 characters"
+                  leftIcon={<Lock className="h-4.5 w-4.5" />}
+                  error={!!setupForm.formState.errors.password}
+                  {...setupForm.register('password')}
+                  disabled={isSettingUp}
+                />
                 {setupForm.formState.errors.password && (
                   <p className="text-[10px] font-semibold text-red-400 mt-1">
                     {setupForm.formState.errors.password.message}
@@ -220,17 +213,14 @@ export function SetupPage({ initialized = false }: { initialized?: boolean }) {
                 <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider block">
                   Confirm Password
                 </label>
-                <div className="relative">
-                  <KeyRound className="absolute left-3.5 top-3 h-4.5 w-4.5 text-white/25 pointer-events-none" />
-                  <Input
-                    type="password"
-                    placeholder="Repeat password"
-                    error={!!setupForm.formState.errors.confirmPassword}
-                    className="pl-11"
-                    {...setupForm.register('confirmPassword')}
-                    disabled={isSettingUp}
-                  />
-                </div>
+                <PasswordInput
+                  autoComplete="new-password"
+                  placeholder="Repeat password"
+                  leftIcon={<KeyRound className="h-4.5 w-4.5" />}
+                  error={!!setupForm.formState.errors.confirmPassword}
+                  {...setupForm.register('confirmPassword')}
+                  disabled={isSettingUp}
+                />
                 {setupForm.formState.errors.confirmPassword && (
                   <p className="text-[10px] font-semibold text-red-400 mt-1">
                     {setupForm.formState.errors.confirmPassword.message}

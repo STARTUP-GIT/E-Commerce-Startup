@@ -19,6 +19,7 @@ export interface SidebarBadgeCounts {
   packingFeeRequests: number;
   sellerPayouts: number;
   locationRequests: number;
+  adminAccessRequests: number;
 }
 
 export const defaultBadgeCounts: SidebarBadgeCounts = {
@@ -36,6 +37,7 @@ export const defaultBadgeCounts: SidebarBadgeCounts = {
   packingFeeRequests: 0,
   sellerPayouts: 0,
   locationRequests: 0,
+  adminAccessRequests: 0,
 };
 
 export function useAdminSidebarBadges() {

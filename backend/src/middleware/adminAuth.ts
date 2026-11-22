@@ -48,7 +48,8 @@ export const adminAuth = async (req: Request, res: Response, next: NextFunction)
             });
 
             if (admin) {
-                if (admin.isActive) {
+                const isStatusActive = !admin.status || admin.status === "ACTIVE";
+                if (admin.isActive && isStatusActive) {
                     authenticatedAdminId = admin.id;
                     break;
                 } else {

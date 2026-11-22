@@ -134,7 +134,12 @@ export const authOptions: NextAuthOptions = {
           return false;
         } catch (error: any) {
           console.error('Admin Google Auth Error:', error);
-          return false;
+          const errData = error.response?.data;
+          const msg = errData?.message || 'Access denied. Administrator approval required.';
+          if (errData?.pendingApproval) {
+            return `/login?error=PendingApproval&message=${encodeURIComponent(msg)}`;
+          }
+          return `/login?error=AccessDenied&message=${encodeURIComponent(msg)}`;
         }
       }
       return true;

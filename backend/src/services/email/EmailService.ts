@@ -205,6 +205,67 @@ class EmailService {
     });
     return this.sendWithRetry(to, 'Delivery assigned', html, branding);
   }
+
+  static async sendAdminInvitation(
+    to: string,
+    options: { recipientName?: string; inviteUrl: string; roleName: string; expiresHours?: number }
+  ): Promise<EmailSendResult> {
+    const branding = await this.resolveBranding();
+    const hours = options.expiresHours || 24;
+    const html = renderBaseTemplate({
+      title: 'Administrator Invitation',
+      preheader: `You have been invited to join ${branding.marketplaceName} as an administrator`,
+      content: `<p>Hello ${options.recipientName || 'there'},</p>
+<p>You have been invited to join the <strong>${branding.marketplaceName}</strong> administrative team with the assigned role of <strong>${options.roleName}</strong>.</p>
+<p>To accept this invitation and set up your administrative account credentials, click the button below. This invitation link is secure and will expire in ${hours} hours.</p>`,
+      ctaLabel: 'Accept Admin Invitation',
+      ctaUrl: options.inviteUrl,
+      footerNote: 'If you did not expect this invitation, you can safely ignore this email.',
+      marketplaceName: branding.marketplaceName,
+      logoUrl: branding.logoUrl,
+    });
+    return this.sendWithRetry(to, 'Administrator Invitation', html, branding);
+  }
+
+  static async sendAdminEmailChangeVerification(
+    to: string,
+    options: { verifyUrl: string; expiresMinutes?: number }
+  ): Promise<EmailSendResult> {
+    const branding = await this.resolveBranding();
+    const minutes = options.expiresMinutes || 60;
+    const html = renderBaseTemplate({
+      title: 'Verify New Admin Email',
+      preheader: `Confirm your new email address for ${branding.marketplaceName}`,
+      content: `<p>Hello,</p>
+<p>An email change request was initiated for your administrator account on <strong>${branding.marketplaceName}</strong>.</p>
+<p>To confirm ownership of this email address and complete the update, click the verification link below. This link expires in ${minutes} minutes.</p>`,
+      ctaLabel: 'Verify New Email Address',
+      ctaUrl: options.verifyUrl,
+      footerNote: 'If you did not request this email change, please contact your Super Admin immediately.',
+      marketplaceName: branding.marketplaceName,
+      logoUrl: branding.logoUrl,
+    });
+    return this.sendWithRetry(to, 'Verify New Administrator Email', html, branding);
+  }
+
+  static async sendAdminEmailChangeAlert(
+    to: string,
+    options: { newEmail: string }
+  ): Promise<EmailSendResult> {
+    const branding = await this.resolveBranding();
+    const html = renderBaseTemplate({
+      title: 'Security Alert: Admin Email Change Requested',
+      preheader: `Email change request submitted for your administrator account`,
+      content: `<p>Hello,</p>
+<p>A request was made to change the email address of your administrator account to <strong>${options.newEmail}</strong>.</p>
+<p>A verification email has been sent to the new address. Your account email will remain unchanged until the new email is verified.</p>
+<p>If you did <strong>not</strong> make this change, please sign in immediately, change your password, and inform your Super Admin.</p>`,
+      footerNote: 'AtlasBasket Security Notification',
+      marketplaceName: branding.marketplaceName,
+      logoUrl: branding.logoUrl,
+    });
+    return this.sendWithRetry(to, 'Security Alert: Email Change Requested', html, branding);
+  }
 }
 
 export default EmailService;

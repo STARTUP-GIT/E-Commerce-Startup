@@ -145,6 +145,8 @@ export const validateFolder = (
     "categories",
     "banners",
     "branding",
+    "delivery-branding",
+    "delivery_branding",
     "admin-profile",
     "reports",
     "evidence",

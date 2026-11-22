@@ -41,11 +41,11 @@ export function SetupGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (pathname === '/setup') {
-    return <SetupPage initialized={data.initialized} />;
+    return <SetupPage initialized={data.isSetup ?? (data as any).initialized} />;
   }
 
   // If the admin is not initialized, ignore any existing cookie/session and force the setup view
-  if (!data.initialized) {
+  if (!data.isSetup && !(data as any).initialized) {
     return <SetupPage />;
   }
 

@@ -13,6 +13,8 @@ export type UploadFolder =
   | "categories"
   | "banners"
   | "branding"
+  | "delivery-branding"
+  | "delivery_branding"
   | "admin-profile"
   | "reports"
   | "evidence"

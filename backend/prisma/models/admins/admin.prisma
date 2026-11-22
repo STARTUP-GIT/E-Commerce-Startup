@@ -16,9 +16,17 @@ model Admin {
   role                       String                    @default("ADMIN")
   roleId                     String?                   @db.VarChar(30)
   avatarPublicId             String?                   @db.VarChar(255)
+  status                     AdminAccountStatus        @default(ACTIVE)
+  invitationTokenHash        String?                   @db.VarChar(255)
+  invitationExpiresAt        DateTime?
+  invitedById                String?                   @db.VarChar(30)
+  invitedAt                  DateTime?
   actions                    AdminAction[]
   refreshTokens              AdminRefreshToken[]
   adminRole                  AdminRole?                @relation(fields: [roleId], references: [id])
+  sentInvitations            AdminInvitation[]         @relation("AdminInvitedBy")
+  reviewedAccessRequests     AdminAccessRequest[]      @relation("AccessRequestReviewedBy")
+  emailChanges               AdminEmailChange[]
   publishedStatements        CommissionStatement[]     @relation("StatementPublishedBy")
   createdGuidelines          CommunityGuideline[]      @relation("GuidelineCreatedBy")
   publishedGuidelines        CommunityGuideline[]      @relation("GuidelinePublishedBy")
@@ -48,6 +56,7 @@ model Admin {
 
   @@index([email])
   @@index([isActive])
+  @@index([status])
   @@index([roleId])
   @@map("admins")
 }

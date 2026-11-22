@@ -8,6 +8,7 @@ model AdminRole {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   admins      Admin[]
+  invitations AdminInvitation[]
 
   @@index([isSystem])
   @@map("admin_roles")
