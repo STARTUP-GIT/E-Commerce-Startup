@@ -85,6 +85,30 @@ export const settingsApi = {
     const response = await axiosInstance.patch('/api/admin/settings/order-settings', payload);
     return response.data;
   },
+  getIndianGstConfig: async () => {
+    const response = await axiosInstance.get('/api/admin/settings/gst-config');
+    return response.data;
+  },
+  updateIndianGstMaster: async (payload: Record<string, unknown>) => {
+    const response = await axiosInstance.patch('/api/admin/settings/gst/master', payload);
+    return response.data;
+  },
+  updateBusinessGstRegistration: async (payload: Record<string, unknown>) => {
+    const response = await axiosInstance.patch('/api/admin/settings/gst/business-registration', payload);
+    return response.data;
+  },
+  createHsnRate: async (payload: Record<string, unknown>) => {
+    const response = await axiosInstance.post('/api/admin/settings/gst/hsn', payload);
+    return response.data;
+  },
+  updateHsnRate: async (id: string, payload: Record<string, unknown>) => {
+    const response = await axiosInstance.patch(`/api/admin/settings/gst/hsn/${id}`, payload);
+    return response.data;
+  },
+  getTcsLedger: async (params?: Record<string, unknown>) => {
+    const response = await axiosInstance.get('/api/admin/settings/gst/tcs-ledger', { params });
+    return response.data;
+  },
 };
 
 export const auditLogApi = {

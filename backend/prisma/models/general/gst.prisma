@@ -1,0 +1,216 @@
+enum GstRegistrationType {
+  REGULAR
+  COMPOSITION
+  UNREGISTERED
+  OVERSEAS
+  GOVERNMENT_BODY
+}
+
+enum GstVerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  REJECTED
+  EXEMPT_DECLARED
+}
+
+enum TaxCategory {
+  TAXABLE
+  EXEMPT
+  NIL_RATED
+  NON_GST
+}
+
+enum TaxInclusionMode {
+  EXCLUSIVE
+  INCLUSIVE
+}
+
+enum InvoiceType {
+  TAX_INVOICE
+  BILL_OF_SUPPLY
+  CREDIT_NOTE
+  DEBIT_NOTE
+}
+
+enum InvoiceIssuer {
+  SELLER
+  PLATFORM_OPERATOR
+}
+
+model BusinessGstRegistration {
+  id                             Int                   @id @default(1)
+  legalName                      String                @default("AtlasBasket Technologies Private Limited") @db.VarChar(255)
+  tradeName                      String?               @default("AtlasBasket") @db.VarChar(255)
+  gstin                          String?               @db.VarChar(15)
+  pan                            String?               @db.VarChar(10)
+  registrationType               GstRegistrationType   @default(REGULAR)
+  status                         String                @default("ACTIVE") @db.VarChar(50)
+  state                          String                @default("Karnataka") @db.VarChar(100)
+  stateCode                      String                @default("29") @db.VarChar(2)
+  registeredAddress              String?               @default("No. 42, Innovation Hub, Outer Ring Road, Bengaluru, Karnataka, India")
+  principalPlaceOfBusiness       String?               @default("Bengaluru, Karnataka")
+  additionalPlacesOfBusiness     Json?
+  authorizedSignatoryName        String?               @db.VarChar(200)
+  authorizedSignatoryDesignation String?               @db.VarChar(100)
+  verificationStatus             GstVerificationStatus @default(UNVERIFIED)
+  verifiedAt                     DateTime?
+  certificateUrl                 String?               @db.VarChar(2048)
+  registrationDate               DateTime?
+  createdAt                      DateTime              @default(now())
+  updatedAt                      DateTime              @updatedAt
+
+  @@map("business_gst_registrations")
+}
+
+model GstMasterConfig {
+  id                     Int              @id @default(1)
+  isEnabled              Boolean          @default(true)
+  isMandatoryTcsEnabled  Boolean          @default(true)
+  defaultProductTaxMode  TaxInclusionMode @default(EXCLUSIVE)
+  defaultPlatformFeeSac  String           @default("998319") @db.VarChar(10)
+  platformFeeGstRate     Decimal          @default(18.0) @db.Decimal(5, 2)
+  platformFeeTaxMode     TaxInclusionMode @default(EXCLUSIVE)
+  defaultCommissionSac   String           @default("996111") @db.VarChar(10)
+  commissionGstRate      Decimal          @default(18.0) @db.Decimal(5, 2)
+  deliveryServiceSac     String           @default("996813") @db.VarChar(10)
+  deliveryGstRate        Decimal          @default(18.0) @db.Decimal(5, 2)
+  tcsIntraStateCgstRate  Decimal          @default(0.25) @db.Decimal(5, 3)
+  tcsIntraStateSgstRate  Decimal          @default(0.25) @db.Decimal(5, 3)
+  tcsInterStateIgstRate  Decimal          @default(0.50) @db.Decimal(5, 3)
+  tcsThresholdAmount     Decimal          @default(0) @db.Decimal(12, 2)
+  isSection9_5Applicable Boolean          @default(false)
+  section9_5Services     Json?
+  invoicePrefixSeller    String           @default("INV-SEL-") @db.VarChar(20)
+  invoicePrefixPlatform  String           @default("INV-AB-") @db.VarChar(20)
+  creditNotePrefix       String           @default("CN-AB-") @db.VarChar(20)
+  lastUpdatedByAdminId   String?          @db.VarChar(40)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  @@map("gst_master_configs")
+}
+
+model HsnRateMaster {
+  id              String      @id @default(cuid())
+  hsnCode         String      @db.VarChar(10)
+  description     String      @db.VarChar(500)
+  gstRate         Decimal     @db.Decimal(5, 2)
+  taxCategory     TaxCategory @default(TAXABLE)
+  effectiveFrom   DateTime    @default(now())
+  effectiveTo     DateTime?
+  notificationRef String?     @db.VarChar(255)
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([hsnCode])
+  @@index([isActive])
+  @@map("hsn_rate_masters")
+}
+
+model GstTcsLedger {
+  id                     String    @id @default(cuid())
+  sellerId               String
+  sellerOrderId          String?
+  orderId                String?
+  transactionType        String    @default("COLLECTION") @db.VarChar(30)
+  taxPeriodMonth         String    @db.VarChar(7)
+  taxableSupplyValue     Decimal   @db.Decimal(12, 2)
+  isInterState           Boolean   @default(false)
+  placeOfSupplyStateCode String    @db.VarChar(2)
+  cgstTcsRate            Decimal   @default(0) @db.Decimal(5, 3)
+  cgstTcsAmount          Decimal   @default(0) @db.Decimal(12, 2)
+  sgstTcsRate            Decimal   @default(0) @db.Decimal(5, 3)
+  sgstTcsAmount          Decimal   @default(0) @db.Decimal(12, 2)
+  igstTcsRate            Decimal   @default(0) @db.Decimal(5, 3)
+  igstTcsAmount          Decimal   @default(0) @db.Decimal(12, 2)
+  totalTcsAmount         Decimal   @default(0) @db.Decimal(12, 2)
+  remittedStatus         String    @default("PENDING") @db.VarChar(30)
+  remittedAt             DateTime?
+  gstr8ReturnRef         String?   @db.VarChar(100)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+  @@index([taxPeriodMonth])
+  @@index([remittedStatus])
+  @@map("gst_tcs_ledgers")
+}
+
+model GstInvoice {
+  id                     String        @id @default(cuid())
+  invoiceNumber          String        @unique @db.VarChar(50)
+  invoiceType            InvoiceType   @default(TAX_INVOICE)
+  invoiceIssuer          InvoiceIssuer @default(SELLER)
+  orderId                String?
+  sellerOrderId          String?
+  sellerId               String?
+  customerId             String?
+
+  supplierLegalName      String        @db.VarChar(255)
+  supplierTradeName      String?       @db.VarChar(255)
+  supplierGstin          String?       @db.VarChar(15)
+  supplierAddress        String?
+  supplierState          String        @db.VarChar(100)
+  supplierStateCode      String        @db.VarChar(2)
+
+  recipientName          String        @db.VarChar(255)
+  recipientGstin         String?       @db.VarChar(15)
+  recipientAddress       String?
+  recipientState         String        @db.VarChar(100)
+  recipientStateCode     String        @db.VarChar(2)
+  placeOfSupplyState     String        @db.VarChar(100)
+  placeOfSupplyCode      String        @db.VarChar(2)
+
+  isInterState           Boolean       @default(false)
+  taxableAmount          Decimal       @db.Decimal(12, 2)
+  cgstAmount             Decimal       @default(0) @db.Decimal(12, 2)
+  sgstAmount             Decimal       @default(0) @db.Decimal(12, 2)
+  igstAmount             Decimal       @default(0) @db.Decimal(12, 2)
+  cessAmount             Decimal       @default(0) @db.Decimal(12, 2)
+  totalTaxAmount         Decimal       @default(0) @db.Decimal(12, 2)
+  totalInvoiceValue      Decimal       @db.Decimal(12, 2)
+
+  ecommerceOperatorGstin String?       @db.VarChar(15)
+  isReverseCharge        Boolean       @default(false)
+  pdfDocumentUrl         String?       @db.VarChar(2048)
+
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  items                  GstInvoiceItem[]
+
+  @@index([invoiceNumber])
+  @@index([orderId])
+  @@index([sellerOrderId])
+  @@index([sellerId])
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("gst_invoices")
+}
+
+model GstInvoiceItem {
+  id              String     @id @default(cuid())
+  invoiceId       String
+  itemDescription String     @db.VarChar(300)
+  hsnOrSacCode    String     @db.VarChar(10)
+  quantity        Int        @default(1)
+  unitPrice       Decimal    @db.Decimal(12, 2)
+  discountAmount  Decimal    @default(0) @db.Decimal(12, 2)
+  taxableValue    Decimal    @db.Decimal(12, 2)
+  gstRate         Decimal    @db.Decimal(5, 2)
+  cgstRate        Decimal    @default(0) @db.Decimal(5, 2)
+  cgstAmount      Decimal    @default(0) @db.Decimal(12, 2)
+  sgstRate        Decimal    @default(0) @db.Decimal(5, 2)
+  sgstAmount      Decimal    @default(0) @db.Decimal(12, 2)
+  igstRate        Decimal    @default(0) @db.Decimal(5, 2)
+  igstAmount      Decimal    @default(0) @db.Decimal(12, 2)
+  totalAmount     Decimal    @db.Decimal(12, 2)
+
+  invoice         GstInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("gst_invoice_items")
+}

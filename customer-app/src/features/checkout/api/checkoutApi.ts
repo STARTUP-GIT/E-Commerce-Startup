@@ -22,6 +22,15 @@ export interface CheckoutSummary {
   platformFeeTotal: number;
   discountTotal: number;
   taxTotal: number;
+  productTaxableTotal?: number;
+  productCgstTotal?: number;
+  productSgstTotal?: number;
+  productIgstTotal?: number;
+  platformFeeCgstTotal?: number;
+  platformFeeSgstTotal?: number;
+  platformFeeIgstTotal?: number;
+  placeOfSupplyState?: string;
+  isInterState?: boolean;
   grandTotal: number;
   appliedCoupon?: {
     id: string;

@@ -2,6 +2,7 @@ import { prisma } from "../../../config/prisma.js";
 import * as razorpayService from "./razorpay.service.js";
 import * as phonepeService from "./phonepe.service.js";
 import { sendPaymentNotification } from "../utils/paymentHelper.js";
+import { IndianGstService, roundCurrency } from "../../../services/gst/gst.service.js";
 
 // Helper to calculate payment totals (including packing fees, shipping, platform fee placeholder, and GST)
 export const calculateTotals = async (params: {
@@ -78,14 +79,16 @@ export const calculateTotals = async (params: {
         });
     }
 
+    let shippingAddressRecord: any = null;
     let shippingCity = "";
     if (shippingAddressId) {
-        const address = await prisma.customerAddress.findUnique({
+        shippingAddressRecord = await prisma.customerAddress.findUnique({
             where: { id: shippingAddressId }
         });
-        if (!address) {
+        if (!shippingAddressRecord) {
             throw new Error("Shipping address not found");
         }
+        const address = shippingAddressRecord;
         shippingCity = (address.district || address.city).trim().toLowerCase();
 
         // Verify shipping location is serviceable against configured State and District/City
@@ -109,6 +112,12 @@ export const calculateTotals = async (params: {
         if (!activeCity) {
             throw new Error(`Delivery is not currently available at your location (${address.city || address.district}, ${address.state}). Coming soon to your area.`);
         }
+    } else if (customerId) {
+        shippingAddressRecord = await prisma.customerAddress.findFirst({
+            where: { customerId, isDefault: true }
+        }) || await prisma.customerAddress.findFirst({
+            where: { customerId }
+        });
     }
 
     if (!cart || cart.items.length === 0) {
@@ -258,17 +267,16 @@ export const calculateTotals = async (params: {
         shippingTotal = 0;
     }
 
-    // 5. Platform Fee & GST (from authoritative database Settings)
+    // 5. Platform Fee Control (from authoritative database Settings)
     let platformFeeTotal = 10;
-    let gstPercentage = parseFloat(process.env.GST_PERCENTAGE || "18");
+    let isFeeEnabled = true;
 
     try {
         const settingsRow = await prisma.marketplaceSetting.findUnique({ where: { id: 1 } });
         if (settingsRow && settingsRow.data) {
             const data = settingsRow.data as any;
 
-            // Check if platform fee is enabled
-            const isFeeEnabled = data.platformFeeEnabled !== false;
+            isFeeEnabled = data.platformFeeEnabled !== false;
             if (!isFeeEnabled) {
                 platformFeeTotal = 0;
             } else if (typeof data.platformFee === 'number') {
@@ -276,23 +284,23 @@ export const calculateTotals = async (params: {
             } else if (data.platformFee && typeof data.platformFee.fixedAmount === 'number') {
                 platformFeeTotal = Math.max(0, data.platformFee.fixedAmount);
             }
-
-            // Read authoritative GST percentage
-            if (typeof data.gstPercentage === 'number' && !isNaN(data.gstPercentage)) {
-                gstPercentage = data.gstPercentage;
-            }
         }
     } catch (e) {
         console.error("Error reading platform settings, using defaults:", e);
     }
 
-    // 6. GST Calculation on discounted subtotal + packing + shipping + platform fee
-    const subtotalAfterDiscount = Math.max(0, productSubtotal - discountTotal);
-    const taxableValue = subtotalAfterDiscount + packingFeeTotal + shippingTotal + platformFeeTotal;
-    const gstAmount = (taxableValue * gstPercentage) / 100;
+    // 6. Indian GST Architecture Calculation (Central Service)
+    const effectiveAddress = shippingAddressRecord || { state: "Karnataka", country: "India" };
+    const gstBreakdown = await IndianGstService.calculateOrderGst({
+        cartItems: cart.items,
+        shippingAddress: effectiveAddress,
+        platformFeeAmount: platformFeeTotal,
+        platformFeeEnabled: isFeeEnabled,
+        deliveryFeeAmount: shippingTotal
+    });
 
-    // 7. Grand Total
-    const grandTotal = taxableValue + gstAmount;
+    const subtotalAfterDiscount = Math.max(0, productSubtotal - discountTotal);
+    const grandTotal = gstBreakdown.grandTotal;
 
     return {
         cart,
@@ -301,13 +309,14 @@ export const calculateTotals = async (params: {
         subtotal: subtotalAfterDiscount,
         packingFeeTotal,
         shippingTotal,
-        platformFeeTotal,
-        gstPercentage,
-        gstAmount,
+        platformFeeTotal: isFeeEnabled ? platformFeeTotal : 0,
+        gstPercentage: gstBreakdown.platformFeeGstRate,
+        gstAmount: gstBreakdown.totalTaxAmount,
         grandTotal,
         appliedCoupon,
         sellerSubtotals,
-        validatedPackingFeesBySeller
+        validatedPackingFeesBySeller,
+        gstBreakdown
     };
 };
 
@@ -440,7 +449,8 @@ export const verifyPayment = async (paymentData: {
         grandTotal,
         appliedCoupon,
         sellerSubtotals,
-        validatedPackingFeesBySeller
+        validatedPackingFeesBySeller,
+        gstBreakdown
     } = totals;
 
     // 3. Atomically write the orders, reduce stock, clear cart
@@ -460,21 +470,32 @@ export const verifyPayment = async (paymentData: {
                 selectedDeliveryMethod: selectedDeliveryMethod || "PORTAL_DELIVERY",
                 subtotal: productSubtotal,
                 shippingTotal,
-                taxTotal: gstAmount,
+                taxTotal: gstBreakdown ? gstBreakdown.totalTaxAmount : gstAmount,
                 discountTotal,
                 packingFeeTotal,
                 platformFeeTotal: platformFeeTotal > 0 ? platformFeeTotal : null,
                 grandTotal,
                 currency: "INR",
-                placedAt: new Date()
+                placedAt: new Date(),
+                placeOfSupplyState: gstBreakdown?.placeOfSupplyState || "Karnataka",
+                placeOfSupplyCode: gstBreakdown?.placeOfSupplyCode || "29",
+                isInterState: gstBreakdown?.isInterState || false,
+                productCgstAmount: gstBreakdown?.productCgstTotal || 0,
+                productSgstAmount: gstBreakdown?.productSgstTotal || 0,
+                productIgstAmount: gstBreakdown?.productIgstTotal || 0,
+                platformFeeCgstAmount: gstBreakdown?.platformFeeCgstAmount || 0,
+                platformFeeSgstAmount: gstBreakdown?.platformFeeSgstAmount || 0,
+                platformFeeIgstAmount: gstBreakdown?.platformFeeIgstAmount || 0,
+                gstBreakdownSnapshot: gstBreakdown ? (gstBreakdown as any) : undefined
             }
         });
 
         // Create SellerOrders and OrderItems
+        const createdSellerOrdersMap = new Map<string, string>();
         for (const [sellerId, sellerSubtotal] of sellerSubtotals.entries()) {
             const sellerPackingFee = validatedPackingFeesBySeller.get(sellerId) || 0;
-            const sellerTaxable = sellerSubtotal + sellerPackingFee;
-            const sellerTax = (sellerTaxable * gstPercentage) / 100;
+            const sCalc = gstBreakdown?.sellers.find((s: any) => s.sellerId === sellerId);
+            const sellerTax = sCalc ? sCalc.totalTaxAmount : ((sellerSubtotal + sellerPackingFee) * gstPercentage) / 100;
 
             const seller = cart.items.find((item: any) => item.product.sellerId === sellerId)!.product.seller;
             const pickupSellerAddressId = seller.addresses?.[0]?.id;
@@ -487,8 +508,9 @@ export const verifyPayment = async (paymentData: {
             const commissionPercent = shop && shop.commissionPercentage !== null && shop.commissionPercentage !== undefined 
                 ? Number(shop.commissionPercentage) 
                 : 10.0;
-            const platformCommission = sellerSubtotal * (commissionPercent / 100);
-            const sellerEarnings = sellerSubtotal - platformCommission + sellerPackingFee;
+            const platformCommission = sCalc ? sCalc.platformCommission : sellerSubtotal * (commissionPercent / 100);
+            const sellerEarnings = sCalc ? (sCalc.sellerEarnings + sellerPackingFee) : (sellerSubtotal - platformCommission + sellerPackingFee);
+            const sellerInvoiceNumber = IndianGstService.generateInvoiceNumber("INV-SEL-", Date.now() % 1000000);
 
             const sellerOrder = await tx.sellerOrder.create({
                 data: {
@@ -505,15 +527,27 @@ export const verifyPayment = async (paymentData: {
                     platformFee: null,
                     platformCommission,
                     sellerEarnings,
-                    deliveryMode: shop.deliveryMode
+                    deliveryMode: shop.deliveryMode,
+                    isInterState: sCalc?.isInterState || false,
+                    cgstAmount: sCalc?.cgstAmount || 0,
+                    sgstAmount: sCalc?.sgstAmount || 0,
+                    igstAmount: sCalc?.igstAmount || 0,
+                    tcsCgstAmount: sCalc?.tcsCgstAmount || 0,
+                    tcsSgstAmount: sCalc?.tcsSgstAmount || 0,
+                    tcsIgstAmount: sCalc?.tcsIgstAmount || 0,
+                    totalTcsAmount: sCalc?.totalTcsAmount || 0,
+                    commissionGstAmount: sCalc?.commissionGstAmount || 0,
+                    invoiceNumber: sellerInvoiceNumber
                 }
             });
+            createdSellerOrdersMap.set(sellerId, sellerOrder.id);
 
             // Create items under this SellerOrder and reduce stock
             const sellerItems = cart.items.filter((item: any) => item.product.sellerId === sellerId);
             for (const item of sellerItems) {
                 const price = item.productVariant ? Number(item.productVariant.price) : Number(item.product.price);
                 const total = price * item.quantity;
+                const itemCalc = sCalc?.items.find((i: any) => i.productId === item.productId && (!item.productVariantId || i.productVariantId === item.productVariantId));
 
                 await tx.orderItem.create({
                     data: {
@@ -524,7 +558,18 @@ export const verifyPayment = async (paymentData: {
                         productSku: item.productVariant?.sku || item.product.sku || "GENERIC",
                         quantity: item.quantity,
                         unitPrice: price,
-                        totalPrice: total
+                        totalPrice: total,
+                        taxableValue: itemCalc?.taxLine.taxableValue ?? total,
+                        taxAmount: itemCalc?.taxLine.totalTax ?? 0,
+                        hsnCode: itemCalc?.hsnCode || null,
+                        taxRate: itemCalc?.taxLine.rate ?? 0,
+                        cgstRate: itemCalc?.taxLine.cgstRate ?? 0,
+                        cgstAmount: itemCalc?.taxLine.cgstAmount ?? 0,
+                        sgstRate: itemCalc?.taxLine.sgstRate ?? 0,
+                        sgstAmount: itemCalc?.taxLine.sgstAmount ?? 0,
+                        igstRate: itemCalc?.taxLine.igstRate ?? 0,
+                        igstAmount: itemCalc?.taxLine.igstAmount ?? 0,
+                        isTaxInclusive: itemCalc?.isTaxInclusive ?? false
                     }
                 });
 
@@ -561,8 +606,36 @@ export const verifyPayment = async (paymentData: {
             });
         }
 
+        // Record TCS under Section 52 into ledger
+        if (gstBreakdown?.sellers) {
+            for (const s of gstBreakdown.sellers) {
+                if (s.isTcsApplicable && s.totalTcsAmount > 0) {
+                    await tx.gstTcsLedger.create({
+                        data: {
+                            sellerId: s.sellerId,
+                            sellerOrderId: createdSellerOrdersMap.get(s.sellerId) || null,
+                            orderId: order.id,
+                            transactionType: "COLLECTION",
+                            taxPeriodMonth: new Date().toISOString().slice(0, 7),
+                            taxableSupplyValue: s.taxableAmount,
+                            isInterState: s.isInterState,
+                            placeOfSupplyStateCode: s.placeOfSupplyCode,
+                            cgstTcsRate: s.tcsCgstRate,
+                            cgstTcsAmount: s.tcsCgstAmount,
+                            sgstTcsRate: s.tcsSgstRate,
+                            sgstTcsAmount: s.tcsSgstAmount,
+                            igstTcsRate: s.tcsIgstRate,
+                            igstTcsAmount: s.tcsIgstAmount,
+                            totalTcsAmount: s.totalTcsAmount,
+                            remittedStatus: "PENDING"
+                        }
+                    });
+                }
+            }
+        }
+
         // Create Payment record
-        const invoiceNumber = `INV-${Date.now()}`;
+        const invoiceNumber = IndianGstService.generateInvoiceNumber("INV-AB-", Date.now() % 1000000);
         await tx.payment.create({
             data: {
                 orderId: order.id,
@@ -576,8 +649,8 @@ export const verifyPayment = async (paymentData: {
                 gatewaySignature,
                 packingFee: packingFeeTotal,
                 shippingCharge: shippingTotal,
-                gstPercentage,
-                gstAmount,
+                gstPercentage: gstBreakdown ? gstBreakdown.platformFeeGstRate : gstPercentage,
+                gstAmount: gstBreakdown ? gstBreakdown.totalTaxAmount : gstAmount,
                 platformFee: platformFeeTotal > 0 ? platformFeeTotal : null,
                 invoiceNumber,
                 paidAt: new Date()
@@ -748,7 +821,8 @@ export const processCodPayment = async (paymentData: {
         grandTotal,
         appliedCoupon,
         sellerSubtotals,
-        validatedPackingFeesBySeller
+        validatedPackingFeesBySeller,
+        gstBreakdown
     } = totals;
 
     const finalOrder = await prisma.$transaction(async (tx) => {
@@ -766,20 +840,31 @@ export const processCodPayment = async (paymentData: {
                 selectedDeliveryMethod,
                 subtotal: productSubtotal,
                 shippingTotal,
-                taxTotal: gstAmount,
+                taxTotal: gstBreakdown ? gstBreakdown.totalTaxAmount : gstAmount,
                 discountTotal,
                 packingFeeTotal,
                 platformFeeTotal: platformFeeTotal > 0 ? platformFeeTotal : null,
                 grandTotal,
                 currency: "INR",
-                placedAt: new Date()
+                placedAt: new Date(),
+                placeOfSupplyState: gstBreakdown?.placeOfSupplyState || "Karnataka",
+                placeOfSupplyCode: gstBreakdown?.placeOfSupplyCode || "29",
+                isInterState: gstBreakdown?.isInterState || false,
+                productCgstAmount: gstBreakdown?.productCgstTotal || 0,
+                productSgstAmount: gstBreakdown?.productSgstTotal || 0,
+                productIgstAmount: gstBreakdown?.productIgstTotal || 0,
+                platformFeeCgstAmount: gstBreakdown?.platformFeeCgstAmount || 0,
+                platformFeeSgstAmount: gstBreakdown?.platformFeeSgstAmount || 0,
+                platformFeeIgstAmount: gstBreakdown?.platformFeeIgstAmount || 0,
+                gstBreakdownSnapshot: gstBreakdown ? (gstBreakdown as any) : undefined
             }
         });
 
+        const createdSellerOrdersMap = new Map<string, string>();
         for (const [sellerId, sellerSubtotal] of sellerSubtotals.entries()) {
             const sellerPackingFee = validatedPackingFeesBySeller.get(sellerId) || 0;
-            const sellerTaxable = sellerSubtotal + sellerPackingFee;
-            const sellerTax = (sellerTaxable * gstPercentage) / 100;
+            const sCalc = gstBreakdown?.sellers.find((s: any) => s.sellerId === sellerId);
+            const sellerTax = sCalc ? sCalc.totalTaxAmount : ((sellerSubtotal + sellerPackingFee) * gstPercentage) / 100;
 
             const seller = cart.items.find((item: any) => item.product.sellerId === sellerId)!.product.seller;
             const pickupSellerAddressId = seller.addresses?.[0]?.id;
@@ -792,8 +877,9 @@ export const processCodPayment = async (paymentData: {
             const commissionPercent = shop && shop.commissionPercentage !== null && shop.commissionPercentage !== undefined 
                 ? Number(shop.commissionPercentage) 
                 : 10.0;
-            const platformCommission = sellerSubtotal * (commissionPercent / 100);
-            const sellerEarnings = sellerSubtotal - platformCommission + sellerPackingFee;
+            const platformCommission = sCalc ? sCalc.platformCommission : sellerSubtotal * (commissionPercent / 100);
+            const sellerEarnings = sCalc ? (sCalc.sellerEarnings + sellerPackingFee) : (sellerSubtotal - platformCommission + sellerPackingFee);
+            const sellerInvoiceNumber = IndianGstService.generateInvoiceNumber("INV-SEL-", Date.now() % 1000000);
 
             const sellerOrder = await tx.sellerOrder.create({
                 data: {
@@ -810,14 +896,26 @@ export const processCodPayment = async (paymentData: {
                     platformFee: null,
                     platformCommission,
                     sellerEarnings,
-                    deliveryMode: selectedDeliveryMethod === "SELF_DELIVERY" ? "SELF" : shop.deliveryMode
+                    deliveryMode: selectedDeliveryMethod === "SELF_DELIVERY" ? "SELF" : shop.deliveryMode,
+                    isInterState: sCalc?.isInterState || false,
+                    cgstAmount: sCalc?.cgstAmount || 0,
+                    sgstAmount: sCalc?.sgstAmount || 0,
+                    igstAmount: sCalc?.igstAmount || 0,
+                    tcsCgstAmount: sCalc?.tcsCgstAmount || 0,
+                    tcsSgstAmount: sCalc?.tcsSgstAmount || 0,
+                    tcsIgstAmount: sCalc?.tcsIgstAmount || 0,
+                    totalTcsAmount: sCalc?.totalTcsAmount || 0,
+                    commissionGstAmount: sCalc?.commissionGstAmount || 0,
+                    invoiceNumber: sellerInvoiceNumber
                 }
             });
+            createdSellerOrdersMap.set(sellerId, sellerOrder.id);
 
             const sellerItems = cart.items.filter((item: any) => item.product.sellerId === sellerId);
             for (const item of sellerItems) {
                 const price = item.productVariant ? Number(item.productVariant.price) : Number(item.product.price);
                 const total = price * item.quantity;
+                const itemCalc = sCalc?.items.find((i: any) => i.productId === item.productId && (!item.productVariantId || i.productVariantId === item.productVariantId));
 
                 await tx.orderItem.create({
                     data: {
@@ -828,7 +926,18 @@ export const processCodPayment = async (paymentData: {
                         productSku: item.productVariant?.sku || item.product.sku || "GENERIC",
                         quantity: item.quantity,
                         unitPrice: price,
-                        totalPrice: total
+                        totalPrice: total,
+                        taxableValue: itemCalc?.taxLine.taxableValue ?? total,
+                        taxAmount: itemCalc?.taxLine.totalTax ?? 0,
+                        hsnCode: itemCalc?.hsnCode || null,
+                        taxRate: itemCalc?.taxLine.rate ?? 0,
+                        cgstRate: itemCalc?.taxLine.cgstRate ?? 0,
+                        cgstAmount: itemCalc?.taxLine.cgstAmount ?? 0,
+                        sgstRate: itemCalc?.taxLine.sgstRate ?? 0,
+                        sgstAmount: itemCalc?.taxLine.sgstAmount ?? 0,
+                        igstRate: itemCalc?.taxLine.igstRate ?? 0,
+                        igstAmount: itemCalc?.taxLine.igstAmount ?? 0,
+                        isTaxInclusive: itemCalc?.isTaxInclusive ?? false
                     }
                 });
 
@@ -863,7 +972,35 @@ export const processCodPayment = async (paymentData: {
             });
         }
 
-        const invoiceNumber = `INV-${Date.now()}`;
+        // Record TCS under Section 52 into ledger
+        if (gstBreakdown?.sellers) {
+            for (const s of gstBreakdown.sellers) {
+                if (s.isTcsApplicable && s.totalTcsAmount > 0) {
+                    await tx.gstTcsLedger.create({
+                        data: {
+                            sellerId: s.sellerId,
+                            sellerOrderId: createdSellerOrdersMap.get(s.sellerId) || null,
+                            orderId: order.id,
+                            transactionType: "COLLECTION",
+                            taxPeriodMonth: new Date().toISOString().slice(0, 7),
+                            taxableSupplyValue: s.taxableAmount,
+                            isInterState: s.isInterState,
+                            placeOfSupplyStateCode: s.placeOfSupplyCode,
+                            cgstTcsRate: s.tcsCgstRate,
+                            cgstTcsAmount: s.tcsCgstAmount,
+                            sgstTcsRate: s.tcsSgstRate,
+                            sgstTcsAmount: s.tcsSgstAmount,
+                            igstTcsRate: s.tcsIgstRate,
+                            igstTcsAmount: s.tcsIgstAmount,
+                            totalTcsAmount: s.totalTcsAmount,
+                            remittedStatus: "PENDING"
+                        }
+                    });
+                }
+            }
+        }
+
+        const invoiceNumber = IndianGstService.generateInvoiceNumber("INV-AB-", Date.now() % 1000000);
         await tx.payment.create({
             data: {
                 orderId: order.id,
@@ -876,8 +1013,8 @@ export const processCodPayment = async (paymentData: {
                 gatewayOrderId: orderNumber,
                 packingFee: packingFeeTotal,
                 shippingCharge: shippingTotal,
-                gstPercentage,
-                gstAmount,
+                gstPercentage: gstBreakdown ? gstBreakdown.platformFeeGstRate : gstPercentage,
+                gstAmount: gstBreakdown ? gstBreakdown.totalTaxAmount : gstAmount,
                 platformFee: platformFeeTotal > 0 ? platformFeeTotal : null,
                 invoiceNumber
             }

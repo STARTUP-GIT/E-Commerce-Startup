@@ -444,12 +444,42 @@ export function CheckoutPage() {
                     <span>-{productListService.formatPrice(discountTotal)}</span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Taxes</span>
-                  <span className="font-semibold text-foreground">
-                    {productListService.formatPrice(taxTotal)}
-                  </span>
-                </div>
+                {/* GST Tax Breakdown */}
+                {taxTotal > 0 ? (
+                  summary?.isInterState ? (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <span>IGST</span>
+                        <span className="text-[10px] text-zinc-500">({summary.placeOfSupplyState || 'Inter-state'})</span>
+                      </span>
+                      <span className="font-semibold text-foreground">
+                        {productListService.formatPrice(taxTotal)}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">CGST</span>
+                        <span className="font-semibold text-foreground">
+                          {productListService.formatPrice((summary?.productCgstTotal || 0) + (summary?.platformFeeCgstTotal || 0) || (taxTotal / 2))}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">SGST ({summary?.placeOfSupplyState || 'Intra-state'})</span>
+                        <span className="font-semibold text-foreground">
+                          {productListService.formatPrice((summary?.productSgstTotal || 0) + (summary?.platformFeeSgstTotal || 0) || (taxTotal / 2))}
+                        </span>
+                      </div>
+                    </>
+                  )
+                ) : (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Taxes (GST)</span>
+                    <span className="font-semibold text-foreground">
+                      {productListService.formatPrice(0)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-border pt-3 sm:pt-4 flex justify-between items-center">

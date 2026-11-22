@@ -46,6 +46,7 @@ model Seller {
   strikes              SellerStrike[]
   suspensions          SellerSuspension[]
   verifications        SellerVerification[]
+  gstTcsLedgers        GstTcsLedger[]
   approvedByAdmin      Admin?                     @relation("SellerApprovedBy", fields: [approvedByAdminId], references: [id])
   shopAgreements       ShopAgreement[]
   locationRequests     LocationRequest[]
@@ -77,6 +78,11 @@ model Shop {
   createdAt                   DateTime                 @default(now())
   updatedAt                   DateTime                 @updatedAt
   gstNumber                   String?                  @db.VarChar(15)
+  gstRegistrationType         GstRegistrationType      @default(REGULAR)
+  gstState                    String?                  @db.VarChar(100)
+  gstStateCode                String?                  @db.VarChar(2)
+  gstVerificationStatus       GstVerificationStatus    @default(UNVERIFIED)
+  taxInvoiceResponsibility    String                   @default("SELLER") @db.VarChar(50)
   commissionPercentage        Float                    @default(10.0)
   customerDeliveryShare       Int                      @default(75)
   enablePackingFee            Boolean                  @default(false)

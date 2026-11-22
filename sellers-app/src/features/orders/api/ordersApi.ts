@@ -7,6 +7,9 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  hsnCode?: string;
+  taxAmount?: number;
+  taxRate?: number;
   product: {
     name: string;
     imageUrl?: string;
@@ -28,6 +31,16 @@ export interface SellerOrder {
   packingFee: number;
   shippingAmount: number;
   taxAmount: number;
+  isInterState?: boolean;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
+  tcsCgstAmount?: number;
+  tcsSgstAmount?: number;
+  tcsIgstAmount?: number;
+  totalTcsAmount?: number;
+  commissionGstAmount?: number;
+  invoiceNumber?: string;
   platformCommission: number;
   sellerEarnings: number;
   createdAt: string;

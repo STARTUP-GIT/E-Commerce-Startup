@@ -238,6 +238,15 @@ export const checkout = async (req: Request, res: Response) => {
                 platformFeeTotal: totals.platformFeeTotal,
                 discountTotal: totals.discountTotal,
                 taxTotal: totals.gstAmount,
+                productTaxableTotal: totals.gstBreakdown?.productTaxableTotal || totals.productSubtotal,
+                productCgstTotal: totals.gstBreakdown?.productCgstTotal || 0,
+                productSgstTotal: totals.gstBreakdown?.productSgstTotal || 0,
+                productIgstTotal: totals.gstBreakdown?.productIgstTotal || 0,
+                platformFeeCgstTotal: totals.gstBreakdown?.platformFeeCgstAmount || 0,
+                platformFeeSgstTotal: totals.gstBreakdown?.platformFeeSgstAmount || 0,
+                platformFeeIgstTotal: totals.gstBreakdown?.platformFeeIgstAmount || 0,
+                placeOfSupplyState: totals.gstBreakdown?.placeOfSupplyState || "Karnataka",
+                isInterState: totals.gstBreakdown?.isInterState || false,
                 grandTotal: totals.grandTotal,
                 appliedCoupon: totals.appliedCoupon
                     ? {

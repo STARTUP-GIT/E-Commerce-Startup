@@ -163,12 +163,14 @@ export function SellerInvoice({ order, className = '' }: SellerInvoiceProps) {
                       <p className="text-[10px] text-zinc-400 mt-0.5">{item.quantity} × {productService.formatPrice(Number(item.unitPrice))}</p>
                     )}
                   </td>
-                  <td className="px-3 py-2.5 text-xs text-zinc-500">—</td>
+                  <td className="px-3 py-2.5 text-xs text-zinc-500 font-mono">{item.hsnCode || '—'}</td>
                   <td className="px-3 py-2.5 text-xs text-zinc-700 text-right">{item.quantity}</td>
                   <td className="px-3 py-2.5 text-xs text-zinc-700 text-right">
                     {productService.formatPrice(Number(item.unitPrice))}
                   </td>
-                  <td className="px-3 py-2.5 text-xs text-zinc-700 text-right">—</td>
+                  <td className="px-3 py-2.5 text-xs text-zinc-700 text-right font-mono">
+                    {Number(item.taxAmount) > 0 ? productService.formatPrice(Number(item.taxAmount)) : '—'}
+                  </td>
                   <td className="px-3 py-2.5 text-xs font-bold text-zinc-900 text-right">
                     {productService.formatPrice(Number(item.totalPrice))}
                   </td>
@@ -205,10 +207,29 @@ export function SellerInvoice({ order, className = '' }: SellerInvoiceProps) {
                   : 'Free'}
               </span>
             </div>
-            <div className="flex justify-between gap-4 text-zinc-600">
-              <span className="shrink-0">Tax (GST)</span>
-              <span className="font-semibold text-zinc-800 text-right">{productService.formatPrice(Number(order.taxAmount))}</span>
-            </div>
+            {order.isInterState ? (
+              <div className="flex justify-between gap-4 text-zinc-600">
+                <span className="shrink-0">IGST</span>
+                <span className="font-semibold text-zinc-800 text-right">{productService.formatPrice(Number(order.igstAmount || order.taxAmount))}</span>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between gap-4 text-zinc-600">
+                  <span className="shrink-0">CGST</span>
+                  <span className="font-semibold text-zinc-800 text-right">{productService.formatPrice(Number(order.cgstAmount || (Number(order.taxAmount) / 2)))}</span>
+                </div>
+                <div className="flex justify-between gap-4 text-zinc-600">
+                  <span className="shrink-0">SGST</span>
+                  <span className="font-semibold text-zinc-800 text-right">{productService.formatPrice(Number(order.sgstAmount || (Number(order.taxAmount) / 2)))}</span>
+                </div>
+              </>
+            )}
+            {Number(order.totalTcsAmount) > 0 && (
+              <div className="flex justify-between gap-4 text-zinc-600">
+                <span className="shrink-0">TCS (Sec 52)</span>
+                <span className="font-semibold text-amber-600 text-right">-{productService.formatPrice(Number(order.totalTcsAmount))}</span>
+              </div>
+            )}
             <div className="flex justify-between gap-4 text-zinc-600">
               <span className="shrink-0">Platform Commission</span>
               <span className="font-semibold text-rose-600 text-right">
