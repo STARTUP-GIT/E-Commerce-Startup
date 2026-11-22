@@ -29,7 +29,7 @@ export function ComingSoonDialog() {
   }>({
     queryKey: ['seller-available-cities'],
     queryFn: async () => {
-      const res = await fetch('/api/locations/available-cities');
+      const res = await fetch('/api/locations/available-cities?role=SELLER');
       if (!res.ok) throw new Error('Failed to load available cities');
       return res.json();
     },

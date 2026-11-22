@@ -2,17 +2,27 @@ import { create } from 'zustand';
 
 export interface ServiceabilityDetails {
   isServiceable?: boolean;
+  status?: string;
   reason?: string;
   expectedLaunchDate?: string | null;
   comingSoonMessage?: string | null;
   launchAnnouncement?: string | null;
+  customerNotice?: string | null;
+  sellerNotice?: string | null;
   bannerUrl?: string | null;
   allowBrowsing?: boolean;
   allowOrdering?: boolean;
+  allowCustomerBrowsing?: boolean;
+  allowCustomerOrdering?: boolean;
   noticeMessage?: string | null;
   state?: string;
   district?: string;
   cityTown?: string;
+  town?: string;
+  serviceArea?: string;
+  districtId?: string;
+  townId?: string;
+  serviceAreaId?: string;
 }
 
 export interface DetectedCoordinates {
@@ -24,6 +34,11 @@ export interface ResolvedLocation {
   state: string;
   district: string;
   city: string;
+  town?: string;
+  serviceArea?: string;
+  districtId?: string;
+  townId?: string;
+  serviceAreaId?: string;
   formattedAddress?: string;
 }
 
@@ -52,6 +67,9 @@ interface LocationState {
   confirmedLocation: { state: string; district: string } | null;
   // 4. Selected shopping/delivery location
   selectedAddressId: string | null;
+  selectedDistrictId: string | null;
+  selectedTownId: string | null;
+  selectedServiceAreaId: string | null;
   selectedState: string;
   selectedDistrict: string;
   formattedAddress?: string;
@@ -72,8 +90,16 @@ interface LocationState {
   setAddressSelectorOpen: (open: boolean) => void;
   
   // Actions
-  setLocation: (addressId: string | null, state: string, district: string, isManual?: boolean) => Promise<boolean>;
-  checkLocationServiceability: (state?: string, district?: string) => Promise<boolean>;
+  setLocation: (
+    addressId: string | null,
+    state: string,
+    district: string,
+    isManual?: boolean,
+    districtId?: string | null,
+    townId?: string | null,
+    serviceAreaId?: string | null
+  ) => Promise<boolean>;
+  checkLocationServiceability: (state?: string, district?: string, districtId?: string) => Promise<boolean>;
   detectLocation: (force?: boolean) => Promise<void>;
   initLocationFromStorage: () => Promise<void>;
 }
@@ -102,6 +128,9 @@ export const useLocationStore = create<LocationState>((set, get) => ({
   actualLocation: null,
   confirmedLocation: null,
   selectedAddressId: null,
+  selectedDistrictId: null,
+  selectedTownId: null,
+  selectedServiceAreaId: null,
   selectedState: '',
   selectedDistrict: '',
   formattedAddress: undefined,
@@ -120,24 +149,35 @@ export const useLocationStore = create<LocationState>((set, get) => ({
   addressSelectorOpen: false,
   setAddressSelectorOpen: (open) => set({ addressSelectorOpen: open }),
 
-  checkLocationServiceability: async (targetState?: string, targetDistrict?: string): Promise<boolean> => {
+  checkLocationServiceability: async (targetState?: string, targetDistrict?: string, targetDistrictId?: string): Promise<boolean> => {
     const state = targetState || get().selectedState;
     const district = targetDistrict || get().selectedDistrict;
+    const districtId = targetDistrictId || get().selectedDistrictId;
 
-    if (!state || !district) {
+    if (!state && !district && !districtId) {
       set({ isServiceable: false, serviceabilityDetails: null });
       return false;
     }
 
     set({ isCheckingServiceability: true });
     try {
-      const res = await fetch(`/api/locations/check-serviceability?state=${encodeURIComponent(state)}&district=${encodeURIComponent(district)}&userRole=CUSTOMER`);
+      const queryParams = new URLSearchParams();
+      if (state) queryParams.set('state', state);
+      if (district) queryParams.set('district', district);
+      if (districtId) queryParams.set('districtId', districtId);
+      queryParams.set('role', 'CUSTOMER');
+      queryParams.set('userRole', 'CUSTOMER');
+
+      const res = await fetch(`/api/locations/check-serviceability?${queryParams.toString()}`);
       if (res.ok) {
         const data = await res.json();
         const serviceable = Boolean(data.isServiceable);
         set({
           isServiceable: serviceable,
           serviceabilityDetails: data,
+          selectedDistrictId: data.districtId || districtId || null,
+          selectedTownId: data.townId || get().selectedTownId,
+          selectedServiceAreaId: data.serviceAreaId || get().selectedServiceAreaId,
           isCheckingServiceability: false,
         });
         return serviceable;
@@ -149,12 +189,23 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     return get().isServiceable;
   },
 
-  setLocation: async (addressId, state, district, isManual = true): Promise<boolean> => {
+  setLocation: async (
+    addressId,
+    state,
+    district,
+    isManual = true,
+    districtId = null,
+    townId = null,
+    serviceAreaId = null
+  ): Promise<boolean> => {
     const sanitizedDistrict = district || '';
     const sanitizedState = state || '';
 
     set({ 
-      selectedAddressId: addressId, 
+      selectedAddressId: addressId,
+      selectedDistrictId: districtId,
+      selectedTownId: townId,
+      selectedServiceAreaId: serviceAreaId,
       selectedState: sanitizedState, 
       selectedDistrict: sanitizedDistrict,
       confirmedLocation: sanitizedState && sanitizedDistrict ? { state: sanitizedState, district: sanitizedDistrict } : null,
@@ -166,8 +217,17 @@ export const useLocationStore = create<LocationState>((set, get) => ({
     let details: ServiceabilityDetails | null = null;
 
     try {
-      if (sanitizedState && sanitizedDistrict) {
-        const res = await fetch(`/api/locations/check-serviceability?state=${encodeURIComponent(sanitizedState)}&district=${encodeURIComponent(sanitizedDistrict)}&userRole=CUSTOMER`);
+      if (sanitizedState || sanitizedDistrict || districtId) {
+        const queryParams = new URLSearchParams();
+        if (sanitizedState) queryParams.set('state', sanitizedState);
+        if (sanitizedDistrict) queryParams.set('district', sanitizedDistrict);
+        if (districtId) queryParams.set('districtId', districtId);
+        if (townId) queryParams.set('townId', townId);
+        if (serviceAreaId) queryParams.set('serviceAreaId', serviceAreaId);
+        queryParams.set('role', 'CUSTOMER');
+        queryParams.set('userRole', 'CUSTOMER');
+
+        const res = await fetch(`/api/locations/check-serviceability?${queryParams.toString()}`);
         if (res.ok) {
           details = await res.json();
           serviceable = Boolean(details?.isServiceable);
@@ -177,9 +237,16 @@ export const useLocationStore = create<LocationState>((set, get) => ({
       console.warn('Failed to verify serviceability during setLocation:', err);
     }
 
+    const finalDistrictId = details?.districtId || districtId;
+    const finalTownId = details?.townId || townId;
+    const finalServiceAreaId = details?.serviceAreaId || serviceAreaId;
+
     set({
       isServiceable: serviceable,
       serviceabilityDetails: details,
+      selectedDistrictId: finalDistrictId || null,
+      selectedTownId: finalTownId || null,
+      selectedServiceAreaId: finalServiceAreaId || null,
       isCheckingServiceability: false,
     });
 
@@ -187,6 +254,9 @@ export const useLocationStore = create<LocationState>((set, get) => ({
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           addressId,
+          districtId: finalDistrictId,
+          townId: finalTownId,
+          serviceAreaId: finalServiceAreaId,
           state: sanitizedState,
           district: sanitizedDistrict,
           isManual,
@@ -233,6 +303,7 @@ export const useLocationStore = create<LocationState>((set, get) => ({
               latitude,
               longitude,
               userRole: 'CUSTOMER',
+              role: 'CUSTOMER',
             }),
           });
 
@@ -249,11 +320,19 @@ export const useLocationStore = create<LocationState>((set, get) => ({
               set({
                 detectedCoordinates: coords,
                 actualLocation: {
+                  districtId: resolved.districtId || serviceability?.districtId,
+                  townId: resolved.townId || serviceability?.townId,
+                  serviceAreaId: resolved.serviceAreaId || serviceability?.serviceAreaId,
                   state,
                   district,
                   city: resolved.city || district,
+                  town: resolved.town,
+                  serviceArea: resolved.serviceArea,
                   formattedAddress: resolved.formattedAddress,
                 },
+                selectedDistrictId: resolved.districtId || serviceability?.districtId || null,
+                selectedTownId: resolved.townId || serviceability?.townId || null,
+                selectedServiceAreaId: resolved.serviceAreaId || serviceability?.serviceAreaId || null,
                 selectedState: state,
                 selectedDistrict: district,
                 formattedAddress: resolved.formattedAddress,
@@ -265,6 +344,9 @@ export const useLocationStore = create<LocationState>((set, get) => ({
               });
 
               localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                districtId: resolved.districtId || serviceability?.districtId,
+                townId: resolved.townId || serviceability?.townId,
+                serviceAreaId: resolved.serviceAreaId || serviceability?.serviceAreaId,
                 state,
                 district,
                 formattedAddress: resolved.formattedAddress,
@@ -299,7 +381,6 @@ export const useLocationStore = create<LocationState>((set, get) => ({
           locationPermissionDenied: true,
           isDetectingLocation: false,
         });
-        // If no location has ever been selected, prompt the user with address selector
         if (!get().selectedDistrict) {
           set({ addressSelectorOpen: true });
         }
@@ -320,6 +401,9 @@ export const useLocationStore = create<LocationState>((set, get) => ({
         if (parsed.state && parsed.district) {
           set({
             selectedAddressId: parsed.addressId || null,
+            selectedDistrictId: parsed.districtId || null,
+            selectedTownId: parsed.townId || null,
+            selectedServiceAreaId: parsed.serviceAreaId || null,
             selectedState: parsed.state,
             selectedDistrict: parsed.district,
             formattedAddress: parsed.formattedAddress,
@@ -328,7 +412,7 @@ export const useLocationStore = create<LocationState>((set, get) => ({
           });
 
           // Revalidate against backend single source of truth
-          await get().checkLocationServiceability(parsed.state, parsed.district);
+          await get().checkLocationServiceability(parsed.state, parsed.district, parsed.districtId);
           return;
         }
       }

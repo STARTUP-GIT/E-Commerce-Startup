@@ -5,18 +5,19 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { useLocationStore } from '@/lib/store/locationStore';
 import { useSiteLayout } from '@/lib/hooks/useSiteLayout';
-import { Button } from '@/shared/components/Button';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { RequestLocationModal } from './RequestLocationModal';
 import { AddressSelectorDialog } from '@/components/ui/AddressSelectorDialog';
 import {
   MapPin,
   Sparkles,
-  ArrowRight,
-  Send,
   Compass,
   Store,
   ChevronRight,
-  Share2,
+  Headphones,
+  CheckCircle2,
   Clock,
   ExternalLink,
 } from 'lucide-react';
@@ -43,14 +44,14 @@ export function ComingSoonScreen() {
 
   const { branding } = useSiteLayout();
 
-  // Fetch available cities dynamically from backend
+  // Fetch operational cities dynamically from authoritative backend
   const { data: availableData, isLoading: isLoadingCities } = useQuery<{
     cities: AvailableCity[];
     totalAvailable: number;
   }>({
-    queryKey: ['available-cities'],
+    queryKey: ['available-cities-customer'],
     queryFn: async () => {
-      const res = await fetch('/api/locations/available-cities');
+      const res = await fetch('/api/locations/available-cities?role=CUSTOMER');
       if (!res.ok) throw new Error('Failed to load available cities');
       return res.json();
     },
@@ -59,132 +60,116 @@ export function ComingSoonScreen() {
 
   const availableCities = availableData?.cities || [];
   const currentCityDisplay = selectedDistrict || 'Your Location';
+  const currentStateDisplay = selectedState || 'Karnataka';
 
   const handleCitySelect = async (city: AvailableCity) => {
-    await setLocation(null, city.state, city.canonicalName || city.name, true);
+    await setLocation(null, city.state, city.canonicalName || city.name, true, city.id);
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-64px)] w-full flex flex-col justify-between overflow-hidden bg-zinc-950 text-white">
+    <div className="relative min-h-[calc(100vh-64px)] w-full flex flex-col justify-between overflow-hidden bg-background text-foreground">
       {/* Background ambient lighting */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-purple-600/10 rounded-full blur-[130px] pointer-events-none" />
-      <div className="absolute top-1/3 -right-20 w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-10 -left-20 w-[450px] h-[450px] bg-purple-500/10 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-1/3 -right-20 w-[350px] h-[350px] bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-10 -left-20 w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[110px] pointer-events-none" />
 
       {/* Main Container */}
-      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full flex-1 flex flex-col items-center justify-center text-center">
+      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 w-full flex-1 flex flex-col items-center justify-center text-center">
         {/* Top Location Bar */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/[0.04] backdrop-blur-md mb-8 shadow-lg"
+          className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full border border-border/60 bg-muted/40 backdrop-blur-md mb-6 shadow-sm"
         >
           <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-          <span className="text-xs text-white/60">Current Location:</span>
-          <span className="text-xs font-bold text-white flex items-center gap-1">
-            <MapPin className="h-3.5 w-3.5 text-purple-400" />
-            {currentCityDisplay}, {selectedState}
+          <span className="text-xs text-muted-foreground">Current Location:</span>
+          <span className="text-xs font-semibold text-foreground flex items-center gap-1">
+            <MapPin className="h-3.5 w-3.5 text-primary" />
+            {currentCityDisplay}, {currentStateDisplay}
           </span>
           <button
+            type="button"
             onClick={() => setAddressSelectorOpen(true)}
-            className="ml-2 text-[11px] font-bold text-purple-400 hover:text-purple-300 transition-colors underline cursor-pointer"
+            className="ml-1 text-xs font-semibold text-primary hover:text-primary/80 transition-colors underline cursor-pointer"
           >
             Change
           </button>
         </motion.div>
 
-        {/* Hero Illustration or Admin Cloudinary Banner */}
+        {/* Hero Banner or Refined Icon Badge */}
         {serviceabilityDetails?.bannerUrl ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative mb-6 max-w-md w-full rounded-2xl overflow-hidden border border-white/15 shadow-[0_0_40px_rgba(168,85,247,0.25)]"
+            className="relative mb-6 max-w-md w-full rounded-2xl overflow-hidden border border-border/40 shadow-xl"
           >
             <img
               src={serviceabilityDetails.bannerUrl}
               alt={currentCityDisplay}
-              className="w-full h-48 sm:h-52 object-cover"
+              className="w-full h-44 sm:h-52 object-cover"
             />
           </motion.div>
         ) : (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.4 }}
             className="relative mb-6"
           >
-            <div className="relative w-48 h-48 sm:w-56 sm:h-56 mx-auto flex items-center justify-center">
-              {/* Concentric radar rings */}
-              <div className="absolute inset-0 rounded-full border border-purple-500/20 animate-ping opacity-25" style={{ animationDuration: '3s' }} />
-              <div className="absolute inset-4 rounded-full border border-purple-500/30 animate-pulse" />
-              <div className="absolute inset-10 rounded-full bg-gradient-to-tr from-purple-600/20 to-indigo-600/20 backdrop-blur-xl border border-white/10" />
-
-              {/* Custom SVG Illustration */}
-              <svg
-                className="w-28 h-28 sm:w-32 sm:h-32 text-purple-400 drop-shadow-[0_0_35px_rgba(168,85,247,0.4)]"
-                viewBox="0 0 120 120"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                {/* City skyline silhouettes */}
-                <path
-                  d="M15 95V75H28V95H34V60H48V95H56V48H72V95H80V68H94V95H105"
-                  stroke="rgba(255,255,255,0.2)"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <line x1="10" y1="95" x2="110" y2="95" stroke="rgba(255,255,255,0.3)" strokeWidth="2" />
-                
-                {/* Animated Map Pin */}
-                <g className="animate-bounce" style={{ animationDuration: '2s' }}>
-                  <path
-                    d="M60 22C48.9543 22 40 30.9543 40 42C40 56.5 60 78 60 78C60 78 80 56.5 80 42C80 30.9543 71.0457 22 60 22Z"
-                    fill="url(#pinGradient)"
-                    stroke="#ffffff"
-                    strokeWidth="2.5"
-                  />
-                  <circle cx="60" cy="42" r="7" fill="#ffffff" />
-                </g>
-
-                {/* Gradient definitions */}
-                <defs>
-                  <linearGradient id="pinGradient" x1="40" y1="22" x2="80" y2="78" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#9333ea" />
-                    <stop offset="1" stopColor="#4f46e5" />
-                  </linearGradient>
-                </defs>
-              </svg>
+            <div className="relative flex items-center justify-center">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-br from-primary/20 via-purple-500/10 to-indigo-500/20 border border-primary/30 flex items-center justify-center shadow-[0_0_35px_rgba(168,85,247,0.2)]">
+                <MapPin className="w-10 h-10 sm:w-12 sm:h-12 text-primary" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-background border border-border shadow-md">
+                <Clock className="w-4 h-4 text-amber-400" />
+              </div>
             </div>
           </motion.div>
         )}
 
-        {/* Heading */}
-        <motion.h1
-          initial={{ opacity: 0, y: 15 }}
+        {/* Status Badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-3xl sm:text-5xl font-black tracking-tight text-white mb-4"
+          className="mb-3"
+        >
+          <Badge variant="secondary" className="px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+            Expanding Soon
+          </Badge>
+        </motion.div>
+
+        {/* Heading */}
+        <motion.h1
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-foreground mb-4"
         >
           Coming soon to your city
         </motion.h1>
 
         {/* Supporting description */}
         <motion.p
-          initial={{ opacity: 0, y: 15 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="text-sm sm:text-base text-white/60 max-w-xl mx-auto mb-8 leading-relaxed"
+          className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto mb-6 leading-relaxed"
         >
           {serviceabilityDetails?.comingSoonMessage ||
-            `AtlasBasket is not yet available in ${currentCityDisplay}, ${selectedState}. We are actively expanding to bring neighborhood craft makers, 3D printing artisans, and lightning-fast local delivery to your door.`}
+            `AtlasBasket is not yet available in ${currentCityDisplay}, ${currentStateDisplay}. We are actively expanding to bring neighborhood craft makers, 3D printing artisans, and lightning-fast local delivery to your door.`}
         </motion.p>
 
         {/* Notice Message if configured in admin */}
-        {serviceabilityDetails?.noticeMessage && (
-          <div className="mb-6 px-4 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-medium max-w-md">
-            📢 {serviceabilityDetails.noticeMessage}
-          </div>
+        {(serviceabilityDetails?.customerNotice || serviceabilityDetails?.noticeMessage) && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="mb-6 px-4 py-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-medium max-w-md"
+          >
+            📢 {serviceabilityDetails.customerNotice || serviceabilityDetails.noticeMessage}
+          </motion.div>
         )}
 
         {/* Action Buttons */}
@@ -192,126 +177,109 @@ export function ComingSoonScreen() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mb-14"
+          className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md mb-12"
         >
           <Button
-            variant="default"
+            size="lg"
             onClick={() => setRequestModalOpen(true)}
-            className="w-full sm:w-auto px-7 py-3 rounded-2xl bg-gradient-to-r from-purple-600 via-purple-500 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-[0_0_30px_rgba(168,85,247,0.3)] transition-all cursor-pointer flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-semibold text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer"
           >
             <Sparkles className="h-4 w-4" />
-            <span>Request Only in your city</span>
+            <span>Request Service in My City</span>
           </Button>
 
           <Button
+            size="lg"
             variant="outline"
             onClick={() => setAddressSelectorOpen(true)}
-            className="w-full sm:w-auto px-7 py-3 rounded-2xl border-white/20 bg-white/[0.05] hover:bg-white/[0.1] text-white font-bold text-sm backdrop-blur-md transition-all cursor-pointer flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl font-semibold text-sm border-border/80 bg-background/50 hover:bg-muted transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            <Compass className="h-4 w-4 text-purple-400" />
+            <Compass className="h-4 w-4 text-primary" />
             <span>Change Location</span>
           </Button>
         </motion.div>
 
-        {/* Dynamic Available Cities Section */}
+        {/* Dynamic Operational Cities Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="w-full max-w-3xl pt-8 border-t border-white/10"
+          transition={{ delay: 0.35 }}
+          className="w-full max-w-3xl pt-8 border-t border-border/50 text-left"
         >
-          <div className="flex items-center justify-between mb-4 px-1">
-            <div className="text-left">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-white/90">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">
                 Currently Available Cities
               </h3>
-              <p className="text-xs text-white/40">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Explore local products and creators in our active districts:
               </p>
             </div>
             {availableCities.length > 0 && (
-              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+              <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs">
                 {availableCities.length} Operational
-              </span>
+              </Badge>
             )}
           </div>
 
           {isLoadingCities ? (
             <div className="flex justify-center py-8">
-              <span className="h-6 w-6 rounded-full border-2 border-purple-500/20 border-t-purple-500 animate-spin" />
+              <span className="h-6 w-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+            </div>
+          ) : availableCities.length === 0 ? (
+            <div className="py-6 px-4 rounded-xl border border-dashed border-border/60 text-center text-xs text-muted-foreground">
+              No other districts are operational at this moment. We are preparing our launch soon!
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {availableCities.map((city) => (
-                <button
+                <Card
                   key={city.id}
                   onClick={() => handleCitySelect(city)}
-                  className="group p-3 rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-purple-500/40 text-left transition-all cursor-pointer backdrop-blur-sm flex flex-col justify-between"
+                  className="group relative cursor-pointer border-border/60 bg-muted/20 hover:bg-muted/40 hover:border-primary/40 transition-all shadow-sm rounded-xl"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="p-1.5 rounded-lg bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 transition-colors">
-                      <Store className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="text-[10px] text-white/40 group-hover:text-purple-300 flex items-center transition-colors">
-                      Shop <ChevronRight className="h-3 w-3 inline" />
-                    </span>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white group-hover:text-purple-200 transition-colors">
-                      {city.name}
-                    </h4>
-                    <span className="text-[10px] text-white/40">{city.state}</span>
-                  </div>
-                </button>
+                  <CardContent className="p-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
+                        <Store className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                          {city.name}
+                        </h4>
+                        <span className="text-xs text-muted-foreground">{city.state}</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/60 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
         </motion.div>
 
-        {/* Social Links & Community */}
+        {/* Support & Community Section */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-12 flex flex-col items-center gap-3 text-xs text-white/40"
+          transition={{ delay: 0.45 }}
+          className="mt-12 flex flex-col items-center gap-3 text-xs text-muted-foreground"
         >
-          <span>Follow our expansion announcements:</span>
-          <div className="flex items-center gap-4">
-            <a
-              href="https://twitter.com"
-              target="_blank"
-              rel="noreferrer"
-              className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] hover:text-white transition-all text-white/60"
-              aria-label="Twitter"
+          <div className="flex items-center gap-2">
+            <Headphones className="h-3.5 w-3.5 text-primary" />
+            <span>Have questions or need assistance?</span>
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  const event = new CustomEvent('open-support-widget');
+                  window.dispatchEvent(event);
+                }
+              }}
+              className="text-primary hover:underline font-medium cursor-pointer"
             >
-              <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-              </svg>
-            </a>
-            <a
-              href="https://instagram.com"
-              target="_blank"
-              rel="noreferrer"
-              className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] hover:text-white transition-all text-white/60"
-              aria-label="Instagram"
-            >
-              <svg className="h-4 w-4 fill-none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-              </svg>
-            </a>
-            <a
-              href="https://github.com"
-              target="_blank"
-              rel="noreferrer"
-              className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] hover:text-white transition-all text-white/60"
-              aria-label="GitHub"
-            >
-              <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-              </svg>
-            </a>
+              Contact Support
+            </button>
           </div>
         </motion.div>
       </div>

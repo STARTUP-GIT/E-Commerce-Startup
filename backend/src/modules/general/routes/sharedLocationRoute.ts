@@ -17,20 +17,7 @@ router.post("/resolve", resolveLocation);
 
 // Serviceability checks
 router.post("/check-serviceability", checkServiceability);
-router.get("/check-serviceability", (req, res) => {
-    req.body = {
-        state: req.query.state,
-        district: req.query.district,
-        city: req.query.city,
-        town: req.query.town,
-        serviceArea: req.query.serviceArea,
-        postalCode: req.query.postalCode,
-        latitude: req.query.lat,
-        longitude: req.query.lng,
-        userRole: req.query.role
-    };
-    return checkServiceability(req, res);
-});
+router.get("/check-serviceability", checkServiceability);
 
 // Available cities dynamically loaded from backend
 router.get("/available-cities", publicReadLimiter, cache(180), getAvailableCities);

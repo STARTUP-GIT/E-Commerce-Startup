@@ -102,10 +102,17 @@ export const locationService = {
     }
   },
 
-  checkServiceability: async (state: string, district: string): Promise<any> => {
+  checkServiceability: async (state: string, district: string, districtId?: string): Promise<any> => {
     try {
+      const queryParams = new URLSearchParams();
+      if (state) queryParams.set('state', state);
+      if (district) queryParams.set('district', district);
+      if (districtId) queryParams.set('districtId', districtId);
+      queryParams.set('role', 'CUSTOMER');
+      queryParams.set('userRole', 'CUSTOMER');
+
       const res = await axiosInstance.get(
-        `${API_ROUTES.locations.checkServiceability}?state=${encodeURIComponent(state)}&district=${encodeURIComponent(district)}&userRole=CUSTOMER`
+        `${API_ROUTES.locations.checkServiceability}?${queryParams.toString()}`
       );
       return res.data;
     } catch (err: any) {
@@ -116,7 +123,7 @@ export const locationService = {
 
   getAvailableCities: async (): Promise<any[]> => {
     try {
-      const res = await axiosInstance.get(API_ROUTES.locations.availableCities);
+      const res = await axiosInstance.get(`${API_ROUTES.locations.availableCities}?role=CUSTOMER`);
       return res.data?.cities || [];
     } catch {
       return [];

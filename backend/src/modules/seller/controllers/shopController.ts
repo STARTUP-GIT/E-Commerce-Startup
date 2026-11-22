@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { prisma } from "../../../config/prisma.js";
 import { SellerOrderStatus, SellerAddressType } from "@prisma/client";
 import { invalidatePublicCache } from "../../../middleware/cache.js";
+import { ServiceabilityService } from "../../../services/location/serviceability.service.js";
 
 export const validateCoordinatePair = (latitude: any, longitude: any): { valid: boolean; message?: string; lat: number | null; lng: number | null } => {
     const latProvided = latitude !== undefined && latitude !== null && String(latitude).trim() !== '';
@@ -121,48 +122,21 @@ export const createShop = async (req: Request,res: Response) => {
             cleanGst = validatedGst;
         }
 
-        // Get all active cities in the selected state
-        const activeCitiesInState = await prisma.city.findMany({
-            where: {
-                state: { equals: state.trim(), mode: "insensitive" },
-                isActive: true
-            }
+        // Verify seller registration location is serviceable using the authoritative serviceability engine
+        const serviceabilityResult = await ServiceabilityService.checkServiceability({
+            state: state.trim(),
+            district: (district || city)?.trim(),
+            city: city?.trim(),
+            postalCode: postalCode?.trim(),
+            latitude: latitude !== undefined && latitude !== null ? Number(latitude) : undefined,
+            longitude: longitude !== undefined && longitude !== null ? Number(longitude) : undefined,
+            userRole: "SELLER"
         });
 
-        if (activeCitiesInState.length === 0) {
+        if (!serviceabilityResult.isServiceable) {
             return res.status(400).json({
-                message: `We do not operate in the state: ${state}`
+                message: serviceabilityResult.message || `We do not currently operate seller services in ${city || district}, ${state}`
             });
-        }
-
-        // Fetch settings config
-        const marketplaceSetting = await prisma.marketplaceSetting.findUnique({ where: { id: 1 } });
-        const settingsData = marketplaceSetting?.data as any;
-        const districtRequired = settingsData?.districtRequired !== false; // default to true
-
-        if (districtRequired) {
-            if (!city || !city.trim()) {
-                return res.status(400).json({
-                    message: "District is required"
-                });
-            }
-            const activeCity = activeCitiesInState.find(
-                c => c.name.toLowerCase() === city.trim().toLowerCase()
-            );
-            if (!activeCity) {
-                return res.status(400).json({
-                    message: `We do not operate in district: ${city} of state: ${state}`
-                });
-            }
-        } else if (city && city.trim()) {
-            const activeCity = activeCitiesInState.find(
-                c => c.name.toLowerCase() === city.trim().toLowerCase()
-            );
-            if (!activeCity) {
-                return res.status(400).json({
-                    message: `We do not operate in district: ${city} of state: ${state}`
-                });
-            }
         }
 
         const seller = await prisma.seller.findUnique({

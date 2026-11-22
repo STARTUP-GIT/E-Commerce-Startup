@@ -77,7 +77,23 @@ export const updateCity = async (req: Request, res: Response) => {
         }
 
         if (isActive !== undefined) {
-            data.isActive = !!isActive;
+            const targetActive = Boolean(isActive);
+            data.isActive = targetActive;
+            if (targetActive) {
+                data.launchStatus = "LAUNCHED";
+                data.isCustomerEnabled = true;
+                data.isSellerEnabled = true;
+                data.isDeliveryEnabled = true;
+                data.allowCustomerBrowsing = true;
+                data.allowCustomerOrdering = true;
+                data.allowSellerRegistration = true;
+                data.allowShopCreation = true;
+            } else {
+                data.isCustomerEnabled = false;
+                data.isSellerEnabled = false;
+                data.isDeliveryEnabled = false;
+                data.allowCustomerOrdering = false;
+            }
         }
 
         const updated = await prisma.$transaction(async (tx) => {
@@ -87,16 +103,20 @@ export const updateCity = async (req: Request, res: Response) => {
             });
 
             if (isActive !== undefined) {
+                const targetActive = Boolean(isActive);
                 await tx.serviceArea.updateMany({
                     where: { districtId: id },
                     data: {
-                        isActive: !!isActive,
-                        deliveryEligible: !!isActive
+                        isActive: targetActive,
+                        deliveryEligible: targetActive
                     }
                 });
                 await tx.cityTown.updateMany({
                     where: { districtId: id },
-                    data: { isActive: !!isActive }
+                    data: {
+                        isActive: targetActive,
+                        ...(targetActive ? { launchStatus: "LAUNCHED" } : {})
+                    }
                 });
             }
 

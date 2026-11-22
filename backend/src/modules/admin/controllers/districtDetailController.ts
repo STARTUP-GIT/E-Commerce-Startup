@@ -424,9 +424,31 @@ export const toggleDistrictMaster = async (req: Request, res: Response) => {
 
         // Update district and all child service areas in a single database transaction
         const updated = await prisma.$transaction(async (tx) => {
+            const districtUpdateData: any = {
+                isActive: targetActive,
+            };
+
+            if (targetActive) {
+                // When enabling entire district, ensure it is marked as launched and operational
+                districtUpdateData.launchStatus = "LAUNCHED";
+                districtUpdateData.isCustomerEnabled = true;
+                districtUpdateData.isSellerEnabled = true;
+                districtUpdateData.isDeliveryEnabled = true;
+                districtUpdateData.allowCustomerBrowsing = true;
+                districtUpdateData.allowCustomerOrdering = true;
+                districtUpdateData.allowSellerRegistration = true;
+                districtUpdateData.allowShopCreation = true;
+            } else {
+                // When disabling entire district, suspend customer and seller operations
+                districtUpdateData.isCustomerEnabled = false;
+                districtUpdateData.isSellerEnabled = false;
+                districtUpdateData.isDeliveryEnabled = false;
+                districtUpdateData.allowCustomerOrdering = false;
+            }
+
             const city = await tx.city.update({
                 where: { id },
-                data: { isActive: targetActive }
+                data: districtUpdateData
             });
 
             await tx.serviceArea.updateMany({
@@ -439,7 +461,10 @@ export const toggleDistrictMaster = async (req: Request, res: Response) => {
 
             await tx.cityTown.updateMany({
                 where: { districtId: id },
-                data: { isActive: targetActive }
+                data: {
+                    isActive: targetActive,
+                    ...(targetActive ? { launchStatus: "LAUNCHED" } : {})
+                }
             });
 
             return city;

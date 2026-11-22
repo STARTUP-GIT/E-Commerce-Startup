@@ -3,9 +3,25 @@ import { prisma } from "../../config/prisma.js";
 import { logger } from "../../config/logger.js";
 import { GoogleMapsService } from "../../modules/delivery/services/googleMaps.service.js";
 
-export type ServiceabilityStatus = "SERVICEABLE" | "NOT_SERVICEABLE" | "UNKNOWN";
+export type ServiceabilityStatus =
+    | "AVAILABLE"
+    | "COMING_SOON"
+    | "DISTRICT_DISABLED"
+    | "TOWN_DISABLED"
+    | "SERVICE_AREA_DISABLED"
+    | "CUSTOMER_UNAVAILABLE"
+    | "SELLER_UNAVAILABLE"
+    | "MAINTENANCE"
+    | "LOCATION_UNRESOLVED"
+    | "SERVICEABLE"
+    | "NOT_SERVICEABLE"
+    | "UNKNOWN";
 
 export interface ServiceabilityCheckParams {
+    stateId?: string;
+    districtId?: string;
+    townId?: string;
+    serviceAreaId?: string;
     state?: string;
     district?: string;
     city?: string;
@@ -20,10 +36,14 @@ export interface ServiceabilityCheckParams {
 export interface ServiceabilityCheckResult {
     status: ServiceabilityStatus;
     isServiceable: boolean;
-    inheritedStatus: string; // ENABLED, DISABLED_BY_STATE, DISABLED_BY_DISTRICT, DISABLED_BY_CITY, DISABLED_BY_SERVICE_AREA, MAINTENANCE, COMING_SOON, NOT_CONFIGURED
+    inheritedStatus: string; // ENABLED, DISABLED_BY_STATE, DISABLED_BY_DISTRICT, DISABLED_BY_CITY, DISABLED_BY_SERVICE_AREA, MAINTENANCE, COMING_SOON, NOT_CONFIGURED, LOCATION_UNRESOLVED
+    districtId?: string;
+    townId?: string;
+    serviceAreaId?: string;
     state?: string;
     district?: string;
     city?: string;
+    town?: string;
     serviceArea?: string;
     postalCode?: string;
     message: string;
@@ -52,26 +72,129 @@ export interface GeocodeLocationResult {
     formattedAddress?: string;
 }
 
-// Common district aliases to map GPS geocoded names to canonical seeded districts
-const DISTRICT_ALIASES: Record<string, string> = {
+// Canonical district mapping and aliases
+export const DISTRICT_ALIASES: Record<string, string> = {
     "mysore": "Mysuru",
+    "mysore district": "Mysuru",
+    "mysuru": "Mysuru",
+    "mysuru district": "Mysuru",
+    "mysuru city": "Mysuru",
+    "mysore city": "Mysuru",
     "bangalore": "Bengaluru Urban",
     "bangalore urban": "Bengaluru Urban",
     "bangalore rural": "Bengaluru Rural",
+    "bangalore city": "Bengaluru Urban",
+    "bengaluru": "Bengaluru Urban",
+    "bengaluru urban": "Bengaluru Urban",
+    "bengaluru rural": "Bengaluru Rural",
+    "bengaluru city": "Bengaluru Urban",
     "belgaum": "Belagavi",
+    "belgaum district": "Belagavi",
+    "belagavi": "Belagavi",
+    "belagavi district": "Belagavi",
     "bellary": "Ballari",
+    "bellary district": "Ballari",
+    "ballari": "Ballari",
+    "ballari district": "Ballari",
     "bijapur": "Vijayapura",
+    "bijapur district": "Vijayapura",
+    "vijayapura": "Vijayapura",
+    "vijayapura district": "Vijayapura",
     "gulbarga": "Kalaburagi",
+    "gulbarga district": "Kalaburagi",
+    "kalaburagi": "Kalaburagi",
+    "kalaburagi district": "Kalaburagi",
     "chikmagalur": "Chikkamagaluru",
+    "chikmagalur district": "Chikkamagaluru",
     "chickmagalur": "Chikkamagaluru",
+    "chikkamagaluru": "Chikkamagaluru",
+    "chikkamagaluru district": "Chikkamagaluru",
     "tumkur": "Tumakuru",
+    "tumkur district": "Tumakuru",
+    "tumakuru": "Tumakuru",
+    "tumakuru district": "Tumakuru",
     "shimoga": "Shivamogga",
+    "shimoga district": "Shivamogga",
+    "shivamogga": "Shivamogga",
+    "shivamogga district": "Shivamogga",
     "mangalore": "Dakshina Kannada",
+    "mangalore district": "Dakshina Kannada",
     "mangaluru": "Dakshina Kannada",
+    "mangaluru district": "Dakshina Kannada",
+    "dakshina kannada": "Dakshina Kannada",
+    "dakshina kannada district": "Dakshina Kannada",
+    "uttara kannada": "Uttara Kannada",
+    "uttara kannada district": "Uttara Kannada",
     "hubli": "Dharwad",
+    "hubli district": "Dharwad",
+    "hubballi": "Dharwad",
+    "dharwad": "Dharwad",
+    "dharwad district": "Dharwad",
     "dharwad-hubli": "Dharwad",
     "coorg": "Kodagu",
+    "coorg district": "Kodagu",
+    "kodagu": "Kodagu",
+    "kodagu district": "Kodagu",
+    "chamarajanagar": "Chamarajanagar",
+    "chamarajanagar district": "Chamarajanagar",
+    "chamarajanagara": "Chamarajanagar",
+    "ramanagara": "Ramanagara",
+    "ramanagara district": "Ramanagara",
+    "ramnagaram": "Ramanagara",
+    "vijayanagara": "Vijayanagara",
+    "vijayanagara district": "Vijayanagara",
+    "vijayanagar": "Vijayanagara",
+    "hassan": "Hassan",
+    "hassan district": "Hassan",
+    "haveri": "Haveri",
+    "haveri district": "Haveri",
+    "mandya": "Mandya",
+    "mandya district": "Mandya",
+    "udupi": "Udupi",
+    "udupi district": "Udupi",
+    "yadgir": "Yadgir",
+    "yadgir district": "Yadgir",
+    "raichur": "Raichur",
+    "raichur district": "Raichur",
+    "koppal": "Koppal",
+    "koppal district": "Koppal",
+    "kolar": "Kolar",
+    "kolar district": "Kolar",
+    "gadag": "Gadag",
+    "gadag district": "Gadag",
+    "davanagere": "Davanagere",
+    "davanagere district": "Davanagere",
+    "chitradurga": "Chitradurga",
+    "chitradurga district": "Chitradurga",
+    "chikkaballapur": "Chikkaballapur",
+    "chikkaballapur district": "Chikkaballapur",
+    "bidar": "Bidar",
+    "bidar district": "Bidar",
+    "bagalkote": "Bagalkote",
+    "bagalkote district": "Bagalkote",
+    "bagalkot": "Bagalkote",
 };
+
+/**
+ * Normalizes raw location strings by stripping administrative suffixes
+ * and resolving against canonical district alias maps.
+ */
+export function normalizeDistrictName(rawName?: string): string {
+    if (!rawName) return "";
+    const trimmed = rawName.trim();
+    const lower = trimmed.toLowerCase();
+    if (DISTRICT_ALIASES[lower]) {
+        return DISTRICT_ALIASES[lower];
+    }
+
+    // Strip suffixes: " District", " Dist", " Dist.", " Taluk", " Taluka", " City"
+    const stripped = trimmed.replace(/\s+(district|dist\.?|taluk|taluka|city)$/i, "").trim();
+    if (DISTRICT_ALIASES[stripped.toLowerCase()]) {
+        return DISTRICT_ALIASES[stripped.toLowerCase()];
+    }
+
+    return stripped || trimmed;
+}
 
 export class ServiceabilityService {
     /**
@@ -80,31 +203,52 @@ export class ServiceabilityService {
      * Global Policy -> State -> District -> City/Town -> Service Area
      */
     static async checkServiceability(params: ServiceabilityCheckParams): Promise<ServiceabilityCheckResult> {
-        const rawState = params.state?.trim();
+        let rawState = params.state?.trim();
         const rawDistrictOrCity = (params.district || params.city)?.trim();
         const rawTown = params.town?.trim();
         const rawServiceArea = params.serviceArea?.trim();
         const postalCode = params.postalCode?.trim();
-        const role = params.userRole || "CUSTOMER";
+        const role = (params.userRole || "CUSTOMER").toUpperCase() as "CUSTOMER" | "SELLER" | "GUEST";
 
         // Query active states for fallback selection lists
-        const activeStates = await prisma.state.findMany({
+        let activeStates = await prisma.state.findMany({
             where: { isActive: true },
             select: { id: true, name: true },
             orderBy: { name: "asc" }
         });
 
-        // Query all active districts across active states
+        // Query all active districts across active states (or all active districts if states table is empty)
+        const activeDistrictWhere: any = {
+            isActive: true,
+            maintenanceMode: false,
+        };
+        if (activeStates.length > 0) {
+            activeDistrictWhere.state = { in: activeStates.map(s => s.name) };
+        }
+
         const activeDistricts = await prisma.city.findMany({
-            where: {
-                isActive: true,
-                state: { in: activeStates.map(s => s.name) }
-            },
+            where: activeDistrictWhere,
             select: { id: true, name: true, state: true },
             orderBy: { name: "asc" }
         });
 
-        if (!rawState) {
+        // 1. Direct Resolution by Database ID (Highest Fidelity)
+        let district: any = null;
+        if (params.districtId) {
+            district = await prisma.city.findUnique({
+                where: { id: params.districtId },
+                include: {
+                    cityTowns: true,
+                    serviceAreas: true
+                }
+            });
+            if (district && !rawState) {
+                rawState = district.state;
+            }
+        }
+
+        // If no state and no district ID and no district string
+        if (!rawState && !district && !rawDistrictOrCity) {
             return {
                 status: "UNKNOWN",
                 isServiceable: false,
@@ -120,16 +264,20 @@ export class ServiceabilityService {
             };
         }
 
-        // 1. Verify State Level
-        const stateRecord = await prisma.state.findFirst({
-            where: {
-                name: { equals: rawState, mode: "insensitive" }
-            }
-        });
+        // 2. Verify State Level
+        let stateRecord: any = null;
+        if (rawState) {
+            stateRecord = await prisma.state.findFirst({
+                where: {
+                    name: { equals: rawState, mode: "insensitive" }
+                }
+            });
+        }
 
-        if (!stateRecord || !stateRecord.isActive) {
+        // If states table has rows and the requested state is explicitly disabled
+        if (stateRecord && !stateRecord.isActive) {
             return {
-                status: "NOT_SERVICEABLE",
+                status: "COMING_SOON",
                 isServiceable: false,
                 inheritedStatus: "DISABLED_BY_STATE",
                 state: rawState,
@@ -145,97 +293,103 @@ export class ServiceabilityService {
             };
         }
 
-        // 2. Fetch marketplace policy
-        const marketplaceSetting = await prisma.marketplaceSetting.findUnique({ where: { id: 1 } });
-        const settingsData = marketplaceSetting?.data as any;
-        const districtRequired = settingsData?.districtRequired !== false;
-
-        // Active districts for this specific active state
-        const stateActiveDistricts = activeDistricts.filter(
-            d => d.state.toLowerCase() === stateRecord.name.toLowerCase()
-        );
-
-        if (!rawDistrictOrCity) {
-            if (districtRequired) {
+        // 3. District-Level Resolution
+        if (!district) {
+            if (!rawDistrictOrCity) {
+                // District is required by marketplace policy
                 return {
                     status: "NOT_SERVICEABLE",
                     isServiceable: false,
                     inheritedStatus: "DISTRICT_REQUIRED",
-                    state: stateRecord.name,
-                    message: `Please specify a district in ${stateRecord.name} to check serviceability.`,
+                    state: rawState || "Karnataka",
+                    message: `Please specify a district to check serviceability.`,
                     allowCustomerBrowsing: true,
                     allowCustomerOrdering: false,
                     allowSellerRegistration: false,
                     allowShopCreation: false,
                     deliveryEnabled: false,
                     availableStates: activeStates,
-                    availableDistricts: stateActiveDistricts,
+                    availableDistricts: activeDistricts,
                 };
             }
 
-            return {
-                status: "SERVICEABLE",
-                isServiceable: true,
-                inheritedStatus: "ENABLED_BY_STATE",
-                state: stateRecord.name,
-                message: `Service is available in ${stateRecord.name}.`,
-                allowCustomerBrowsing: true,
-                allowCustomerOrdering: true,
-                allowSellerRegistration: true,
-                allowShopCreation: true,
-                deliveryEnabled: true,
-                availableStates: activeStates,
-                availableDistricts: stateActiveDistricts,
-            };
+            const normalizedSearchDistrict = normalizeDistrictName(rawDistrictOrCity);
+
+            const districtQueryConditions: any[] = [
+                { name: { equals: normalizedSearchDistrict, mode: "insensitive" } },
+                { displayName: { equals: normalizedSearchDistrict, mode: "insensitive" } },
+                { name: { equals: rawDistrictOrCity, mode: "insensitive" } },
+                { displayName: { equals: rawDistrictOrCity, mode: "insensitive" } },
+            ];
+
+            // If rawDistrictOrCity had "District" stripped, also match the stripped term
+            const stripped = rawDistrictOrCity.replace(/\s+(district|dist\.?|taluk|taluka|city)$/i, "").trim();
+            if (stripped && stripped !== rawDistrictOrCity && stripped !== normalizedSearchDistrict) {
+                districtQueryConditions.push(
+                    { name: { equals: stripped, mode: "insensitive" } },
+                    { displayName: { equals: stripped, mode: "insensitive" } }
+                );
+            }
+
+            // First search within specified state (if state provided)
+            if (rawState) {
+                district = await prisma.city.findFirst({
+                    where: {
+                        state: { equals: rawState, mode: "insensitive" },
+                        OR: districtQueryConditions
+                    },
+                    include: {
+                        cityTowns: true,
+                        serviceAreas: true
+                    }
+                });
+            }
+
+            // Fallback: search across all states if state was mismatched or not passed
+            if (!district) {
+                district = await prisma.city.findFirst({
+                    where: {
+                        OR: districtQueryConditions
+                    },
+                    include: {
+                        cityTowns: true,
+                        serviceAreas: true
+                    }
+                });
+            }
         }
 
-        // Canonical alias resolution for district names
-        const normalizedSearchDistrict = DISTRICT_ALIASES[rawDistrictOrCity.toLowerCase()] || rawDistrictOrCity;
-
-        // 3. District-Level Check
-        const district = await prisma.city.findFirst({
-            where: {
-                state: { equals: stateRecord.name, mode: "insensitive" },
-                OR: [
-                    { name: { equals: normalizedSearchDistrict, mode: "insensitive" } },
-                    { displayName: { equals: normalizedSearchDistrict, mode: "insensitive" } },
-                    { name: { equals: rawDistrictOrCity, mode: "insensitive" } },
-                    { displayName: { equals: rawDistrictOrCity, mode: "insensitive" } }
-                ]
-            },
-            include: {
-                cityTowns: true,
-                serviceAreas: true
-            }
-        });
+        const stateDisplayName = district?.state || rawState || "Karnataka";
+        const districtDisplayName = district ? (district.displayName || district.name) : (rawDistrictOrCity || "Your Location");
 
         if (!district) {
             return {
-                status: "NOT_SERVICEABLE",
+                status: "COMING_SOON",
                 isServiceable: false,
                 inheritedStatus: "NOT_CONFIGURED",
-                state: stateRecord.name,
-                district: rawDistrictOrCity,
-                message: `AtlasBasket has not yet launched in ${rawDistrictOrCity}, ${stateRecord.name}. Coming soon!`,
+                state: stateDisplayName,
+                district: districtDisplayName,
+                message: `AtlasBasket has not yet launched in ${districtDisplayName}, ${stateDisplayName}. Coming soon!`,
                 allowCustomerBrowsing: false,
                 allowCustomerOrdering: false,
                 allowSellerRegistration: false,
                 allowShopCreation: false,
                 deliveryEnabled: false,
                 availableStates: activeStates,
-                availableDistricts: stateActiveDistricts,
+                availableDistricts: activeDistricts,
             };
         }
 
-        // Check if District is disabled
+        // Check if District Master is Disabled
         if (!district.isActive) {
             return {
-                status: "NOT_SERVICEABLE",
+                status: "DISTRICT_DISABLED",
                 isServiceable: false,
                 inheritedStatus: "DISABLED_BY_DISTRICT",
-                state: stateRecord.name,
+                districtId: district.id,
+                state: district.state,
                 district: district.displayName || district.name,
-                message: district.comingSoonMessage || `Service in ${district.displayName || district.name} is currently suspended or disabled.`,
+                message: district.comingSoonMessage || `AtlasBasket is currently not available in ${district.displayName || district.name}. Service is disabled.`,
                 comingSoonMessage: district.comingSoonMessage,
                 launchAnnouncement: district.launchAnnouncement,
                 customerNotice: district.customerNoticeMessage,
@@ -246,17 +400,18 @@ export class ServiceabilityService {
                 allowShopCreation: false,
                 deliveryEnabled: false,
                 availableStates: activeStates,
-                availableDistricts: stateActiveDistricts,
+                availableDistricts: activeDistricts,
             };
         }
 
         // Check Maintenance Mode
         if (district.maintenanceMode) {
             return {
-                status: "NOT_SERVICEABLE",
+                status: "MAINTENANCE",
                 isServiceable: false,
                 inheritedStatus: "MAINTENANCE",
-                state: stateRecord.name,
+                districtId: district.id,
+                state: district.state,
                 district: district.displayName || district.name,
                 message: district.customerNoticeMessage || `Operations in ${district.displayName || district.name} are undergoing scheduled maintenance. Please check back shortly.`,
                 comingSoonMessage: district.comingSoonMessage,
@@ -268,17 +423,18 @@ export class ServiceabilityService {
                 allowShopCreation: false,
                 deliveryEnabled: false,
                 availableStates: activeStates,
-                availableDistricts: stateActiveDistricts,
+                availableDistricts: activeDistricts,
             };
         }
 
         // Check Launch Status
         if (district.launchStatus === "COMING_SOON" || district.launchStatus === "PLANNED") {
             return {
-                status: "NOT_SERVICEABLE",
+                status: "COMING_SOON",
                 isServiceable: false,
                 inheritedStatus: "COMING_SOON",
-                state: stateRecord.name,
+                districtId: district.id,
+                state: district.state,
                 district: district.displayName || district.name,
                 message: district.comingSoonMessage || `AtlasBasket is coming soon to ${district.displayName || district.name}!`,
                 comingSoonMessage: district.comingSoonMessage,
@@ -291,151 +447,176 @@ export class ServiceabilityService {
                 allowShopCreation: false,
                 deliveryEnabled: false,
                 availableStates: activeStates,
-                availableDistricts: stateActiveDistricts,
+                availableDistricts: activeDistricts,
             };
         }
 
         // Role-specific availability checks
-        if (role === "SELLER" && (!district.isSellerEnabled || !district.allowSellerRegistration)) {
-            return {
-                status: "NOT_SERVICEABLE",
-                isServiceable: false,
-                inheritedStatus: "SELLER_DISABLED_BY_DISTRICT",
-                state: stateRecord.name,
-                district: district.displayName || district.name,
-                message: district.sellerNoticeMessage || `New seller registrations and operations are temporarily paused in ${district.displayName || district.name}.`,
-                sellerNotice: district.sellerNoticeMessage,
-                allowCustomerBrowsing: district.allowCustomerBrowsing,
-                allowCustomerOrdering: district.allowCustomerOrdering,
-                allowSellerRegistration: false,
-                allowShopCreation: district.allowShopCreation,
-                deliveryEnabled: district.isDeliveryEnabled,
-                availableStates: activeStates,
-                availableDistricts: stateActiveDistricts,
-            };
+        if (role === "SELLER") {
+            if (!district.isSellerEnabled || !district.allowSellerRegistration) {
+                return {
+                    status: "SELLER_UNAVAILABLE",
+                    isServiceable: false,
+                    inheritedStatus: "SELLER_DISABLED_BY_DISTRICT",
+                    districtId: district.id,
+                    state: district.state,
+                    district: district.displayName || district.name,
+                    message: district.sellerNoticeMessage || `Seller operations are currently not enabled in ${district.displayName || district.name}.`,
+                    sellerNotice: district.sellerNoticeMessage,
+                    allowCustomerBrowsing: district.allowCustomerBrowsing,
+                    allowCustomerOrdering: district.allowCustomerOrdering,
+                    allowSellerRegistration: false,
+                    allowShopCreation: district.allowShopCreation,
+                    deliveryEnabled: district.isDeliveryEnabled,
+                    availableStates: activeStates,
+                    availableDistricts: activeDistricts,
+                };
+            }
         }
 
-        if (role === "CUSTOMER" && !district.isCustomerEnabled) {
-            return {
-                status: "NOT_SERVICEABLE",
-                isServiceable: false,
-                inheritedStatus: "CUSTOMER_DISABLED_BY_DISTRICT",
-                state: stateRecord.name,
-                district: district.displayName || district.name,
-                message: district.customerNoticeMessage || `Customer operations are currently unavailable in ${district.displayName || district.name}.`,
-                customerNotice: district.customerNoticeMessage,
-                allowCustomerBrowsing: district.allowCustomerBrowsing,
-                allowCustomerOrdering: false,
-                allowSellerRegistration: district.allowSellerRegistration,
-                allowShopCreation: district.allowShopCreation,
-                deliveryEnabled: district.isDeliveryEnabled,
-                availableStates: activeStates,
-                availableDistricts: stateActiveDistricts,
-            };
+        if (role === "CUSTOMER") {
+            if (!district.isCustomerEnabled) {
+                return {
+                    status: "CUSTOMER_UNAVAILABLE",
+                    isServiceable: false,
+                    inheritedStatus: "CUSTOMER_DISABLED_BY_DISTRICT",
+                    districtId: district.id,
+                    state: district.state,
+                    district: district.displayName || district.name,
+                    message: district.customerNoticeMessage || `Customer operations are currently unavailable in ${district.displayName || district.name}.`,
+                    customerNotice: district.customerNoticeMessage,
+                    allowCustomerBrowsing: district.allowCustomerBrowsing,
+                    allowCustomerOrdering: false,
+                    allowSellerRegistration: district.allowSellerRegistration,
+                    allowShopCreation: district.allowShopCreation,
+                    deliveryEnabled: district.isDeliveryEnabled,
+                    availableStates: activeStates,
+                    availableDistricts: activeDistricts,
+                };
+            }
         }
 
         // 4. City / Town Availability Check
-        let resolvedCityTownName: string | undefined = undefined;
-        if (rawTown) {
-            const matchedTown = district.cityTowns.find(
-                t => t.name.toLowerCase() === rawTown.toLowerCase() ||
+        let matchedTown: any = null;
+        if (params.townId) {
+            matchedTown = district.cityTowns.find((t: any) => t.id === params.townId);
+        } else if (rawTown) {
+            matchedTown = district.cityTowns.find(
+                (t: any) => t.name.toLowerCase() === rawTown.toLowerCase() ||
                      (t.displayName && t.displayName.toLowerCase() === rawTown.toLowerCase())
             );
+        }
 
-            if (matchedTown) {
-                resolvedCityTownName = matchedTown.displayName || matchedTown.name;
-                if (!matchedTown.isActive) {
+        if (matchedTown) {
+            const resolvedCityTownName = matchedTown.displayName || matchedTown.name;
+            if (!matchedTown.isActive) {
+                return {
+                    status: "TOWN_DISABLED",
+                    isServiceable: false,
+                    inheritedStatus: "DISABLED_BY_CITY",
+                    districtId: district.id,
+                    townId: matchedTown.id,
+                    state: district.state,
+                    district: district.displayName || district.name,
+                    city: resolvedCityTownName,
+                    town: resolvedCityTownName,
+                    message: `Service is currently suspended in ${resolvedCityTownName}.`,
+                    allowCustomerBrowsing: district.allowCustomerBrowsing,
+                    allowCustomerOrdering: false,
+                    allowSellerRegistration: false,
+                    allowShopCreation: false,
+                    deliveryEnabled: false,
+                    availableStates: activeStates,
+                    availableDistricts: activeDistricts,
+                };
+            }
+        }
+
+        // 5. Service Area Check (by ID or name)
+        let matchedArea: any = null;
+        if (params.serviceAreaId) {
+            matchedArea = district.serviceAreas.find((a: any) => a.id === params.serviceAreaId);
+        } else if (rawServiceArea) {
+            matchedArea = district.serviceAreas.find(
+                (a: any) => a.name.toLowerCase() === rawServiceArea.toLowerCase()
+            );
+        }
+
+        if (matchedArea) {
+            // If matching service area belongs to a parent town, verify town is active
+            if (matchedArea.cityTownId) {
+                const parentTown = district.cityTowns.find((t: any) => t.id === matchedArea.cityTownId);
+                if (parentTown && !parentTown.isActive) {
                     return {
-                        status: "NOT_SERVICEABLE",
+                        status: "TOWN_DISABLED",
                         isServiceable: false,
                         inheritedStatus: "DISABLED_BY_CITY",
-                        state: stateRecord.name,
+                        districtId: district.id,
+                        townId: parentTown.id,
+                        serviceAreaId: matchedArea.id,
+                        state: district.state,
                         district: district.displayName || district.name,
-                        city: resolvedCityTownName,
-                        message: `Service is currently suspended in ${resolvedCityTownName}.`,
-                        allowCustomerBrowsing: district.allowCustomerBrowsing,
-                        allowCustomerOrdering: false,
-                        allowSellerRegistration: false,
-                        allowShopCreation: false,
-                        deliveryEnabled: false,
-                        availableStates: activeStates,
-                        availableDistricts: stateActiveDistricts,
-                    };
-                }
-            }
-        }
-
-        // 5. Service Area Check (if specified)
-        if (rawServiceArea) {
-            const matchedArea = district.serviceAreas.find(
-                a => a.name.toLowerCase() === rawServiceArea.toLowerCase()
-            );
-
-            if (matchedArea) {
-                // If matching service area belongs to a parent town, verify town is active
-                if (matchedArea.cityTownId) {
-                    const parentTown = district.cityTowns.find(t => t.id === matchedArea.cityTownId);
-                    if (parentTown && !parentTown.isActive) {
-                        return {
-                            status: "NOT_SERVICEABLE",
-                            isServiceable: false,
-                            inheritedStatus: "DISABLED_BY_CITY",
-                            state: stateRecord.name,
-                            district: district.displayName || district.name,
-                            city: parentTown.displayName || parentTown.name,
-                            serviceArea: matchedArea.name,
-                            message: `Service in ${matchedArea.name} is unavailable because parent town ${parentTown.displayName || parentTown.name} is disabled.`,
-                            allowCustomerBrowsing: district.allowCustomerBrowsing,
-                            allowCustomerOrdering: false,
-                            allowSellerRegistration: false,
-                            allowShopCreation: false,
-                            deliveryEnabled: false,
-                            availableStates: activeStates,
-                            availableDistricts: stateActiveDistricts,
-                        };
-                    }
-                }
-
-                if (!matchedArea.isActive) {
-                    return {
-                        status: "NOT_SERVICEABLE",
-                        isServiceable: false,
-                        inheritedStatus: "DISABLED_BY_SERVICE_AREA",
-                        state: stateRecord.name,
-                        district: district.displayName || district.name,
-                        city: resolvedCityTownName,
+                        city: parentTown.displayName || parentTown.name,
+                        town: parentTown.displayName || parentTown.name,
                         serviceArea: matchedArea.name,
-                        message: `Service is currently unavailable in the ${matchedArea.name} coverage area.`,
+                        message: `Service in ${matchedArea.name} is unavailable because parent town ${parentTown.displayName || parentTown.name} is disabled.`,
                         allowCustomerBrowsing: district.allowCustomerBrowsing,
                         allowCustomerOrdering: false,
                         allowSellerRegistration: false,
                         allowShopCreation: false,
                         deliveryEnabled: false,
                         availableStates: activeStates,
-                        availableDistricts: stateActiveDistricts,
+                        availableDistricts: activeDistricts,
                     };
                 }
             }
+
+            if (!matchedArea.isActive) {
+                return {
+                    status: "SERVICE_AREA_DISABLED",
+                    isServiceable: false,
+                    inheritedStatus: "DISABLED_BY_SERVICE_AREA",
+                    districtId: district.id,
+                    townId: matchedArea.cityTownId || undefined,
+                    serviceAreaId: matchedArea.id,
+                    state: district.state,
+                    district: district.displayName || district.name,
+                    city: matchedTown?.displayName || matchedTown?.name,
+                    town: matchedTown?.displayName || matchedTown?.name,
+                    serviceArea: matchedArea.name,
+                    message: `Service is currently unavailable in the ${matchedArea.name} coverage area.`,
+                    allowCustomerBrowsing: district.allowCustomerBrowsing,
+                    allowCustomerOrdering: false,
+                    allowSellerRegistration: false,
+                    allowShopCreation: false,
+                    deliveryEnabled: false,
+                    availableStates: activeStates,
+                    availableDistricts: activeDistricts,
+                };
+            }
         }
 
-        // 6. Postal Code Check (if district has configured service areas with postal codes)
+        // 6. Postal Code Check
         if (postalCode && district.serviceAreas.length > 0) {
-            const areasWithPostalCodes = district.serviceAreas.filter(a => a.postalCodes && a.postalCodes.length > 0);
+            const areasWithPostalCodes = district.serviceAreas.filter((a: any) => a.postalCodes && a.postalCodes.length > 0);
             if (areasWithPostalCodes.length > 0) {
-                const matchingArea = areasWithPostalCodes.find(a => a.postalCodes.includes(postalCode));
+                const matchingArea = areasWithPostalCodes.find((a: any) => a.postalCodes.includes(postalCode));
                 if (matchingArea) {
-                    // If matching service area belongs to a parent town, verify town is active
                     if (matchingArea.cityTownId) {
-                        const parentTown = district.cityTowns.find(t => t.id === matchingArea.cityTownId);
+                        const parentTown = district.cityTowns.find((t: any) => t.id === matchingArea.cityTownId);
                         if (parentTown && !parentTown.isActive) {
                             return {
-                                status: "NOT_SERVICEABLE",
+                                status: "TOWN_DISABLED",
                                 isServiceable: false,
                                 inheritedStatus: "DISABLED_BY_CITY",
-                                state: stateRecord.name,
+                                districtId: district.id,
+                                townId: parentTown.id,
+                                serviceAreaId: matchingArea.id,
+                                state: district.state,
                                 district: district.displayName || district.name,
                                 postalCode,
                                 city: parentTown.displayName || parentTown.name,
+                                town: parentTown.displayName || parentTown.name,
                                 serviceArea: matchingArea.name,
                                 message: `Delivery to PIN code ${postalCode} (${matchingArea.name}) is unavailable because parent town ${parentTown.displayName || parentTown.name} is disabled.`,
                                 allowCustomerBrowsing: district.allowCustomerBrowsing,
@@ -444,17 +625,20 @@ export class ServiceabilityService {
                                 allowShopCreation: false,
                                 deliveryEnabled: false,
                                 availableStates: activeStates,
-                                availableDistricts: stateActiveDistricts,
+                                availableDistricts: activeDistricts,
                             };
                         }
                     }
 
                     if (!matchingArea.isActive) {
                         return {
-                            status: "NOT_SERVICEABLE",
+                            status: "SERVICE_AREA_DISABLED",
                             isServiceable: false,
                             inheritedStatus: "DISABLED_BY_SERVICE_AREA",
-                            state: stateRecord.name,
+                            districtId: district.id,
+                            townId: matchingArea.cityTownId || undefined,
+                            serviceAreaId: matchingArea.id,
+                            state: district.state,
                             district: district.displayName || district.name,
                             postalCode,
                             serviceArea: matchingArea.name,
@@ -465,24 +649,30 @@ export class ServiceabilityService {
                             allowShopCreation: false,
                             deliveryEnabled: false,
                             availableStates: activeStates,
-                            availableDistricts: stateActiveDistricts,
+                            availableDistricts: activeDistricts,
                         };
                     }
                 }
             }
         }
 
-        // District is fully operational
+        // District is fully operational and serviceable
+        const resolvedCityName = matchedTown?.displayName || matchedTown?.name || district.displayName || district.name;
+
         return {
-            status: "SERVICEABLE",
+            status: "AVAILABLE",
             isServiceable: true,
             inheritedStatus: "ENABLED",
-            state: stateRecord.name,
+            districtId: district.id,
+            townId: matchedTown?.id,
+            serviceAreaId: matchedArea?.id,
+            state: district.state,
             district: district.displayName || district.name,
-            city: resolvedCityTownName || district.name,
+            city: resolvedCityName,
+            town: matchedTown?.displayName || matchedTown?.name,
             postalCode,
-            serviceArea: rawServiceArea,
-            message: `Delivery is active in ${district.displayName || district.name}, ${stateRecord.name}.`,
+            serviceArea: matchedArea?.name || rawServiceArea,
+            message: `Delivery is active in ${district.displayName || district.name}, ${district.state}.`,
             comingSoonMessage: district.comingSoonMessage,
             launchAnnouncement: district.launchAnnouncement,
             customerNotice: district.customerNoticeMessage,
@@ -493,13 +683,13 @@ export class ServiceabilityService {
             allowShopCreation: district.allowShopCreation,
             deliveryEnabled: district.isDeliveryEnabled,
             availableStates: activeStates,
-            availableDistricts: stateActiveDistricts,
+            availableDistricts: activeDistricts,
         };
     }
 
     /**
-     * Resolve GPS coordinates to human-readable administrative hierarchy
-     * using Google Maps Geocoding (if key available) or Nominatim OSM fallback.
+     * Resolve GPS coordinates to human-readable administrative hierarchy.
+     * NEVER defaults to Mysuru or any arbitrary district on resolution failure.
      */
     static async resolveCoordinates(latitude: number, longitude: number): Promise<GeocodeLocationResult> {
         const apiKey = process.env.GOOGLE_MAPS_SERVER_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
@@ -510,9 +700,9 @@ export class ServiceabilityService {
                 const response = await axios.get(url, { timeout: 4000 });
                 if (response.data?.status === "OK" && response.data?.results?.length > 0) {
                     const result = response.data.results[0];
-                    let state = "Karnataka";
-                    let district = "Mysuru";
-                    let city = "Mysuru";
+                    let state = "";
+                    let district = "";
+                    let city = "";
                     let postalCode = "";
                     let serviceArea = "";
 
@@ -531,10 +721,8 @@ export class ServiceabilityService {
                         }
                     }
 
-                    // Alias normalization
-                    const canonicalDistrict = DISTRICT_ALIASES[district.toLowerCase()] ||
-                                              DISTRICT_ALIASES[city.toLowerCase()] ||
-                                              district;
+                    // Canonical alias normalization
+                    const canonicalDistrict = normalizeDistrictName(district || city);
 
                     return {
                         state,
@@ -552,7 +740,7 @@ export class ServiceabilityService {
             }
         }
 
-        // Free OpenStreetMap Nominatim Fallback
+        // OpenStreetMap Nominatim Fallback
         try {
             const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`;
             const response = await axios.get(url, {
@@ -562,20 +750,18 @@ export class ServiceabilityService {
 
             if (response.data && response.data.address) {
                 const addr = response.data.address;
-                const state = addr.state || "Karnataka";
-                const rawDistrict = addr.state_district || addr.county || addr.city || addr.town || "Mysuru";
+                const state = addr.state || "";
+                const rawDistrict = addr.state_district || addr.county || addr.city || addr.town || "";
                 const city = addr.city || addr.town || addr.village || rawDistrict;
                 const serviceArea = addr.suburb || addr.neighbourhood || addr.residential || "";
                 const postalCode = addr.postcode || "";
 
-                const canonicalDistrict = DISTRICT_ALIASES[rawDistrict.toLowerCase()] ||
-                                          DISTRICT_ALIASES[city.toLowerCase()] ||
-                                          rawDistrict;
+                const canonicalDistrict = normalizeDistrictName(rawDistrict || city);
 
                 return {
                     state,
                     district: canonicalDistrict,
-                    city,
+                    city: city || canonicalDistrict,
                     serviceArea: serviceArea || undefined,
                     postalCode: postalCode || undefined,
                     latitude,
@@ -587,8 +773,7 @@ export class ServiceabilityService {
             logger.warn(`[ServiceabilityService] Nominatim reverse geocode error: ${err?.message}`);
         }
 
-        // If geocoding services unreachable or resolution fails, return empty result
-        // NEVER substitute an arbitrary enabled district like Mysuru
+        // Return empty result when resolution fails - never substitute an arbitrary district
         return {
             state: "",
             district: "",
@@ -615,6 +800,7 @@ export class ServiceabilityService {
         postalCode?: string;
         latitude?: number;
         longitude?: number;
+        notes?: string;
     }) {
         const state = params.state.trim();
         const district = (params.district || params.city)?.trim() || null;

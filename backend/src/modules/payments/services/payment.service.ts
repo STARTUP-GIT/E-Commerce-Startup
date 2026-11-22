@@ -3,6 +3,7 @@ import * as razorpayService from "./razorpay.service.js";
 import * as phonepeService from "./phonepe.service.js";
 import { sendPaymentNotification } from "../utils/paymentHelper.js";
 import { IndianGstService, roundCurrency } from "../../../services/gst/gst.service.js";
+import { ServiceabilityService } from "../../../services/location/serviceability.service.js";
 
 // Helper to calculate payment totals (including packing fees, shipping, platform fee placeholder, and GST)
 export const calculateTotals = async (params: {
@@ -91,26 +92,17 @@ export const calculateTotals = async (params: {
         const address = shippingAddressRecord;
         shippingCity = (address.district || address.city).trim().toLowerCase();
 
-        // Verify shipping location is serviceable against configured State and District/City
-        const stateRecord = await prisma.state.findFirst({
-            where: { name: { equals: address.state.trim(), mode: "insensitive" as const }, isActive: true }
+        // Verify shipping location is serviceable using the authoritative serviceability engine
+        const serviceabilityResult = await ServiceabilityService.checkServiceability({
+            state: address.state,
+            district: address.district || address.city,
+            city: address.city,
+            postalCode: address.postalCode,
+            userRole: "CUSTOMER"
         });
-        if (!stateRecord) {
-            throw new Error(`Delivery is not currently available at your location (${address.city || address.district}, ${address.state}). Coming soon to your area.`);
-        }
 
-        const activeCity = await prisma.city.findFirst({
-            where: {
-                state: { equals: stateRecord.name, mode: "insensitive" as const },
-                OR: [
-                    { name: { equals: address.city.trim(), mode: "insensitive" as const } },
-                    ...(address.district ? [{ name: { equals: address.district.trim(), mode: "insensitive" as const } }] : []),
-                ],
-                isActive: true
-            }
-        });
-        if (!activeCity) {
-            throw new Error(`Delivery is not currently available at your location (${address.city || address.district}, ${address.state}). Coming soon to your area.`);
+        if (!serviceabilityResult.isServiceable) {
+            throw new Error(serviceabilityResult.message || `Delivery is not currently available at your location (${address.city || address.district}, ${address.state}). Coming soon to your area.`);
         }
     } else if (customerId) {
         shippingAddressRecord = await prisma.customerAddress.findFirst({

@@ -49,7 +49,7 @@ export function ComingSoonDialog() {
     if (comingSoonOpen) {
       setIsLoadingCities(true);
       axiosInstance
-        .get('/api/locations/available-cities')
+        .get('/api/locations/available-cities?role=SELLER')
         .then((res) => {
           const list = (res.data?.cities || []).filter((c: any) => c.isSellerEnabled !== false);
           setAvailableCities(list);

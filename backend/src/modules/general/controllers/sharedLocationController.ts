@@ -8,13 +8,31 @@ import { ServiceabilityService } from "../../../services/location/serviceability
  */
 export const resolveLocation = async (req: Request, res: Response) => {
     try {
-        const { latitude, longitude, state, district, city, userRole } = req.body ?? {};
+        const {
+            latitude,
+            longitude,
+            districtId,
+            townId,
+            serviceAreaId,
+            stateId,
+            state,
+            district,
+            city,
+            town,
+            serviceArea,
+            postalCode: inputPostalCode,
+            userRole,
+            role
+        } = req.body ?? {};
+
+        const effectiveRole = (userRole || role || "CUSTOMER").toUpperCase() as "CUSTOMER" | "SELLER" | "GUEST";
 
         let resolvedState = state?.trim();
         let resolvedDistrict = district?.trim();
         let resolvedCity = city?.trim();
-        let resolvedServiceArea: string | undefined = undefined;
-        let postalCode: string | undefined = undefined;
+        let resolvedTown = town?.trim();
+        let resolvedServiceArea = serviceArea?.trim();
+        let postalCode = inputPostalCode?.trim();
         let formattedAddress: string | undefined = undefined;
 
         if (latitude !== undefined && longitude !== undefined && !isNaN(Number(latitude)) && !isNaN(Number(longitude))) {
@@ -25,29 +43,38 @@ export const resolveLocation = async (req: Request, res: Response) => {
             resolvedState = resolvedState || geocodeResult.state;
             resolvedDistrict = resolvedDistrict || geocodeResult.district;
             resolvedCity = resolvedCity || geocodeResult.city;
-            resolvedServiceArea = geocodeResult.serviceArea;
-            postalCode = geocodeResult.postalCode;
+            resolvedServiceArea = resolvedServiceArea || geocodeResult.serviceArea;
+            postalCode = postalCode || geocodeResult.postalCode;
             formattedAddress = geocodeResult.formattedAddress;
         }
 
         const serviceability = await ServiceabilityService.checkServiceability({
+            districtId,
+            townId,
+            serviceAreaId,
+            stateId,
             state: resolvedState,
             district: resolvedDistrict,
             city: resolvedCity,
+            town: resolvedTown,
             serviceArea: resolvedServiceArea,
             postalCode,
             latitude: latitude !== undefined ? Number(latitude) : undefined,
             longitude: longitude !== undefined ? Number(longitude) : undefined,
-            userRole: userRole || "CUSTOMER"
+            userRole: effectiveRole
         });
 
         const hasResolvedLocation = Boolean(resolvedState && (resolvedDistrict || resolvedCity));
 
         return res.status(200).json({
             resolvedLocation: hasResolvedLocation ? {
+                districtId: serviceability.districtId || districtId,
+                townId: serviceability.townId || townId,
+                serviceAreaId: serviceability.serviceAreaId || serviceAreaId,
                 state: resolvedState!,
                 district: (resolvedDistrict || resolvedCity)!,
                 city: (resolvedCity || resolvedDistrict)!,
+                town: resolvedTown,
                 serviceArea: resolvedServiceArea,
                 postalCode,
                 latitude: latitude !== undefined ? Number(latitude) : undefined,
@@ -64,21 +91,48 @@ export const resolveLocation = async (req: Request, res: Response) => {
 
 /**
  * POST /api/locations/check-serviceability
+ * Also supports query params when called as GET
  */
 export const checkServiceability = async (req: Request, res: Response) => {
     try {
-        const { state, district, city, town, serviceArea, postalCode, latitude, longitude, userRole } = req.body ?? {};
-
-        const result = await ServiceabilityService.checkServiceability({
+        const source = req.method === "GET" ? req.query : req.body ?? {};
+        const {
+            districtId,
+            townId,
+            serviceAreaId,
+            stateId,
             state,
             district,
             city,
             town,
             serviceArea,
             postalCode,
-            latitude: latitude !== undefined ? Number(latitude) : undefined,
-            longitude: longitude !== undefined ? Number(longitude) : undefined,
-            userRole
+            latitude,
+            longitude,
+            lat,
+            lng,
+            userRole,
+            role
+        } = source;
+
+        const effectiveRole = (userRole || role || "CUSTOMER").toString().toUpperCase() as "CUSTOMER" | "SELLER" | "GUEST";
+        const effectiveLat = latitude !== undefined ? Number(latitude) : (lat !== undefined ? Number(lat) : undefined);
+        const effectiveLng = longitude !== undefined ? Number(longitude) : (lng !== undefined ? Number(lng) : undefined);
+
+        const result = await ServiceabilityService.checkServiceability({
+            districtId: districtId ? String(districtId).trim() : undefined,
+            townId: townId ? String(townId).trim() : undefined,
+            serviceAreaId: serviceAreaId ? String(serviceAreaId).trim() : undefined,
+            stateId: stateId ? String(stateId).trim() : undefined,
+            state: state ? String(state).trim() : undefined,
+            district: district ? String(district).trim() : undefined,
+            city: city ? String(city).trim() : undefined,
+            town: town ? String(town).trim() : undefined,
+            serviceArea: serviceArea ? String(serviceArea).trim() : undefined,
+            postalCode: postalCode ? String(postalCode).trim() : undefined,
+            latitude: effectiveLat !== undefined && !isNaN(effectiveLat) ? effectiveLat : undefined,
+            longitude: effectiveLng !== undefined && !isNaN(effectiveLng) ? effectiveLng : undefined,
+            userRole: effectiveRole
         });
 
         return res.status(200).json(result);
@@ -91,22 +145,36 @@ export const checkServiceability = async (req: Request, res: Response) => {
 /**
  * GET /api/locations/available-cities
  * List all currently available and serviceable cities/districts dynamically from backend
+ * Supports ?role=CUSTOMER (default) and ?role=SELLER
  */
 export const getAvailableCities = async (req: Request, res: Response) => {
     try {
+        const role = (req.query.role || req.query.userRole || "CUSTOMER").toString().toUpperCase();
+
         const activeStates = await prisma.state.findMany({
             where: { isActive: true },
             select: { id: true, name: true },
             orderBy: { name: "asc" }
         });
 
+        const districtWhere: any = {
+            isActive: true,
+            maintenanceMode: false,
+            launchStatus: "LAUNCHED",
+        };
+
+        if (activeStates.length > 0) {
+            districtWhere.state = { in: activeStates.map(s => s.name) };
+        }
+
+        if (role === "CUSTOMER") {
+            districtWhere.isCustomerEnabled = true;
+        } else if (role === "SELLER") {
+            districtWhere.isSellerEnabled = true;
+        }
+
         const activeDistricts = await prisma.city.findMany({
-            where: {
-                isActive: true,
-                maintenanceMode: false,
-                launchStatus: "LAUNCHED",
-                state: { in: activeStates.map(s => s.name) }
-            },
+            where: districtWhere,
             select: {
                 id: true,
                 name: true,
@@ -157,15 +225,14 @@ export const submitLocationRequest = async (req: Request, res: Response) => {
             city,
             postalCode,
             latitude,
-            longitude
+            longitude,
+            notes
         } = req.body ?? {};
 
-        // Extract user identity from session cookies or token if available
         let customerId = (req as any).customerId;
         let sellerId = (req as any).sellerId;
 
         if (!customerId && req.cookies?.customer_session) {
-            // Check polymorphic or decode customer_session
             try {
                 const { verifyAccessToken } = await import("../../../config/token.js");
                 const decoded = verifyAccessToken(req.cookies.customer_session) as any;
@@ -194,6 +261,7 @@ export const submitLocationRequest = async (req: Request, res: Response) => {
             postalCode,
             latitude: latitude !== undefined ? Number(latitude) : undefined,
             longitude: longitude !== undefined ? Number(longitude) : undefined,
+            notes
         });
 
         return res.status(201).json(result);

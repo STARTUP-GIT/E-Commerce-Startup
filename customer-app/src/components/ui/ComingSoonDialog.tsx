@@ -29,17 +29,17 @@ export function ComingSoonDialog() {
     setIsSubscribing(true);
     setSubscribeError(null);
     try {
-      await axiosInstance.post('/customer/api/location/notify-me', {
+      await axiosInstance.post('/api/locations/request', {
         state: comingSoonState,
         district: comingSoonDistrict || undefined,
-        consent: true,
+        requestType: 'CUSTOMER',
       });
       setNotified(true);
       setTimeout(() => {
         handleClose();
       }, 1500);
     } catch (err: any) {
-      if (err.response?.status === 200 || err.response?.data?.success) {
+      if (err.response?.status === 200 || err.response?.status === 201 || err.response?.data?.success) {
         setNotified(true);
         setTimeout(() => handleClose(), 1500);
       } else {
