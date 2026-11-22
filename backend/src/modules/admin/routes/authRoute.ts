@@ -35,45 +35,48 @@ import {
 import { adminAuth } from "../../../middleware/adminAuth.js";
 import { requirePermission } from "../../../middleware/requirePermission.js";
 import {
-    loginLimiter,
-    registerLimiter,
-    passwordLimiter,
-    googleOAuthLimiter,
-    otpLimiter,
+    adminLoginLimiter,
+    adminGoogleOAuthLimiter,
+    adminSetupLimiter,
+    adminPasswordResetLimiter,
+    adminPasswordChangeLimiter,
+    adminEmailChangeLimiter,
+    adminInvitationLimiter,
+    adminRefreshLimiter,
 } from "../../../middleware/rateLimiter.js";
 
 const router = Router();
 
 // ─── Public: Setup (no auth required) ────────────────────────────────────────
 router.get("/setup/status", getSetupStatus);
-router.post("/setup", registerLimiter, setupFirstAdmin);
+router.post("/setup", adminSetupLimiter, setupFirstAdmin);
 
 // ─── Public: Authentication ───────────────────────────────────────────────────
-router.post("/login", loginLimiter, login);
-router.post("/google", googleOAuthLimiter, googleOAuth);
-router.post("/refresh", passwordLimiter, refresh);
-router.post("/forgot-password", passwordLimiter, forgotPassword);
-router.post("/verify-otp", otpLimiter, verifyOtp);
-router.post("/reset-password", passwordLimiter, resetPassword);
+router.post("/login", adminLoginLimiter, login);
+router.post("/google", adminGoogleOAuthLimiter, googleOAuth);
+router.post("/refresh", adminRefreshLimiter, refresh);
+router.post("/forgot-password", adminPasswordResetLimiter, forgotPassword);
+router.post("/verify-otp", adminPasswordResetLimiter, verifyOtp);
+router.post("/reset-password", adminPasswordResetLimiter, resetPassword);
 router.post("/logout", adminAuth, logout);
 
 // ─── Public: Invitation & Verification ────────────────────────────────────────
 router.get("/invitations/verify", getInvitationByToken);
-router.post("/invitations/accept", registerLimiter, acceptInvitation);
-router.post("/email-change/verify", verifyEmailChange);
+router.post("/invitations/accept", adminInvitationLimiter, acceptInvitation);
+router.post("/email-change/verify", adminEmailChangeLimiter, verifyEmailChange);
 
 // ─── Protected: Profile ───────────────────────────────────────────────────────
 router.get("/profile", adminAuth, getProfile);
 router.put("/profile", adminAuth, updateProfile);
 router.delete("/profile/avatar", adminAuth, removeAvatar);
-router.put("/profile/password", adminAuth, updatePassword);
-router.post("/profile/email-change", adminAuth, requestEmailChange);
+router.put("/profile/password", adminAuth, adminPasswordChangeLimiter, updatePassword);
+router.post("/profile/email-change", adminAuth, adminEmailChangeLimiter, requestEmailChange);
 
 // ─── Protected: Admin Management (permission gated) ───────────────────────────
 router.get("/list", adminAuth, requirePermission("admin.users.manage"), listAdmins);
 router.post("/", adminAuth, requirePermission("admin.users.manage"), createAdmin);
 router.get("/invitations", adminAuth, requirePermission("admin.users.manage"), listInvitations);
-router.post("/invitations", adminAuth, requirePermission("admin.users.manage"), inviteAdmin);
+router.post("/invitations", adminAuth, requirePermission("admin.users.manage"), adminInvitationLimiter, inviteAdmin);
 router.post("/invitations/:id/resend", adminAuth, requirePermission("admin.users.manage"), resendInvitation);
 router.delete("/invitations/:id", adminAuth, requirePermission("admin.users.manage"), revokeInvitation);
 router.get("/access-requests", adminAuth, requirePermission("admin.users.manage"), listAccessRequests);

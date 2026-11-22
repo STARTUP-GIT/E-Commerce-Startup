@@ -107,6 +107,35 @@ axiosInstance.interceptors.response.use(
       }
     }
 
+    if (status === 429) {
+      const retryAfterHeader = error.response?.headers?.['retry-after'];
+      const retryAfterSeconds =
+        error.response?.data?.retryAfterSeconds ||
+        error.response?.data?.retryAfter ||
+        (retryAfterHeader ? Number(retryAfterHeader) : null);
+
+      let rateLimitMsg =
+        error.response?.data?.message ||
+        'Too many requests. Please wait a moment before trying again.';
+
+      if (retryAfterSeconds && typeof retryAfterSeconds === 'number' && retryAfterSeconds > 0) {
+        rateLimitMsg = `${rateLimitMsg} (retry in ${retryAfterSeconds}s)`;
+      }
+
+      error.message = rateLimitMsg;
+
+      if (!isServer && typeof window !== 'undefined') {
+        try {
+          const { useUIStore } = await import('@/lib/store/uiStore');
+          useUIStore.getState().showToast(rateLimitMsg, 'error');
+        } catch {
+          // Ignore if UI store cannot be loaded
+        }
+      }
+
+      return Promise.reject(error);
+    }
+
     const message =
       error.response?.data?.message ||
       error.response?.data?.error ||

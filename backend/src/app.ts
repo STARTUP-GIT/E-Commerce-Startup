@@ -28,7 +28,7 @@ import sellerAuth from './modules/seller/routes/authroute.js';
 import shopRoutes from './modules/seller/routes/shopRoute.js';
 import sellerProfileRoute from './modules/seller/routes/profileRoute.js';
 import sellerLocationRoute from './modules/seller/routes/locationRoute.js';
-import { limiter, adminLimiter } from './middleware/rateLimiter.js';
+import { limiter, adminLimiter, authenticatedAdminLimiter } from './middleware/rateLimiter.js';
 import sellerProducts from './modules/seller/routes/productRoute.js';
 import ordersRoutes from './modules/seller/routes/ordersRoute.js';
 import analyticsRoutes from './modules/seller/routes/analyticsRoute.js';
