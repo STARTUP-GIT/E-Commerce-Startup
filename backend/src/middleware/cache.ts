@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { cacheStore } from "../services/cache/cache.service.js";
+import { DeliverySettingsService } from "../modules/delivery/services/deliverySettings.service.js";
 
 const CACHE_PREFIX = "c:";
 
@@ -53,6 +54,11 @@ export const cache = (ttlSeconds: number) => {
 
 /** Invalidate every cached public response (called after public-facing mutations). */
 export const invalidatePublicCache = (): void => {
+  try {
+    DeliverySettingsService.invalidateCache();
+  } catch {
+    // Ignore if not initialized
+  }
   Promise.resolve(cacheStore.delByPrefix(CACHE_PREFIX)).catch((err) => {
     console.error("[Cache] Invalidation error:", err);
   });
@@ -60,6 +66,11 @@ export const invalidatePublicCache = (): void => {
 
 /** Async version for callers and tests that want to await invalidation completion. */
 export const invalidatePublicCacheAsync = async (): Promise<number> => {
+  try {
+    DeliverySettingsService.invalidateCache();
+  } catch {
+    // Ignore if not initialized
+  }
   try {
     return await cacheStore.delByPrefix(CACHE_PREFIX);
   } catch (err) {

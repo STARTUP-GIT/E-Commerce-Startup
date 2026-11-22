@@ -11,6 +11,7 @@ import {
 import {
   getOverviewStats,
   getSettings,
+  getOperationalCoverage,
   updateSettings,
   getSettingsAuditLogs,
   listRiders,
@@ -59,6 +60,7 @@ router.get("/delivery/stats", adminAuth, getOverviewStats);
 
 // 2. Global Delivery Settings & Audit Logs (Single Source of Truth)
 router.get("/delivery/settings", adminAuth, getSettings);
+router.get("/delivery/operational-coverage", adminAuth, getOperationalCoverage);
 router.put("/delivery/settings", adminAuth, updateSettings);
 router.get("/delivery/settings/logs", adminAuth, getSettingsAuditLogs);
 

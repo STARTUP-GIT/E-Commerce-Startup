@@ -44,20 +44,18 @@ router.post("/api/delivery/auth/google", googleLoginRider);
 router.post("/api/delivery/auth/logout", logoutRider);
 router.get("/api/delivery/riders/:id/public", getPublicProfile);
 
-// Dynamic Operational Districts (Strictly from Database enabled by Admin)
+// Dynamic Operational Districts (Strictly from Database enabled by Admin with delivery operational rules)
 router.get("/api/delivery/districts", async (req, res) => {
   try {
-    const districts = await prisma.city.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true, state: true },
-      orderBy: { name: "asc" },
-    });
+    const coverage = await DeliverySettingsService.getOperationalDeliveryCoverage();
     return res.status(200).json({
       success: true,
-      districts: districts.map((d) => ({
+      districts: coverage.operationalDistricts.map((d) => ({
         id: d.id,
         name: d.name,
         state: d.state,
+        townCount: d.towns.length,
+        serviceAreaCount: d.serviceAreas.length,
       })),
     });
   } catch (err: any) {
@@ -67,38 +65,34 @@ router.get("/api/delivery/districts", async (req, res) => {
 
 router.get("/api/delivery/settings/public", async (req, res) => {
   try {
-    const settings = await DeliverySettingsService.getEffectiveSettings();
+    const [settings, coverage] = await Promise.all([
+      DeliverySettingsService.getEffectiveSettings(),
+      DeliverySettingsService.getOperationalDeliveryCoverage(),
+    ]);
 
-    // Query active districts directly from DB enabled by Admin
-    const activeCitiesFromDb = await prisma.city.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true, state: true },
-      orderBy: { name: "asc" },
-    });
-    const activeDistrictNames = activeCitiesFromDb.map((c) => c.name);
+    const activeDistrictNames = coverage.operationalDistricts.map((c) => c.name);
+    const activeLocations = coverage.activeLocations;
 
     const dynamicCityCardValue =
       settings.cardCityValue && settings.cardCityValue !== "Mysuru"
         ? settings.cardCityValue
-        : activeDistrictNames.length === 1
-        ? activeDistrictNames[0]
-        : activeDistrictNames.length > 1
-        ? `${activeDistrictNames.length} Districts`
+        : coverage.primaryActiveCity
+        ? coverage.primaryActiveCity
         : "No active zones";
 
     const dynamicCityCardDesc =
       settings.cardCityDesc && settings.cardCityDesc !== "Local delivery zones"
         ? settings.cardCityDesc
-        : activeDistrictNames.length > 0
-        ? activeDistrictNames.slice(0, 3).join(", ")
+        : activeLocations.length > 0
+        ? activeLocations.slice(0, 3).join(", ")
         : "Pending admin enablement";
 
     const dynamicHeroBadge =
       settings.heroBadgeText && !settings.heroBadgeText.includes("Mysuru")
         ? settings.heroBadgeText
-        : activeDistrictNames.length > 0
-        ? `Now Live across ${activeDistrictNames.slice(0, 2).join(", ")}${
-            activeDistrictNames.length > 2 ? ` & ${activeDistrictNames.length - 2} more` : ""
+        : activeLocations.length > 0
+        ? `Now Live across ${activeLocations.slice(0, 2).join(", ")}${
+            activeLocations.length > 2 ? ` & ${activeLocations.length - 2} more` : ""
           }`
         : "Local Delivery Network";
 
@@ -112,9 +106,10 @@ router.get("/api/delivery/settings/public", async (req, res) => {
         baseChargePaise: settings.baseChargePaise,
         perKmChargePaise: settings.perKmChargePaise,
         minDeliveryChargePaise: settings.minDeliveryChargePaise,
-        activeCity: activeDistrictNames[0] || null,
-        activeCities: activeDistrictNames,
-        activeDistrictCount: activeDistrictNames.length,
+        activeCity: coverage.primaryActiveCity,
+        activeCities: activeLocations,
+        activeDistrictCount: coverage.totalOperationalDistricts,
+        operationalCoverage: coverage,
         supportedVehicles: settings.supportedVehicles,
         isDeliveryServiceEnabled: settings.isDeliveryServiceEnabled,
         hero: {

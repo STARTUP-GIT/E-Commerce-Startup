@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { deliveryApi } from "@/features/delivery/api/deliveryApi";
-import { cityApi } from "@/features/cities/api/cityApi";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useUIStore } from "@/lib/store/uiStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/Card";
@@ -28,7 +27,6 @@ import {
   DollarSign,
   Bike,
   ExternalLink,
-  Layers,
   ArrowRight,
 } from "lucide-react";
 
@@ -37,8 +35,6 @@ interface DeliveryBrandingFormState {
   brandName: string;
   brandTagline: string;
   brandLogoUrl: string;
-  activeCity: string;
-  activeCitiesStr: string;
 
   // Hero Section
   heroBadgeText: string;
@@ -52,7 +48,7 @@ interface DeliveryBrandingFormState {
   cardPayoutLabel: string;
   cardPayoutDesc: string;
 
-  // Stat Card 2: Active City
+  // Stat Card 2: Active City / Zones
   showCardCity: boolean;
   cardCityValue: string;
   cardCityLabel: string;
@@ -75,21 +71,19 @@ const DEFAULT_FORM: DeliveryBrandingFormState = {
   brandName: "AtlasBasket Delivery",
   brandTagline: "Local Delivery Fleet",
   brandLogoUrl: "",
-  activeCity: "Mysuru",
-  activeCitiesStr: "Mysuru",
-  heroBadgeText: "Now Launching Across Mysuru City",
+  heroBadgeText: "Local Delivery Network",
   heroHeadingLine1: "Deliver locally.",
   heroHeadingLine2: "Earn directly with every trip.",
   heroDescription:
-    "Join AtlasBasket Delivery. Deliver orders from top local shops and marketplace sellers in Mysuru. Enjoy flexible hours, transparent distance pricing, and fast weekly payouts.",
+    "Join AtlasBasket Delivery. Deliver orders from top local shops and marketplace sellers in operational districts. Enjoy flexible hours, transparent distance pricing, and fast weekly payouts.",
   showCardPayout: true,
   cardPayoutValue: "~90%",
   cardPayoutLabel: "Rider Payout",
   cardPayoutDesc: "Direct earnings share",
   showCardCity: true,
-  cardCityValue: "Mysuru",
-  cardCityLabel: "Active City",
-  cardCityDesc: "Local delivery zones",
+  cardCityValue: "",
+  cardCityLabel: "Active Districts",
+  cardCityDesc: "",
   showCardFee: true,
   cardFeeValue: "₹0 Free",
   cardFeeLabel: "Registration Fee",
@@ -111,25 +105,24 @@ export function DeliveryBrandingPage() {
   const [form, setForm] = useState<DeliveryBrandingFormState>(DEFAULT_FORM);
   const [hasChanges, setHasChanges] = useState(false);
 
-  const { data: settingsData, isLoading } = useQuery({
+  const { data: settingsData, isLoading: isSettingsLoading } = useQuery({
     queryKey: ["delivery-settings"],
     queryFn: deliveryApi.getSettings,
   });
 
-  const { data: citiesData } = useQuery({
-    queryKey: ["cities"],
-    queryFn: cityApi.getCities,
+  const { data: coverageData, isLoading: isCoverageLoading } = useQuery({
+    queryKey: ["operational-delivery-coverage"],
+    queryFn: deliveryApi.getOperationalCoverage,
   });
 
-  const allCities = citiesData?.cities ?? citiesData?.data ?? citiesData ?? [];
-  const activeDbDistricts = (Array.isArray(allCities) ? allCities : []).filter(
-    (c: any) => c.isActive
-  );
+  const isLoading = isSettingsLoading || isCoverageLoading;
+  const coverage = coverageData?.coverage || settingsData?.coverage;
 
   const updateMutation = useMutation({
     mutationFn: (payload: any) => deliveryApi.updateSettings(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["delivery-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["operational-delivery-coverage"] });
       queryClient.invalidateQueries({ queryKey: ["public-branding", "delivery"] });
       showToast("Delivery branding and landing cards updated successfully.", "success");
       setHasChanges(false);
@@ -142,30 +135,25 @@ export function DeliveryBrandingPage() {
   useEffect(() => {
     if (!settingsData?.settings) return;
     const s = settingsData.settings;
-    const citiesList: string[] = Array.isArray(s.activeCities) && s.activeCities.length > 0
-      ? s.activeCities
-      : [s.activeCity || "Mysuru"];
 
     setForm({
       brandName: s.brandName || "AtlasBasket Delivery",
       brandTagline: s.brandTagline || "Local Delivery Fleet",
       brandLogoUrl: s.brandLogoUrl || "",
-      activeCity: s.activeCity || "Mysuru",
-      activeCitiesStr: citiesList.join(", "),
-      heroBadgeText: s.heroBadgeText || "Now Launching Across Mysuru City",
+      heroBadgeText: s.heroBadgeText || "Local Delivery Network",
       heroHeadingLine1: s.heroHeadingLine1 || "Deliver locally.",
       heroHeadingLine2: s.heroHeadingLine2 || "Earn directly with every trip.",
       heroDescription:
         s.heroDescription ||
-        "Join AtlasBasket Delivery. Deliver orders from top local shops and marketplace sellers in Mysuru. Enjoy flexible hours, transparent distance pricing, and fast weekly payouts.",
+        "Join AtlasBasket Delivery. Deliver orders from top local shops and marketplace sellers in operational districts. Enjoy flexible hours, transparent distance pricing, and fast weekly payouts.",
       showCardPayout: s.showCardPayout ?? true,
       cardPayoutValue: s.cardPayoutValue || `~${Number(s.riderPayoutPercentage || 90)}%`,
       cardPayoutLabel: s.cardPayoutLabel || "Rider Payout",
       cardPayoutDesc: s.cardPayoutDesc || "Direct earnings share",
       showCardCity: s.showCardCity ?? true,
-      cardCityValue: s.cardCityValue || s.activeCity || "Mysuru",
-      cardCityLabel: s.cardCityLabel || "Active City",
-      cardCityDesc: s.cardCityDesc || "Local delivery zones",
+      cardCityValue: s.cardCityValue || "",
+      cardCityLabel: s.cardCityLabel || "Active Districts",
+      cardCityDesc: s.cardCityDesc || "",
       showCardFee: s.showCardFee ?? true,
       cardFeeValue: s.cardFeeValue || "₹0 Free",
       cardFeeLabel: s.cardFeeLabel || "Registration Fee",
@@ -186,17 +174,10 @@ export function DeliveryBrandingPage() {
   const handleSave = () => {
     if (!canManage) return;
 
-    const parsedCities = form.activeCitiesStr
-      .split(",")
-      .map((c) => c.trim())
-      .filter(Boolean);
-
     const payload = {
       brandName: form.brandName.trim(),
       brandTagline: form.brandTagline.trim(),
       brandLogoUrl: form.brandLogoUrl.trim() || null,
-      activeCity: form.activeCity.trim() || "Mysuru",
-      activeCities: parsedCities.length > 0 ? parsedCities : [form.activeCity.trim() || "Mysuru"],
       heroBadgeText: form.heroBadgeText.trim(),
       heroHeadingLine1: form.heroHeadingLine1.trim(),
       heroHeadingLine2: form.heroHeadingLine2.trim(),
@@ -226,30 +207,24 @@ export function DeliveryBrandingPage() {
   const handleReset = () => {
     if (settingsData?.settings) {
       const s = settingsData.settings;
-      const citiesList: string[] = Array.isArray(s.activeCities) && s.activeCities.length > 0
-        ? s.activeCities
-        : [s.activeCity || "Mysuru"];
-
       setForm({
         brandName: s.brandName || "AtlasBasket Delivery",
         brandTagline: s.brandTagline || "Local Delivery Fleet",
         brandLogoUrl: s.brandLogoUrl || "",
-        activeCity: s.activeCity || "Mysuru",
-        activeCitiesStr: citiesList.join(", "),
-        heroBadgeText: s.heroBadgeText || "Now Launching Across Mysuru City",
+        heroBadgeText: s.heroBadgeText || "Local Delivery Network",
         heroHeadingLine1: s.heroHeadingLine1 || "Deliver locally.",
         heroHeadingLine2: s.heroHeadingLine2 || "Earn directly with every trip.",
         heroDescription:
           s.heroDescription ||
-          "Join AtlasBasket Delivery. Deliver orders from top local shops and marketplace sellers in Mysuru. Enjoy flexible hours, transparent distance pricing, and fast weekly payouts.",
+          "Join AtlasBasket Delivery. Deliver orders from top local shops and marketplace sellers in operational districts. Enjoy flexible hours, transparent distance pricing, and fast weekly payouts.",
         showCardPayout: s.showCardPayout ?? true,
         cardPayoutValue: s.cardPayoutValue || `~${Number(s.riderPayoutPercentage || 90)}%`,
         cardPayoutLabel: s.cardPayoutLabel || "Rider Payout",
         cardPayoutDesc: s.cardPayoutDesc || "Direct earnings share",
         showCardCity: s.showCardCity ?? true,
-        cardCityValue: s.cardCityValue || s.activeCity || "Mysuru",
-        cardCityLabel: s.cardCityLabel || "Active City",
-        cardCityDesc: s.cardCityDesc || "Local delivery zones",
+        cardCityValue: s.cardCityValue || "",
+        cardCityLabel: s.cardCityLabel || "Active Districts",
+        cardCityDesc: s.cardCityDesc || "",
         showCardFee: s.showCardFee ?? true,
         cardFeeValue: s.cardFeeValue || "₹0 Free",
         cardFeeLabel: s.cardFeeLabel || "Registration Fee",
@@ -353,52 +328,135 @@ export function DeliveryBrandingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Main Controls Form */}
           <div className="lg:col-span-7 space-y-6">
-            {/* Database Operational Coverage (Live from DB) */}
+            {/* Operational Delivery Coverage (Live and Authoritative from DB) */}
             <Card className="bg-[#0b0b0e] border-white/[0.08]">
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold text-white flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-zinc-300" />
-                    Database Operational Coverage
-                  </CardTitle>
-                  <Link
-                    href="/karnataka/districts"
-                    className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition-colors flex items-center gap-1.5 shadow-sm"
-                  >
-                    <span>Manage Districts</span>
-                    <ExternalLink className="h-3 w-3" />
-                  </Link>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                      <MapPin className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base font-semibold text-white flex items-center gap-2">
+                        Operational Delivery Coverage
+                      </CardTitle>
+                      <CardDescription className="text-xs text-zinc-400">
+                        Operational locations synchronized automatically from database configuration.
+                      </CardDescription>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                      Database synchronized
+                    </span>
+                    <Link
+                      href="/karnataka/districts"
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition-colors flex items-center gap-1.5 shadow-sm"
+                    >
+                      <span>Manage Districts</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  </div>
                 </div>
-                <CardDescription className="text-xs text-zinc-400">
-                  Delivery is strictly restricted to districts enabled by admin in the database. There are no hardcoded default cities.
-                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-zinc-300">
-                    Currently Active Districts ({activeDbDistricts.length}):
-                  </span>
+
+              <CardContent className="space-y-4 pt-1">
+                {/* Primary Active City Card */}
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400 block mb-0.5">
+                      Primary Active City
+                    </span>
+                    <div className="text-lg font-bold text-white flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-emerald-400" />
+                      <span>{coverage?.primaryActiveCity || "Not configured"}</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">
+                      {coverage?.isCoverageOperational
+                        ? "Authoritative primary hub dynamically selected from active database districts"
+                        : "No operational delivery locations active. Configure districts to activate."}
+                    </p>
+                  </div>
+                  {coverage?.primaryActiveCity && (
+                    <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-xs px-2.5 py-1 self-start sm:self-center">
+                      Primary Hub
+                    </Badge>
+                  )}
                 </div>
-                {activeDbDistricts.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
-                    {activeDbDistricts.map((city: any) => (
-                      <span
-                        key={city.id}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-white/[0.05] border border-white/10 text-zinc-200"
-                      >
-                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                        {city.name}
+
+                {/* Metrics Grid */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                    <div className="text-xl font-bold text-white">
+                      {coverage?.totalOperationalDistricts ?? 0}
+                    </div>
+                    <div className="text-[11px] font-medium text-zinc-300 mt-0.5">
+                      Operational Districts
+                    </div>
+                    <div className="text-[10px] text-zinc-500 mt-0.5">
+                      Delivery enabled
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                    <div className="text-xl font-bold text-white">
+                      {coverage?.totalOperationalTowns ?? 0}
+                    </div>
+                    <div className="text-[11px] font-medium text-zinc-300 mt-0.5">
+                      Operational Towns
+                    </div>
+                    <div className="text-[10px] text-zinc-500 mt-0.5">
+                      Active launched towns
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                    <div className="text-xl font-bold text-white">
+                      {coverage?.totalOperationalServiceAreas ?? 0}
+                    </div>
+                    <div className="text-[11px] font-medium text-zinc-300 mt-0.5">
+                      Service Areas
+                    </div>
+                    <div className="text-[10px] text-zinc-500 mt-0.5">
+                      Delivery eligible
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active Locations Badges */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-zinc-300">
+                      Active Delivery Locations ({coverage?.activeLocations?.length ?? 0}):
+                    </span>
+                  </div>
+
+                  {coverage?.isCoverageOperational && coverage?.activeLocations?.length ? (
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                      {coverage.activeLocations.map((loc: string, idx: number) => (
+                        <span
+                          key={`${loc}-${idx}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-500/10 border border-emerald-500/20 text-emerald-200"
+                        >
+                          <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                          {loc}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center gap-2">
+                      <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
+                      <span>
+                        No delivery locations are currently operational. Enable at least one district under Districts / Cities to activate delivery.
                       </span>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center gap-2">
-                    <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
-                    <span>No districts are currently enabled in the database. Enable at least one district under Districts / Cities to accept deliveries.</span>
-                  </div>
-                )}
-                <p className="text-[11px] text-zinc-500">
-                  Toggling a district on or off under <Link href="/karnataka/districts" className="underline text-zinc-300 hover:text-white">Districts / Cities</Link> immediately enables or disables rider registrations, marketplace order dispatch, and external shop requests in that area.
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-zinc-500 leading-relaxed border-t border-white/[0.06] pt-2.5">
+                  Locations are synchronized directly from the authoritative database catalogue (requiring Active State, Delivery Enabled District, Active Town, and Active Service Area). Manual text editing is disabled to eliminate configuration mismatch.
                 </p>
               </CardContent>
             </Card>
@@ -411,7 +469,7 @@ export function DeliveryBrandingPage() {
                   Navbar & Core Identity
                 </CardTitle>
                 <CardDescription className="text-xs text-zinc-400">
-                  Controls the top navbar title, logo, and active dispatch city shown in the delivery app.
+                  Controls the top navbar title, logo, and brand identity in the delivery app.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -447,35 +505,21 @@ export function DeliveryBrandingPage() {
 
                   <div>
                     <label className="text-xs font-medium text-zinc-300 block mb-1.5">
-                      Primary Active City
+                      Operational Primary City (Database Synced)
                     </label>
-                    <Input
-                      value={form.activeCity}
-                      onChange={(e) => update("activeCity")(e.target.value)}
-                      placeholder="Mysuru"
-                      disabled={!canManage}
-                      className="bg-white/[0.03] border-white/10 text-white"
-                    />
+                    <div className="h-9 px-3 flex items-center justify-between rounded-md bg-white/[0.02] border border-white/10 text-xs text-zinc-300">
+                      <div className="flex items-center gap-1.5 font-medium text-white truncate">
+                        <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        <span className="truncate">{coverage?.primaryActiveCity || "Not configured"}</span>
+                      </div>
+                      <span className="text-[10px] text-zinc-500 font-mono shrink-0 ml-2">
+                        Read-only DB
+                      </span>
+                    </div>
                     <p className="text-[11px] text-zinc-500 mt-1">
-                      Displayed below the title as &quot;{form.activeCity} Fleet&quot;.
+                      Controlled directly via district delivery activation.
                     </p>
                   </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-zinc-300 block mb-1.5">
-                    Active Delivery Cities (Comma-separated)
-                  </label>
-                  <Input
-                    value={form.activeCitiesStr}
-                    onChange={(e) => update("activeCitiesStr")(e.target.value)}
-                    placeholder="Mysuru, Bengaluru"
-                    disabled={!canManage}
-                    className="bg-white/[0.03] border-white/10 text-white"
-                  />
-                  <p className="text-[11px] text-zinc-500 mt-1">
-                    Cities where the local delivery network is operational.
-                  </p>
                 </div>
 
                 {/* Logo Upload & URL */}
@@ -527,7 +571,7 @@ export function DeliveryBrandingPage() {
                   <Input
                     value={form.heroBadgeText}
                     onChange={(e) => update("heroBadgeText")(e.target.value)}
-                    placeholder="Now Launching Across Mysuru City"
+                    placeholder="Now Launching Across Local Districts"
                     disabled={!canManage}
                     className="bg-white/[0.03] border-white/10 text-white"
                   />
@@ -643,12 +687,12 @@ export function DeliveryBrandingPage() {
                   )}
                 </div>
 
-                {/* Card 2: Active City */}
+                {/* Card 2: Active City / Coverage */}
                 <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-white flex items-center gap-1.5">
                       <MapPin className="h-3.5 w-3.5 text-zinc-400" />
-                      Card 2: Active City
+                      Card 2: Active City / Coverage
                     </span>
                     <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-zinc-300">
                       <span>{form.showCardCity ? "Enabled (Visible)" : "Disabled (Hidden)"}</span>
@@ -664,11 +708,11 @@ export function DeliveryBrandingPage() {
                   {form.showCardCity && (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                       <div>
-                        <label className="text-[11px] text-zinc-400 block mb-1">Display Value</label>
+                        <label className="text-[11px] text-zinc-400 block mb-1">Custom Display Value</label>
                         <Input
                           value={form.cardCityValue}
                           onChange={(e) => update("cardCityValue")(e.target.value)}
-                          placeholder="Mysuru"
+                          placeholder={coverage?.primaryActiveCity || "Auto (DB Synced)"}
                           disabled={!canManage}
                           className="bg-white/[0.03] border-white/10 text-white text-xs"
                         />
@@ -678,7 +722,7 @@ export function DeliveryBrandingPage() {
                         <Input
                           value={form.cardCityLabel}
                           onChange={(e) => update("cardCityLabel")(e.target.value)}
-                          placeholder="Active City"
+                          placeholder="Active Districts"
                           disabled={!canManage}
                           className="bg-white/[0.03] border-white/10 text-white text-xs"
                         />
@@ -688,7 +732,7 @@ export function DeliveryBrandingPage() {
                         <Input
                           value={form.cardCityDesc}
                           onChange={(e) => update("cardCityDesc")(e.target.value)}
-                          placeholder="Local delivery zones"
+                          placeholder={coverage?.activeLocations?.slice(0, 3).join(", ") || "Local delivery zones"}
                           disabled={!canManage}
                           className="bg-white/[0.03] border-white/10 text-white text-xs"
                         />
@@ -850,7 +894,7 @@ export function DeliveryBrandingPage() {
                         </span>
                       </div>
                       <span className="text-[9px] text-white/40 block font-mono -mt-0.5">
-                        {form.activeCity || "Mysuru"} Fleet
+                        {coverage?.primaryActiveCity ? `${coverage.primaryActiveCity} Fleet` : "Fleet Network"}
                       </span>
                     </div>
                   </div>
@@ -868,7 +912,12 @@ export function DeliveryBrandingPage() {
                   {/* Badge */}
                   <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/[0.04] border border-white/10 text-zinc-300 text-[10px] font-medium">
                     <Sparkles className="h-2.5 w-2.5 text-zinc-400" />
-                    <span>{form.heroBadgeText || "Now Launching"}</span>
+                    <span>
+                      {form.heroBadgeText ||
+                        (coverage?.activeLocations?.length
+                          ? `Now Live across ${coverage.activeLocations.slice(0, 2).join(", ")}`
+                          : "Local Delivery Network")}
+                    </span>
                   </div>
 
                   {/* Heading */}
@@ -907,9 +956,18 @@ export function DeliveryBrandingPage() {
 
                     {form.showCardCity && (
                       <div className="p-2.5 rounded-xl text-left bg-white/[0.025] border border-white/[0.08]">
-                        <div className="text-sm font-bold text-white">{form.cardCityValue}</div>
-                        <div className="text-[10px] font-medium text-zinc-300 mt-0.5">{form.cardCityLabel}</div>
-                        <div className="text-[9px] text-zinc-500 mt-0.5">{form.cardCityDesc}</div>
+                        <div className="text-sm font-bold text-white">
+                          {form.cardCityValue.trim() || coverage?.primaryActiveCity || "Not configured"}
+                        </div>
+                        <div className="text-[10px] font-medium text-zinc-300 mt-0.5">
+                          {form.cardCityLabel || "Active Districts"}
+                        </div>
+                        <div className="text-[9px] text-zinc-500 mt-0.5 truncate">
+                          {form.cardCityDesc.trim() ||
+                            (coverage?.activeLocations?.length
+                              ? coverage.activeLocations.slice(0, 3).join(", ")
+                              : "Pending admin enablement")}
+                        </div>
                       </div>
                     )}
 

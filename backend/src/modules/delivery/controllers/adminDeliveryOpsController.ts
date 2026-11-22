@@ -88,10 +88,21 @@ export const getOverviewStats = async (req: Request, res: Response) => {
   }
 };
 
+export const getOperationalCoverage = async (req: Request, res: Response) => {
+  try {
+    const coverage = await DeliverySettingsService.getOperationalDeliveryCoverage();
+    return res.status(200).json({ success: true, coverage });
+  } catch (err: any) {
+    logger.error(`[AdminDeliveryCoverage] Error: ${err?.message}`);
+    return res.status(500).json({ message: "Failed to fetch operational delivery coverage" });
+  }
+};
+
 export const getSettings = async (req: Request, res: Response) => {
   try {
     const settings = await DeliverySettingsService.getEffectiveSettings();
-    return res.status(200).json({ success: true, settings });
+    const coverage = await DeliverySettingsService.getOperationalDeliveryCoverage();
+    return res.status(200).json({ success: true, settings, coverage });
   } catch (err: any) {
     return res.status(500).json({ message: "Failed to fetch settings" });
   }

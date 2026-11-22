@@ -13,6 +13,27 @@ export interface DeliveryFinancialQuote {
   platformCommissionPaise: number;
 }
 
+export interface OperationalDeliveryCoverageResult {
+  primaryActiveCity: string | null;
+  totalOperationalDistricts: number;
+  totalOperationalTowns: number;
+  totalOperationalServiceAreas: number;
+  operationalDistricts: Array<{
+    id: string;
+    name: string;
+    displayName: string | null;
+    state: string;
+    displayOrder: number;
+    operationalTownsCount: number;
+    operationalServiceAreasCount: number;
+    towns: string[];
+    serviceAreas: string[];
+  }>;
+  activeLocations: string[];
+  isCoverageOperational: boolean;
+  statusMessage: string;
+}
+
 export class DeliverySettingsService {
   private static cachedSettings: any = null;
   private static lastCacheTime = 0;
@@ -21,6 +42,134 @@ export class DeliverySettingsService {
   static invalidateCache() {
     this.cachedSettings = null;
     this.lastCacheTime = 0;
+  }
+
+  /**
+   * Authoritative calculation of operational delivery locations from the database.
+   * Considers:
+   * 1. State availability (State isActive).
+   * 2. District master availability (City isActive, maintenanceMode == false, launchStatus == 'LAUNCHED', isDeliveryEnabled == true).
+   * 3. Town availability, where applicable (CityTown isActive, launchStatus == 'LAUNCHED').
+   * 4. Service-area availability, where applicable (ServiceArea isActive == true, deliveryEligible == true).
+   */
+  static async getOperationalDeliveryCoverage(): Promise<OperationalDeliveryCoverageResult> {
+    try {
+      // 1. Fetch active states
+      const activeStates = await prisma.state.findMany({
+        where: { isActive: true },
+        select: { name: true }
+      });
+      const activeStateNames = new Set(activeStates.map((s) => s.name.toLowerCase()));
+
+      // 2. Query districts that satisfy strict delivery operational rules:
+      // - District master is active (isActive == true)
+      // - Delivery is explicitly enabled (isDeliveryEnabled == true)
+      // - Maintenance mode is off (maintenanceMode == false)
+      // - Launch status is launched (launchStatus == "LAUNCHED")
+      const candidateDistricts = await prisma.city.findMany({
+        where: {
+          isActive: true,
+          isDeliveryEnabled: true,
+          maintenanceMode: false,
+          launchStatus: "LAUNCHED",
+        },
+        include: {
+          cityTowns: {
+            where: {
+              isActive: true,
+              launchStatus: "LAUNCHED",
+            },
+            orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+          },
+          serviceAreas: {
+            where: {
+              isActive: true,
+              deliveryEligible: true,
+            },
+            orderBy: { name: "asc" },
+          },
+        },
+        orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+      });
+
+      // 3. Filter by parent state availability if state table has records
+      const operationalDistricts = candidateDistricts.filter((d) => {
+        if (activeStates.length > 0) {
+          return activeStateNames.has(d.state.toLowerCase());
+        }
+        return true;
+      });
+
+      let totalOperationalTowns = 0;
+      let totalOperationalServiceAreas = 0;
+      const allActiveLocations = new Set<string>();
+
+      const formattedDistricts = operationalDistricts.map((d) => {
+        const canonicalDistrictName = d.displayName || d.name;
+        allActiveLocations.add(canonicalDistrictName);
+
+        const activeTownIds = new Set(d.cityTowns.map((t) => t.id));
+        const townNames = d.cityTowns.map((t) => t.displayName || t.name);
+        townNames.forEach((t) => allActiveLocations.add(t));
+        totalOperationalTowns += townNames.length;
+
+        // Valid service areas must have parent town active if child of a town
+        const validServiceAreas = d.serviceAreas.filter((a) => {
+          if (a.cityTownId) {
+            return activeTownIds.has(a.cityTownId);
+          }
+          return true;
+        });
+
+        const areaNames = validServiceAreas.map((a) => a.name);
+        areaNames.forEach((a) => allActiveLocations.add(a));
+        totalOperationalServiceAreas += areaNames.length;
+
+        return {
+          id: d.id,
+          name: d.name,
+          displayName: d.displayName,
+          state: d.state,
+          displayOrder: d.displayOrder,
+          operationalTownsCount: townNames.length,
+          operationalServiceAreasCount: areaNames.length,
+          towns: townNames,
+          serviceAreas: areaNames,
+        };
+      });
+
+      const activeLocations = Array.from(allActiveLocations);
+      const primaryActiveCity = formattedDistricts.length > 0
+        ? (formattedDistricts[0].displayName || formattedDistricts[0].name)
+        : null;
+
+      const isCoverageOperational = formattedDistricts.length > 0;
+
+      return {
+        primaryActiveCity,
+        totalOperationalDistricts: formattedDistricts.length,
+        totalOperationalTowns,
+        totalOperationalServiceAreas,
+        operationalDistricts: formattedDistricts,
+        activeLocations,
+        isCoverageOperational,
+        statusMessage: isCoverageOperational
+          ? "Database synchronized"
+          : "No delivery locations are currently operational.",
+      };
+    } catch (err: any) {
+      logger.error(`[DeliverySettings] Error computing operational delivery coverage: ${err?.message}`);
+      return {
+        primaryActiveCity: null,
+        totalOperationalDistricts: 0,
+        totalOperationalTowns: 0,
+        totalOperationalServiceAreas: 0,
+        operationalDistricts: [],
+        activeLocations: [],
+        isCoverageOperational: false,
+        statusMessage: "No delivery locations are currently operational.",
+      };
+    }
   }
 
   static async getEffectiveSettings() {
@@ -53,22 +202,22 @@ export class DeliverySettingsService {
             maxMonthlyRiderCancellations: 5,
             damagePenaltyPercentage: new Prisma.Decimal(20.0),
             maxStrikesBeforeBan: 3,
-            activeCity: "Mysuru",
-            activeCities: ["Mysuru"],
+            activeCity: "Not configured",
+            activeCities: [],
             supportedVehicles: ["BICYCLE", "MOTORCYCLE", "SCOOTER", "EV"],
             isDeliveryServiceEnabled: true,
-            heroBadgeText: "Now Launching Across Mysuru City",
+            heroBadgeText: "Local Delivery Network",
             heroHeadingLine1: "Deliver locally.",
             heroHeadingLine2: "Earn directly with every trip.",
-            heroDescription: "Join AtlasBasket Delivery. Deliver orders from top local shops and marketplace sellers in Mysuru. Enjoy flexible hours, transparent distance pricing, and fast weekly payouts.",
+            heroDescription: "Join AtlasBasket Delivery. Deliver orders from top local shops and marketplace sellers in operational districts. Enjoy flexible hours, transparent distance pricing, and fast weekly payouts.",
             showCardPayout: true,
             cardPayoutValue: "~90%",
             cardPayoutLabel: "Rider Payout",
             cardPayoutDesc: "Direct earnings share",
             showCardCity: true,
-            cardCityValue: "Mysuru",
-            cardCityLabel: "Active City",
-            cardCityDesc: "Local delivery zones",
+            cardCityValue: "",
+            cardCityLabel: "Active Districts",
+            cardCityDesc: "",
             showCardFee: true,
             cardFeeValue: "₹0 Free",
             cardFeeLabel: "Registration Fee",
@@ -81,12 +230,20 @@ export class DeliverySettingsService {
         });
       }
 
-      this.cachedSettings = settings;
+      // Compute authoritative operational delivery coverage dynamically
+      const coverage = await this.getOperationalDeliveryCoverage();
+      const effectiveSettings = {
+        ...settings,
+        activeCity: coverage.primaryActiveCity || "Not configured",
+        activeCities: coverage.activeLocations,
+        operationalCoverage: coverage,
+      };
+
+      this.cachedSettings = effectiveSettings;
       this.lastCacheTime = now;
-      return settings;
+      return effectiveSettings;
     } catch (err: any) {
       logger.error(`[DeliverySettings] Error fetching settings: ${err?.message}`);
-      // Fallback safe defaults if database access is momentarily delayed
       return {
         id: 1,
         brandName: "AtlasBasket Delivery",
@@ -104,20 +261,20 @@ export class DeliverySettingsService {
         maxMonthlyRiderCancellations: 5,
         damagePenaltyPercentage: 20,
         maxStrikesBeforeBan: 3,
-        activeCity: "Mysuru",
-        activeCities: ["Mysuru"],
+        activeCity: "Not configured",
+        activeCities: [],
         supportedVehicles: ["BICYCLE", "MOTORCYCLE", "SCOOTER", "EV"],
         isDeliveryServiceEnabled: true,
-        heroBadgeText: "Now Launching Across Mysuru City",
+        heroBadgeText: "Now Launching Delivery Operations",
         heroHeadingLine1: "Deliver locally.",
         heroHeadingLine2: "Earn directly with every trip.",
-        heroDescription: "Join AtlasBasket Delivery. Deliver orders from top local shops and marketplace sellers in Mysuru. Enjoy flexible hours, transparent distance pricing, and fast weekly payouts.",
+        heroDescription: "Join AtlasBasket Delivery. Deliver orders from top local shops and marketplace sellers in admin-approved operational districts.",
         showCardPayout: true,
         cardPayoutValue: "~90%",
         cardPayoutLabel: "Rider Payout",
         cardPayoutDesc: "Direct earnings share",
         showCardCity: true,
-        cardCityValue: "Mysuru",
+        cardCityValue: "Not configured",
         cardCityLabel: "Active City",
         cardCityDesc: "Local delivery zones",
         showCardFee: true,
@@ -179,6 +336,11 @@ export class DeliverySettingsService {
   ) {
     const current = await this.getEffectiveSettings();
 
+    // Remove activeCity and activeCities from payload to guarantee manual location entry cannot overwrite DB coverage
+    const sanitizedPayload: any = { ...payload };
+    delete sanitizedPayload.activeCity;
+    delete sanitizedPayload.activeCities;
+
     const updateData: any = {
       updatedByAdminId: adminId,
     };
@@ -191,7 +353,7 @@ export class DeliverySettingsService {
       reason: string;
     }> = [];
 
-    for (const [key, val] of Object.entries(payload)) {
+    for (const [key, val] of Object.entries(sanitizedPayload)) {
       if (typeof val !== "undefined" && val !== null) {
         if (key.includes("Percentage")) {
           updateData[key] = new Prisma.Decimal(Number(val));
@@ -214,10 +376,15 @@ export class DeliverySettingsService {
     }
 
     // Auto balance platform commission if payout % changed
-    if (payload.riderPayoutPercentage && !payload.platformCommissionPercentage) {
-      const comm = Math.max(0, 100 - Number(payload.riderPayoutPercentage));
+    if (sanitizedPayload.riderPayoutPercentage && !sanitizedPayload.platformCommissionPercentage) {
+      const comm = Math.max(0, 100 - Number(sanitizedPayload.riderPayoutPercentage));
       updateData.platformCommissionPercentage = new Prisma.Decimal(comm);
     }
+
+    // Keep database activeCity & activeCities columns synced with actual database operational coverage
+    const coverage = await this.getOperationalDeliveryCoverage();
+    updateData.activeCity = coverage.primaryActiveCity || "Not configured";
+    updateData.activeCities = coverage.activeLocations;
 
     const updated = await prisma.deliveryGlobalSetting.update({
       where: { id: 1 },
@@ -232,7 +399,12 @@ export class DeliverySettingsService {
 
     this.invalidateCache();
     logger.info(`[DeliverySettings] Global settings updated by admin: ${adminId}`);
-    return updated;
+    return {
+      ...updated,
+      activeCity: coverage.primaryActiveCity || "Not configured",
+      activeCities: coverage.activeLocations,
+      operationalCoverage: coverage,
+    };
   }
 
   static async calculateQuote(

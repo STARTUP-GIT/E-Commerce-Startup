@@ -40,6 +40,10 @@ export const deliveryApi = {
     const response = await axiosInstance.get('/api/admin/delivery/settings');
     return response.data;
   },
+  getOperationalCoverage: async () => {
+    const response = await axiosInstance.get('/api/admin/delivery/operational-coverage');
+    return response.data;
+  },
   updateSettings: async (settings: any) => {
     const response = await axiosInstance.put('/api/admin/delivery/settings', settings);
     return response.data;
