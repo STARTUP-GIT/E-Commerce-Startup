@@ -99,7 +99,22 @@ export const setAvailability = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "isAvailable boolean required" });
     }
 
-    const updated = await RiderAvailabilityService.toggleAvailability(riderId, isAvailable);
+    const latitude =
+      typeof req.body.latitude === "number"
+        ? req.body.latitude
+        : typeof req.body.lat === "number"
+        ? req.body.lat
+        : undefined;
+    const longitude =
+      typeof req.body.longitude === "number"
+        ? req.body.longitude
+        : typeof req.body.lng === "number"
+        ? req.body.lng
+        : undefined;
+
+    const coords = latitude !== undefined && longitude !== undefined ? { latitude, longitude } : undefined;
+
+    const updated = await RiderAvailabilityService.toggleAvailability(riderId, isAvailable, coords);
     return res.status(200).json({ success: true, rider: updated });
   } catch (err: any) {
     return res.status(400).json({ success: false, message: err?.message || "Failed to update availability" });

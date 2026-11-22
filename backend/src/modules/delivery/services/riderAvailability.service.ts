@@ -1,9 +1,15 @@
 import { prisma } from "../../../config/prisma.js";
 import { logger } from "../../../config/logger.js";
 import { Prisma } from "@prisma/client";
+import { DeliverySettingsService } from "./deliverySettings.service.js";
+import { DeliveryLocationService } from "./deliveryLocation.service.js";
 
 export class RiderAvailabilityService {
-  static async toggleAvailability(riderId: string, isAvailable: boolean) {
+  static async toggleAvailability(
+    riderId: string,
+    isAvailable: boolean,
+    coords?: { latitude?: number; longitude?: number }
+  ) {
     const rider = await prisma.deliveryPartner.findUnique({
       where: { id: riderId },
     });
@@ -25,6 +31,15 @@ export class RiderAvailabilityService {
           `Account is currently ${rider.status.toLowerCase()}. You cannot receive delivery offers.`
         );
       }
+
+      // Check global delivery operations status
+      const settings = await DeliverySettingsService.getEffectiveSettings();
+      if (settings.isDeliveryServiceEnabled === false) {
+        throw new Error("Delivery operations are temporarily paused across the platform.");
+      }
+
+      // Validate rider is within an eligible, operational delivery coverage area
+      await DeliveryLocationService.validateRiderOnlineLocation(riderId, coords);
     } else {
       // If going offline, check if rider has an ongoing active delivery
       const activeDelivery = await prisma.delivery.findFirst({
@@ -54,13 +69,21 @@ export class RiderAvailabilityService {
       }
     }
 
+    const updateData: any = { isAvailable };
+    if (coords?.latitude !== undefined && coords?.longitude !== undefined) {
+      updateData.currentLat = new Prisma.Decimal(coords.latitude);
+      updateData.currentLng = new Prisma.Decimal(coords.longitude);
+      updateData.lastLocationUpdatedAt = new Date();
+    }
+
     const updated = await prisma.deliveryPartner.update({
       where: { id: riderId },
-      data: { isAvailable },
+      data: updateData,
       select: {
         id: true,
         firstName: true,
         lastName: true,
+        city: true,
         isAvailable: true,
         verificationStatus: true,
         currentLat: true,
@@ -81,6 +104,7 @@ export class RiderAvailabilityService {
       where: { id: riderId },
       select: {
         id: true,
+        city: true,
         isAvailable: true,
         verificationStatus: true,
       },
@@ -90,7 +114,7 @@ export class RiderAvailabilityService {
       throw new Error("Rider not found.");
     }
 
-    // Update rider's current coordinates
+    // Update rider's current coordinates without overwriting registered residential address
     const updated = await prisma.deliveryPartner.update({
       where: { id: riderId },
       data: {
@@ -100,12 +124,24 @@ export class RiderAvailabilityService {
       },
       select: {
         id: true,
+        city: true,
         currentLat: true,
         currentLng: true,
         lastLocationUpdatedAt: true,
       },
     });
 
-    return updated;
+    // Evaluate whether coordinates are currently within operational delivery coverage
+    const coverageCheck = await DeliveryLocationService.checkDeliveryEligibility({
+      latitude: lat,
+      longitude: lng,
+    });
+
+    return {
+      ...updated,
+      isWithinCoverage: coverageCheck.isDeliveryEligible,
+      coverageStatus: coverageCheck.status,
+      coverageMessage: coverageCheck.message,
+    };
   }
 }

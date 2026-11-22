@@ -28,9 +28,18 @@ function RegisterContent() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locationWarning, setLocationWarning] = useState<string | null>(null);
   const [isGoogleUser, setIsGoogleUser] = useState(false);
-  const [operationalDistricts, setOperationalDistricts] = useState<
-    Array<{ id: string; name: string; state: string }>
+  const [catalogueDistricts, setCatalogueDistricts] = useState<
+    Array<{
+      id: string;
+      name: string;
+      displayName: string;
+      state: string;
+      isDeliveryEnabled: boolean;
+      towns: Array<{ id: string; name: string; displayName: string }>;
+      serviceAreas: Array<{ id: string; name: string; postalCodes: string[]; cityTownId?: string | null }>;
+    }>
   >([]);
 
   // Form State
@@ -43,6 +52,11 @@ function RegisterContent() {
     password: "",
     dateOfBirth: "",
     city: "",
+    districtId: "",
+    town: "",
+    townId: "",
+    serviceArea: "",
+    serviceAreaId: "",
     residentialAddress: "",
     emergencyContactName: "",
     emergencyContactPhone: "",
@@ -65,20 +79,53 @@ function RegisterContent() {
     upiId: "",
   });
 
-  // Fetch operational districts enabled by admin in DB
+  // Fetch authoritative delivery location catalogue
   useEffect(() => {
     apiClient
-      .get("/api/delivery/districts")
+      .get("/api/delivery/locations/catalogue")
       .then((res) => {
-        if (res.data?.districts) {
-          setOperationalDistricts(res.data.districts);
-          if (res.data.districts.length === 1) {
-            setForm((prev) => ({ ...prev, city: res.data.districts[0].name }));
+        if (res.data?.catalogue?.districts) {
+          setCatalogueDistricts(res.data.catalogue.districts);
+          if (res.data.catalogue.districts.length === 1) {
+            const first = res.data.catalogue.districts[0];
+            setForm((prev) => ({
+              ...prev,
+              city: first.name,
+              districtId: first.id,
+            }));
           }
         }
       })
       .catch(() => {});
   }, []);
+
+  // Validate location serviceability in real-time
+  useEffect(() => {
+    if (!form.districtId && !form.city) {
+      setLocationWarning(null);
+      return;
+    }
+
+    const payload: any = {};
+    if (form.districtId) payload.districtId = form.districtId;
+    else if (form.city) payload.district = form.city;
+    if (form.townId) payload.townId = form.townId;
+    if (form.serviceAreaId) payload.serviceAreaId = form.serviceAreaId;
+
+    apiClient
+      .post("/api/delivery/serviceability/check", payload)
+      .then((res) => {
+        if (res.data && !res.data.isDeliveryEligible) {
+          const locName = form.serviceArea || form.town || form.city;
+          setLocationWarning(
+            `Deliveries are not yet active in ${locName}. You can register, but your account will be activated once service launches in your locality.`
+          );
+        } else {
+          setLocationWarning(null);
+        }
+      })
+      .catch(() => {});
+  }, [form.districtId, form.city, form.townId, form.serviceAreaId]);
 
   // Pre-fill profile if user is authenticated via Google / NextAuth session
   useEffect(() => {
@@ -445,22 +492,125 @@ function RegisterContent() {
                     <select
                       name="city"
                       required
-                      value={form.city}
-                      onChange={handleChange}
+                      value={form.districtId || form.city}
+                      onChange={(e) => {
+                        const distId = e.target.value;
+                        const distObj = catalogueDistricts.find((d) => d.id === distId || d.name === distId);
+                        setForm((prev) => ({
+                          ...prev,
+                          districtId: distObj ? distObj.id : "",
+                          city: distObj ? distObj.name : "",
+                          townId: "",
+                          town: "",
+                          serviceAreaId: "",
+                          serviceArea: "",
+                        }));
+                        setError(null);
+                      }}
                       className="w-full bg-[#0d0d12] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-white/20"
                     >
                       <option value="" className="bg-[#0c0c10] text-zinc-400">
-                        {operationalDistricts.length > 0
+                        {catalogueDistricts.length > 0
                           ? "Select your operational district..."
                           : "Loading enabled districts..."}
                       </option>
-                      {operationalDistricts.map((d) => (
-                        <option key={d.id} value={d.name} className="bg-[#0c0c10]">
-                          {d.name} ({d.state})
+                      {catalogueDistricts.map((d) => (
+                        <option key={d.id} value={d.id} className="bg-[#0c0c10]">
+                          {d.displayName || d.name} ({d.state}) {!d.isDeliveryEnabled ? "— Coming Soon" : ""}
                         </option>
                       ))}
                     </select>
                   </div>
+
+                  {/* Town / City Selector */}
+                  {(() => {
+                    const selectedDistrictObj = catalogueDistricts.find(
+                      (d) => d.id === form.districtId || d.name === form.city
+                    );
+                    const availableTowns = selectedDistrictObj?.towns || [];
+                    if (availableTowns.length === 0) return null;
+
+                    return (
+                      <div>
+                        <label className="text-[11px] font-medium text-zinc-400 block mb-1">
+                          Operating Town / City (Optional)
+                        </label>
+                        <select
+                          value={form.townId}
+                          onChange={(e) => {
+                            const tId = e.target.value;
+                            const tObj = availableTowns.find((t) => t.id === tId);
+                            setForm((prev) => ({
+                              ...prev,
+                              townId: tId,
+                              town: tObj ? tObj.name : "",
+                              serviceAreaId: "",
+                              serviceArea: "",
+                            }));
+                          }}
+                          className="w-full bg-[#0d0d12] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-white/20"
+                        >
+                          <option value="" className="bg-[#0c0c10] text-zinc-400">
+                            All Towns in District
+                          </option>
+                          {availableTowns.map((t) => (
+                            <option key={t.id} value={t.id} className="bg-[#0c0c10]">
+                              {t.displayName || t.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Service Area Selector */}
+                  {(() => {
+                    const selectedDistrictObj = catalogueDistricts.find(
+                      (d) => d.id === form.districtId || d.name === form.city
+                    );
+                    const availableAreas = selectedDistrictObj?.serviceAreas?.filter(
+                      (a) => !form.townId || !a.cityTownId || a.cityTownId === form.townId
+                    ) || [];
+                    if (availableAreas.length === 0) return null;
+
+                    return (
+                      <div>
+                        <label className="text-[11px] font-medium text-zinc-400 block mb-1">
+                          Operating Service Area / Locality (Optional)
+                        </label>
+                        <select
+                          value={form.serviceAreaId}
+                          onChange={(e) => {
+                            const aId = e.target.value;
+                            const aObj = availableAreas.find((a) => a.id === aId);
+                            setForm((prev) => ({
+                              ...prev,
+                              serviceAreaId: aId,
+                              serviceArea: aObj ? aObj.name : "",
+                            }));
+                          }}
+                          className="w-full bg-[#0d0d12] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-white/20"
+                        >
+                          <option value="" className="bg-[#0c0c10] text-zinc-400">
+                            Select Local Service Area...
+                          </option>
+                          {availableAreas.map((a) => (
+                            <option key={a.id} value={a.id} className="bg-[#0c0c10]">
+                              {a.name} {a.postalCodes?.length ? `(${a.postalCodes.join(", ")})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Real-time Location Serviceability Warning */}
+                  {locationWarning && (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <span className="leading-relaxed">{locationWarning}</span>
+                    </div>
+                  )}
 
                   <div>
                     <label className="text-[11px] font-medium text-zinc-400 block mb-1">

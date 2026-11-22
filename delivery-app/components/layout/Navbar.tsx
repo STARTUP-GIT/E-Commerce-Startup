@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Truck, LogOut, User, Menu, X, Power } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
+import { LocationHeaderBar } from "@/components/location/LocationHeaderBar";
 
 interface NavbarProps {
   rider?: any;
@@ -154,6 +155,7 @@ export function Navbar({ rider, onAvailabilityToggle }: NavbarProps) {
 
         {/* Right Action Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          <LocationHeaderBar />
           {rider ? (
             <>
               {/* Online/Offline Toggle Button */}

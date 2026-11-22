@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
 import { apiClient, getErrorMessage } from "../api";
 import type { PublicSettings } from "../types";
 
@@ -9,14 +11,63 @@ export interface OperationalDistrict {
   state: string;
 }
 
+export interface MobileResolvedLocation {
+  state?: string;
+  district?: string;
+  districtId?: string;
+  town?: string;
+  townId?: string;
+  serviceArea?: string;
+  serviceAreaId?: string;
+  postalCode?: string;
+  formattedAddress?: string;
+  latitude?: number;
+  longitude?: number;
+  isEligible?: boolean;
+  status?: string;
+  message?: string;
+  comingSoonMessage?: string | null;
+}
+
+export interface CatalogueDistrict {
+  id: string;
+  name: string;
+  displayName: string;
+  state: string;
+  isDeliveryEnabled: boolean;
+  towns: Array<{ id: string; name: string; displayName: string }>;
+  serviceAreas: Array<{ id: string; name: string; postalCodes: string[]; cityTownId?: string | null }>;
+}
+
+export interface LocationCatalogue {
+  states: Array<{ id: string; name: string }>;
+  districts: CatalogueDistrict[];
+}
+
 interface DeliverySettingsContextValue {
   settings: PublicSettings | null;
   districts: OperationalDistrict[] | null;
   districtsError: string;
+  userLocation: MobileResolvedLocation | null;
+  catalogue: LocationCatalogue | null;
+  isDetectingLocation: boolean;
+  detectLocation: () => Promise<void>;
+  selectLocation: (loc: MobileResolvedLocation) => Promise<void>;
+  submitLocationRequest: (payload: {
+    customerName: string;
+    customerPhone?: string;
+    customerEmail?: string;
+    district?: string;
+    area?: string;
+    pincode?: string;
+    notes?: string;
+  }) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
 const DeliverySettingsContext = createContext<DeliverySettingsContextValue | null>(null);
+
+const LOCATION_KEY = "atlasbasket_mobile_delivery_location";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -78,6 +129,9 @@ export function DeliverySettingsProvider({ children }: React.PropsWithChildren) 
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [districts, setDistricts] = useState<OperationalDistrict[] | null>(null);
   const [districtsError, setDistrictsError] = useState("");
+  const [userLocation, setUserLocation] = useState<MobileResolvedLocation | null>(null);
+  const [catalogue, setCatalogue] = useState<LocationCatalogue | null>(null);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -104,10 +158,88 @@ export function DeliverySettingsProvider({ children }: React.PropsWithChildren) 
       console.error("Could not sync admin-enabled delivery districts.", error);
       setDistrictsError(getErrorMessage(error, "Could not load active delivery districts."));
     }
+
+    try {
+      const { data } = await apiClient.get("/api/delivery/locations/catalogue");
+      if (data?.catalogue) {
+        setCatalogue(data.catalogue);
+      }
+    } catch (error) {
+      console.warn("Could not sync delivery location catalogue.", error);
+    }
+  }, []);
+
+  const detectLocation = useCallback(async () => {
+    try {
+      setIsDetectingLocation(true);
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        setIsDetectingLocation(false);
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const { data } = await apiClient.get(`/api/delivery/serviceability/resolve-gps?lat=${lat}&lng=${lng}`);
+      if (data) {
+        const resolved: MobileResolvedLocation = {
+          state: data.resolvedLocation?.state,
+          district: data.resolvedLocation?.district,
+          districtId: data.resolvedLocation?.districtId,
+          town: data.resolvedLocation?.town,
+          townId: data.resolvedLocation?.townId,
+          serviceArea: data.resolvedLocation?.serviceArea,
+          serviceAreaId: data.resolvedLocation?.serviceAreaId,
+          postalCode: data.resolvedLocation?.postalCode,
+          formattedAddress: data.resolvedLocation?.formattedAddress,
+          latitude: lat,
+          longitude: lng,
+          isEligible: data.isDeliveryEligible,
+          status: data.status,
+          message: data.message,
+          comingSoonMessage: data.comingSoonMessage,
+        };
+        setUserLocation(resolved);
+        await AsyncStorage.setItem(LOCATION_KEY, JSON.stringify(resolved));
+      }
+    } catch (cause) {
+      console.warn("Mobile location detection error", cause);
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  }, []);
+
+  const selectLocation = useCallback(async (loc: MobileResolvedLocation) => {
+    setUserLocation(loc);
+    await AsyncStorage.setItem(LOCATION_KEY, JSON.stringify(loc));
+  }, []);
+
+  const submitLocationRequest = useCallback(async (payload: {
+    customerName: string;
+    customerPhone?: string;
+    customerEmail?: string;
+    district?: string;
+    area?: string;
+    pincode?: string;
+    notes?: string;
+  }) => {
+    await apiClient.post("/api/delivery/location-request", payload);
   }, []);
 
   useEffect(() => {
     void refresh();
+
+    // Restore saved location or auto-detect
+    AsyncStorage.getItem(LOCATION_KEY).then((saved) => {
+      if (saved) {
+        try {
+          setUserLocation(JSON.parse(saved));
+          return;
+        } catch (e) {}
+      }
+      void detectLocation();
+    });
+
     const timer = setInterval(() => void refresh(), 65000);
     const onAppStateChange = (state: AppStateStatus) => {
       if (state === "active") void refresh();
@@ -117,9 +249,35 @@ export function DeliverySettingsProvider({ children }: React.PropsWithChildren) 
       clearInterval(timer);
       subscription.remove();
     };
-  }, [refresh]);
+  }, [refresh, detectLocation]);
 
-  const value = useMemo(() => ({ settings, districts, districtsError, refresh }), [settings, districts, districtsError, refresh]);
+  const value = useMemo(
+    () => ({
+      settings,
+      districts,
+      districtsError,
+      userLocation,
+      catalogue,
+      isDetectingLocation,
+      detectLocation,
+      selectLocation,
+      submitLocationRequest,
+      refresh,
+    }),
+    [
+      settings,
+      districts,
+      districtsError,
+      userLocation,
+      catalogue,
+      isDetectingLocation,
+      detectLocation,
+      selectLocation,
+      submitLocationRequest,
+      refresh,
+    ]
+  );
+
   return <DeliverySettingsContext.Provider value={value}>{children}</DeliverySettingsContext.Provider>;
 }
 

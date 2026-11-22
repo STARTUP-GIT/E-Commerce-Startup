@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { getErrorMessage } from "../api";
+import { apiClient, getErrorMessage } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import { Button, Card, Field, Message, Page, Screen, Title } from "../components/ui";
 import { useDeliverySettings } from "../settings/DeliverySettingsContext";
@@ -50,9 +50,13 @@ const steps = ["Personal", "Vehicle", "Identity", "Payout"];
 
 export function RegisterScreen({ navigation }: Props) {
   const { register } = useAuth();
-  const { settings, districts, districtsError, refresh } = useDeliverySettings();
+  const { settings, districts, districtsError, catalogue, refresh } = useDeliverySettings();
   const vehicleTypes = settings?.supportedVehicles ?? DEFAULT_VEHICLES;
   const [form, setForm] = useState(initialForm);
+  const [selectedDistrictId, setSelectedDistrictId] = useState("");
+  const [selectedTownId, setSelectedTownId] = useState("");
+  const [selectedServiceAreaId, setSelectedServiceAreaId] = useState("");
+  const [locationWarning, setLocationWarning] = useState("");
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -71,10 +75,40 @@ export function RegisterScreen({ navigation }: Props) {
   useEffect(() => {
     if (districts?.length === 1) {
       setForm((previous) => previous.city ? previous : { ...previous, city: districts[0].name });
+      setSelectedDistrictId(districts[0].id);
     } else if (districts && !districts.some((district) => district.name === form.city)) {
       setForm((previous) => ({ ...previous, city: "" }));
+      setSelectedDistrictId("");
     }
   }, [districts, form.city]);
+
+  // Live serviceability check for selected operating locality
+  useEffect(() => {
+    if (!selectedDistrictId && !form.city) {
+      setLocationWarning("");
+      return;
+    }
+
+    const payload: any = {};
+    if (selectedDistrictId) payload.districtId = selectedDistrictId;
+    else if (form.city) payload.district = form.city;
+    if (selectedTownId) payload.townId = selectedTownId;
+    if (selectedServiceAreaId) payload.serviceAreaId = selectedServiceAreaId;
+
+    apiClient
+      .post("/api/delivery/serviceability/check", payload)
+      .then((res: any) => {
+        if (res.data && !res.data.isDeliveryEligible) {
+          const locName = form.serviceArea || form.town || form.city;
+          setLocationWarning(
+            `Deliveries are not yet active in ${locName}. You can register, but your account will be activated once service launches in your locality.`
+          );
+        } else {
+          setLocationWarning("");
+        }
+      })
+      .catch(() => {});
+  }, [selectedDistrictId, form.city, selectedTownId, selectedServiceAreaId, form.serviceArea, form.town]);
 
   const update = (key: string, value: string) => {
     setForm((previous) => ({ ...previous, [key]: value }));
@@ -177,10 +211,91 @@ export function RegisterScreen({ navigation }: Props) {
               {districts?.length ? (
                 <View style={styles.options}>
                   {districts.map((district) => (
-                    <Option key={district.id} label={`${district.name} · ${district.state}`} selected={form.city === district.name} onPress={() => update("city", district.name)} />
+                    <Option
+                      key={district.id}
+                      label={`${district.name} · ${district.state}`}
+                      selected={form.city === district.name}
+                      onPress={() => {
+                        update("city", district.name);
+                        setSelectedDistrictId(district.id);
+                        setSelectedTownId("");
+                        setSelectedServiceAreaId("");
+                        update("town", "");
+                        update("serviceArea", "");
+                      }}
+                    />
                   ))}
                 </View>
-              ) : districts === null ? <Text style={styles.helper}>Loading admin-enabled districts…</Text> : <Text style={styles.helper}>No active districts are currently enabled.</Text>}
+              ) : districts === null ? (
+                <Text style={styles.helper}>Loading admin-enabled districts…</Text>
+              ) : (
+                <Text style={styles.helper}>No active districts are currently enabled.</Text>
+              )}
+
+              {/* Towns Selection */}
+              {(() => {
+                const currentDistObj = catalogue?.districts.find(
+                  (d) => d.id === selectedDistrictId || d.name === form.city
+                );
+                const availableTowns = currentDistObj?.towns || [];
+                if (!availableTowns.length) return null;
+                return (
+                  <>
+                    <Text style={styles.label}>Operating Town / City (Optional)</Text>
+                    <View style={styles.options}>
+                      {availableTowns.map((town) => (
+                        <Option
+                          key={town.id}
+                          label={town.displayName || town.name}
+                          selected={selectedTownId === town.id}
+                          onPress={() => {
+                            const next = selectedTownId === town.id ? "" : town.id;
+                            setSelectedTownId(next);
+                            update("town", next ? (town.displayName || town.name) : "");
+                            setSelectedServiceAreaId("");
+                            update("serviceArea", "");
+                          }}
+                        />
+                      ))}
+                    </View>
+                  </>
+                );
+              })()}
+
+              {/* Service Areas Selection */}
+              {(() => {
+                const currentDistObj = catalogue?.districts.find(
+                  (d) => d.id === selectedDistrictId || d.name === form.city
+                );
+                const availableAreas =
+                  currentDistObj?.serviceAreas?.filter(
+                    (a) => !selectedTownId || !a.cityTownId || a.cityTownId === selectedTownId
+                  ) || [];
+                if (!availableAreas.length) return null;
+                return (
+                  <>
+                    <Text style={styles.label}>Operating Service Area (Optional)</Text>
+                    <View style={styles.options}>
+                      {availableAreas.slice(0, 8).map((area) => (
+                        <Option
+                          key={area.id}
+                          label={area.name}
+                          selected={selectedServiceAreaId === area.id}
+                          onPress={() => {
+                            const next = selectedServiceAreaId === area.id ? "" : area.id;
+                            setSelectedServiceAreaId(next);
+                            update("serviceArea", next ? area.name : "");
+                          }}
+                        />
+                      ))}
+                    </View>
+                  </>
+                );
+              })()}
+
+              {locationWarning ? (
+                <Message tone="warning">{locationWarning}</Message>
+              ) : null}
               <Field label="Residential Address" value={form.residentialAddress} onChangeText={(value) => update("residentialAddress", value)} multiline placeholder="Area, street, locality" />
               <Field label="Emergency Contact Name" value={form.emergencyContactName} onChangeText={(value) => update("emergencyContactName", value)} />
               <Field label="Emergency Contact Phone" value={form.emergencyContactPhone} onChangeText={(value) => update("emergencyContactPhone", value)} keyboardType="phone-pad" />

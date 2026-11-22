@@ -1,5 +1,6 @@
 import { prisma } from "../../../config/prisma.js";
 import { GoogleMapsService } from "./googleMaps.service.js";
+import { DeliveryLocationService } from "./deliveryLocation.service.js";
 import { Prisma } from "@prisma/client";
 
 export class ExternalShopService {
@@ -18,21 +19,42 @@ export class ExternalShopService {
     longitude?: number;
     pricingAgreementNotes?: string;
   }) {
+    if (!input.city?.trim() && !input.latitude) {
+      throw new Error("Operational city/district or GPS location is required to register a shop.");
+    }
+
+    // Validate that shop's location is in an active, delivery-enabled district
+    const shopEligibility = await DeliveryLocationService.checkDeliveryEligibility({
+      district: input.city,
+      state: input.state,
+      postalCode: input.postalCode,
+      latitude: input.latitude,
+      longitude: input.longitude,
+    });
+
+    if (!shopEligibility.isDeliveryEligible) {
+      throw new Error(
+        `Shop cannot be registered in this location: ${shopEligibility.message}`
+      );
+    }
+
     let lat = input.latitude;
     let lng = input.longitude;
 
     if (!lat || !lng) {
-      const fullAddress = `${input.addressLine1}, ${input.city || "Mysuru"}`;
-      const geo = await GoogleMapsService.geocodeAddress(fullAddress, input.city || "Mysuru");
+      const fullAddress = `${input.addressLine1}, ${input.city || ""}`;
+      const geo = await GoogleMapsService.geocodeAddress(fullAddress, input.city);
       if (geo) {
         lat = geo.lat;
         lng = geo.lng;
       } else {
-        // Center of Mysuru
-        lat = 12.2958;
-        lng = 76.6394;
+        lat = 0;
+        lng = 0;
       }
     }
+
+    const resolvedCity = shopEligibility.resolvedLocation.district || input.city || "";
+    const resolvedState = shopEligibility.resolvedLocation.state || input.state || "Karnataka";
 
     const shop = await prisma.externalDeliveryShop.create({
       data: {
@@ -43,9 +65,9 @@ export class ExternalShopService {
         email: input.email || null,
         addressLine1: input.addressLine1,
         addressLine2: input.addressLine2 || null,
-        city: input.city || "Mysuru",
-        state: input.state || "Karnataka",
-        postalCode: input.postalCode || "570001",
+        city: resolvedCity,
+        state: resolvedState,
+        postalCode: input.postalCode || shopEligibility.resolvedLocation.postalCode || "",
         latitude: new Prisma.Decimal(lat),
         longitude: new Prisma.Decimal(lng),
         status: "ACTIVE",

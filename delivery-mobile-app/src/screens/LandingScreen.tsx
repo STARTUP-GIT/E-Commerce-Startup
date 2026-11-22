@@ -1,11 +1,24 @@
-import React from "react";
+import React, { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { ArrowRight, Clock3, MapPin, ShieldCheck, Sparkles, Wallet } from "lucide-react-native";
+import {
+  ArrowRight,
+  Clock3,
+  MapPin,
+  ShieldCheck,
+  Sparkles,
+  Wallet,
+  Crosshair,
+  ChevronDown,
+  Clock,
+  Send,
+} from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BrandLogo, Card, Page, Screen } from "../components/ui";
 import { useDeliverySettings } from "../settings/DeliverySettingsContext";
+import { LocationPickerModal } from "../components/LocationPickerModal";
+import { LocationRequestModal } from "../components/LocationRequestModal";
 import { colors } from "../theme";
 import type { RootStackParamList } from "../types";
 
@@ -18,9 +31,19 @@ const defaultStats = [
 ];
 
 export function LandingScreen({ navigation }: Props) {
-  const { settings, refresh } = useDeliverySettings();
+  const {
+    settings,
+    userLocation,
+    isDetectingLocation,
+    detectLocation,
+    catalogue,
+    refresh,
+  } = useDeliverySettings();
   const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [requestModalVisible, setRequestModalVisible] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -31,6 +54,7 @@ export function LandingScreen({ navigation }: Props) {
   const hero = settings?.hero;
   const statCards = settings?.cards;
   const registrationEnabled = settings?.isDeliveryServiceEnabled !== false;
+
   const openRegistration = () => {
     if (!registrationEnabled) {
       Alert.alert("Registration paused", "Rider registration is temporarily paused by delivery operations.");
@@ -38,6 +62,14 @@ export function LandingScreen({ navigation }: Props) {
     }
     navigation.navigate("Register");
   };
+
+  const isLocationIneligible = userLocation && userLocation.isEligible === false;
+  const locationLabel =
+    userLocation?.serviceArea ||
+    userLocation?.town ||
+    userLocation?.district ||
+    "Select Location";
+
   const stats: Array<{ value: string; label: string; desc: string }> = [];
   if (statCards?.payout?.show !== false) stats.push({
       value: statCards?.payout?.value || defaultStats[0].value,
@@ -68,6 +100,7 @@ export function LandingScreen({ navigation }: Props) {
 
   return (
     <Screen>
+      {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => navigation.navigate("Landing")} style={styles.brand}>
           <BrandLogo size={28} />
@@ -82,41 +115,176 @@ export function LandingScreen({ navigation }: Props) {
           </Pressable>
         </View>
       </View>
-      <Page contentContainerStyle={styles.content}>
-        <View style={[styles.heroSection, { minHeight: Math.max(0, windowHeight - insets.top - insets.bottom - 56) }]}>
-          <View style={styles.heroContent}>
-            <View style={styles.hero}>
-              <View style={styles.badge}>
-                <Sparkles size={13} color={colors.muted} />
-                <Text style={styles.badgeText}>{hero?.badge || "Local Delivery Network"}</Text>
-              </View>
-              <Text style={styles.heading}>
-                {hero?.line1 || "Deliver locally."}{" "}
-                <Text style={styles.headingMuted}>{hero?.line2 || "Earn directly with every trip."}</Text>
+
+      {/* Location Bar */}
+      <View style={styles.locationBar}>
+        <Pressable onPress={() => setPickerVisible(true)} style={styles.locationButton}>
+          <MapPin size={13} color={colors.muted} />
+          <Text numberOfLines={1} style={styles.locationButtonText}>
+            {locationLabel}
+          </Text>
+          {userLocation ? (
+            <View
+              style={[
+                styles.locationBadge,
+                userLocation.isEligible ? styles.locationBadgeActive : styles.locationBadgeComingSoon,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.locationBadgeText,
+                  userLocation.isEligible ? styles.locationBadgeTextActive : styles.locationBadgeTextComingSoon,
+                ]}
+              >
+                {userLocation.isEligible ? "Active" : "Coming Soon"}
               </Text>
-              <Text style={styles.description}>
-                {hero?.description || "Join AtlasBasket Delivery. Deliver orders from top local shops and marketplace sellers in admin-enabled operational districts. Enjoy flexible hours, transparent distance pricing, and fast weekly payouts."}
-              </Text>
-              <Pressable accessibilityRole="button" onPress={openRegistration} style={({ pressed }) => [styles.heroButton, styles.primaryHeroButton, pressed && styles.pressed, !registrationEnabled && styles.disabledButton]}>
-                <Text style={styles.primaryHeroButtonText}>Register as a Rider</Text>
-                <ArrowRight size={14} color={colors.black} />
-              </Pressable>
-              <Pressable accessibilityRole="button" onPress={() => navigation.navigate("Login")} style={({ pressed }) => [styles.heroButton, styles.secondaryHeroButton, pressed && styles.pressed]}>
-                <Text style={styles.secondaryHeroButtonText}>Rider Sign In</Text>
-              </Pressable>
-              {!registrationEnabled ? <Text style={styles.registrationPaused}>Rider registration is temporarily paused by delivery operations.</Text> : null}
             </View>
-            <View style={styles.stats}>
-              {stats.map((item) => (
-                <Card key={item.label} style={styles.statCard}>
-                  <Text numberOfLines={1} style={styles.statValue}>{item.value}</Text>
-                  <Text numberOfLines={1} style={styles.statLabel}>{item.label}</Text>
-                  <Text numberOfLines={1} style={styles.statDesc}>{item.desc}</Text>
-                </Card>
-              ))}
+          ) : isDetectingLocation ? (
+            <Text style={styles.locationDetecting}>Detecting...</Text>
+          ) : null}
+          <ChevronDown size={12} color={colors.muted} />
+        </Pressable>
+
+        {!userLocation?.district && (
+          <Pressable onPress={() => void detectLocation()} style={styles.detectIcon}>
+            <Crosshair size={14} color={colors.foreground} />
+          </Pressable>
+        )}
+      </View>
+
+      <Page contentContainerStyle={styles.content}>
+        {/* Dynamic Hero: Coming Soon view if location not serviceable */}
+        {isLocationIneligible ? (
+          <View style={[styles.comingSoonSection, { minHeight: Math.max(0, windowHeight - insets.top - insets.bottom - 120) }]}>
+            <View style={styles.comingSoonBadge}>
+              <Clock size={13} color="#38bdf8" />
+              <Text style={styles.comingSoonBadgeText}>Expanding Soon to Your Area</Text>
+            </View>
+
+            <View style={styles.comingSoonLocationChip}>
+              <MapPin size={12} color={colors.muted} />
+              <Text style={styles.comingSoonLocationText}>
+                {userLocation?.formattedAddress ||
+                  `${locationLabel}${userLocation?.postalCode ? ` - ${userLocation.postalCode}` : ""}`}
+              </Text>
+            </View>
+
+            <Text style={styles.comingSoonTitle}>
+              AtlasBasket Delivery is Coming Soon to {locationLabel}
+            </Text>
+
+            <Text style={styles.comingSoonDesc}>
+              {userLocation?.comingSoonMessage ||
+                userLocation?.message ||
+                "We are actively working to expand our hyper-local delivery fleet to your locality. You can request coverage or pre-register to deliver when service launches."}
+            </Text>
+
+            <View style={styles.comingSoonActions}>
+              <Pressable
+                onPress={() => setRequestModalVisible(true)}
+                style={({ pressed }) => [styles.heroButton, styles.primaryHeroButton, pressed && styles.pressed]}
+              >
+                <Send size={14} color={colors.black} />
+                <Text style={styles.primaryHeroButtonText}>Request Delivery in My Area</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setPickerVisible(true)}
+                style={({ pressed }) => [styles.heroButton, styles.secondaryHeroButton, pressed && styles.pressed]}
+              >
+                <MapPin size={14} color={colors.foreground} />
+                <Text style={styles.secondaryHeroButtonText}>Check Another District</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={openRegistration}
+                style={({ pressed }) => [styles.heroButton, styles.secondaryHeroButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.secondaryHeroButtonText}>Join Rider Waitlist</Text>
+                <ArrowRight size={14} color={colors.foreground} />
+              </Pressable>
+            </View>
+
+            {/* Operational Zones Directory */}
+            <Card style={styles.zones}>
+              <Text style={styles.zonesTitle}>
+                Currently Operational Delivery Districts ({settings?.activeCities?.length || 0})
+              </Text>
+              {settings?.activeCities?.length ? (
+                <View style={styles.cityList}>
+                  {settings.activeCities.map((city) => (
+                    <Pressable
+                      key={city}
+                      onPress={() => setPickerVisible(true)}
+                      style={styles.cityChip}
+                    >
+                      <MapPin size={12} color={colors.muted} />
+                      <Text style={styles.cityText}>{city}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.featureSub}>No delivery districts currently enabled by admin.</Text>
+              )}
+            </Card>
+          </View>
+        ) : (
+          /* Normal Operational Hero */
+          <View style={[styles.heroSection, { minHeight: Math.max(0, windowHeight - insets.top - insets.bottom - 120) }]}>
+            <View style={styles.heroContent}>
+              <View style={styles.hero}>
+                <View style={styles.badge}>
+                  <Sparkles size={13} color={colors.muted} />
+                  <Text style={styles.badgeText}>{hero?.badge || "Local Delivery Network"}</Text>
+                </View>
+                <Text style={styles.heading}>
+                  {hero?.line1 || "Deliver locally."}{" "}
+                  <Text style={styles.headingMuted}>{hero?.line2 || "Earn directly with every trip."}</Text>
+                </Text>
+                <Text style={styles.description}>
+                  {hero?.description ||
+                    "Join AtlasBasket Delivery. Deliver orders from top local shops and marketplace sellers in admin-enabled operational districts. Enjoy flexible hours, transparent distance pricing, and fast weekly payouts."}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={openRegistration}
+                  style={({ pressed }) => [
+                    styles.heroButton,
+                    styles.primaryHeroButton,
+                    pressed && styles.pressed,
+                    !registrationEnabled && styles.disabledButton,
+                  ]}
+                >
+                  <Text style={styles.primaryHeroButtonText}>Register as a Rider</Text>
+                  <ArrowRight size={14} color={colors.black} />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => navigation.navigate("Login")}
+                  style={({ pressed }) => [styles.heroButton, styles.secondaryHeroButton, pressed && styles.pressed]}
+                >
+                  <Text style={styles.secondaryHeroButtonText}>Rider Sign In</Text>
+                </Pressable>
+                {!registrationEnabled ? (
+                  <Text style={styles.registrationPaused}>
+                    Rider registration is temporarily paused by delivery operations.
+                  </Text>
+                ) : null}
+              </View>
+              <View style={styles.stats}>
+                {stats.map((item) => (
+                  <Card key={item.label} style={styles.statCard}>
+                    <Text numberOfLines={1} style={styles.statValue}>{item.value}</Text>
+                    <Text numberOfLines={1} style={styles.statLabel}>{item.label}</Text>
+                    <Text numberOfLines={1} style={styles.statDesc}>{item.desc}</Text>
+                  </Card>
+                ))}
+              </View>
             </View>
           </View>
-        </View>
+        )}
+
+        {/* Features Section */}
         <View style={styles.featuresSection}>
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Why Deliver with AtlasBasket?</Text>
@@ -127,40 +295,69 @@ export function LandingScreen({ navigation }: Props) {
           <Card style={styles.feature}>
             <Wallet size={19} color={colors.foreground} />
             <Text style={styles.featureTitle}>Direct Weekly Payouts</Text>
-            <Text style={styles.featureSub}>Earn the majority share on every delivery with zero hidden platform cut. Earnings are disbursed automatically to your registered bank account.</Text>
+            <Text style={styles.featureSub}>
+              Earn the majority share on every delivery with zero hidden platform cut. Earnings are disbursed automatically to your registered bank account.
+            </Text>
           </Card>
           <Card style={styles.feature}>
             <Clock3 size={19} color={colors.foreground} />
             <Text style={styles.featureTitle}>Flexible Shifts</Text>
-            <Text style={styles.featureSub}>Toggle Online when you want to deliver, and Go Offline when you are done. No minimum mandatory hours or penalty for logging off.</Text>
+            <Text style={styles.featureSub}>
+              Toggle Online when you want to deliver, and Go Offline when you are done. No minimum mandatory hours or penalty for logging off.
+            </Text>
           </Card>
           <Card style={styles.feature}>
             <ShieldCheck size={19} color={colors.foreground} />
             <Text style={styles.featureTitle}>Secure OTP Verification</Text>
-            <Text style={styles.featureSub}>Every pickup and drop-off is cryptographically validated with merchant QR and customer OTPs, ensuring accurate delivery credit.</Text>
+            <Text style={styles.featureSub}>
+              Every pickup and drop-off is cryptographically validated with merchant QR and customer OTPs, ensuring accurate delivery credit.
+            </Text>
           </Card>
           <Card style={styles.zones}>
-            <Text style={styles.zonesTitle}>Active Operational Zones ({settings?.activeCities?.length || 0} Enabled Districts)</Text>
+            <Text style={styles.zonesTitle}>
+              Active Operational Zones ({settings?.activeCities?.length || 0} Enabled Districts)
+            </Text>
             {settings?.activeCities?.length ? (
               <View style={styles.cityList}>
                 {settings.activeCities.map((city) => (
-                  <View key={city} style={styles.cityChip}>
+                  <Pressable
+                    key={city}
+                    onPress={() => setPickerVisible(true)}
+                    style={styles.cityChip}
+                  >
                     <MapPin size={12} color={colors.muted} />
                     <Text style={styles.cityText}>{city}</Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
-            ) : <Text style={styles.featureSub}>No districts currently enabled by admin in the database.</Text>}
-            <Pressable accessibilityRole="button" onPress={openRegistration} style={[styles.applyButton, !registrationEnabled && styles.disabledButton]}>
-              <Text style={styles.applyButtonText}>{settings?.activeCities?.length ? `Apply in ${settings.activeCities[0]}` : "Apply to Deliver"}</Text>
+            ) : (
+              <Text style={styles.featureSub}>No districts currently enabled by admin in the database.</Text>
+            )}
+            <Pressable
+              accessibilityRole="button"
+              onPress={openRegistration}
+              style={[styles.applyButton, !registrationEnabled && styles.disabledButton]}
+            >
+              <Text style={styles.applyButtonText}>
+                {settings?.activeCities?.length ? `Apply in ${settings.activeCities[0]}` : "Apply to Deliver"}
+              </Text>
             </Pressable>
           </Card>
         </View>
+
         <View style={styles.footer}>
-          <Text style={styles.footerBrand}>{settings?.brandName || "AtlasBasket Delivery"} · {settings?.activeCities?.length ? `${settings.activeCities.join(", ")} Network` : "Delivery Network"}</Text>
-          <Pressable accessibilityRole="button" onPress={() => navigation.navigate("Login")}><Text style={styles.footerLink}>Rider Portal</Text></Pressable>
+          <Text style={styles.footerBrand}>
+            {settings?.brandName || "AtlasBasket Delivery"} · {settings?.activeCities?.length ? `${settings.activeCities.join(", ")} Network` : "Delivery Network"}
+          </Text>
+          <Pressable accessibilityRole="button" onPress={() => navigation.navigate("Login")}>
+            <Text style={styles.footerLink}>Rider Portal</Text>
+          </Pressable>
         </View>
       </Page>
+
+      {/* Location Modals */}
+      <LocationPickerModal visible={pickerVisible} onClose={() => setPickerVisible(false)} />
+      <LocationRequestModal visible={requestModalVisible} onClose={() => setRequestModalVisible(false)} />
     </Screen>
   );
 }
@@ -175,6 +372,118 @@ const styles = StyleSheet.create({
   loginText: { color: colors.foreground, fontSize: 10, fontWeight: "500" },
   registerLink: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: colors.white },
   registerText: { color: colors.black, fontSize: 10, fontWeight: "600" },
+  locationBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "rgba(255, 255, 255, 0.02)",
+  },
+  locationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 1,
+  },
+  locationButtonText: {
+    color: colors.foreground,
+    fontSize: 12,
+    fontWeight: "600",
+    maxWidth: 160,
+  },
+  locationBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  locationBadgeActive: {
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+  },
+  locationBadgeComingSoon: {
+    backgroundColor: "rgba(56, 189, 248, 0.12)",
+  },
+  locationBadgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  locationBadgeTextActive: {
+    color: "#10b981",
+  },
+  locationBadgeTextComingSoon: {
+    color: "#38bdf8",
+  },
+  locationDetecting: {
+    fontSize: 10,
+    color: colors.muted,
+  },
+  detectIcon: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+  },
+  comingSoonSection: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 28,
+    gap: 14,
+  },
+  comingSoonBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: "rgba(56, 189, 248, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(56, 189, 248, 0.2)",
+  },
+  comingSoonBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#38bdf8",
+  },
+  comingSoonLocationChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  comingSoonLocationText: {
+    fontSize: 11,
+    color: colors.muted,
+    fontFamily: "monospace",
+  },
+  comingSoonTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: colors.foreground,
+    textAlign: "center",
+    letterSpacing: -0.5,
+    lineHeight: 28,
+  },
+  comingSoonDesc: {
+    fontSize: 12,
+    color: colors.muted,
+    textAlign: "center",
+    lineHeight: 18,
+    paddingHorizontal: 16,
+  },
+  comingSoonActions: {
+    width: "100%",
+    alignItems: "center",
+    gap: 10,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
   heroSection: { justifyContent: "space-between", paddingVertical: 24 },
   heroContent: { flex: 1, justifyContent: "space-between", gap: 24 },
   hero: { alignItems: "center", gap: 16, paddingTop: 8, paddingBottom: 4, marginVertical: "auto" },
@@ -183,7 +492,7 @@ const styles = StyleSheet.create({
   heading: { color: colors.foreground, fontSize: 24, fontWeight: "700", lineHeight: 28, letterSpacing: -0.6, textAlign: "center" },
   headingMuted: { color: colors.muted, fontWeight: "500" },
   description: { paddingHorizontal: 4, color: colors.muted, fontSize: 12, lineHeight: 17, textAlign: "center" },
-  heroButton: { width: "100%", maxWidth: 240, minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, paddingHorizontal: 20 },
+  heroButton: { width: "100%", maxWidth: 260, minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 12, paddingHorizontal: 20 },
   primaryHeroButton: { backgroundColor: colors.white },
   primaryHeroButtonText: { color: colors.black, fontSize: 12, fontWeight: "600" },
   secondaryHeroButton: { backgroundColor: colors.cardStrong, borderWidth: 1, borderColor: colors.borderStrong },

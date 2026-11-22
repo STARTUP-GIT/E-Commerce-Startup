@@ -21,6 +21,7 @@ import {
   Bike,
   ArrowRight,
   Phone,
+  AlertCircle,
 } from "lucide-react";
 
 interface RiderData {
@@ -114,37 +115,26 @@ export default function DashboardPage() {
                 batteryLevel: 95,
               });
               setRider((prev) => (prev ? { ...prev, isAvailable: true } : prev));
+              setError(null);
             } catch (err: any) {
-              setError(err.response?.data?.message || "Failed to go online");
+              setError(err.response?.data?.message || "Failed to go online: You may be outside active delivery coverage.");
             } finally {
               setTogglingStatus(false);
             }
           },
-          async () => {
-            try {
-              await apiClient.post("/api/delivery/availability", {
-                isAvailable: true,
-                latitude: 12.2958, // Default Mysuru Center
-                longitude: 76.6394,
-              });
-              setRider((prev) => (prev ? { ...prev, isAvailable: true } : prev));
-            } catch (err: any) {
-              setError(err.response?.data?.message || "Failed to go online");
-            } finally {
-              setTogglingStatus(false);
-            }
+          (geoErr) => {
+            setError(
+              geoErr.code === 1
+                ? "Location permission denied. Please allow location access in your browser to go online and receive delivery jobs."
+                : "Unable to retrieve GPS coordinates. Please ensure GPS is enabled on your device to activate availability."
+            );
+            setTogglingStatus(false);
           },
-          { enableHighAccuracy: true }
+          { enableHighAccuracy: true, timeout: 10000 }
         );
       } else {
-        try {
-          await apiClient.post("/api/delivery/availability", { isAvailable: true });
-          setRider((prev) => (prev ? { ...prev, isAvailable: true } : prev));
-        } catch (err: any) {
-          setError(err.response?.data?.message || "Failed to go online");
-        } finally {
-          setTogglingStatus(false);
-        }
+        setError("GPS location is not supported on this browser. A location-enabled device is required to deliver.");
+        setTogglingStatus(false);
       }
     } else {
       try {
@@ -199,6 +189,23 @@ export default function DashboardPage() {
               <span>Complete Details</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
+          </div>
+        )}
+
+        {/* Error Alert Banner */}
+        {error && (
+          <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 text-red-300">
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+            <div className="space-y-0.5 flex-1">
+              <h4 className="font-semibold text-xs text-red-200">Unable to Update Status</h4>
+              <p className="text-xs text-red-300/90 leading-relaxed">{error}</p>
+            </div>
+            <button
+              onClick={() => setError(null)}
+              className="text-xs text-red-400 hover:text-white"
+            >
+              ✕
+            </button>
           </div>
         )}
 

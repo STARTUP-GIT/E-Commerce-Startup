@@ -4,6 +4,7 @@ import { OAuth2Client } from "google-auth-library";
 import { prisma } from "../../../config/prisma.js";
 import { logger } from "../../../config/logger.js";
 import { DeliverySettingsService } from "./deliverySettings.service.js";
+import { DeliveryLocationService } from "./deliveryLocation.service.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || "");
 
@@ -106,33 +107,24 @@ export class RiderAuthService {
 
     const maskedAadhaar = this.maskAadhaar(input.aadhaarNumber);
 
-    // Validate operational district against Admin-enabled districts in DB
-    let validatedDistrict: string;
-    if (input.city?.trim()) {
-      const activeDistrict = await prisma.city.findFirst({
-        where: {
-          name: { equals: input.city.trim(), mode: "insensitive" },
-          isActive: true,
-        },
-      });
-      if (!activeDistrict) {
-        throw new Error(
-          `Delivery operations are not currently enabled for district '${input.city}'. Please select an admin-enabled district.`
-        );
-      }
-      validatedDistrict = activeDistrict.name;
-    } else {
-      const firstActive = await prisma.city.findFirst({
-        where: { isActive: true },
-        orderBy: { name: "asc" },
-      });
-      if (!firstActive) {
-        throw new Error(
-          "No operational delivery districts are currently enabled by admin in the database."
-        );
-      }
-      validatedDistrict = firstActive.name;
+    // Validate operational district against Admin-enabled delivery locations in DB
+    const requestedDistrict = (input as any).districtId || (input as any).district || input.city;
+    if (!requestedDistrict?.trim()) {
+      throw new Error(
+        "Operating district is required. Please select an active operational delivery location."
+      );
     }
+
+    const validatedLocation = await DeliveryLocationService.validateRiderOperatingLocation({
+      districtId: (input as any).districtId,
+      district: (input as any).district || input.city,
+      townId: (input as any).cityTownId,
+      town: (input as any).town,
+      serviceAreaId: (input as any).serviceAreaId,
+      serviceArea: (input as any).serviceArea,
+      postalCode: (input as any).postalCode,
+    });
+    const validatedDistrict = validatedLocation.resolvedLocation.district || input.city?.trim() || "";
 
     const rider = await prisma.deliveryPartner.create({
       data: {

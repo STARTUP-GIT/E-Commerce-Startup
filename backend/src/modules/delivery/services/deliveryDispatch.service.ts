@@ -5,6 +5,7 @@ import { prisma } from "../../../config/prisma.js";
 import { logger } from "../../../config/logger.js";
 import { GoogleMapsService, haversineDistanceKm } from "./googleMaps.service.js";
 import { DeliverySettingsService } from "./deliverySettings.service.js";
+import { DeliveryLocationService } from "./deliveryLocation.service.js";
 import { Prisma } from "@prisma/client";
 
 export class DeliveryDispatchService {
@@ -83,36 +84,30 @@ export class DeliveryDispatchService {
       throw new Error("Customer shipping address is missing.");
     }
 
-    // Verify pickup and dropoff districts are enabled in the database by admin
-    const pickupDistrict = (pickupAddress as any).city || (pickupAddress as any).district;
-    const dropoffDistrict = (dropoffAddress as any).city || (dropoffAddress as any).district;
+    // Authoritatively validate pickup and dropoff locations against operational delivery rules
+    const pickupLoc = {
+      state: (pickupAddress as any).state,
+      district: (pickupAddress as any).district || (pickupAddress as any).city,
+      city: (pickupAddress as any).city,
+      postalCode: (pickupAddress as any).postalCode,
+      latitude: pickupAddress.latitude ? Number(pickupAddress.latitude) : undefined,
+      longitude: pickupAddress.longitude ? Number(pickupAddress.longitude) : undefined,
+    };
+    const dropoffLoc = {
+      state: (dropoffAddress as any).state,
+      district: (dropoffAddress as any).district || (dropoffAddress as any).city,
+      city: (dropoffAddress as any).city,
+      postalCode: (dropoffAddress as any).postalCode,
+      latitude: dropoffAddress.latitude ? Number(dropoffAddress.latitude) : undefined,
+      longitude: dropoffAddress.longitude ? Number(dropoffAddress.longitude) : undefined,
+    };
 
-    if (pickupDistrict) {
-      const isPickupEnabled = await prisma.city.findFirst({
-        where: { name: { equals: pickupDistrict.trim(), mode: "insensitive" }, isActive: true },
-      });
-      if (!isPickupEnabled) {
-        throw new Error(
-          `Delivery cannot be fulfilled: Pickup district '${pickupDistrict}' is not enabled for delivery operations by admin.`
-        );
-      }
-    }
+    const { pickupResult, dropoffResult } = await DeliveryLocationService.validateDeliveryJobLocations(pickupLoc, dropoffLoc);
 
-    if (dropoffDistrict) {
-      const isDropoffEnabled = await prisma.city.findFirst({
-        where: { name: { equals: dropoffDistrict.trim(), mode: "insensitive" }, isActive: true },
-      });
-      if (!isDropoffEnabled) {
-        throw new Error(
-          `Delivery cannot be fulfilled: Drop-off destination district '${dropoffDistrict}' is not enabled for delivery operations by admin.`
-        );
-      }
-    }
-
-    const pickupLat = pickupAddress.latitude ? Number(pickupAddress.latitude) : 12.2958;
-    const pickupLng = pickupAddress.longitude ? Number(pickupAddress.longitude) : 76.6394;
-    const dropoffLat = dropoffAddress.latitude ? Number(dropoffAddress.latitude) : 12.3106;
-    const dropoffLng = dropoffAddress.longitude ? Number(dropoffAddress.longitude) : 76.6548;
+    const pickupLat = pickupAddress.latitude ? Number(pickupAddress.latitude) : (pickupResult.resolvedLocation.latitude || 0);
+    const pickupLng = pickupAddress.longitude ? Number(pickupAddress.longitude) : (pickupResult.resolvedLocation.longitude || 0);
+    const dropoffLat = dropoffAddress.latitude ? Number(dropoffAddress.latitude) : (dropoffResult.resolvedLocation.latitude || 0);
+    const dropoffLng = dropoffAddress.longitude ? Number(dropoffAddress.longitude) : (dropoffResult.resolvedLocation.longitude || 0);
 
     const route = await GoogleMapsService.calculateRoute(
       { lat: pickupLat, lng: pickupLng },
@@ -214,36 +209,30 @@ export class DeliveryDispatchService {
     });
     if (!shop) throw new Error("External shop not found.");
 
-    // Validate shop district and customer dropoff district are active in DB
-    const shopDistrict = shop.city;
-    const dropoffDistrict = input.dropoffAddress.city;
+    // Authoritatively validate external shop pickup and customer dropoff locations
+    const shopLoc = {
+      state: shop.state,
+      district: shop.city,
+      city: shop.city,
+      postalCode: shop.postalCode,
+      latitude: shop.latitude ? Number(shop.latitude) : undefined,
+      longitude: shop.longitude ? Number(shop.longitude) : undefined,
+    };
+    const dropoffLoc = {
+      state: input.dropoffAddress.state,
+      district: input.dropoffAddress.city,
+      city: input.dropoffAddress.city,
+      postalCode: input.dropoffAddress.postalCode,
+      latitude: input.dropoffAddress.latitude,
+      longitude: input.dropoffAddress.longitude,
+    };
 
-    if (shopDistrict) {
-      const isShopDistrictEnabled = await prisma.city.findFirst({
-        where: { name: { equals: shopDistrict.trim(), mode: "insensitive" }, isActive: true },
-      });
-      if (!isShopDistrictEnabled) {
-        throw new Error(
-          `Delivery cannot be created: Shop district '${shopDistrict}' is not enabled for delivery operations by admin.`
-        );
-      }
-    }
+    const { pickupResult, dropoffResult } = await DeliveryLocationService.validateDeliveryJobLocations(shopLoc, dropoffLoc);
 
-    if (dropoffDistrict) {
-      const isDropoffDistrictEnabled = await prisma.city.findFirst({
-        where: { name: { equals: dropoffDistrict.trim(), mode: "insensitive" }, isActive: true },
-      });
-      if (!isDropoffDistrictEnabled) {
-        throw new Error(
-          `Delivery cannot be created: Drop-off destination district '${dropoffDistrict}' is not enabled for delivery operations by admin.`
-        );
-      }
-    }
-
-    const pickupLat = shop.latitude ? Number(shop.latitude) : 12.2958;
-    const pickupLng = shop.longitude ? Number(shop.longitude) : 76.6394;
-    const dropoffLat = input.dropoffAddress.latitude || 12.3106;
-    const dropoffLng = input.dropoffAddress.longitude || 76.6548;
+    const pickupLat = shop.latitude ? Number(shop.latitude) : (pickupResult.resolvedLocation.latitude || 0);
+    const pickupLng = shop.longitude ? Number(shop.longitude) : (pickupResult.resolvedLocation.longitude || 0);
+    const dropoffLat = input.dropoffAddress.latitude || dropoffResult.resolvedLocation.latitude || 0;
+    const dropoffLng = input.dropoffAddress.longitude || dropoffResult.resolvedLocation.longitude || 0;
 
     const route = await GoogleMapsService.calculateRoute(
       { lat: pickupLat, lng: pickupLng },
@@ -285,8 +274,8 @@ export class DeliveryDispatchService {
       phone: input.customerPhone,
       addressLine1: input.dropoffAddress.addressLine1,
       addressLine2: input.dropoffAddress.addressLine2,
-      city: input.dropoffAddress.city || "Mysuru",
-      state: input.dropoffAddress.state || "Karnataka",
+      city: input.dropoffAddress.city || dropoffResult.resolvedLocation.district || "",
+      state: input.dropoffAddress.state || dropoffResult.resolvedLocation.state || "",
       postalCode: input.dropoffAddress.postalCode,
       latitude: dropoffLat,
       longitude: dropoffLng,
@@ -392,11 +381,34 @@ export class DeliveryDispatchService {
     });
 
     // Filter riders who already rejected this specific delivery or currently have active delivery
-    const eligibleRiders = candidateRiders.filter((r) => {
-      if (r.deliveries.length > 0) return false; // 1 active job per rider rule
-      if (r.assignments.length > 0) return false; // Already rejected/timed out on this job
-      return true;
-    });
+    // and ensure rider's current location is fresh and within operational delivery coverage
+    const eligibleRiders = [];
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+
+    for (const r of candidateRiders) {
+      if (r.deliveries.length > 0) continue; // 1 active job per rider rule
+      if (r.assignments.length > 0) continue; // Already rejected/timed out on this job
+
+      // Stale location check: must have reported location recently
+      if (r.lastLocationUpdatedAt && new Date(r.lastLocationUpdatedAt).getTime() < twoHoursAgo) {
+        continue;
+      }
+
+      // Check rider's current coordinates against authoritative delivery coverage
+      const rLat = Number(r.currentLat);
+      const rLng = Number(r.currentLng);
+      const riderLocCheck = await DeliveryLocationService.checkDeliveryEligibility({
+        latitude: rLat,
+        longitude: rLng,
+      });
+
+      if (!riderLocCheck.isDeliveryEligible) {
+        // Rider is physically outside active delivery coverage; cannot receive dispatch offers
+        continue;
+      }
+
+      eligibleRiders.push(r);
+    }
 
     // Calculate distance to pickup for each eligible rider
     const rankedRiders = eligibleRiders
@@ -461,6 +473,42 @@ export class DeliveryDispatchService {
         undefined,
         undefined,
         `No riders accepted after ${previousAttemptsCount} attempts. Delivery marked for manual admin assignment.`
+      );
+      return;
+    }
+
+    // Revalidate delivery location availability immediately before offering to riders
+    const pickupLoc = (delivery.pickupAddressSnapshot as any) || {};
+    const dropoffLoc = (delivery.deliveryAddressSnapshot as any) || {};
+    const [pickupCheck, dropoffCheck] = await Promise.all([
+      DeliveryLocationService.checkDeliveryEligibility({
+        state: pickupLoc.state,
+        district: pickupLoc.district || pickupLoc.city,
+        postalCode: pickupLoc.postalCode,
+        latitude: delivery.pickupLat ? Number(delivery.pickupLat) : undefined,
+        longitude: delivery.pickupLng ? Number(delivery.pickupLng) : undefined,
+      }),
+      DeliveryLocationService.checkDeliveryEligibility({
+        state: dropoffLoc.state,
+        district: dropoffLoc.district || dropoffLoc.city,
+        postalCode: dropoffLoc.postalCode,
+        latitude: delivery.dropoffLat ? Number(delivery.dropoffLat) : undefined,
+        longitude: delivery.dropoffLng ? Number(delivery.dropoffLng) : undefined,
+      }),
+    ]);
+
+    if (!pickupCheck.isDeliveryEligible || !dropoffCheck.isDeliveryEligible) {
+      logger.warn(
+        `[Dispatch] Delivery ${deliveryId} location is no longer operational (pickup: ${pickupCheck.isDeliveryEligible}, dropoff: ${dropoffCheck.isDeliveryEligible}). Pausing automated dispatch.`
+      );
+      await this.recordTimelineEvent(
+        delivery.id,
+        "DISPATCH_PAUSED",
+        "Dispatch Paused - Location Disabled",
+        "SYSTEM",
+        undefined,
+        "AtlasBasket Dispatch System",
+        `Automated dispatch paused because location availability was disabled in Admin location settings. Active jobs remain preserved.`
       );
       return;
     }
@@ -595,6 +643,32 @@ export class DeliveryDispatchService {
 
       if (!delivery || delivery.status !== "OFFERED_TO_RIDER") {
         throw new Error("This delivery has already been assigned or cancelled.");
+      }
+
+      // 3. Verify location availability is still operational before accepting
+      const pickupLoc = (delivery.pickupAddressSnapshot as any) || {};
+      const dropoffLoc = (delivery.deliveryAddressSnapshot as any) || {};
+      const [pCheck, dCheck] = await Promise.all([
+        DeliveryLocationService.checkDeliveryEligibility({
+          state: pickupLoc.state,
+          district: pickupLoc.district || pickupLoc.city,
+          postalCode: pickupLoc.postalCode,
+          latitude: delivery.pickupLat ? Number(delivery.pickupLat) : undefined,
+          longitude: delivery.pickupLng ? Number(delivery.pickupLng) : undefined,
+        }),
+        DeliveryLocationService.checkDeliveryEligibility({
+          state: dropoffLoc.state,
+          district: dropoffLoc.district || dropoffLoc.city,
+          postalCode: dropoffLoc.postalCode,
+          latitude: delivery.dropoffLat ? Number(delivery.dropoffLat) : undefined,
+          longitude: delivery.dropoffLng ? Number(delivery.dropoffLng) : undefined,
+        }),
+      ]);
+
+      if (!pCheck.isDeliveryEligible || !dCheck.isDeliveryEligible) {
+        throw new Error(
+          "This delivery cannot be accepted because delivery operations in this area have been paused by admin."
+        );
       }
 
       // 3. Verify rider has no concurrent active delivery

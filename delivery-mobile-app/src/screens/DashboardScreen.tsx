@@ -141,7 +141,15 @@ export function DashboardScreen() {
         isAvailable: !rider.isAvailable,
       });
     } catch (cause) {
-      setError(getErrorMessage(cause, "Could not update availability."));
+      const msg = getErrorMessage(cause, "Could not update availability.");
+      setError(msg);
+      if (
+        msg.toLowerCase().includes("outside") ||
+        msg.toLowerCase().includes("not enabled") ||
+        msg.toLowerCase().includes("disabled")
+      ) {
+        Alert.alert("Delivery Coverage Unavailable", msg);
+      }
     } finally {
       setToggling(false);
     }
