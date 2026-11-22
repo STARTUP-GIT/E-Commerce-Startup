@@ -138,3 +138,105 @@ test('Universal District Master Control - Transactional Synchronization of All S
         toggleIndividualArea(turnedOffDistrict, 'sa-2', true);
     }, /Cannot enable service area while district master is disabled/);
 });
+
+test('Three-Level Location Control System - District, Town, and Area Hierarchy Invariants', async () => {
+    // 1. Structure representation
+    let district = {
+        id: 'dist-mysuru',
+        name: 'Mysuru',
+        isActive: true,
+        cityTowns: [
+            { id: 'town-hunsur', name: 'Hunsur', isActive: true },
+            { id: 'town-mysuru', name: 'Mysuru City', isActive: true }
+        ],
+        serviceAreas: [
+            { id: 'sa-hunsur-1', name: 'Hunsur Town', cityTownId: 'town-hunsur', isActive: true, deliveryEligible: true },
+            { id: 'sa-hunsur-2', name: 'Bilikere', cityTownId: 'town-hunsur', isActive: true, deliveryEligible: true },
+            { id: 'sa-my-1', name: 'Vijayanagar', cityTownId: 'town-mysuru', isActive: true, deliveryEligible: true },
+            { id: 'sa-my-2', name: 'Jayalakshmipuram', cityTownId: 'town-mysuru', isActive: true, deliveryEligible: true }
+        ]
+    };
+
+    // Operation: Town Toggle
+    const toggleTown = (state, townId, targetActive) => {
+        if (!state.isActive && targetActive) {
+            throw new Error("Cannot enable town while district master is disabled.");
+        }
+        return {
+            ...state,
+            cityTowns: state.cityTowns.map(t => t.id === townId ? { ...t, isActive: targetActive } : t),
+            serviceAreas: state.serviceAreas.map(a => a.cityTownId === townId ? { ...a, isActive: targetActive, deliveryEligible: targetActive } : a)
+        };
+    };
+
+    // Operation: Service Area Toggle
+    const toggleArea = (state, areaId, targetActive) => {
+        const area = state.serviceAreas.find(a => a.id === areaId);
+        if (!area) throw new Error("Area not found");
+        if (!state.isActive && targetActive) {
+            throw new Error("Cannot enable service area while district master is disabled.");
+        }
+        const town = state.cityTowns.find(t => t.id === area.cityTownId);
+        if (town && !town.isActive && targetActive) {
+            throw new Error("Cannot enable service area while parent town is disabled.");
+        }
+        return {
+            ...state,
+            serviceAreas: state.serviceAreas.map(a => a.id === areaId ? { ...a, isActive: targetActive, deliveryEligible: targetActive } : a)
+        };
+    };
+
+    // Operation: District Master Toggle
+    const toggleDistrict = (state, targetActive) => {
+        return {
+            ...state,
+            isActive: targetActive,
+            cityTowns: state.cityTowns.map(t => ({ ...t, isActive: targetActive })),
+            serviceAreas: state.serviceAreas.map(a => ({ ...a, isActive: targetActive, deliveryEligible: targetActive }))
+        };
+    };
+
+    // Test Rule A: Turning Hunsur OFF disables its child service areas; Mysuru City and its areas remain unaffected
+    district = toggleTown(district, 'town-hunsur', false);
+    const hunsur = district.cityTowns.find(t => t.id === 'town-hunsur');
+    const mysuru = district.cityTowns.find(t => t.id === 'town-mysuru');
+    assert.strictEqual(hunsur.isActive, false, 'Hunsur town must be disabled');
+    assert.strictEqual(mysuru.isActive, true, 'Mysuru town must remain active');
+
+    const hunsurAreas = district.serviceAreas.filter(a => a.cityTownId === 'town-hunsur');
+    const mysuruAreas = district.serviceAreas.filter(a => a.cityTownId === 'town-mysuru');
+    assert.ok(hunsurAreas.every(a => !a.isActive && !a.deliveryEligible), 'All Hunsur areas must be disabled');
+    assert.ok(mysuruAreas.every(a => a.isActive && a.deliveryEligible), 'Mysuru areas must remain active');
+
+    // Test Rule B: Cannot enable an area whose town is disabled
+    assert.throws(() => {
+        toggleArea(district, 'sa-hunsur-1', true);
+    }, /Cannot enable service area while parent town is disabled/);
+
+    // Test Rule C: Admin can toggle individual area in active town
+    district = toggleArea(district, 'sa-my-1', false);
+    assert.strictEqual(district.serviceAreas.find(a => a.id === 'sa-my-1').isActive, false, 'sa-my-1 is disabled');
+    assert.strictEqual(district.serviceAreas.find(a => a.id === 'sa-my-2').isActive, true, 'sa-my-2 remains enabled');
+
+    // Test Rule D: Re-enabling Hunsur enables all Hunsur areas, other towns unaffected
+    district = toggleTown(district, 'town-hunsur', true);
+    assert.strictEqual(district.cityTowns.find(t => t.id === 'town-hunsur').isActive, true, 'Hunsur town is re-enabled');
+    assert.ok(district.serviceAreas.filter(a => a.cityTownId === 'town-hunsur').every(a => a.isActive), 'Hunsur areas re-enabled');
+    // sa-my-1 was individually disabled earlier and should stay as-is because Mysuru was not toggled
+    assert.strictEqual(district.serviceAreas.find(a => a.id === 'sa-my-1').isActive, false);
+
+    // Test Rule E: District Master OFF disables all towns and all areas
+    district = toggleDistrict(district, false);
+    assert.strictEqual(district.isActive, false);
+    assert.ok(district.cityTowns.every(t => !t.isActive), 'All towns disabled by district OFF');
+    assert.ok(district.serviceAreas.every(a => !a.isActive), 'All areas disabled by district OFF');
+
+    // Test Rule F: Cannot enable town or area when district master is OFF
+    assert.throws(() => {
+        toggleTown(district, 'town-hunsur', true);
+    }, /Cannot enable town while district master is disabled/);
+
+    assert.throws(() => {
+        toggleArea(district, 'sa-my-2', true);
+    }, /Cannot enable service area while district master is disabled/);
+});

@@ -445,9 +445,8 @@ export const toggleDistrictMaster = async (req: Request, res: Response) => {
             return city;
         });
 
-        const actionMessage = targetActive
-            ? "Entire district enabled successfully."
-            : "Entire district disabled successfully.";
+        const districtName = existing.displayName || existing.name;
+        const actionMessage = `${districtName} district ${targetActive ? "enabled" : "disabled"}.`;
 
         await logAudit(req, "DISTRICT", id, "MASTER_TOGGLE", existing, updated);
         invalidatePublicCache();
@@ -672,6 +671,21 @@ export const updateCityTown = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Town not found in this district" });
         }
 
+        const district = await prisma.city.findUnique({
+            where: { id },
+            select: { id: true, name: true, displayName: true, isActive: true }
+        });
+        if (!district) {
+            return res.status(404).json({ message: "District not found" });
+        }
+
+        // Validate parent district state: cannot enable a town while district master is disabled
+        if (isActive !== undefined && Boolean(isActive) && !district.isActive) {
+            return res.status(400).json({
+                message: "Cannot enable town while district master is disabled."
+            });
+        }
+
         const data: any = {};
         if (name?.trim()) data.name = name.trim();
         if (displayName !== undefined) data.displayName = displayName?.trim() || null;
@@ -680,15 +694,36 @@ export const updateCityTown = async (req: Request, res: Response) => {
         if (info !== undefined) data.info = info?.trim() || null;
         if (displayOrder !== undefined) data.displayOrder = Number(displayOrder);
 
-        const updated = await prisma.cityTown.update({
-            where: { id: townId },
-            data
+        // Transactional bulk update: updating town isActive also synchronizes all child service areas belonging to this town
+        const updated = await prisma.$transaction(async (tx) => {
+            const town = await tx.cityTown.update({
+                where: { id: townId },
+                data
+            });
+
+            if (isActive !== undefined) {
+                const targetTownActive = Boolean(isActive);
+                await tx.serviceArea.updateMany({
+                    where: { cityTownId: townId },
+                    data: {
+                        isActive: targetTownActive,
+                        deliveryEligible: targetTownActive
+                    }
+                });
+            }
+
+            return town;
         });
 
         await logAudit(req, "CITY_TOWN", townId, "UPDATE_CITY_TOWN", existing, updated);
         invalidatePublicCache();
 
-        return res.status(200).json({ message: "Town updated successfully", town: updated });
+        const townLabel = updated.displayName || updated.name;
+        const actionMessage = isActive !== undefined
+            ? `${townLabel} town ${Boolean(isActive) ? "enabled" : "disabled"}.`
+            : "Town updated successfully";
+
+        return res.status(200).json({ message: actionMessage, town: updated });
     } catch (error: any) {
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
@@ -806,6 +841,17 @@ export const updateServiceArea = async (req: Request, res: Response) => {
             });
         }
 
+        // Validate parent town state: cannot enable service area while parent town is disabled
+        const targetTownId = cityTownId !== undefined ? (cityTownId || null) : existing.cityTownId;
+        if (isActive !== undefined && Boolean(isActive) && targetTownId) {
+            const parentTown = await prisma.cityTown.findUnique({ where: { id: targetTownId } });
+            if (parentTown && !parentTown.isActive) {
+                return res.status(400).json({
+                    message: `Cannot enable service area while parent town ${parentTown.displayName || parentTown.name} is disabled.`
+                });
+            }
+        }
+
         const data: any = {};
         if (name?.trim()) data.name = name.trim();
         if (cityTownId !== undefined) data.cityTownId = cityTownId || null;
@@ -828,9 +874,10 @@ export const updateServiceArea = async (req: Request, res: Response) => {
         await logAudit(req, "SERVICE_AREA", areaId, "UPDATE_SERVICE_AREA", existing, updated);
         invalidatePublicCache();
 
+        const areaLabel = updated.name;
         const actionMessage = isActive !== undefined
-            ? (Boolean(isActive) ? "Service area enabled successfully." : "Service area disabled successfully.")
-            : "Service area updated successfully.";
+            ? `${areaLabel} service area ${Boolean(isActive) ? "enabled" : "disabled"}.`
+            : "Service area updated successfully";
 
         return res.status(200).json({ message: actionMessage, serviceArea: updated });
     } catch (error: any) {

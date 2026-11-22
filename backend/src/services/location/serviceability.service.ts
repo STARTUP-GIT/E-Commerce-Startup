@@ -334,7 +334,7 @@ export class ServiceabilityService {
             };
         }
 
-        // 4. City / Town Geographical Resolution (Town is parent grouping metadata, not an independent activation gate)
+        // 4. City / Town Availability Check
         let resolvedCityTownName: string | undefined = undefined;
         if (rawTown) {
             const matchedTown = district.cityTowns.find(
@@ -344,6 +344,24 @@ export class ServiceabilityService {
 
             if (matchedTown) {
                 resolvedCityTownName = matchedTown.displayName || matchedTown.name;
+                if (!matchedTown.isActive) {
+                    return {
+                        status: "NOT_SERVICEABLE",
+                        isServiceable: false,
+                        inheritedStatus: "DISABLED_BY_CITY",
+                        state: stateRecord.name,
+                        district: district.displayName || district.name,
+                        city: resolvedCityTownName,
+                        message: `Service is currently suspended in ${resolvedCityTownName}.`,
+                        allowCustomerBrowsing: district.allowCustomerBrowsing,
+                        allowCustomerOrdering: false,
+                        allowSellerRegistration: false,
+                        allowShopCreation: false,
+                        deliveryEnabled: false,
+                        availableStates: activeStates,
+                        availableDistricts: stateActiveDistricts,
+                    };
+                }
             }
         }
 
@@ -354,6 +372,30 @@ export class ServiceabilityService {
             );
 
             if (matchedArea) {
+                // If matching service area belongs to a parent town, verify town is active
+                if (matchedArea.cityTownId) {
+                    const parentTown = district.cityTowns.find(t => t.id === matchedArea.cityTownId);
+                    if (parentTown && !parentTown.isActive) {
+                        return {
+                            status: "NOT_SERVICEABLE",
+                            isServiceable: false,
+                            inheritedStatus: "DISABLED_BY_CITY",
+                            state: stateRecord.name,
+                            district: district.displayName || district.name,
+                            city: parentTown.displayName || parentTown.name,
+                            serviceArea: matchedArea.name,
+                            message: `Service in ${matchedArea.name} is unavailable because parent town ${parentTown.displayName || parentTown.name} is disabled.`,
+                            allowCustomerBrowsing: district.allowCustomerBrowsing,
+                            allowCustomerOrdering: false,
+                            allowSellerRegistration: false,
+                            allowShopCreation: false,
+                            deliveryEnabled: false,
+                            availableStates: activeStates,
+                            availableDistricts: stateActiveDistricts,
+                        };
+                    }
+                }
+
                 if (!matchedArea.isActive) {
                     return {
                         status: "NOT_SERVICEABLE",
@@ -382,6 +424,31 @@ export class ServiceabilityService {
             if (areasWithPostalCodes.length > 0) {
                 const matchingArea = areasWithPostalCodes.find(a => a.postalCodes.includes(postalCode));
                 if (matchingArea) {
+                    // If matching service area belongs to a parent town, verify town is active
+                    if (matchingArea.cityTownId) {
+                        const parentTown = district.cityTowns.find(t => t.id === matchingArea.cityTownId);
+                        if (parentTown && !parentTown.isActive) {
+                            return {
+                                status: "NOT_SERVICEABLE",
+                                isServiceable: false,
+                                inheritedStatus: "DISABLED_BY_CITY",
+                                state: stateRecord.name,
+                                district: district.displayName || district.name,
+                                postalCode,
+                                city: parentTown.displayName || parentTown.name,
+                                serviceArea: matchingArea.name,
+                                message: `Delivery to PIN code ${postalCode} (${matchingArea.name}) is unavailable because parent town ${parentTown.displayName || parentTown.name} is disabled.`,
+                                allowCustomerBrowsing: district.allowCustomerBrowsing,
+                                allowCustomerOrdering: false,
+                                allowSellerRegistration: false,
+                                allowShopCreation: false,
+                                deliveryEnabled: false,
+                                availableStates: activeStates,
+                                availableDistricts: stateActiveDistricts,
+                            };
+                        }
+                    }
+
                     if (!matchingArea.isActive) {
                         return {
                             status: "NOT_SERVICEABLE",

@@ -136,15 +136,14 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
     onError: (err: any) => showToast(err.message || 'Failed to update launch config', 'error')
   });
 
-  // Universal District Master Mutation
+  // 1. Universal District Master Mutation
   const toggleMasterMutation = useMutation({
     mutationFn: (payload: { isActive: boolean }) =>
       cityApi.toggleDistrictMaster(districtId!, payload),
     onSuccess: (data: any, variables: { isActive: boolean }) => {
-      const msg = variables.isActive
-        ? 'Entire district enabled successfully.'
-        : 'Entire district disabled successfully.';
-      showToast(data.message || msg, 'success');
+      const districtName = district?.displayName || district?.name || 'District';
+      const msg = data.message || `${districtName} district ${variables.isActive ? 'enabled' : 'disabled'}.`;
+      showToast(msg, 'success');
       queryClient.invalidateQueries({ queryKey: ['district-details', districtId] });
       queryClient.invalidateQueries({ queryKey: ['cities'] });
     },
@@ -153,7 +152,24 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
     }
   });
 
-  // Individual Service Area Mutation
+  // 2. Town / City Group Master Mutation
+  const toggleTownMutation = useMutation({
+    mutationFn: ({ townId, isActive }: { townId: string; isActive: boolean }) =>
+      cityApi.updateCityTown(districtId!, townId, { isActive }),
+    onSuccess: (data: any, variables: { townId: string; isActive: boolean }) => {
+      const matchedTown = (district?.cityTowns || []).find((t: any) => t.id === variables.townId);
+      const townName = matchedTown?.displayName || matchedTown?.name || 'Town';
+      const msg = data.message || `${townName} town ${variables.isActive ? 'enabled' : 'disabled'}.`;
+      showToast(msg, 'success');
+      queryClient.invalidateQueries({ queryKey: ['district-details', districtId] });
+      queryClient.invalidateQueries({ queryKey: ['cities'] });
+    },
+    onError: (err: any) => {
+      showToast(err.response?.data?.message || err.message || 'Failed to update town', 'error');
+    }
+  });
+
+  // 3. Individual Service Area Mutation
   const toggleAreaMutation = useMutation({
     mutationFn: ({ areaId, isActive }: { areaId: string; isActive: boolean }) =>
       cityApi.updateServiceArea(districtId!, areaId, {
@@ -161,10 +177,10 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
         deliveryEligible: isActive
       }),
     onSuccess: (data: any, variables: { areaId: string; isActive: boolean }) => {
-      const msg = variables.isActive
-        ? 'Service area enabled successfully.'
-        : 'Service area disabled successfully.';
-      showToast(data.message || msg, 'success');
+      const matchedArea = (district?.serviceAreas || []).find((a: any) => a.id === variables.areaId);
+      const areaName = matchedArea?.name || 'Service area';
+      const msg = data.message || `${areaName} service area ${variables.isActive ? 'enabled' : 'disabled'}.`;
+      showToast(msg, 'success');
       queryClient.invalidateQueries({ queryKey: ['district-details', districtId] });
       queryClient.invalidateQueries({ queryKey: ['cities'] });
     },
@@ -188,6 +204,15 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
         reason: 'District disabled',
         variant: 'secondary' as const,
         description: `District "${district?.name}" master switch is OFF`
+      };
+    }
+    const parentTown = area.cityTownId ? (district?.cityTowns || []).find((t: any) => t.id === area.cityTownId) : null;
+    if (parentTown && !parentTown.isActive) {
+      return {
+        label: 'Disabled',
+        reason: 'Town disabled',
+        variant: 'secondary' as const,
+        description: `Parent town "${parentTown.displayName || parentTown.name}" is disabled`
       };
     }
     if (!area.isActive) {
@@ -590,7 +615,11 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                     {(['ALL', 'ACTIVE', 'DISABLED'] as const).map((filter) => {
                       const totalCount = (district.serviceAreas || []).length;
                       const activeCount = district.isActive
-                        ? (district.serviceAreas || []).filter((a: any) => a.isActive).length
+                        ? (district.serviceAreas || []).filter((a: any) => {
+                            const town = (district.cityTowns || []).find((t: any) => t.id === a.cityTownId);
+                            const isTownActive = town ? Boolean(town.isActive) : true;
+                            return isTownActive && Boolean(a.isActive);
+                          }).length
                         : 0;
                       const disabledCount = totalCount - activeCount;
                       return (
@@ -665,7 +694,9 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                     areaTownFilter === 'ALL' ? true :
                     areaTownFilter === 'ROOT' ? !area.cityTownId :
                     area.cityTownId === areaTownFilter;
-                  const isEffectiveActive = district.isActive && Boolean(area.isActive);
+                  const town = (district.cityTowns || []).find((t: any) => t.id === area.cityTownId);
+                  const isTownActive = town ? Boolean(town.isActive) : true;
+                  const isEffectiveActive = district.isActive && isTownActive && Boolean(area.isActive);
                   const matchesStatus =
                     areaStatusFilter === 'ALL' ? true :
                     areaStatusFilter === 'ACTIVE' ? isEffectiveActive :
@@ -688,18 +719,22 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                 }
 
                 // Group by parent town/city (or 'District Root' if no town)
-                const groupsMap = new Map<string, { townName: string; areas: any[] }>();
+                const groupsMap = new Map<string, { townId?: string; townName: string; isTownActive: boolean; areas: any[] }>();
                 
                 // Initialize groups in town order if district has towns
                 for (const town of (district.cityTowns || [])) {
                   groupsMap.set(town.id, {
+                    townId: town.id,
                     townName: town.displayName || town.name,
+                    isTownActive: Boolean(town.isActive),
                     areas: []
                   });
                 }
                 
                 const rootGroup = {
+                  townId: undefined,
                   townName: `${district.name} (District Root)`,
+                  isTownActive: true,
                   areas: [] as any[]
                 };
 
@@ -719,6 +754,9 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                 return (
                   <div className="space-y-6">
                     {groupsToRender.map((group) => {
+                      const isTownPending = toggleTownMutation.isPending &&
+                        (toggleTownMutation.variables as any)?.townId === group.townId;
+
                       return (
                         <div key={group.townName} className="space-y-3">
                           <div className="flex items-center justify-between pb-1.5 border-b border-white/10">
@@ -729,6 +767,51 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                                 {group.areas.length} {group.areas.length === 1 ? 'Area' : 'Areas'}
                               </Badge>
                             </div>
+
+                            {/* Town Master Toggle Switch */}
+                            {group.townId && (
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10px] font-bold ${
+                                  !district.isActive
+                                    ? 'text-white/30'
+                                    : group.isTownActive
+                                    ? 'text-purple-300'
+                                    : 'text-white/40'
+                                }`}>
+                                  {!district.isActive
+                                    ? 'District Disabled'
+                                    : group.isTownActive
+                                    ? 'Town Enabled'
+                                    : 'Town Disabled'}
+                                </span>
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={district.isActive && group.isTownActive}
+                                  disabled={!district.isActive || isTownPending}
+                                  title={!district.isActive ? 'Cannot toggle town while district is disabled' : undefined}
+                                  onClick={() => {
+                                    toggleTownMutation.mutate({
+                                      townId: group.townId!,
+                                      isActive: !group.isTownActive
+                                    });
+                                  }}
+                                  className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                    !district.isActive
+                                      ? 'bg-white/10 opacity-40 cursor-not-allowed'
+                                      : group.isTownActive
+                                      ? 'bg-purple-600 hover:bg-purple-500 cursor-pointer'
+                                      : 'bg-white/20 hover:bg-white/30 cursor-pointer'
+                                  } ${isTownPending ? 'opacity-50 cursor-wait' : ''}`}
+                                >
+                                  <span
+                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out ${
+                                      district.isActive && group.isTownActive ? 'translate-x-5' : 'translate-x-0'
+                                    }`}
+                                  />
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -787,6 +870,22 @@ export function DistrictDetailModal({ districtId, isOpen, onClose }: DistrictDet
                                         </button>
                                         <span className="text-[9px] text-white/30 font-medium">
                                           District disabled
+                                        </span>
+                                      </>
+                                    ) : !group.isTownActive ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          role="switch"
+                                          aria-checked={false}
+                                          disabled={true}
+                                          title="Town disabled"
+                                          className="relative inline-flex h-6 w-11 shrink-0 cursor-not-allowed rounded-full border-2 border-transparent bg-white/10 opacity-40 transition-colors"
+                                        >
+                                          <span className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white/60 shadow-xs translate-x-0" />
+                                        </button>
+                                        <span className="text-[9px] text-white/30 font-medium">
+                                          Town disabled
                                         </span>
                                       </>
                                     ) : (
