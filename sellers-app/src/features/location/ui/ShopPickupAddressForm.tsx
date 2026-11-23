@@ -1,13 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Input } from '@/shared/components/Input';
-import { Button } from '@/shared/components/Button';
-import { Badge } from '@/shared/components/Badge';
-import { SearchableDropdown } from '@/components/ui/SearchableDropdown';
-import { Skeleton } from '@/shared/components/Skeleton';
-import { useUIStore } from '@/lib/store/uiStore';
-import { ShopInteractiveMap } from './ShopInteractiveMap';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   MapPin,
   Crosshair,
@@ -25,7 +18,15 @@ import {
   Navigation,
   X,
   ExternalLink,
+  ArrowRight,
+  ArrowLeft,
+  Check,
 } from 'lucide-react';
+import { ShopInteractiveMap } from './ShopInteractiveMap';
+import { Input } from '@/shared/components/Input';
+import { Button } from '@/shared/components/Button';
+import { Badge } from '@/shared/components/Badge';
+import { useUIStore } from '@/lib/store/uiStore';
 
 export interface StructuredShopAddress {
   doorNo: string;
@@ -41,11 +42,12 @@ export interface StructuredShopAddress {
   country: string;
   latitude: number | null;
   longitude: number | null;
-  locationSource: 'GPS_DETECTED' | 'GPS_APPROXIMATE' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'STREET_VIEW_CONFIRMED' | 'MANUALLY_ENTERED';
+  locationSource: 'GPS_DETECTED' | 'GPS_APPROXIMATE' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'MANUALLY_ENTERED';
   accuracyMeters: number | null;
   formattedAddress: string;
   addressLine1: string;
   addressLine2: string;
+  directionsForRider?: string;
 }
 
 interface ShopPickupAddressFormProps {
@@ -79,6 +81,18 @@ export function ShopPickupAddressForm({
 }: ShopPickupAddressFormProps) {
   const showToast = useUIStore((s) => s.showToast);
 
+  // Flow Step: 'MAP_SELECT' (Step 1: Zomato/Zepto Map & Pin) vs 'ADDRESS_CONFIRM' (Step 2: Structured Address Confirmation)
+  // If the shop already has existing saved coordinates and address, default to confirmation view with "Change on Map" option
+  const hasExistingAddress = Boolean(
+    initialAddress?.latitude &&
+    initialAddress?.longitude &&
+    (initialAddress?.doorNo || initialAddress?.street)
+  );
+
+  const [currentStep, setCurrentStep] = useState<'MAP_SELECT' | 'ADDRESS_CONFIRM'>(
+    hasExistingAddress ? 'ADDRESS_CONFIRM' : 'MAP_SELECT'
+  );
+
   // Address field states
   const [doorNo, setDoorNo] = useState(initialAddress?.doorNo || '');
   const [buildingName, setBuildingName] = useState(initialAddress?.buildingName || '');
@@ -89,6 +103,7 @@ export function ShopPickupAddressForm({
   const [city, setCity] = useState(initialAddress?.city || '');
   const [postalCode, setPostalCode] = useState(initialAddress?.postalCode || '');
   const [country, setCountry] = useState(initialAddress?.country || 'India');
+  const [directionsForRider, setDirectionsForRider] = useState(initialAddress?.directionsForRider || '');
 
   // Location coordinates and metadata
   const [latitude, setLatitude] = useState<number | null>(
@@ -98,7 +113,7 @@ export function ShopPickupAddressForm({
     initialAddress?.longitude !== undefined && initialAddress?.longitude !== null ? Number(initialAddress.longitude) : null
   );
   const [locationSource, setLocationSource] = useState<
-    'GPS_DETECTED' | 'GPS_APPROXIMATE' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'STREET_VIEW_CONFIRMED' | 'MANUALLY_ENTERED'
+    'GPS_DETECTED' | 'GPS_APPROXIMATE' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'MANUALLY_ENTERED'
   >(initialAddress?.locationSource || 'MANUALLY_ENTERED');
   const [accuracyMeters, setAccuracyMeters] = useState<number | null>(
     initialAddress?.accuracyMeters !== undefined ? initialAddress.accuracyMeters : null
@@ -106,21 +121,19 @@ export function ShopPickupAddressForm({
 
   // UI interaction states
   const [isLocating, setIsLocating] = useState(false);
-  const [showMap, setShowMap] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [gpsNotice, setGpsNotice] = useState<string | null>(null);
-  const [accuracyWarning, setAccuracyWarning] = useState<string | null>(null);
-  const [coordsMismatchWarning, setCoordsMismatchWarning] = useState<string | null>(null);
+  const [gpsWarning, setGpsWarning] = useState<string | null>(null);
   const [pinCodeError, setPinCodeError] = useState<string | null>(null);
 
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const reverseGeocodeDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const initialLoadedRef = useRef(false);
   const activeGeocodeReqId = useRef(0);
 
-  // Sync initial address if updated from parent (only once on initial load to avoid wiping user keystrokes)
+  // Sync initial address if updated from parent (only once on load to avoid overwriting user edits)
   useEffect(() => {
     if (!initialLoadedRef.current && initialAddress) {
       initialLoadedRef.current = true;
@@ -138,23 +151,31 @@ export function ShopPickupAddressForm({
       if (initialAddress.longitude !== undefined && initialAddress.longitude !== null) {
         setLongitude(Number(initialAddress.longitude));
       }
-      if (initialAddress.locationSource) setLocationSource(initialAddress.locationSource);
-      if (initialAddress.accuracyMeters !== undefined) setAccuracyMeters(initialAddress.accuracyMeters);
+      if (initialAddress.locationSource) {
+        setLocationSource(initialAddress.locationSource);
+      }
+      if (initialAddress.accuracyMeters !== undefined) {
+        setAccuracyMeters(initialAddress.accuracyMeters);
+      }
+      if (initialAddress.directionsForRider) {
+        setDirectionsForRider(initialAddress.directionsForRider);
+      }
     }
   }, [initialAddress]);
 
-  // Derived formatted and fallback lines
-  const deriveLines = () => {
+  // Derive compiled formatted addresses
+  const deriveLines = useCallback(() => {
     const line1Parts: string[] = [];
     if (doorNo.trim()) line1Parts.push(doorNo.trim());
     if (buildingName.trim() && !doorNo.trim().includes(buildingName.trim())) line1Parts.push(buildingName.trim());
     if (street.trim() && !line1Parts.includes(street.trim())) line1Parts.push(street.trim());
-    const addressLine1 = line1Parts.length > 0 ? line1Parts.join(', ') : street.trim() || area.trim() || '';
+    const addressLine1 = line1Parts.length > 0 ? line1Parts.join(', ') : street.trim() || '';
 
     const line2Parts: string[] = [];
     if (cross.trim()) line2Parts.push(cross.trim());
     if (area.trim() && !addressLine1.includes(area.trim())) line2Parts.push(area.trim());
     if (landmark.trim() && !addressLine1.includes(landmark.trim())) line2Parts.push(`Near ${landmark.trim()}`);
+    if (directionsForRider.trim()) line2Parts.push(`Note: ${directionsForRider.trim()}`);
     const addressLine2 = line2Parts.join(', ');
 
     const fullParts: string[] = [];
@@ -173,7 +194,7 @@ export function ShopPickupAddressForm({
     const formattedAddress = fullParts.join(', ');
 
     return { addressLine1, addressLine2, formattedAddress };
-  };
+  }, [doorNo, buildingName, street, cross, area, landmark, directionsForRider, city, selectedDistrict, selectedState, postalCode, country]);
 
   // Emit change to parent
   useEffect(() => {
@@ -197,6 +218,7 @@ export function ShopPickupAddressForm({
       formattedAddress,
       addressLine1,
       addressLine2,
+      directionsForRider,
     });
   }, [
     doorNo,
@@ -214,6 +236,9 @@ export function ShopPickupAddressForm({
     longitude,
     locationSource,
     accuracyMeters,
+    directionsForRider,
+    deriveLines,
+    onAddressChange,
   ]);
 
   // Validate 6-digit Indian PIN
@@ -221,7 +246,7 @@ export function ShopPickupAddressForm({
     const cleaned = val.replace(/\D/g, '').slice(0, 6);
     setPostalCode(cleaned);
     if (cleaned.length > 0 && cleaned.length < 6) {
-      setPinCodeError('Indian postal code must be exactly 6 digits.');
+      setPinCodeError('Indian postal PIN code must be exactly 6 digits.');
     } else if (cleaned.length === 6 && cleaned.startsWith('0')) {
       setPinCodeError('Indian postal PIN codes cannot start with 0.');
     } else {
@@ -229,17 +254,53 @@ export function ShopPickupAddressForm({
     }
   };
 
+  // Reverse geocodes coordinates with race-condition protection
+  const reverseGeocode = async (lat: number, lng: number, reqId: number) => {
+    try {
+      const res = await fetch('/api/locations/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitude: lat, longitude: lng, userRole: 'SELLER' }),
+      });
+
+      if (!res.ok) return;
+      const data = await res.json();
+      // Discard stale response if newer pin movement was triggered
+      if (reqId !== activeGeocodeReqId.current) return;
+
+      const loc = data?.resolvedLocation;
+      if (loc) {
+        // Crucial: preserve manual doorNo and buildingName if geocoder didn't return them
+        setDoorNo((prev) => loc.doorNo || prev);
+        setBuildingName((prev) => loc.buildingName || prev);
+
+        // ONLY set street if an actual route/street exists - NEVER fallback to locality or area!
+        if (loc.street) setStreet(loc.street);
+
+        if (loc.cross) setCross(loc.cross);
+        if (loc.area) setArea(loc.area);
+        else if (loc.serviceArea) setArea(loc.serviceArea);
+
+        if (loc.landmark) setLandmark((prev) => prev || loc.landmark);
+        if (loc.city) setCity(loc.city);
+        if (loc.state) onStateChange(loc.state);
+        if (loc.district || loc.city) onDistrictChange(loc.district || loc.city);
+        if (loc.postalCode) setPostalCode(loc.postalCode);
+      }
+    } catch {
+      // Keep selected coordinates on network failure
+    }
+  };
+
   // 1. "Use Current Location" (High-accuracy GPS)
   const handleUseCurrentLocation = () => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
-      showToast('Geolocation is not supported by your browser. Please enter your address manually.', 'error');
+      showToast('Geolocation is not supported by your browser. Please search or enter address manually.', 'error');
       return;
     }
 
     setIsLocating(true);
-    setGpsNotice(null);
-    setAccuracyWarning(null);
-    setCoordsMismatchWarning(null);
+    setGpsWarning(null);
 
     const reqId = ++activeGeocodeReqId.current;
 
@@ -255,85 +316,32 @@ export function ShopPickupAddressForm({
         setAccuracyMeters(accuracy);
 
         if (accuracy > 30) {
-          // Approximate GPS fix (e.g. ±95m) - must NOT be labeled as verified
           setLocationSource('GPS_APPROXIMATE');
-          setAccuracyWarning(
-            `GPS fix is approximate (±${accuracy}m). Satellites have placed your pin within ${accuracy} metres of your actual position. Because this is an e-commerce pickup location, please drag the green map pin directly to your storefront entrance.`
+          setGpsWarning(
+            `GPS fix is approximate (±${accuracy}m). Satellites have placed your pin within ${accuracy} metres. Please drag the pin directly over your shop entrance.`
           );
         } else {
           setLocationSource('GPS_DETECTED');
-          setAccuracyWarning(null);
+          setGpsWarning(null);
         }
 
-        try {
-          const res = await fetch('/api/locations/resolve', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ latitude: lat, longitude: lng, userRole: 'SELLER' }),
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            // Discard stale response if newer location action was triggered
-            if (reqId !== activeGeocodeReqId.current) return;
-
-            const loc = data.resolvedLocation;
-            if (loc) {
-              // Crucial: preserve manual doorNo and buildingName if geocoder didn't return them
-              setDoorNo((prev) => loc.doorNo || prev);
-              setBuildingName((prev) => loc.buildingName || prev);
-
-              // ONLY set street if an actual route/street exists - NEVER fallback to locality or area!
-              if (loc.street) setStreet(loc.street);
-
-              if (loc.cross) setCross(loc.cross);
-              if (loc.area) setArea(loc.area);
-              else if (loc.serviceArea) setArea(loc.serviceArea);
-
-              if (loc.landmark) setLandmark(loc.landmark);
-              if (loc.city) setCity(loc.city);
-              if (loc.state) onStateChange(loc.state);
-              if (loc.district || loc.city) onDistrictChange(loc.district || loc.city);
-              if (loc.postalCode) setPostalCode(loc.postalCode);
-
-              // Check region consistency
-              if (selectedState && loc.state && selectedState.toLowerCase() !== loc.state.toLowerCase()) {
-                setCoordsMismatchWarning(
-                  `Detected location is in ${loc.state}, but your store is set to ${selectedState}. Please check your registered region.`
-                );
-              }
-
-              if (loc.hasMissingDoorNo || (!loc.doorNo && !doorNo)) {
-                setGpsNotice(
-                  `GPS detected your street (${loc.street || 'nearby road'}) and locality, but satellites cannot detect your specific shop or door number. Please enter your House / Door / Shop Number below.`
-                );
-              } else {
-                setGpsNotice(null);
-              }
-
-              showToast(
-                accuracy > 30
-                  ? `Approximate GPS fix (±${accuracy}m). Please adjust pin to entrance.`
-                  : 'High-accuracy GPS location detected. Please review details.',
-                'success'
-              );
-            }
-          }
-        } catch {
-          if (reqId === activeGeocodeReqId.current) {
-            showToast('GPS coordinates captured. Please complete your address fields manually.', 'info');
-          }
-        }
+        reverseGeocode(lat, lng, reqId);
+        showToast(
+          accuracy > 30
+            ? `Approximate GPS fix (±${accuracy}m). Please adjust pin to entrance.`
+            : 'High-accuracy GPS position captured.',
+          accuracy > 30 ? 'info' : 'success'
+        );
       },
       (err) => {
         setIsLocating(false);
         let msg = 'Failed to retrieve GPS location.';
         if (err.code === err.PERMISSION_DENIED) {
-          msg = 'Location permission was denied. Please allow location access or select "Enter Address Manually".';
+          msg = 'Location permission was denied. Please allow location access or search your address.';
         } else if (err.code === err.POSITION_UNAVAILABLE) {
-          msg = 'GPS signal is currently unavailable on this device. Please enter your address manually.';
+          msg = 'GPS signal is currently unavailable on this device. Please search your address.';
         } else if (err.code === err.TIMEOUT) {
-          msg = 'Location request timed out. Please retry or enter your address manually.';
+          msg = 'Location request timed out. Please retry or search your address.';
         }
         showToast(msg, 'error');
       },
@@ -345,7 +353,7 @@ export function ShopPickupAddressForm({
     );
   };
 
-  // 2. Address Search & Google Places Autocomplete
+  // 2. Google Places Autocomplete & Search
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -358,7 +366,7 @@ export function ShopPickupAddressForm({
 
     setIsSearching(true);
     searchDebounceRef.current = setTimeout(async () => {
-      // 2A. Attempt Google Places Autocomplete directly in browser if Google Maps script is available
+      // 2A. Client-side Google Places Autocomplete if Maps script is loaded
       if (typeof window !== 'undefined' && window.google?.maps?.places?.AutocompleteService) {
         try {
           const service = new window.google.maps.places.AutocompleteService();
@@ -372,8 +380,8 @@ export function ShopPickupAddressForm({
                 const formatted = predictions.slice(0, 6).map((p) => ({
                   placeId: p.place_id,
                   formattedAddress: p.description,
-                  street: p.structured_formatting?.main_text || '',
-                  area: p.structured_formatting?.secondary_text || '',
+                  mainText: p.structured_formatting?.main_text || '',
+                  secondaryText: p.structured_formatting?.secondary_text || '',
                   isGooglePlace: true,
                 }));
                 setSearchResults(formatted);
@@ -381,19 +389,16 @@ export function ShopPickupAddressForm({
                 setIsSearching(false);
                 return;
               }
-              // Fallback to backend search if Google Places returns zero predictions
               fallbackBackendSearch(query);
             }
           );
           return;
         } catch {
-          // If AutocompleteService throws, fallback to backend search
           fallbackBackendSearch(query);
           return;
         }
       }
 
-      // 2B. Fallback to Backend Location Search API
       fallbackBackendSearch(query);
     }, 350);
   };
@@ -404,7 +409,12 @@ export function ShopPickupAddressForm({
       const res = await fetch(`/api/locations/search?q=${encodeURIComponent(query)}&city=${encodeURIComponent(cityHint)}`);
       if (res.ok) {
         const data = await res.json();
-        setSearchResults(data.results || []);
+        const results = (data.results || []).map((r: any) => ({
+          ...r,
+          mainText: r.street || r.buildingName || r.area || r.city,
+          secondaryText: [r.area, r.city, r.state, r.postalCode].filter(Boolean).join(', '),
+        }));
+        setSearchResults(results);
         setShowSearchResults(true);
       }
     } catch {
@@ -414,13 +424,14 @@ export function ShopPickupAddressForm({
     }
   };
 
+  // When user selects a suggestion: never auto-select first; user explicitly clicks
   const handleSelectSearchResult = (result: any) => {
     setShowSearchResults(false);
-    setSearchQuery(result.formattedAddress || '');
+    setSearchQuery(result.formattedAddress || result.mainText || '');
 
     const reqId = ++activeGeocodeReqId.current;
 
-    // If result was from Google Places, retrieve full Place details with geometry & components
+    // Google Places Details
     if (result.isGooglePlace && typeof window !== 'undefined' && window.google?.maps?.places?.PlacesService) {
       try {
         const placesService = new window.google.maps.places.PlacesService(document.createElement('div'));
@@ -438,596 +449,582 @@ export function ShopPickupAddressForm({
               setLongitude(lng);
               setLocationSource('ADDRESS_SEARCHED');
               setAccuracyMeters(null);
-              setCoordsMismatchWarning(null);
+              setGpsWarning(null);
 
-              let streetNumber = '';
               let route = '';
+              let sublocality = '';
+              let neighborhood = '';
+              let locCity = '';
+              let locDistrict = '';
+              let locState = '';
+              let locPostal = '';
               let premise = '';
               let subpremise = '';
-              let sublocality1 = '';
-              let sublocality2 = '';
-              let locality = '';
-              let districtName = '';
-              let stateName = '';
-              let postalCodeVal = '';
-              let pointOfInterest = '';
 
               for (const comp of place.address_components || []) {
                 const types = comp.types || [];
-                if (types.includes('street_number')) streetNumber = comp.long_name;
-                else if (types.includes('route')) route = comp.long_name;
+                if (types.includes('street_number')) subpremise = comp.long_name;
                 else if (types.includes('premise')) premise = comp.long_name;
-                else if (types.includes('subpremise')) subpremise = comp.long_name;
-                else if (types.includes('sublocality_level_1') || types.includes('sublocality')) sublocality1 = comp.long_name;
-                else if (types.includes('sublocality_level_2') || types.includes('neighborhood')) sublocality2 = comp.long_name;
-                else if (types.includes('locality')) locality = comp.long_name;
-                else if (types.includes('administrative_area_level_2')) districtName = comp.long_name;
-                else if (types.includes('administrative_area_level_1')) stateName = comp.long_name;
-                else if (types.includes('postal_code')) postalCodeVal = comp.long_name;
-                else if (types.includes('point_of_interest') || types.includes('landmark')) pointOfInterest = comp.long_name;
+                else if (types.includes('route')) route = comp.long_name;
+                else if (types.includes('sublocality_level_1') || types.includes('sublocality')) sublocality = comp.long_name;
+                else if (types.includes('neighborhood') || types.includes('sublocality_level_2')) neighborhood = comp.long_name;
+                else if (types.includes('locality')) locCity = comp.long_name;
+                else if (types.includes('administrative_area_level_2')) locDistrict = comp.long_name;
+                else if (types.includes('administrative_area_level_1')) locState = comp.long_name;
+                else if (types.includes('postal_code')) locPostal = comp.long_name.replace(/\D/g, '');
               }
 
-              const dNo = subpremise || streetNumber;
-              const bldg = premise || place.name;
-              const cleanPostal = postalCodeVal.replace(/\D/g, '').slice(0, 6);
-
-              setDoorNo((prev) => dNo || prev);
-              setBuildingName((prev) => (bldg !== dNo ? bldg : prev));
+              if (subpremise) setDoorNo(subpremise);
+              if (premise) setBuildingName(premise);
               if (route) setStreet(route);
-              if (sublocality2) setCross(sublocality2);
-              if (sublocality1) setArea(sublocality1);
-              if (pointOfInterest) setLandmark(pointOfInterest);
-              if (locality) setCity(locality);
-              if (stateName) onStateChange(stateName);
-              if (districtName || locality) onDistrictChange(districtName || locality);
-              if (cleanPostal.length === 6) setPostalCode(cleanPostal);
+              const derivedArea = sublocality || neighborhood;
+              if (derivedArea) setArea(derivedArea);
+              if (locCity) setCity(locCity);
+              if (locDistrict) onDistrictChange(locDistrict);
+              if (locState) onStateChange(locState);
+              if (locPostal && locPostal.length === 6) setPostalCode(locPostal);
 
-              if (!dNo && !doorNo) {
-                setGpsNotice('Address selected from Google Places. Please ensure your House / Door / Shop number is entered.');
-              } else {
-                setGpsNotice(null);
-              }
-              showToast('Location selected from Google Places. Review before saving.', 'success');
-              return;
+              showToast('Location selected from Google Places. Verify details.', 'success');
+            } else {
+              fallbackSelect(result, reqId);
             }
           }
         );
         return;
       } catch {
-        // Fallback to standard result handling
+        fallbackSelect(result, reqId);
+        return;
       }
     }
 
-    // Standard backend search result handling
-    if (result.latitude && result.longitude) {
-      setLatitude(Number(result.latitude));
-      setLongitude(Number(result.longitude));
-    }
-    setLocationSource('ADDRESS_SEARCHED');
-    setAccuracyMeters(null);
-    setCoordsMismatchWarning(null);
-
-    // Preserve existing manual doorNo / buildingName if search result has none
-    setDoorNo((prev) => result.doorNo || prev);
-    setBuildingName((prev) => result.buildingName || prev);
-
-    if (result.street) setStreet(result.street);
-    if (result.cross) setCross(result.cross);
-    if (result.area) setArea(result.area);
-    if (result.landmark) setLandmark(result.landmark);
-    if (result.city) setCity(result.city);
-    if (result.state) onStateChange(result.state);
-    if (result.district || result.city) onDistrictChange(result.district || result.city);
-    if (result.postalCode) setPostalCode(result.postalCode);
-
-    if (result.hasMissingDoorNo || (!result.doorNo && !doorNo)) {
-      setGpsNotice('Address selected. Please ensure your House / Door / Shop number and building name are filled in.');
-    } else {
-      setGpsNotice(null);
-    }
-
-    showToast('Address selected. Details populated.', 'success');
+    fallbackSelect(result, reqId);
   };
 
-  // 3. Interactive Map Pin & Entrance Fine-Tuning
-  const handleCoordinatesSelected = async (newLat: number, newLng: number, source: 'MAP_PIN_SELECTED') => {
-    setLatitude(newLat);
-    setLongitude(newLng);
-    setLocationSource(source);
+  const fallbackSelect = (result: any, reqId: number) => {
+    if (result.latitude && result.longitude) {
+      const lat = Number(Number(result.latitude).toFixed(6));
+      const lng = Number(Number(result.longitude).toFixed(6));
+      setLatitude(lat);
+      setLongitude(lng);
+      setLocationSource('ADDRESS_SEARCHED');
+      setAccuracyMeters(result.accuracyMeters || null);
+      setGpsWarning(null);
+
+      if (result.doorNo) setDoorNo(result.doorNo);
+      if (result.buildingName) setBuildingName(result.buildingName);
+      if (result.street) setStreet(result.street);
+      if (result.cross) setCross(result.cross);
+      if (result.area) setArea(result.area);
+      if (result.city) setCity(result.city);
+      if (result.district) onDistrictChange(result.district);
+      if (result.state) onStateChange(result.state);
+      if (result.postalCode) setPostalCode(result.postalCode);
+
+      reverseGeocode(lat, lng, reqId);
+      showToast('Address selected. Review and adjust pin if needed.', 'success');
+    }
+  };
+
+  // 3. Pin Drag & Map Click Repositioning
+  const handleMapPinSelected = (lat: number, lng: number) => {
+    setLatitude(lat);
+    setLongitude(lng);
+    setLocationSource('MAP_PIN_SELECTED');
     setAccuracyMeters(null);
+    setGpsWarning(null);
 
     const reqId = ++activeGeocodeReqId.current;
 
-    try {
-      const res = await fetch('/api/locations/resolve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude: newLat, longitude: newLng, userRole: 'SELLER' }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        // Ignore response if user clicked or dragged again since this request started
-        if (reqId !== activeGeocodeReqId.current) return;
-
-        const loc = data.resolvedLocation;
-        if (loc) {
-          // IMPORTANT: Preserve existing manually entered door number and building name
-          setDoorNo((prev) => loc.doorNo || prev);
-          setBuildingName((prev) => loc.buildingName || prev);
-
-          // ONLY set street if an actual route/street exists - NEVER fallback to locality or area!
-          if (loc.street) setStreet(loc.street);
-
-          if (loc.cross) setCross(loc.cross);
-          if (loc.area) setArea(loc.area);
-          else if (loc.serviceArea) setArea(loc.serviceArea);
-
-          if (loc.landmark) setLandmark(loc.landmark);
-          if (loc.city) setCity(loc.city);
-          if (loc.state) onStateChange(loc.state);
-          if (loc.district || loc.city) onDistrictChange(loc.district || loc.city);
-          if (loc.postalCode) setPostalCode(loc.postalCode);
-
-          if (selectedState && loc.state && selectedState.toLowerCase() !== loc.state.toLowerCase()) {
-            setCoordsMismatchWarning(
-              `Pin coordinates are in ${loc.state}, but your store is set to ${selectedState}. Please check your registered region.`
-            );
-          } else {
-            setCoordsMismatchWarning(null);
-          }
-
-          if (loc.hasMissingDoorNo || (!loc.doorNo && !doorNo)) {
-            setGpsNotice(
-              `Entrance pin moved to (${newLat.toFixed(5)}, ${newLng.toFixed(5)}). Please verify your Door / Shop number.`
-            );
-          } else {
-            setGpsNotice(null);
-          }
-
-          showToast('Shop entrance pin updated. Address synchronized with coordinates.', 'success');
-        }
-      }
-    } catch {
-      if (reqId === activeGeocodeReqId.current) {
-        showToast('Coordinates updated from map.', 'info');
-      }
-    }
+    // Debounce reverse geocode after pin movement stops (400ms)
+    if (reverseGeocodeDebounceRef.current) clearTimeout(reverseGeocodeDebounceRef.current);
+    reverseGeocodeDebounceRef.current = setTimeout(() => {
+      reverseGeocode(lat, lng, reqId);
+    }, 400);
   };
 
-  const { addressLine1, addressLine2, formattedAddress } = deriveLines();
+  // 4. Confirm Location Button (Transitions to Step 2)
+  const handleConfirmLocation = () => {
+    if (!latitude || !longitude) {
+      showToast('Please select a location on the map or use GPS first.', 'info');
+      return;
+    }
+    setCurrentStep('ADDRESS_CONFIRM');
+    showToast('Location pin confirmed! Please complete your shop address details.', 'success');
+  };
 
   return (
-    <div className="space-y-5 rounded-2xl border border-white/10 bg-zinc-950/60 p-5 backdrop-blur-md">
-      {/* Header & Mode Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/10 pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-              <MapPin className="h-4 w-4" />
-            </div>
-            <h3 className="text-sm font-bold tracking-wide uppercase text-white">
-              Shop Pickup & Dispatch Location
-            </h3>
-          </div>
-          <p className="text-xs text-white/50 mt-1">
-            Authoritative physical address used for delivery dispatch and rider pickup navigation.
-          </p>
-        </div>
-
-        {/* 4 Mode Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            type="button"
-            size="sm"
-            variant="default"
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold gap-1.5 h-8 text-xs cursor-pointer shadow-sm"
-            onClick={handleUseCurrentLocation}
-            disabled={disabled || isLocating}
-          >
-            {isLocating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Crosshair className="h-3.5 w-3.5" />}
-            <span>Use Current Location</span>
-          </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="border-white/15 bg-white/5 text-white/80 hover:bg-white/10 gap-1.5 h-8 text-xs cursor-pointer"
-            onClick={() => setShowMap(!showMap)}
-            disabled={disabled}
-          >
-            <Map className="h-3.5 w-3.5 text-blue-400" />
-            <span>{showMap ? 'Hide Map' : 'Select on Map'}</span>
-          </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="text-white/60 hover:text-white hover:bg-white/5 gap-1.5 h-8 text-xs cursor-pointer"
-            onClick={() => {
-              setLocationSource('MANUALLY_ENTERED');
-              showToast('Manual entry mode active. You can fill or edit every field.', 'info');
-            }}
-            disabled={disabled}
-          >
-            <Edit3 className="h-3.5 w-3.5 text-amber-400" />
-            <span>Enter Manually</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Address Search Bar */}
-      <div className="relative">
-        <label className="block text-[11px] font-semibold text-white/70 mb-1.5">
-          Search Address / Landmark / Building
-        </label>
-        <div className="relative">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/30 pointer-events-none" />
-          <Input
-            placeholder="Type building, street, or locality name to auto-fill..."
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-9 pr-8 h-9 text-xs"
-            disabled={disabled}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery('');
-                setSearchResults([]);
-                setShowSearchResults(false);
-              }}
-              className="absolute right-2.5 top-2.5 text-white/40 hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Search Results Dropdown */}
-        {showSearchResults && (
-          <div className="absolute z-30 mt-1 w-full rounded-xl border border-white/15 bg-zinc-900/95 shadow-2xl backdrop-blur-xl overflow-hidden max-h-56 overflow-y-auto">
-            {isSearching ? (
-              <div className="p-3 text-center text-xs text-white/40 flex items-center justify-center gap-2">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching...
+    <div className="space-y-4">
+      {/* ─────────────────────────────────────────────────────────────
+          STEP 1: ZOMATO / ZEPTO / RAPIDO LOCATION PICKER SCREEN
+          ───────────────────────────────────────────────────────────── */}
+      {currentStep === 'MAP_SELECT' && (
+        <div className="rounded-2xl border border-white/10 bg-zinc-950/90 shadow-2xl overflow-hidden p-4 sm:p-5 space-y-4">
+          {/* Top Bar: Search + Use Current Location */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-emerald-400" />
+                <h3 className="text-sm font-bold text-white tracking-wide">Select Shop Location</h3>
               </div>
-            ) : searchResults.length === 0 ? (
-              <div className="p-3 text-center text-xs text-white/40">No matching addresses found.</div>
-            ) : (
-              searchResults.map((res, i) => (
-                <button
-                  key={res.placeId || i}
-                  type="button"
-                  onClick={() => handleSelectSearchResult(res)}
-                  className="w-full text-left p-2.5 text-xs text-white/80 hover:bg-white/10 hover:text-white border-b border-white/5 last:border-0 flex items-start gap-2.5 transition-colors cursor-pointer"
-                >
-                  <MapPin className="h-3.5 w-3.5 text-blue-400 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold">{res.street || res.area || res.city}</p>
-                    <p className="text-[11px] text-white/50 line-clamp-1">{res.formattedAddress}</p>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Prominent Missing Door Number Alert */}
-      {gpsNotice && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-amber-300 text-xs flex items-start gap-2.5 animate-fade-in">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
-          <div className="space-y-0.5">
-            <p className="font-semibold text-amber-200">Door / House Number Needed</p>
-            <p className="text-amber-300/80 leading-relaxed">{gpsNotice}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Accuracy Warning */}
-      {accuracyWarning && (
-        <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 text-blue-300 text-xs flex items-center gap-2">
-          <Info className="h-4 w-4 shrink-0 text-blue-400" />
-          <p>{accuracyWarning}</p>
-        </div>
-      )}
-
-      {/* Region / District Mismatch Warning */}
-      {coordsMismatchWarning && (
-        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-rose-300 text-xs flex items-start gap-2.5">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
-          <div>
-            <p className="font-semibold text-rose-200">Region Mismatch Warning</p>
-            <p className="text-rose-300/80 leading-relaxed mt-0.5">{coordsMismatchWarning}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Interactive Map Preview Panel */}
-      {showMap && (
-        <div className="rounded-xl border border-white/10 bg-black/40 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Compass className="h-4 w-4 text-emerald-400" />
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                Shop Dispatch Pin &amp; Entrance Location
-              </h4>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="text-white/60 hover:text-white hover:bg-white/5 gap-1.5 h-8 text-xs cursor-pointer"
+                onClick={() => {
+                  setLocationSource('MANUALLY_ENTERED');
+                  setCurrentStep('ADDRESS_CONFIRM');
+                  showToast('Manual entry mode active. You can fill or edit every field.', 'info');
+                }}
+              >
+                <Edit3 className="h-3.5 w-3.5 text-amber-400" />
+                <span>Enter Manually</span>
+              </Button>
             </div>
-            <div className="flex items-center gap-2">
-              {latitude !== null && longitude !== null && (
-                <span className="text-[11px] font-mono text-white/60">
-                  {latitude.toFixed(6)}, {longitude.toFixed(6)}
-                </span>
-              )}
-              {latitude !== null && longitude !== null && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-[10px] px-2 text-white/80 hover:text-white"
-                  onClick={() => handleCoordinatesSelected(latitude, longitude, 'MAP_PIN_SELECTED')}
-                >
-                  <RotateCcw className="h-3 w-3 mr-1" /> Re-sync from Pin
-                </Button>
+
+            {/* Places Autocomplete Search Bar */}
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-3 h-4 w-4 text-white/40 pointer-events-none" />
+                <Input
+                  placeholder="Search for area, street name, or building..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="pl-10 pr-9 h-10 text-xs sm:text-sm bg-zinc-900/90 border-white/15 focus:border-emerald-500/50"
+                  disabled={disabled}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSearchResults([]);
+                      setShowSearchResults(false);
+                    }}
+                    className="absolute right-3 top-3 text-white/40 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Suggestions Dropdown */}
+              {showSearchResults && (
+                <div className="absolute z-30 mt-1.5 w-full rounded-xl border border-white/15 bg-zinc-900/98 shadow-2xl backdrop-blur-xl overflow-hidden max-h-60 overflow-y-auto">
+                  {isSearching ? (
+                    <div className="p-3.5 text-center text-xs text-white/50 flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+                      <span>Searching Google Places...</span>
+                    </div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="p-3.5 text-center text-xs text-white/40">No matching places found. Try another search.</div>
+                  ) : (
+                    searchResults.map((res, i) => (
+                      <button
+                        key={res.placeId || i}
+                        type="button"
+                        onClick={() => handleSelectSearchResult(res)}
+                        className="w-full text-left p-3 text-xs text-white/90 hover:bg-white/10 hover:text-white border-b border-white/5 last:border-0 flex items-start gap-3 transition-colors cursor-pointer"
+                      >
+                        <MapPin className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-white">{res.mainText}</p>
+                          <p className="text-[11px] text-white/50 line-clamp-1 mt-0.5">{res.secondaryText || res.formattedAddress}</p>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
               )}
             </div>
+
+            {/* Quick Action: Use Current Location Button */}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full h-9 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30 gap-2 text-xs font-semibold cursor-pointer shadow-sm"
+                onClick={handleUseCurrentLocation}
+                disabled={isLocating || disabled}
+              >
+                {isLocating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Detecting GPS Location...</span>
+                  </>
+                ) : (
+                  <>
+                    <Crosshair className="h-4 w-4 text-emerald-400" />
+                    <span>Use Current Location</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
-          {/* Draggable Interactive Leaflet Map Component */}
+          {/* GPS Accuracy Warning Banner */}
+          {gpsWarning && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200 text-xs flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-semibold text-amber-100">GPS Accuracy Warning</p>
+                <p className="text-amber-200/80 leading-relaxed text-[11px]">{gpsWarning}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Interactive Map with Draggable Pin */}
           <ShopInteractiveMap
             latitude={latitude}
             longitude={longitude}
-            onLocationSelect={handleCoordinatesSelected}
+            onLocationSelect={handleMapPinSelected}
             accuracyMeters={accuracyMeters}
             locationSource={locationSource}
             disabled={disabled}
+            onUseCurrentLocation={handleUseCurrentLocation}
+            isLocating={isLocating}
           />
+
+          {/* Bottom Card: Detected Location & Confirm Button */}
+          <div className="rounded-xl border border-white/10 bg-zinc-900/90 p-3.5 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-bold text-white uppercase tracking-wider">
+                    {area || street || city || 'Selected Spot'}
+                  </p>
+                  {locationSource === 'GPS_DETECTED' && (
+                    <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/40 bg-emerald-500/10">
+                      GPS Fix (±{accuracyMeters || 10}m)
+                    </Badge>
+                  )}
+                  {locationSource === 'GPS_APPROXIMATE' && (
+                    <Badge variant="outline" className="text-[10px] text-amber-300 border-amber-500/40 bg-amber-500/10">
+                      Approx GPS (±{accuracyMeters || 95}m)
+                    </Badge>
+                  )}
+                  {locationSource === 'MAP_PIN_SELECTED' && (
+                    <Badge variant="outline" className="text-[10px] text-blue-300 border-blue-500/40 bg-blue-500/10">
+                      Pin Positioned
+                    </Badge>
+                  )}
+                  {locationSource === 'ADDRESS_SEARCHED' && (
+                    <Badge variant="outline" className="text-[10px] text-purple-300 border-purple-500/40 bg-purple-500/10">
+                      Places Search
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-white/60 line-clamp-1">
+                  {[street, area, city, selectedState].filter(Boolean).join(', ') || 'Drag the pin to place your shop entrance'}
+                </p>
+                {latitude && longitude && (
+                  <p className="text-[10px] text-white/40 font-mono">
+                    Coordinates: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Confirm Location Primary Button */}
+            <Button
+              type="button"
+              className="w-full h-10 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs sm:text-sm gap-2 cursor-pointer shadow-lg shadow-emerald-500/20"
+              onClick={handleConfirmLocation}
+              disabled={disabled || !latitude || !longitude}
+            >
+              <span>Confirm this Location &amp; Enter Address</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
 
-      {/* Structured Address Form Fields */}
-      <div className="space-y-4">
-        {/* Row 1: Door/Flat No & Building Name */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-white/80 flex items-center justify-between">
-              <span>Door / Flat / Shop Number <span className="text-red-400">*</span></span>
-              <span className="text-[10px] font-normal text-white/40">Required</span>
-            </label>
-            <Input
-              placeholder="e.g. Shop #4, Ground Floor / Door #142/B"
-              value={doorNo}
-              onChange={(e) => setDoorNo(e.target.value)}
-              disabled={disabled}
-              className={!doorNo.trim() && gpsNotice ? 'border-amber-500/60 ring-1 ring-amber-500/20' : ''}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-white/80 flex items-center justify-between">
-              <span>Building / Apartment / Complex Name</span>
-              <span className="text-[10px] font-normal text-white/40">Optional</span>
-            </label>
-            <Input
-              placeholder="e.g. SLV Plaza / Shanthi Complex"
-              value={buildingName}
-              onChange={(e) => setBuildingName(e.target.value)}
-              disabled={disabled}
-            />
-          </div>
-        </div>
-
-        {/* Row 2: Street / Road Name & Cross Street */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-white/80 flex items-center justify-between">
-              <span>Street / Road Name <span className="text-red-400">*</span></span>
-              <span className="text-[10px] font-normal text-white/40">Required</span>
-            </label>
-            <Input
-              placeholder="e.g. Vishwashanti Road / 8th Cross Road"
-              value={street}
-              onChange={(e) => setStreet(e.target.value)}
-              disabled={disabled}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-white/80 flex items-center justify-between">
-              <span>Cross / Main Road</span>
-              <span className="text-[10px] font-normal text-white/40">Optional</span>
-            </label>
-            <Input
-              placeholder="e.g. 3rd Main / Ring Road Junction"
-              value={cross}
-              onChange={(e) => setCross(e.target.value)}
-              disabled={disabled}
-            />
-          </div>
-        </div>
-
-        {/* Row 3: Area / Locality & Landmark */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-white/80 flex items-center justify-between">
-              <span>Area / Locality <span className="text-red-400">*</span></span>
-              <span className="text-[10px] font-normal text-white/40">Required</span>
-            </label>
-            <Input
-              placeholder="e.g. Sriramapura 2nd Stage / Kuvempunagar"
-              value={area}
-              onChange={(e) => setArea(e.target.value)}
-              disabled={disabled}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-white/80 flex items-center justify-between">
-              <span>Landmark</span>
-              <span className="text-[10px] font-normal text-white/40">Optional</span>
-            </label>
-            <Input
-              placeholder="e.g. Opposite State Bank of India / Near Water Tank"
-              value={landmark}
-              onChange={(e) => setLandmark(e.target.value)}
-              disabled={disabled}
-            />
-          </div>
-        </div>
-
-        {/* Row 4: State & District Selectors */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="space-y-1">
-            {isLoadingConfig ? (
-              <Skeleton className="h-10 w-full rounded-xl" />
-            ) : (
-              <SearchableDropdown
-                options={allStates}
-                value={selectedState}
-                onChange={(val) => {
-                  onStateChange(val);
-                  onDistrictChange('');
-                }}
-                placeholder="Select State"
-                label="State *"
-              />
-            )}
-          </div>
-
-          <div className="space-y-1">
-            {isLoadingDistricts ? (
-              <Skeleton className="h-10 w-full rounded-xl" />
-            ) : !selectedState ? (
-              <div className="space-y-1.5 relative w-full">
-                <label className="block text-[10px] font-bold text-white/50 uppercase tracking-wider">
-                  District {districtRequired ? '*' : '(Optional)'}
-                </label>
-                <button
-                  type="button"
-                  disabled
-                  className="w-full h-10 flex items-center justify-between px-3 rounded-xl border border-white/10 bg-neutral-900/60 text-xs text-white/30 cursor-not-allowed text-left font-medium select-none"
-                >
-                  Select a State first
-                </button>
+      {/* ─────────────────────────────────────────────────────────────
+          STEP 2: SEPARATE STRUCTURED ADDRESS CONFIRMATION SCREEN
+          ───────────────────────────────────────────────────────────── */}
+      {currentStep === 'ADDRESS_CONFIRM' && (
+        <div className="rounded-2xl border border-white/10 bg-zinc-950/90 shadow-2xl p-4 sm:p-6 space-y-5 animate-fade-in">
+          {/* Confirmed Pin Header Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/10">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                <MapPin className="h-4 w-4" />
               </div>
-            ) : districts.length === 0 ? (
-              <div className="space-y-1.5 relative w-full">
-                <label className="block text-[10px] font-bold text-white/50 uppercase tracking-wider">
-                  District {districtRequired ? '*' : '(Optional)'}
-                </label>
-                <button
-                  type="button"
-                  disabled
-                  className="w-full h-10 flex items-center justify-between px-3 rounded-xl border border-white/10 bg-neutral-900/60 text-xs text-white/30 cursor-not-allowed text-left font-medium select-none"
-                >
-                  No operational districts
-                </button>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-white">Confirmed Storefront Pin</h3>
+                  <Badge variant="outline" className="text-[10px] text-emerald-300 border-emerald-500/40 bg-emerald-500/10">
+                    {locationSource === 'MAP_PIN_SELECTED' ? 'Entrance Pin Set' : locationSource === 'GPS_DETECTED' ? 'GPS Confirmed' : 'Location Set'}
+                  </Badge>
+                </div>
+                {latitude && longitude ? (
+                  <p className="text-[11px] text-white/50 font-mono">
+                    GPS: {latitude.toFixed(6)}, {longitude.toFixed(6)} {accuracyMeters ? `(±${accuracyMeters}m)` : ''}
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-amber-300">Manual address entry (no map pin selected)</p>
+                )}
               </div>
-            ) : (
-              <SearchableDropdown
-                options={districts}
-                value={selectedDistrict}
-                onChange={onDistrictChange}
-                placeholder={districtRequired ? 'Select District *' : 'Select District'}
-                label={`District ${districtRequired ? '*' : '(Optional)'}`}
-                isLoading={isLoadingDistricts}
+            </div>
+
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 border-white/20 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white text-xs gap-1.5 cursor-pointer"
+              onClick={() => setCurrentStep('MAP_SELECT')}
+              disabled={disabled}
+            >
+              <ArrowLeft className="h-3.5 w-3.5 text-blue-400" />
+              <span>Change Pin on Map</span>
+            </Button>
+          </div>
+
+          {/* Missing Door Number Alert */}
+          {!doorNo.trim() && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-amber-200 text-xs flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-semibold text-amber-100">Shop / Door / House Number Required</p>
+                <p className="text-amber-200/80 leading-relaxed text-[11px]">
+                  GPS and reverse-geocoding have identified your street and locality, but satellites cannot detect your internal shop or door number. Please enter your Shop / Door / Floor number below so delivery riders can reach your exact counter.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Required Fields Group */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-bold text-white/70 uppercase tracking-wider">
+              Required Address Details
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold text-white/80">
+                  Shop / Door / Building Number <span className="text-rose-400">*</span>
+                </label>
+                <Input
+                  placeholder="e.g. Shop #4, Ground Floor"
+                  value={doorNo}
+                  onChange={(e) => setDoorNo(e.target.value)}
+                  className="h-9 text-xs"
+                  disabled={disabled}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold text-white/80">
+                  Building / Complex Name (Optional)
+                </label>
+                <Input
+                  placeholder="e.g. Phoenix Commercial Hub"
+                  value={buildingName}
+                  onChange={(e) => setBuildingName(e.target.value)}
+                  className="h-9 text-xs"
+                  disabled={disabled}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold text-white/80">
+                  Street / Road Name <span className="text-rose-400">*</span>
+                </label>
+                <Input
+                  placeholder="e.g. 5th Main Road, Double Road"
+                  value={street}
+                  onChange={(e) => setStreet(e.target.value)}
+                  className="h-9 text-xs"
+                  disabled={disabled}
+                  required
+                />
+                <span className="text-[10px] text-white/40">Strictly road or street name. Never locality or area.</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold text-white/80">
+                  Cross Road (Optional)
+                </label>
+                <Input
+                  placeholder="e.g. Near 2nd Cross Junction"
+                  value={cross}
+                  onChange={(e) => setCross(e.target.value)}
+                  className="h-9 text-xs"
+                  disabled={disabled}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold text-white/80">
+                  Area / Locality <span className="text-rose-400">*</span>
+                </label>
+                <Input
+                  placeholder="e.g. Saraswathipuram / Indiranagar"
+                  value={area}
+                  onChange={(e) => setArea(e.target.value)}
+                  className="h-9 text-xs"
+                  disabled={disabled}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold text-white/80">
+                  Landmark (Optional)
+                </label>
+                <Input
+                  placeholder="e.g. Opposite Post Office / Near HDFC Bank"
+                  value={landmark}
+                  onChange={(e) => setLandmark(e.target.value)}
+                  className="h-9 text-xs"
+                  disabled={disabled}
+                />
+              </div>
+            </div>
+
+            {/* City / District / State / PIN Code */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold text-white/80">
+                  City / Town <span className="text-rose-400">*</span>
+                </label>
+                <Input
+                  placeholder="e.g. Mysuru"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="h-9 text-xs"
+                  disabled={disabled}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold text-white/80">
+                  District <span className="text-rose-400">*</span>
+                </label>
+                {isLoadingDistricts ? (
+                  <div className="h-9 rounded-xl bg-white/5 animate-pulse" />
+                ) : districts && districts.length > 0 ? (
+                  <select
+                    value={selectedDistrict}
+                    onChange={(e) => onDistrictChange(e.target.value)}
+                    disabled={disabled}
+                    className="flex h-9 w-full rounded-xl px-2.5 py-1.5 text-xs outline-none bg-zinc-900 border border-white/10 text-white focus:border-emerald-500/50"
+                  >
+                    <option value="" className="bg-zinc-950 text-white/50">Select District</option>
+                    {districts.map((d) => (
+                      <option key={d.name} value={d.name} className="bg-zinc-950 text-white">
+                        {d.name} {!d.isEnabled ? '(Coming Soon)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    placeholder="e.g. Mysuru District"
+                    value={selectedDistrict}
+                    onChange={(e) => onDistrictChange(e.target.value)}
+                    className="h-9 text-xs"
+                    disabled={disabled}
+                    required
+                  />
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold text-white/80">
+                  State <span className="text-rose-400">*</span>
+                </label>
+                {isLoadingConfig ? (
+                  <div className="h-9 rounded-xl bg-white/5 animate-pulse" />
+                ) : (
+                  <select
+                    value={selectedState}
+                    onChange={(e) => onStateChange(e.target.value)}
+                    disabled={disabled}
+                    className="flex h-9 w-full rounded-xl px-2.5 py-1.5 text-xs outline-none bg-zinc-900 border border-white/10 text-white focus:border-emerald-500/50"
+                  >
+                    <option value="" className="bg-zinc-950 text-white/50">Select State</option>
+                    {allStates.map((st) => (
+                      <option key={st.name} value={st.name} className="bg-zinc-950 text-white">
+                        {st.name} {!st.isEnabled ? '(Coming Soon)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold text-white/80">
+                  PIN Code (6 Digits) <span className="text-rose-400">*</span>
+                </label>
+                <Input
+                  placeholder="e.g. 570001"
+                  value={postalCode}
+                  onChange={(e) => handlePostalChange(e.target.value)}
+                  maxLength={6}
+                  className="h-9 text-xs"
+                  disabled={disabled}
+                  required
+                />
+                {pinCodeError && <p className="text-[10px] text-rose-400 mt-0.5">{pinCodeError}</p>}
+              </div>
+            </div>
+
+            {/* Additional Directions for the Rider */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-semibold text-white/80">
+                Additional Directions for Delivery Rider (Optional)
+              </label>
+              <textarea
+                placeholder="e.g. Entrance on side lane, 1st floor above medical store, ring doorbell #4"
+                rows={2}
+                value={directionsForRider}
+                onChange={(e) => setDirectionsForRider(e.target.value)}
+                className="flex w-full rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/30 outline-none resize-none bg-zinc-900/90 border border-white/10 focus:border-emerald-500/50"
+                disabled={disabled}
               />
+            </div>
+          </div>
+
+          {/* Formatted Address Preview Card */}
+          <div className="rounded-xl border border-white/10 bg-zinc-900/60 p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              <h5 className="text-xs font-bold text-white uppercase tracking-wider">
+                Rider Dispatch Address Preview
+              </h5>
+            </div>
+            <p className="text-xs text-white/80 leading-relaxed font-sans whitespace-pre-line">
+              {[
+                [doorNo, buildingName].filter(Boolean).join(', '),
+                [street, cross].filter(Boolean).join(', '),
+                [area, landmark].filter(Boolean).join(', '),
+                [city, selectedDistrict].filter(Boolean).join(', '),
+                [selectedState, postalCode].filter(Boolean).join(' - '),
+                country || 'India',
+              ]
+                .filter((part) => part.trim().length > 0)
+                .join('\n')}
+            </p>
+            {directionsForRider && (
+              <p className="text-[11px] text-emerald-300/80 italic mt-1">
+                Directions: {directionsForRider}
+              </p>
+            )}
+            {latitude && longitude && (
+              <p className="text-[10px] text-white/40 font-mono mt-1 pt-1 border-t border-white/5">
+                Exact Coordinates: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+              </p>
             )}
           </div>
         </div>
-
-        {/* Row 5: City / Town & PIN Code */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-white/80 flex items-center justify-between">
-              <span>City / Town <span className="text-red-400">*</span></span>
-              <span className="text-[10px] font-normal text-white/40">Required</span>
-            </label>
-            <Input
-              placeholder="e.g. Mysuru"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              disabled={disabled}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-white/80 flex items-center justify-between">
-              <span>Postal PIN Code <span className="text-red-400">*</span></span>
-              <span className="text-[10px] font-mono text-white/40">6 digits</span>
-            </label>
-            <Input
-              placeholder="e.g. 570023"
-              value={postalCode}
-              onChange={(e) => handlePostalChange(e.target.value)}
-              maxLength={6}
-              disabled={disabled}
-              className={pinCodeError ? 'border-red-500/60' : ''}
-            />
-            {pinCodeError && <p className="text-[11px] text-red-400 mt-1">{pinCodeError}</p>}
-          </div>
-        </div>
-      </div>
-
-      {/* Confirmation & Formatted Pickup Address Preview Card */}
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-2.5">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-white/90">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-            <span>Formatted Address for Rider Pickup</span>
-          </div>
-
-          {/* Location Source Tag */}
-          <div className="flex items-center gap-2">
-            {locationSource === 'GPS_DETECTED' && (
-              <Badge variant="success" className="text-[10px]">
-                📍 High-Accuracy GPS {accuracyMeters ? `(±${accuracyMeters}m)` : ''}
-              </Badge>
-            )}
-            {locationSource === 'GPS_APPROXIMATE' && (
-              <Badge variant="outline" className="text-[10px] text-amber-300 border-amber-500/40 bg-amber-500/10">
-                ⚠️ Approximate GPS {accuracyMeters ? `(±${accuracyMeters}m)` : ''} — Adjust to Entrance
-              </Badge>
-            )}
-            {locationSource === 'ADDRESS_SEARCHED' && (
-              <Badge variant="outline" className="text-[10px] text-blue-400 border-blue-500/30">
-                🔍 Searched Address
-              </Badge>
-            )}
-            {locationSource === 'MAP_PIN_SELECTED' && (
-              <Badge variant="outline" className="text-[10px] text-purple-400 border-purple-500/30">
-                📌 Entrance Pin Set
-              </Badge>
-            )}
-            {locationSource === 'STREET_VIEW_CONFIRMED' && (
-              <Badge variant="outline" className="text-[10px] text-emerald-300 border-emerald-500/40 bg-emerald-500/10">
-                📷 Street View Confirmed
-              </Badge>
-            )}
-            {locationSource === 'MANUALLY_ENTERED' && (
-              <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-500/30">
-                ✍️ Manually Entered
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        <p className="text-xs text-white/85 font-medium leading-relaxed bg-black/30 p-2.5 rounded-lg border border-white/5">
-          {formattedAddress || 'Complete the address fields above to generate the dispatch preview.'}
-        </p>
-
-        {latitude !== null && longitude !== null && (
-          <div className="flex items-center gap-2 text-[11px] text-white/40">
-            <span>Verified Coordinates:</span>
-            <span className="font-mono text-white/70">
-              {latitude.toFixed(6)}° N, {longitude.toFixed(6)}° E
-            </span>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

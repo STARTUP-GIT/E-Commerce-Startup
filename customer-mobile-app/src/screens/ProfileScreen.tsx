@@ -23,7 +23,9 @@ import {
   X,
   CheckCircle2,
   Lock,
+  Crosshair,
 } from 'lucide-react-native';
+import * as Location from 'expo-location';
 import { Header } from '../components/Header';
 import { useAuth } from '../context/AuthContext';
 import { useLocation } from '../context/LocationContext';
@@ -56,7 +58,53 @@ export const ProfileScreen: React.FC = () => {
   const [addrCity, setAddrCity] = useState('');
   const [addrState, setAddrState] = useState('Karnataka');
   const [addrPostalCode, setAddrPostalCode] = useState('');
+  const [addrLatitude, setAddrLatitude] = useState<number | null>(null);
+  const [addrLongitude, setAddrLongitude] = useState<number | null>(null);
+  const [addrAccuracy, setAddrAccuracy] = useState<number | null>(null);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [isSavingAddress, setIsSavingAddress] = useState(false);
+
+  const handleDetectCustomerLocation = async () => {
+    setIsDetectingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Please enable location permission or enter address manually.');
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
+      const lat = parseFloat(pos.coords.latitude.toFixed(6));
+      const lng = parseFloat(pos.coords.longitude.toFixed(6));
+      const acc = pos.coords.accuracy ? Math.round(pos.coords.accuracy) : null;
+      setAddrLatitude(lat);
+      setAddrLongitude(lng);
+      setAddrAccuracy(acc);
+
+      try {
+        const res = await locationService.resolveCoordinates(lat, lng);
+        const loc = res?.resolvedLocation;
+        if (loc) {
+          if (loc.addressLine1) setAddrLine1(loc.addressLine1);
+          else if (loc.street) setAddrLine1(loc.street);
+          if (loc.city || loc.district) setAddrCity(loc.city || loc.district);
+          if (loc.state) setAddrState(loc.state);
+          if (loc.postalCode) setAddrPostalCode(loc.postalCode);
+        }
+      } catch {
+        // Keep coordinates
+      }
+
+      if (acc && acc > 30) {
+        Alert.alert('GPS Approximate', `Satellites placed location within ±${acc}m. Please review flat and street details.`);
+      } else {
+        Alert.alert('GPS Detected', `High-accuracy location retrieved (±${acc || 10}m).`);
+      }
+    } catch (err: any) {
+      Alert.alert('GPS Error', err.message || 'Could not retrieve GPS location');
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -115,6 +163,8 @@ export const ProfileScreen: React.FC = () => {
         city: addrCity.trim(),
         state: addrState.trim(),
         postalCode: addrPostalCode.trim(),
+        latitude: addrLatitude ?? undefined,
+        longitude: addrLongitude ?? undefined,
         isDefault: addresses.length === 0,
       });
       setShowAddAddressModal(false);
@@ -123,6 +173,9 @@ export const ProfileScreen: React.FC = () => {
       setAddrLine1('');
       setAddrCity('');
       setAddrPostalCode('');
+      setAddrLatitude(null);
+      setAddrLongitude(null);
+      setAddrAccuracy(null);
       loadAddresses();
       Alert.alert('Success', 'Address added successfully.');
     } catch (err: any) {
@@ -415,6 +468,36 @@ export const ProfileScreen: React.FC = () => {
             </View>
 
             <ScrollView style={{ padding: 16 }}>
+              {/* Quick Action: Use Current Location */}
+              <TouchableOpacity
+                onPress={handleDetectCustomerLocation}
+                disabled={isDetectingLocation}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  paddingVertical: 12,
+                  paddingHorizontal: 12,
+                  borderRadius: 12,
+                  backgroundColor: 'rgba(147, 51, 234, 0.15)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(147, 51, 234, 0.3)',
+                  marginBottom: 14,
+                }}
+              >
+                {isDetectingLocation ? (
+                  <ActivityIndicator size="small" color="#c084fc" />
+                ) : (
+                  <>
+                    <Crosshair size={16} color="#c084fc" />
+                    <Text style={{ fontSize: 13, color: '#e9d5ff', fontWeight: '700' }}>
+                      {addrLatitude ? `GPS: ${addrLatitude}, ${addrLongitude} (±${addrAccuracy || 10}m)` : 'Use Current Location'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
               <Text style={styles.fieldLabel}>Recipient Full Name</Text>
               <TextInput
                 value={addrFullName}

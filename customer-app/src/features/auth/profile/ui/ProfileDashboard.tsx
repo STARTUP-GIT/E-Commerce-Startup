@@ -532,7 +532,14 @@ export function ProfileDashboard() {
                       latitude={coordinates.latitude}
                       longitude={coordinates.longitude}
                       onChange={setCoordinates}
-                      helperText="Optional latitude and longitude coordinates help delivery personnel navigate directly to your address."
+                      onAddressResolved={(loc) => {
+                        if (loc.addressLine1) setValueAddress('addressLine1', loc.addressLine1, { shouldValidate: true });
+                        if (loc.addressLine2) setValueAddress('addressLine2', loc.addressLine2, { shouldValidate: true });
+                        if (loc.state) setValueAddress('state', loc.state, { shouldValidate: true });
+                        if (loc.city) setValueAddress('city', loc.city, { shouldValidate: true });
+                        if (loc.postalCode) setValueAddress('postalCode', loc.postalCode, { shouldValidate: true });
+                      }}
+                      helperText="Pinpoint your exact delivery entrance on the map or use GPS for accurate delivery dispatch."
                     />
 
                     <form onSubmit={handleSubmitAddress(onSubmitAddress)} className="space-y-4">
