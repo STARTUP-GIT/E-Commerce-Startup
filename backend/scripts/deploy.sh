@@ -378,6 +378,9 @@ if [ -d "${VM_REPO_PATH}" ] && [ "$(realpath "${REPO_ROOT}")" != "$(realpath "${
   if [ -d "${BACKEND_DIR}/prisma" ]; then
     cp -r "${BACKEND_DIR}/prisma/"* "${VM_REPO_PATH}/backend/prisma/" 2>/dev/null || true
   fi
+  if [ -f "${BACKEND_DIR}/prisma.config.ts" ]; then
+    cp "${BACKEND_DIR}/prisma.config.ts" "${VM_REPO_PATH}/backend/prisma.config.ts" 2>/dev/null || true
+  fi
   chmod +x "${VM_REPO_PATH}/backend/scripts/"*.sh 2>/dev/null || true
   log_ok "VM app repository compose specification and migrations synchronized."
 fi
