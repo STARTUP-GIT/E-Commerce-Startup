@@ -763,14 +763,16 @@ export function ShopSettingsPage() {
                   </div>
                 </>
               ) : (
-                <div className="text-center py-10 space-y-2.5">
+                <div className="text-center py-10 space-y-3">
                   <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-white/30">
                     <Building2 className="h-5 w-5" />
                   </div>
-                  <h4 className="text-xs font-bold text-white/60">No bank accounts linked</h4>
-                  <p className="text-[10px] text-white/35 max-w-xs mx-auto leading-relaxed">
-                    Link a valid bank account to enable automatic settlements. Payouts require an approved shop profile.
-                  </p>
+                  <div>
+                    <h4 className="text-xs font-bold text-white/80">No bank accounts linked</h4>
+                    <p className="text-[10px] text-white/40 max-w-xs mx-auto leading-relaxed mt-1">
+                      You currently have no settlement account linked. You can link a bank account anytime below to receive automated payouts.
+                    </p>
+                  </div>
                 </div>
               )}
             </CardContent>

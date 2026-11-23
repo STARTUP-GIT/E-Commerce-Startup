@@ -10,9 +10,11 @@ model SellerBankAccount {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   upiId             String?        @db.VarChar(100)
+  deletedAt         DateTime?
   seller            Seller         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   sellerPayouts     SellerPayout[]
 
   @@index([sellerId])
+  @@index([sellerId, deletedAt])
   @@map("seller_bank_accounts")
 }

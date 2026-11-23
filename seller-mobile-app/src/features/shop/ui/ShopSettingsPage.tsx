@@ -916,7 +916,24 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
                 </View>
               ))
             ) : (
-              <Text style={styles.emptyText}>No bank account linked. Add one to receive payouts.</Text>
+              <View style={{ alignItems: 'center', paddingVertical: 24, gap: 8 }}>
+                <View style={{ height: 44, width: 44, borderRadius: 12, backgroundColor: 'rgba(255, 255, 255, 0.05)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Building2 size={22} color="rgba(255, 255, 255, 0.35)" />
+                </View>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#ffffff' }}>No Bank Accounts Linked</Text>
+                <Text style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.45)', textAlign: 'center', maxWidth: 260 }}>
+                  You currently have no settlement account linked. You can add one anytime below to receive payouts.
+                </Text>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onPress={() => setBankModalOpen(true)}
+                  icon={<Plus size={13} color="#ffffff" />}
+                  style={{ marginTop: 6 }}
+                >
+                  Add Bank Account
+                </Button>
+              </View>
             )}
           </CardContent>
         </Card>

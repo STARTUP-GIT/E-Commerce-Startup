@@ -343,7 +343,40 @@ export const updatePayout = async (req: Request, res: Response) => {
         if (!existing) return res.status(404).json({ message: "Payout not found." });
 
         const data: Prisma.SellerPayoutUpdateInput = { status: status as PayoutStatus };
-        if (status === "COMPLETED") data.processedAt = new Date();
+        if (status === "COMPLETED") {
+            // Check if seller has an active, eligible settlement account
+            let settlementAccount = null;
+            if (existing.bankAccountId) {
+                settlementAccount = await prisma.sellerBankAccount.findFirst({
+                    where: { id: existing.bankAccountId, deletedAt: null }
+                });
+            }
+            if (!settlementAccount) {
+                settlementAccount = await prisma.sellerBankAccount.findFirst({
+                    where: { sellerId: existing.sellerId, deletedAt: null, isDefault: true }
+                }) || await prisma.sellerBankAccount.findFirst({
+                    where: { sellerId: existing.sellerId, deletedAt: null }
+                });
+            }
+
+            if (!settlementAccount) {
+                // Mark payout as awaiting valid bank details; do not mark as paid
+                await prisma.sellerPayout.update({
+                    where: { id: payoutId },
+                    data: {
+                        status: "PENDING",
+                        bankAccount: { disconnect: true },
+                        failureReason: "Awaiting valid bank details: Seller has no linked settlement account."
+                    }
+                });
+                return res.status(400).json({
+                    message: "Cannot mark payout as completed: Seller has no linked settlement bank account. Payout is marked as awaiting valid bank details."
+                });
+            }
+
+            data.bankAccount = { connect: { id: settlementAccount.id } };
+            data.processedAt = new Date();
+        }
         if (status === "FAILED") {
             data.failedAt = new Date();
             if (typeof failureReason === "string" && failureReason.trim()) {

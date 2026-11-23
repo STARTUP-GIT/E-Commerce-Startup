@@ -505,11 +505,12 @@ export const addBankAccountDetails = async (req: Request, res: Response) => {
             });
         }
 
-        // Check for duplicate account number for this seller
+        // Check for active duplicate account number for this seller
         const duplicateAccount = await prisma.sellerBankAccount.findFirst({
             where: {
                 sellerId,
-                accountNumber: trimmedAccNum
+                accountNumber: trimmedAccNum,
+                deletedAt: null
             }
         });
 
@@ -520,15 +521,15 @@ export const addBankAccountDetails = async (req: Request, res: Response) => {
         }
 
         const existingCount = await prisma.sellerBankAccount.count({
-            where: { sellerId }
+            where: { sellerId, deletedAt: null }
         });
 
-        // First account is default by default; otherwise respect isDefault flag
+        // First active account is default by default; otherwise respect isDefault flag
         const shouldBeDefault = existingCount === 0 || isDefault === true;
 
         if (shouldBeDefault && existingCount > 0) {
             await prisma.sellerBankAccount.updateMany({
-                where: { sellerId },
+                where: { sellerId, deletedAt: null },
                 data: { isDefault: false }
             });
         }
@@ -575,7 +576,7 @@ export const updateBankAccountDetails = async (req: Request, res: Response) => {
         } = req.body;
 
         const existingAccount = await prisma.sellerBankAccount.findFirst({
-            where: { id, sellerId }
+            where: { id, sellerId, deletedAt: null }
         });
 
         if (!existingAccount) {
@@ -671,7 +672,7 @@ export const deleteBankAccountDetails = async (req: Request, res: Response) => {
         const id = String(req.params.id);
 
         const targetAccount = await prisma.sellerBankAccount.findFirst({
-            where: { id, sellerId }
+            where: { id, sellerId, deletedAt: null }
         });
 
         if (!targetAccount) {
@@ -680,57 +681,29 @@ export const deleteBankAccountDetails = async (req: Request, res: Response) => {
             });
         }
 
-        // Safety check 1: Pending or in-transit payouts
-        const pendingPayouts = await prisma.sellerPayout.count({
+        // If there are pending/processing payouts referencing this bank account,
+        // mark them as awaiting valid bank details (do not mark as paid or silently redirect)
+        await prisma.sellerPayout.updateMany({
             where: {
                 bankAccountId: id,
                 status: { in: ["PENDING", "PROCESSING"] }
+            },
+            data: {
+                bankAccountId: null,
+                failureReason: "Awaiting valid bank details: Linked settlement account was removed."
             }
         });
 
-        if (pendingPayouts > 0) {
-            return res.status(400).json({
-                message: `Cannot delete bank account with ${pendingPayouts} pending or in-transit payout(s). Please wait for payouts to complete.`
-            });
-        }
-
-        // Safety check 2: Prevent deletion if it's the only account
-        const totalAccounts = await prisma.sellerBankAccount.count({
-            where: { sellerId }
-        });
-
-        if (totalAccounts <= 1) {
-            return res.status(400).json({
-                message: "Cannot delete your only linked bank account. At least one settlement account is required."
-            });
-        }
-
-        // If target account was default, promote another account to default
-        if (targetAccount.isDefault) {
-            const nextDefault = await prisma.sellerBankAccount.findFirst({
-                where: { sellerId, id: { not: id } },
-                orderBy: [
-                    { isVerified: "desc" },
-                    { createdAt: "desc" }
-                ]
-            });
-
-            if (nextDefault) {
-                await prisma.sellerBankAccount.update({
-                    where: { id: nextDefault.id },
-                    data: { isDefault: true }
-                });
+        // Soft-delete the bank account:
+        // 1. Removes it from active seller account listings (allowing empty account list if only account).
+        // 2. Preserves historical completed payout records & references for audits and compliance.
+        // 3. Does not automatically create or select any replacement account.
+        await prisma.sellerBankAccount.update({
+            where: { id },
+            data: {
+                deletedAt: new Date(),
+                isDefault: false
             }
-        }
-
-        // Preserve historical financial records by nullifying foreign key on completed/failed payouts
-        await prisma.sellerPayout.updateMany({
-            where: { bankAccountId: id },
-            data: { bankAccountId: null }
-        });
-
-        await prisma.sellerBankAccount.delete({
-            where: { id }
         });
 
         return res.status(200).json({
@@ -750,7 +723,7 @@ export const setDefaultBankAccount = async (req: Request, res: Response) => {
         const id = String(req.params.id);
 
         const targetAccount = await prisma.sellerBankAccount.findFirst({
-            where: { id, sellerId }
+            where: { id, sellerId, deletedAt: null }
         });
 
         if (!targetAccount) {
@@ -761,7 +734,7 @@ export const setDefaultBankAccount = async (req: Request, res: Response) => {
 
         await prisma.$transaction([
             prisma.sellerBankAccount.updateMany({
-                where: { sellerId },
+                where: { sellerId, deletedAt: null },
                 data: { isDefault: false }
             }),
             prisma.sellerBankAccount.update({
@@ -795,7 +768,7 @@ export const getBankAccountDetails = async (req: Request, res: Response) => {
         const sellerId = req.sellerId!;
 
         const bankAccounts = await prisma.sellerBankAccount.findMany({
-            where: { sellerId },
+            where: { sellerId, deletedAt: null },
             orderBy: [
                 { isDefault: "desc" },
                 { createdAt: "desc" }

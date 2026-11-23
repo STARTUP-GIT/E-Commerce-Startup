@@ -122,7 +122,10 @@ export const getSeller = async (req: Request, res: Response) => {
             include: {
                 shop: true,
                 addresses: true,
-                bankAccounts: true,
+                bankAccounts: {
+                    where: { deletedAt: null },
+                    orderBy: { createdAt: "desc" },
+                },
                 strikes: true,
                 verifications: {
                     orderBy: { createdAt: "desc" },
