@@ -176,10 +176,15 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
       setPickupLat(String(lat));
       setPickupLng(String(lng));
       setAccuracyMeters(acc);
-      setLocationSource('GPS_DETECTED');
 
-      if (acc && acc > 50) {
-        setGpsWarning(`GPS accuracy is approx ±${acc}m. Please review the street and door number.`);
+      if (acc && acc > 30) {
+        setLocationSource('GPS_APPROXIMATE');
+        setGpsWarning(
+          `GPS fix is approximate (±${acc}m). Satellites have placed your pin within ${acc} metres of your actual position. Because riders need your exact storefront entrance, please fine-tune the pin using the micro-adjust buttons below.`
+        );
+      } else {
+        setLocationSource('GPS_DETECTED');
+        setGpsWarning(null);
       }
 
       try {
@@ -590,13 +595,15 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
                 <MapPin size={17} color={Colors.emerald} />
                 <CardTitle>Pickup Location &amp; Dispatch Coordinates</CardTitle>
               </View>
-              <Badge variant={locationSource === 'GPS_DETECTED' ? 'success' : locationSource === 'ADDRESS_SEARCHED' ? 'default' : 'secondary'}>
+              <Badge variant={locationSource === 'GPS_DETECTED' ? 'success' : locationSource === 'GPS_APPROXIMATE' ? 'warning' : locationSource === 'ADDRESS_SEARCHED' ? 'default' : 'secondary'}>
                 {locationSource === 'GPS_DETECTED'
-                  ? 'GPS Detected'
+                  ? `GPS Fix (±${accuracyMeters || 10}m)`
+                  : locationSource === 'GPS_APPROXIMATE'
+                  ? `Approx GPS (±${accuracyMeters || 95}m)`
                   : locationSource === 'ADDRESS_SEARCHED'
                   ? 'Address Searched'
                   : locationSource === 'MAP_PIN_SELECTED'
-                  ? 'Pin Selected'
+                  ? 'Entrance Pin Set'
                   : 'Manual Entry'}
               </Badge>
             </View>

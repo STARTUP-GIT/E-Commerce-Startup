@@ -41,7 +41,7 @@ export interface StructuredShopAddress {
   country: string;
   latitude: number | null;
   longitude: number | null;
-  locationSource: 'GPS_DETECTED' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'MANUALLY_ENTERED';
+  locationSource: 'GPS_DETECTED' | 'GPS_APPROXIMATE' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'MANUALLY_ENTERED';
   accuracyMeters: number | null;
   formattedAddress: string;
   addressLine1: string;
@@ -98,7 +98,7 @@ export function ShopPickupAddressForm({
     initialAddress?.longitude !== undefined && initialAddress?.longitude !== null ? Number(initialAddress.longitude) : null
   );
   const [locationSource, setLocationSource] = useState<
-    'GPS_DETECTED' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'MANUALLY_ENTERED'
+    'GPS_DETECTED' | 'GPS_APPROXIMATE' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'MANUALLY_ENTERED'
   >(initialAddress?.locationSource || 'MANUALLY_ENTERED');
   const [accuracyMeters, setAccuracyMeters] = useState<number | null>(
     initialAddress?.accuracyMeters !== undefined ? initialAddress.accuracyMeters : null
@@ -253,12 +253,16 @@ export function ShopPickupAddressForm({
         setLatitude(lat);
         setLongitude(lng);
         setAccuracyMeters(accuracy);
-        setLocationSource('GPS_DETECTED');
 
-        if (accuracy > 50) {
+        if (accuracy > 30) {
+          // Approximate GPS fix (e.g. ±95m) - must NOT be labeled as verified
+          setLocationSource('GPS_APPROXIMATE');
           setAccuracyWarning(
-            `GPS fix accuracy is ±${accuracy} meters. Please verify the map pin and ensure your door number and street are accurate.`
+            `GPS fix is approximate (±${accuracy}m). Satellites have placed your pin within ${accuracy} metres of your actual position. Because this is an e-commerce pickup location, please drag the green map pin directly to your storefront entrance.`
           );
+        } else {
+          setLocationSource('GPS_DETECTED');
+          setAccuracyWarning(null);
         }
 
         try {
@@ -307,7 +311,12 @@ export function ShopPickupAddressForm({
                 setGpsNotice(null);
               }
 
-              showToast('Location and address detected via GPS. Please review and complete any missing details.', 'success');
+              showToast(
+                accuracy > 30
+                  ? `Approximate GPS fix (±${accuracy}m). Please adjust pin to entrance.`
+                  : 'High-accuracy GPS location detected. Please review details.',
+                'success'
+              );
             }
           }
         } catch {
@@ -330,13 +339,13 @@ export function ShopPickupAddressForm({
       },
       {
         enableHighAccuracy: true,
-        timeout: 12000,
+        timeout: 15000,
         maximumAge: 0,
       }
     );
   };
 
-  // 2. Address Search & Autocomplete
+  // 2. Address Search & Google Places Autocomplete
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -349,20 +358,60 @@ export function ShopPickupAddressForm({
 
     setIsSearching(true);
     searchDebounceRef.current = setTimeout(async () => {
-      try {
-        const cityHint = selectedDistrict || city;
-        const res = await fetch(`/api/locations/search?q=${encodeURIComponent(query)}&city=${encodeURIComponent(cityHint)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setSearchResults(data.results || []);
-          setShowSearchResults(true);
+      // 2A. Attempt Google Places Autocomplete directly in browser if Google Maps script is available
+      if (typeof window !== 'undefined' && window.google?.maps?.places?.AutocompleteService) {
+        try {
+          const service = new window.google.maps.places.AutocompleteService();
+          service.getPlacePredictions(
+            {
+              input: query,
+              componentRestrictions: { country: 'in' },
+            },
+            (predictions: any[], status: string) => {
+              if (status === 'OK' && Array.isArray(predictions) && predictions.length > 0) {
+                const formatted = predictions.slice(0, 6).map((p) => ({
+                  placeId: p.place_id,
+                  formattedAddress: p.description,
+                  street: p.structured_formatting?.main_text || '',
+                  area: p.structured_formatting?.secondary_text || '',
+                  isGooglePlace: true,
+                }));
+                setSearchResults(formatted);
+                setShowSearchResults(true);
+                setIsSearching(false);
+                return;
+              }
+              // Fallback to backend search if Google Places returns zero predictions
+              fallbackBackendSearch(query);
+            }
+          );
+          return;
+        } catch {
+          // If AutocompleteService throws, fallback to backend search
+          fallbackBackendSearch(query);
+          return;
         }
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setIsSearching(false);
       }
+
+      // 2B. Fallback to Backend Location Search API
+      fallbackBackendSearch(query);
     }, 350);
+  };
+
+  const fallbackBackendSearch = async (query: string) => {
+    try {
+      const cityHint = selectedDistrict || city;
+      const res = await fetch(`/api/locations/search?q=${encodeURIComponent(query)}&city=${encodeURIComponent(cityHint)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data.results || []);
+        setShowSearchResults(true);
+      }
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleSelectSearchResult = (result: any) => {
@@ -371,6 +420,85 @@ export function ShopPickupAddressForm({
 
     const reqId = ++activeGeocodeReqId.current;
 
+    // If result was from Google Places, retrieve full Place details with geometry & components
+    if (result.isGooglePlace && typeof window !== 'undefined' && window.google?.maps?.places?.PlacesService) {
+      try {
+        const placesService = new window.google.maps.places.PlacesService(document.createElement('div'));
+        placesService.getDetails(
+          {
+            placeId: result.placeId,
+            fields: ['geometry', 'address_components', 'formatted_address', 'name'],
+          },
+          (place: any, status: string) => {
+            if (status === 'OK' && place?.geometry?.location) {
+              const lat = Number(place.geometry.location.lat().toFixed(6));
+              const lng = Number(place.geometry.location.lng().toFixed(6));
+
+              setLatitude(lat);
+              setLongitude(lng);
+              setLocationSource('ADDRESS_SEARCHED');
+              setAccuracyMeters(null);
+              setCoordsMismatchWarning(null);
+
+              let streetNumber = '';
+              let route = '';
+              let premise = '';
+              let subpremise = '';
+              let sublocality1 = '';
+              let sublocality2 = '';
+              let locality = '';
+              let districtName = '';
+              let stateName = '';
+              let postalCodeVal = '';
+              let pointOfInterest = '';
+
+              for (const comp of place.address_components || []) {
+                const types = comp.types || [];
+                if (types.includes('street_number')) streetNumber = comp.long_name;
+                else if (types.includes('route')) route = comp.long_name;
+                else if (types.includes('premise')) premise = comp.long_name;
+                else if (types.includes('subpremise')) subpremise = comp.long_name;
+                else if (types.includes('sublocality_level_1') || types.includes('sublocality')) sublocality1 = comp.long_name;
+                else if (types.includes('sublocality_level_2') || types.includes('neighborhood')) sublocality2 = comp.long_name;
+                else if (types.includes('locality')) locality = comp.long_name;
+                else if (types.includes('administrative_area_level_2')) districtName = comp.long_name;
+                else if (types.includes('administrative_area_level_1')) stateName = comp.long_name;
+                else if (types.includes('postal_code')) postalCodeVal = comp.long_name;
+                else if (types.includes('point_of_interest') || types.includes('landmark')) pointOfInterest = comp.long_name;
+              }
+
+              const dNo = subpremise || streetNumber;
+              const bldg = premise || place.name;
+              const cleanPostal = postalCodeVal.replace(/\D/g, '').slice(0, 6);
+
+              setDoorNo((prev) => dNo || prev);
+              setBuildingName((prev) => (bldg !== dNo ? bldg : prev));
+              if (route) setStreet(route);
+              if (sublocality2) setCross(sublocality2);
+              if (sublocality1) setArea(sublocality1);
+              if (pointOfInterest) setLandmark(pointOfInterest);
+              if (locality) setCity(locality);
+              if (stateName) onStateChange(stateName);
+              if (districtName || locality) onDistrictChange(districtName || locality);
+              if (cleanPostal.length === 6) setPostalCode(cleanPostal);
+
+              if (!dNo && !doorNo) {
+                setGpsNotice('Address selected from Google Places. Please ensure your House / Door / Shop number is entered.');
+              } else {
+                setGpsNotice(null);
+              }
+              showToast('Location selected from Google Places. Review before saving.', 'success');
+              return;
+            }
+          }
+        );
+        return;
+      } catch {
+        // Fallback to standard result handling
+      }
+    }
+
+    // Standard backend search result handling
     if (result.latitude && result.longitude) {
       setLatitude(Number(result.latitude));
       setLongitude(Number(result.longitude));
@@ -856,7 +984,12 @@ export function ShopPickupAddressForm({
           <div className="flex items-center gap-2">
             {locationSource === 'GPS_DETECTED' && (
               <Badge variant="success" className="text-[10px]">
-                📍 GPS Detected {accuracyMeters ? `(±${accuracyMeters}m)` : ''}
+                📍 High-Accuracy GPS {accuracyMeters ? `(±${accuracyMeters}m)` : ''}
+              </Badge>
+            )}
+            {locationSource === 'GPS_APPROXIMATE' && (
+              <Badge variant="outline" className="text-[10px] text-amber-300 border-amber-500/40 bg-amber-500/10">
+                ⚠️ Approximate GPS {accuracyMeters ? `(±${accuracyMeters}m)` : ''} — Adjust to Entrance
               </Badge>
             )}
             {locationSource === 'ADDRESS_SEARCHED' && (
@@ -866,7 +999,7 @@ export function ShopPickupAddressForm({
             )}
             {locationSource === 'MAP_PIN_SELECTED' && (
               <Badge variant="outline" className="text-[10px] text-purple-400 border-purple-500/30">
-                📌 Map Pin Position
+                📌 Entrance Pin Set
               </Badge>
             )}
             {locationSource === 'MANUALLY_ENTERED' && (

@@ -8,13 +8,17 @@ export interface LatLng {
 
 export interface RouteResult {
   distanceKm: number;
+  roadDistanceKm: number;
+  straightLineDistanceKm: number;
   durationMins: number;
   polyline?: string;
   source: "GOOGLE_MAPS" | "FALLBACK_CALCULATION";
   navigationUrl: string;
+  pickupNavigationUrl: string;
+  dropoffNavigationUrl: string;
 }
 
-export const haversineDistanceKm = (a: LatLng, b: LatLng): number => {
+export const haversineStraightLineKm = (a: LatLng, b: LatLng): number => {
   const toRadians = (deg: number) => (deg * Math.PI) / 180;
   const lat1 = Number(a.lat);
   const lon1 = Number(a.lng);
@@ -32,6 +36,11 @@ export const haversineDistanceKm = (a: LatLng, b: LatLng): number => {
     Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * sinLon * sinLon;
   const straightLine = 2 * earthRadiusKm * Math.asin(Math.sqrt(h));
 
+  return Math.round(straightLine * 100) / 100;
+};
+
+export const haversineDistanceKm = (a: LatLng, b: LatLng): number => {
+  const straightLine = haversineStraightLineKm(a, b);
   // Indian urban road winding factor (1.35x straight line)
   return Math.round(straightLine * 1.35 * 100) / 100;
 };
@@ -49,11 +58,20 @@ export class GoogleMapsService {
     return `https://www.google.com/maps/dir/?api=1&destination=${destination.lat},${destination.lng}`;
   }
 
+  static getTurnByTurnUrl(origin: LatLng, destination: LatLng): string {
+    return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=driving`;
+  }
+
   static async calculateRoute(
     origin: LatLng,
     destination: LatLng
   ): Promise<RouteResult> {
+    const straightLineDistanceKm = haversineStraightLineKm(origin, destination);
     const apiKey = this.getApiKey();
+
+    const pickupNav = this.getNavigationUrl(origin);
+    const dropoffNav = this.getNavigationUrl(destination);
+    const fullRouteNav = this.getTurnByTurnUrl(origin, destination);
 
     if (apiKey) {
       try {
@@ -70,13 +88,18 @@ export class GoogleMapsService {
           const leg = route.legs[0];
           const distanceMeters = leg.distance?.value || 0;
           const durationSeconds = leg.duration?.value || 0;
+          const roadDistKm = Math.round((distanceMeters / 1000) * 100) / 100;
 
           return {
-            distanceKm: Math.round((distanceMeters / 1000) * 100) / 100,
+            distanceKm: roadDistKm,
+            roadDistanceKm: roadDistKm,
+            straightLineDistanceKm,
             durationMins: Math.max(1, Math.round(durationSeconds / 60)),
             polyline: route.overview_polyline?.points,
             source: "GOOGLE_MAPS",
-            navigationUrl: this.getNavigationUrl(destination),
+            navigationUrl: fullRouteNav,
+            pickupNavigationUrl: pickupNav,
+            dropoffNavigationUrl: dropoffNav,
           };
         }
       } catch (err: any) {
@@ -93,9 +116,13 @@ export class GoogleMapsService {
 
     return {
       distanceKm: Math.max(0.5, distKm),
+      roadDistanceKm: Math.max(0.5, distKm),
+      straightLineDistanceKm,
       durationMins: estimatedMinutes,
       source: "FALLBACK_CALCULATION",
-      navigationUrl: this.getNavigationUrl(destination),
+      navigationUrl: fullRouteNav,
+      pickupNavigationUrl: pickupNav,
+      dropoffNavigationUrl: dropoffNav,
     };
   }
 
