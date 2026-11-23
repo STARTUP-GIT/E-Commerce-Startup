@@ -2,12 +2,24 @@ import { useState, useEffect } from 'react';
 import { Input } from '@/shared/components/Input';
 import { Button } from '@/shared/components/Button';
 import { Crosshair, Loader2, MapPin, AlertCircle, CheckCircle2, RotateCcw } from 'lucide-react';
+import { useUIStore } from '@/lib/store/uiStore';
+
+export interface ResolvedLocationData {
+  addressLine1?: string;
+  addressLine2?: string;
+  state?: string;
+  district?: string;
+  city?: string;
+  postalCode?: string;
+  country?: string;
+  formattedAddress?: string;
+}
 
 export interface LocationCoordinatesInputProps {
   latitude?: number | null | string;
   longitude?: number | null | string;
   onChange: (coords: { latitude: number | null; longitude: number | null }) => void;
-  onLocationResolved?: (loc: { state: string; district: string; formattedAddress?: string }) => void;
+  onLocationResolved?: (loc: ResolvedLocationData) => void;
   disabled?: boolean;
   className?: string;
   helperText?: string;
@@ -162,7 +174,7 @@ export function LocationCoordinatesInput({
         setLatInput(String(lat));
         setLngInput(String(lng));
         onChange({ latitude: lat, longitude: lng });
-        setGeoSuccess('Retrieved current device location. Please review coordinates before saving.');
+        setGeoSuccess('Current device coordinates captured. Resolving address details...');
 
         if (onLocationResolved) {
           try {
@@ -174,17 +186,27 @@ export function LocationCoordinatesInput({
             if (res.ok) {
               const data = await res.json();
               const loc = data.resolvedLocation;
-              if (loc?.state && (loc?.district || loc?.city)) {
+              if (loc) {
                 onLocationResolved({
+                  addressLine1: loc.addressLine1,
+                  addressLine2: loc.addressLine2,
                   state: loc.state,
                   district: loc.district || loc.city,
+                  city: loc.city || loc.district,
+                  postalCode: loc.postalCode,
+                  country: loc.country || 'India',
                   formattedAddress: loc.formattedAddress,
                 });
+                setGeoSuccess('Location coordinates and address details populated. Please review before saving.');
+                useUIStore.getState().showToast('Location coordinates and address details populated. Please review before saving.', 'success');
               }
             }
           } catch {
             // Geocoding lookup is best-effort enhancement
+            useUIStore.getState().showToast('Location coordinates captured. Please review and fill remaining address details manually.', 'info');
           }
+        } else {
+          useUIStore.getState().showToast('Location coordinates captured.', 'success');
         }
       },
       (err) => {
@@ -198,6 +220,7 @@ export function LocationCoordinatesInput({
           msg = 'Location request timed out. Please try again or enter coordinates manually.';
         }
         setGeoError(msg);
+        useUIStore.getState().showToast(msg, 'error');
         // Note: Existing coordinates are preserved; not replaced with null!
       },
       {

@@ -62,9 +62,12 @@ export interface ServiceabilityCheckResult {
 }
 
 export interface GeocodeLocationResult {
+    addressLine1?: string;
+    addressLine2?: string;
     state: string;
     district: string;
     city: string;
+    country?: string;
     serviceArea?: string;
     postalCode?: string;
     latitude: number;
@@ -700,36 +703,81 @@ export class ServiceabilityService {
                 const response = await axios.get(url, { timeout: 4000 });
                 if (response.data?.status === "OK" && response.data?.results?.length > 0) {
                     const result = response.data.results[0];
-                    let state = "";
+                    let streetNumber = "";
+                    let route = "";
+                    let premise = "";
+                    let subpremise = "";
+                    let sublocality = "";
+                    let neighborhood = "";
+                    let locality = "";
                     let district = "";
-                    let city = "";
+                    let state = "";
+                    let country = "India";
                     let postalCode = "";
                     let serviceArea = "";
 
                     for (const comp of result.address_components) {
                         const types = comp.types;
-                        if (types.includes("administrative_area_level_1")) {
-                            state = comp.long_name;
+                        if (types.includes("street_number")) {
+                            streetNumber = comp.long_name;
+                        } else if (types.includes("route")) {
+                            route = comp.long_name;
+                        } else if (types.includes("premise")) {
+                            premise = comp.long_name;
+                        } else if (types.includes("subpremise")) {
+                            subpremise = comp.long_name;
+                        } else if (types.includes("sublocality_level_1") || types.includes("sublocality")) {
+                            sublocality = comp.long_name;
+                            serviceArea = comp.long_name;
+                        } else if (types.includes("neighborhood") || types.includes("sublocality_level_2")) {
+                            neighborhood = comp.long_name;
+                        } else if (types.includes("locality")) {
+                            locality = comp.long_name;
                         } else if (types.includes("administrative_area_level_2")) {
                             district = comp.long_name;
-                        } else if (types.includes("locality")) {
-                            city = comp.long_name;
-                        } else if (types.includes("sublocality") || types.includes("sublocality_level_1") || types.includes("neighborhood")) {
-                            serviceArea = comp.long_name;
+                        } else if (types.includes("administrative_area_level_1")) {
+                            state = comp.long_name;
+                        } else if (types.includes("country")) {
+                            country = comp.long_name;
                         } else if (types.includes("postal_code")) {
                             postalCode = comp.long_name;
                         }
                     }
 
+                    // Build addressLine1: premise/building, house/street number, route
+                    const line1Components: string[] = [];
+                    if (premise) line1Components.push(premise);
+                    if (streetNumber && !premise.includes(streetNumber)) line1Components.push(streetNumber);
+                    if (route) line1Components.push(route);
+                    const addressLine1 = line1Components.length > 0
+                        ? line1Components.join(", ")
+                        : (sublocality || locality || "");
+
+                    // Build addressLine2: subpremise (flat/suite), neighborhood, sublocality
+                    const line2Components: string[] = [];
+                    if (subpremise) line2Components.push(subpremise);
+                    if (neighborhood && !addressLine1.includes(neighborhood)) line2Components.push(neighborhood);
+                    if (sublocality && !addressLine1.includes(sublocality) && !line2Components.includes(sublocality)) {
+                        line2Components.push(sublocality);
+                    }
+                    const addressLine2 = line2Components.join(", ");
+
+                    // Clean and validate Indian 6-digit PIN code
+                    const cleanPostal = postalCode.replace(/\D/g, "");
+                    const validPostal = cleanPostal.length === 6 ? cleanPostal : postalCode;
+
                     // Canonical alias normalization
-                    const canonicalDistrict = normalizeDistrictName(district || city);
+                    const canonicalDistrict = normalizeDistrictName(district || locality);
 
                     return {
+                        addressLine1: addressLine1 || undefined,
+                        addressLine2: addressLine2 || undefined,
                         state,
                         district: canonicalDistrict,
-                        city: city || canonicalDistrict,
+                        city: locality || canonicalDistrict,
+                        country: country || "India",
                         serviceArea: serviceArea || undefined,
-                        postalCode: postalCode || undefined,
+                        postalCode: validPostal || undefined,
                         latitude,
                         longitude,
                         formattedAddress: result.formatted_address
@@ -750,20 +798,41 @@ export class ServiceabilityService {
 
             if (response.data && response.data.address) {
                 const addr = response.data.address;
+                const houseNumber = addr.house_number || addr.house_name || addr.building || "";
+                const road = addr.road || addr.pedestrian || addr.footway || addr.path || addr.street || "";
+                const suburb = addr.suburb || addr.neighbourhood || addr.residential || addr.subdivision || "";
+                const city = addr.city || addr.town || addr.village || addr.municipality || "";
+                const rawDistrict = addr.state_district || addr.county || addr.district || city || "";
                 const state = addr.state || "";
-                const rawDistrict = addr.state_district || addr.county || addr.city || addr.town || "";
-                const city = addr.city || addr.town || addr.village || rawDistrict;
-                const serviceArea = addr.suburb || addr.neighbourhood || addr.residential || "";
+                const country = addr.country || "India";
                 const postalCode = addr.postcode || "";
+
+                const line1Components: string[] = [];
+                if (houseNumber) line1Components.push(houseNumber);
+                if (road) line1Components.push(road);
+                const addressLine1 = line1Components.length > 0
+                    ? line1Components.join(", ")
+                    : (suburb || city || "");
+
+                const line2Components: string[] = [];
+                if (suburb && !addressLine1.includes(suburb)) line2Components.push(suburb);
+                if (addr.hamlet && !addressLine1.includes(addr.hamlet)) line2Components.push(addr.hamlet);
+                const addressLine2 = line2Components.join(", ");
+
+                const cleanPostal = postalCode.replace(/\D/g, "");
+                const validPostal = cleanPostal.length === 6 ? cleanPostal : postalCode;
 
                 const canonicalDistrict = normalizeDistrictName(rawDistrict || city);
 
                 return {
+                    addressLine1: addressLine1 || undefined,
+                    addressLine2: addressLine2 || undefined,
                     state,
                     district: canonicalDistrict,
                     city: city || canonicalDistrict,
-                    serviceArea: serviceArea || undefined,
-                    postalCode: postalCode || undefined,
+                    country: country || "India",
+                    serviceArea: suburb || undefined,
+                    postalCode: validPostal || undefined,
                     latitude,
                     longitude,
                     formattedAddress: response.data.display_name
@@ -778,6 +847,7 @@ export class ServiceabilityService {
             state: "",
             district: "",
             city: "",
+            country: "India",
             latitude,
             longitude,
             formattedAddress: undefined

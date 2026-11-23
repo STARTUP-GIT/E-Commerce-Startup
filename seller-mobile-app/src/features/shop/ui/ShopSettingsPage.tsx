@@ -35,7 +35,10 @@ import {
   MapPin,
   Crosshair,
   Check,
+  Pencil,
+  Trash2,
 } from 'lucide-react-native';
+import axiosInstance from '@/lib/axios/axiosInstance';
 import { Colors } from '@/theme/colors';
 
 interface ShopSettingsPageProps {
@@ -49,6 +52,12 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
     isLoadingBank,
     addBankAccount,
     isAddingBank,
+    updateBankAccount,
+    isUpdatingBank,
+    deleteBankAccount,
+    isDeletingBank,
+    setDefaultBankAccount,
+    isSettingDefaultBank,
     updateBanner,
     updateLogo,
     updateShop,
@@ -69,6 +78,15 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
   const [accountNumber, setAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
   const [upiId, setUpiId] = useState('');
+
+  // Edit Bank Account Dialog
+  const [editBankModalOpen, setEditBankModalOpen] = useState(false);
+  const [editingBankId, setEditingBankId] = useState('');
+  const [editAccountHolder, setEditAccountHolder] = useState('');
+  const [editBankName, setEditBankName] = useState('');
+  const [editAccountNumber, setEditAccountNumber] = useState('');
+  const [editIfscCode, setEditIfscCode] = useState('');
+  const [editUpiId, setEditUpiId] = useState('');
 
   // Store Pickup Location & Dispatch Coordinates State
   const [pickupLine1, setPickupLine1] = useState('');
@@ -109,9 +127,31 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      setPickupLat(pos.coords.latitude.toFixed(6));
-      setPickupLng(pos.coords.longitude.toFixed(6));
-      showToast('GPS coordinates captured from current device location', 'success');
+      const lat = parseFloat(pos.coords.latitude.toFixed(6));
+      const lng = parseFloat(pos.coords.longitude.toFixed(6));
+      setPickupLat(String(lat));
+      setPickupLng(String(lng));
+
+      try {
+        const res = await axiosInstance.post('/api/locations/resolve', {
+          latitude: lat,
+          longitude: lng,
+          userRole: 'SELLER',
+        });
+        const loc = res.data?.resolvedLocation;
+        if (loc) {
+          if (loc.addressLine1) setPickupLine1(loc.addressLine1);
+          if (loc.addressLine2) setPickupLine2(loc.addressLine2);
+          if (loc.city || loc.district) setPickupCity(loc.city || loc.district);
+          if (loc.state) setPickupState(loc.state);
+          if (loc.postalCode) setPickupPostal(loc.postalCode);
+          showToast('Location coordinates & address populated. Please review before saving.', 'success');
+        } else {
+          showToast('GPS coordinates captured from current device location', 'success');
+        }
+      } catch {
+        showToast('GPS coordinates captured. Please complete address details manually.', 'info');
+      }
     } catch (err: any) {
       showToast(err.message || 'Failed to detect current location', 'error');
     } finally {
@@ -192,6 +232,64 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
       setUpiId('');
     } catch (err: any) {
       showToast(err.message || 'Failed to link bank account', 'error');
+    }
+  };
+
+  const handleOpenEditBank = (b: any) => {
+    setEditingBankId(b.id);
+    setEditAccountHolder(b.accountHolderName || '');
+    setEditBankName(b.bankName || '');
+    setEditAccountNumber(b.accountNumber || '');
+    setEditIfscCode(b.ifscCode || '');
+    setEditUpiId(b.upiId || '');
+    setEditBankModalOpen(true);
+  };
+
+  const handleSaveEditBank = async () => {
+    if (!editAccountHolder.trim() || !editBankName.trim() || !editAccountNumber.trim() || !editIfscCode.trim()) {
+      showToast('All bank account fields are required', 'error');
+      return;
+    }
+    try {
+      await updateBankAccount({
+        id: editingBankId,
+        payload: {
+          accountHolderName: editAccountHolder.trim(),
+          bankName: editBankName.trim(),
+          accountNumber: editAccountNumber.trim(),
+          ifscCode: editIfscCode.trim().toUpperCase(),
+          upiId: editUpiId.trim() || undefined,
+        },
+      });
+      showToast('Bank account updated successfully', 'success');
+      setEditBankModalOpen(false);
+    } catch (err: any) {
+      showToast(err.response?.data?.message || err.message || 'Failed to update bank account', 'error');
+    }
+  };
+
+  const handleDeleteBank = (id: string) => {
+    showConfirm({
+      title: 'Remove Bank Account',
+      message: 'Are you sure you want to remove this bank account? Historical records will be preserved.',
+      confirmText: 'Remove Account',
+      onConfirm: async () => {
+        try {
+          await deleteBankAccount(id);
+          showToast('Bank account removed successfully', 'success');
+        } catch (err: any) {
+          showToast(err.response?.data?.message || err.message || 'Failed to remove bank account', 'error');
+        }
+      },
+    });
+  };
+
+  const handleSetDefaultBank = async (id: string) => {
+    try {
+      await setDefaultBankAccount(id);
+      showToast('Default settlement bank account updated', 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.message || err.message || 'Failed to update default account', 'error');
     }
   };
 
@@ -396,11 +494,36 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
                   <View style={{ flex: 1, paddingHorizontal: 10 }}>
                     <Text style={styles.bankName}>{b.bankName}</Text>
                     <Text style={styles.bankAccountNum}>
-                      A/C: ••••{b.accountNumber.slice(-4)} • IFSC: {b.ifscCode}
+                      A/C: {b.accountNumber?.includes('•') ? b.accountNumber : `••••${b.accountNumber?.slice(-4)}`} • IFSC: {b.ifscCode}
                     </Text>
                     <Text style={styles.holderName}>{b.accountHolderName}</Text>
+                    {b.upiId ? (
+                      <Text style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.4)', marginTop: 2 }}>
+                        UPI: {b.upiId}
+                      </Text>
+                    ) : null}
                   </View>
-                  {b.isDefault && <Badge variant="success">Default</Badge>}
+                  <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                    {b.isDefault ? (
+                      <Badge variant="success">Default</Badge>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => handleSetDefaultBank(b.id)}
+                        disabled={isSettingDefaultBank}
+                        style={{ paddingVertical: 3, paddingHorizontal: 8, borderRadius: 6, backgroundColor: 'rgba(168, 85, 247, 0.15)' }}
+                      >
+                        <Text style={{ fontSize: 10, color: Colors.purpleLight, fontWeight: '700' }}>Make Default</Text>
+                      </TouchableOpacity>
+                    )}
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                      <TouchableOpacity onPress={() => handleOpenEditBank(b)} style={{ padding: 4 }}>
+                        <Pencil size={15} color="rgba(255, 255, 255, 0.7)" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteBank(b.id)} disabled={isDeletingBank} style={{ padding: 4 }}>
+                        <Trash2 size={15} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
               ))
             ) : (
@@ -457,6 +580,57 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
               style={{ marginTop: 10 }}
             >
               Verify &amp; Link Account
+            </Button>
+          </View>
+        </Dialog>
+
+        {/* Edit Bank Dialog */}
+        <Dialog
+          open={editBankModalOpen}
+          onClose={() => setEditBankModalOpen(false)}
+          title="Edit Settlement Bank"
+          description="Update account details. Changing account number or IFSC resets verification status."
+        >
+          <View style={{ gap: 10 }}>
+            <Input
+              label="Account Holder Name"
+              placeholder="As printed on passbook"
+              value={editAccountHolder}
+              onChangeText={setEditAccountHolder}
+            />
+            <Input
+              label="Bank Name"
+              placeholder="HDFC Bank, State Bank of India, etc."
+              value={editBankName}
+              onChangeText={setEditBankName}
+            />
+            <Input
+              label="Account Number"
+              placeholder="Enter account number or keep existing"
+              value={editAccountNumber}
+              onChangeText={setEditAccountNumber}
+            />
+            <Input
+              label="IFSC Code"
+              placeholder="HDFC0001234"
+              autoCapitalize="characters"
+              value={editIfscCode}
+              onChangeText={setEditIfscCode}
+            />
+            <Input
+              label="UPI ID (Optional)"
+              placeholder="merchant@okhdfcbank"
+              autoCapitalize="none"
+              value={editUpiId}
+              onChangeText={setEditUpiId}
+            />
+            <Button
+              variant="default"
+              loading={isUpdatingBank}
+              onPress={handleSaveEditBank}
+              style={{ marginTop: 10 }}
+            >
+              Save Bank Changes
             </Button>
           </View>
         </Dialog>

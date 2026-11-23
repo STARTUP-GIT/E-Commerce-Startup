@@ -21,6 +21,8 @@ import {
   AlertTriangle,
   Store,
   ShieldCheck,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 import { useQuery } from '@tanstack/react-query';
@@ -39,6 +41,12 @@ export function ShopSettingsPage() {
     isLoadingBank,
     addBankAccount,
     isAddingBank,
+    updateBankAccount,
+    isUpdatingBank,
+    deleteBankAccount,
+    isDeletingBank,
+    setDefaultBankAccount,
+    isSettingDefaultBank,
     updateShop,
     isUpdatingShop,
     updateBanner,
@@ -52,6 +60,14 @@ export function ShopSettingsPage() {
 
   const [bankSuccess, setBankSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Bank Account edit state
+  const [editingAccount, setEditingAccount] = useState<any | null>(null);
+  const [editHolderName, setEditHolderName] = useState('');
+  const [editBankName, setEditBankName] = useState('');
+  const [editAccountNumber, setEditAccountNumber] = useState('');
+  const [editIfscCode, setEditIfscCode] = useState('');
+  const [editUpiId, setEditUpiId] = useState('');
 
   // Shop details edit form state
   const [editShopName, setEditShopName] = useState('');
@@ -199,9 +215,67 @@ export function ShopSettingsPage() {
     try {
       await addBankAccount(data);
       setBankSuccess(true);
+      showToast('Bank account linked successfully!', 'success');
       bankReset();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to add bank account.');
+      const msg = err.response?.data?.message || err.message || 'Failed to add bank account.';
+      setErrorMsg(msg);
+      showToast(msg, 'error');
+    }
+  };
+
+  const handleOpenEditBank = (acct: any) => {
+    setEditingAccount(acct);
+    setEditHolderName(acct.accountHolderName || '');
+    setEditBankName(acct.bankName || '');
+    setEditAccountNumber(acct.accountNumber || '');
+    setEditIfscCode(acct.ifscCode || '');
+    setEditUpiId(acct.upiId || '');
+  };
+
+  const handleSaveEditBank = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAccount) return;
+    try {
+      await updateBankAccount({
+        id: editingAccount.id,
+        payload: {
+          accountHolderName: editHolderName.trim(),
+          bankName: editBankName.trim(),
+          accountNumber: editAccountNumber.trim(),
+          ifscCode: editIfscCode.trim().toUpperCase(),
+          upiId: editUpiId.trim() || undefined,
+        },
+      });
+      showToast('Bank account details updated successfully', 'success');
+      setEditingAccount(null);
+    } catch (err: any) {
+      showToast(err.response?.data?.message || err.message || 'Failed to update bank account', 'error');
+    }
+  };
+
+  const handleDeleteBank = (id: string) => {
+    showConfirm({
+      title: 'Remove Bank Account',
+      message: 'Are you sure you want to remove this bank account? Historical transaction records will be preserved.',
+      confirmText: 'Remove Account',
+      onConfirm: async () => {
+        try {
+          await deleteBankAccount(id);
+          showToast('Bank account removed successfully', 'success');
+        } catch (err: any) {
+          showToast(err.response?.data?.message || err.message || 'Failed to remove bank account', 'error');
+        }
+      },
+    });
+  };
+
+  const handleSetDefaultBank = async (id: string) => {
+    try {
+      await setDefaultBankAccount(id);
+      showToast('Default settlement bank account updated', 'success');
+    } catch (err: any) {
+      showToast(err.response?.data?.message || err.message || 'Failed to update default account', 'error');
     }
   };
 
@@ -458,6 +532,13 @@ export function ShopSettingsPage() {
                   latitude={coordinates.latitude}
                   longitude={coordinates.longitude}
                   onChange={setCoordinates}
+                  onLocationResolved={(loc) => {
+                    if (loc.addressLine1) setEditAddressLine1(loc.addressLine1);
+                    if (loc.addressLine2) setEditAddressLine2(loc.addressLine2);
+                    if (loc.state) setSelectedState(loc.state);
+                    if (loc.district || loc.city) setSelectedDistrict(loc.district || loc.city || '');
+                    if (loc.postalCode) setEditPostalCode(loc.postalCode);
+                  }}
                   helperText="Specify store pickup coordinates for delivery dispatch, or use your device's current location."
                 />
 
@@ -584,22 +665,60 @@ export function ShopSettingsPage() {
                 <>
                   {/* ── MOBILE VIEW: BANK ACCOUNT CARDS (< md) ── */}
                   <div className="block md:hidden space-y-3">
-                    {bankAccounts.map((acct) => (
-                      <div key={acct.id} className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-1.5">
+                    {bankAccounts.map((acct: any) => (
+                      <div key={acct.id} className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-white/90 text-xs">
                             {acct.accountHolderName}
                           </span>
-                          <Badge variant={acct.isVerified ? 'success' : 'secondary'} className="text-[8px] py-0">
-                            {acct.isVerified ? 'Verified' : 'Pending'}
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            {acct.isDefault && (
+                              <Badge variant="secondary" className="text-[9px] py-0 bg-purple-600/20 text-purple-300 border-purple-500/30">
+                                Default
+                              </Badge>
+                            )}
+                            <Badge variant={acct.isVerified ? 'success' : 'secondary'} className="text-[9px] py-0">
+                              {acct.isVerified ? 'Verified' : 'Pending'}
+                            </Badge>
+                          </div>
                         </div>
                         <div className="flex items-center justify-between text-xs text-white/60">
                           <span>{acct.bankName}</span>
-                          <span className="font-mono text-white/40">•••• {acct.accountNumber.slice(-4)}</span>
+                          <span className="font-mono text-white/70">
+                            {acct.accountNumber?.includes('•') ? acct.accountNumber : `•••• ${acct.accountNumber?.slice(-4)}`}
+                          </span>
                         </div>
                         <div className="text-[10px] font-mono text-white/40">
-                          IFSC: {acct.ifscCode}
+                          IFSC: {acct.ifscCode} {acct.upiId ? `• UPI: ${acct.upiId}` : ''}
+                        </div>
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+                          {!acct.isDefault && (
+                            <button
+                              type="button"
+                              onClick={() => handleSetDefaultBank(acct.id)}
+                              disabled={isSettingDefaultBank}
+                              className="text-[10px] text-purple-400 hover:text-purple-300 font-semibold px-2 py-1 rounded-lg hover:bg-purple-500/10 transition-colors cursor-pointer"
+                            >
+                              Make Default
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditBank(acct)}
+                            className="p-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                            title="Edit bank details"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteBank(acct.id)}
+                            disabled={isDeletingBank}
+                            className="p-1 rounded-lg text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                            title="Remove account"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -612,27 +731,69 @@ export function ShopSettingsPage() {
                         <TableRow>
                           <TableHead>Holder</TableHead>
                           <TableHead>Bank / Account</TableHead>
-                          <TableHead>IFSC</TableHead>
+                          <TableHead>IFSC / UPI</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {bankAccounts.map((acct) => (
+                        {bankAccounts.map((acct: any) => (
                           <TableRow key={acct.id}>
                             <TableCell className="font-semibold text-white/90 text-xs">
-                              {acct.accountHolderName}
+                              <div className="flex items-center gap-1.5">
+                                <span>{acct.accountHolderName}</span>
+                                {acct.isDefault && (
+                                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                    Default
+                                  </span>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell className="text-xs">
-                              <span className="block">{acct.bankName}</span>
-                              <span className="block text-[10px] text-white/30">
-                                •••• {acct.accountNumber.slice(-4)}
+                              <span className="block font-medium">{acct.bankName}</span>
+                              <span className="block text-[10px] text-white/50 font-mono">
+                                {acct.accountNumber?.includes('•') ? acct.accountNumber : `•••• ${acct.accountNumber?.slice(-4)}`}
                               </span>
                             </TableCell>
-                            <TableCell className="font-mono text-xs">{acct.ifscCode}</TableCell>
+                            <TableCell className="font-mono text-xs">
+                              <div>{acct.ifscCode}</div>
+                              {acct.upiId && <div className="text-[10px] text-white/40">{acct.upiId}</div>}
+                            </TableCell>
                             <TableCell>
                               <Badge variant={acct.isVerified ? 'success' : 'secondary'} className="text-[8px] py-0">
                                 {acct.isVerified ? 'Verified' : 'Pending'}
                               </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {!acct.isDefault && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetDefaultBank(acct.id)}
+                                    disabled={isSettingDefaultBank}
+                                    className="text-[10px] text-purple-400 hover:text-purple-300 font-semibold px-2 py-1 rounded-lg hover:bg-purple-500/10 transition-colors cursor-pointer"
+                                  >
+                                    Make Default
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditBank(acct)}
+                                  className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                                  title="Edit bank details"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteBank(acct.id)}
+                                  disabled={isDeletingBank}
+                                  className="p-1.5 rounded-lg text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                                  title="Remove account"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -735,6 +896,82 @@ export function ShopSettingsPage() {
             </Button>
           </CardContent>
         </Card>
+        {/* Edit Bank Account Dialog */}
+        <Dialog
+          isOpen={!!editingAccount}
+          onClose={() => setEditingAccount(null)}
+          title="Edit Bank Account Details"
+          description="Update account details. Note that changing account number or IFSC code resets verification status."
+        >
+          <form onSubmit={handleSaveEditBank} className="space-y-3.5 pt-2">
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-white/60 ml-1">Account Holder Name</label>
+              <Input
+                value={editHolderName}
+                onChange={(e) => setEditHolderName(e.target.value)}
+                placeholder="JOHN DOE"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-white/60 ml-1">Bank Name</label>
+              <Input
+                value={editBankName}
+                onChange={(e) => setEditBankName(e.target.value)}
+                placeholder="HDFC Bank"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-white/60 ml-1">Account Number</label>
+              <Input
+                value={editAccountNumber}
+                onChange={(e) => setEditAccountNumber(e.target.value)}
+                placeholder="Enter new account number or keep existing"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-white/60 ml-1">IFSC Code</label>
+              <Input
+                value={editIfscCode}
+                onChange={(e) => setEditIfscCode(e.target.value.toUpperCase())}
+                placeholder="HDFC0000123"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-white/60 ml-1">UPI ID (Optional)</label>
+              <Input
+                value={editUpiId}
+                onChange={(e) => setEditUpiId(e.target.value)}
+                placeholder="johndoe@okhdfc"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-white/5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEditingAccount(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                isLoading={isUpdatingBank}
+              >
+                Save Changes
+              </Button>
+            </div>
+          </form>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

@@ -377,37 +377,57 @@ export const getShopInfo = async (req: Request , res:Response) =>   {
 
 
 
-export const addBankAccountDetails = async (req: Request,res: Response) => {
+const maskAccountNumber = (accNum?: string | null): string => {
+    if (!accNum) return "";
+    const clean = accNum.trim();
+    if (clean.length <= 4) return clean;
+    return `••••${clean.slice(-4)}`;
+};
+
+const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+const ACCOUNT_NUM_REGEX = /^[0-9]{9,18}$/;
+
+export const addBankAccountDetails = async (req: Request, res: Response) => {
     try {
-
         const sellerId = req.sellerId!;
-
         const {
             accountHolderName,
             bankName,
             accountNumber,
             ifscCode,
-            upiId
+            upiId,
+            isDefault
         } = req.body;
 
         if (
-            !accountHolderName ||
-            !bankName ||
-            !accountNumber ||
-            !ifscCode
+            !accountHolderName?.trim() ||
+            !bankName?.trim() ||
+            !accountNumber?.trim() ||
+            !ifscCode?.trim()
         ) {
             return res.status(400).json({
-                message: "Missing required bank details"
+                message: "Account holder name, bank name, account number, and IFSC code are required"
+            });
+        }
+
+        const trimmedAccNum = accountNumber.trim();
+        const trimmedIfsc = ifscCode.trim().toUpperCase();
+
+        if (!ACCOUNT_NUM_REGEX.test(trimmedAccNum)) {
+            return res.status(400).json({
+                message: "Invalid account number. Must be between 9 and 18 digits."
+            });
+        }
+
+        if (!IFSC_REGEX.test(trimmedIfsc)) {
+            return res.status(400).json({
+                message: "Invalid IFSC code format. Must be 11 characters (e.g. HDFC0001234)."
             });
         }
 
         const seller = await prisma.seller.findUnique({
-            where: {
-                id: sellerId
-            },
-            include: {
-                shop: true
-            }
+            where: { id: sellerId },
+            include: { shop: true }
         });
 
         if (!seller) {
@@ -422,81 +442,320 @@ export const addBankAccountDetails = async (req: Request,res: Response) => {
             });
         }
 
-        if (
-            !seller.shop ||
-            seller.shop.status !== "APPROVED"
-        ) {
+        if (!seller.shop || seller.shop.status !== "APPROVED") {
             return res.status(403).json({
-                message:
-                    "Shop approval required before adding bank account"
+                message: "Shop approval required before adding bank account"
             });
         }
 
-        const existingAccount =
-            await prisma.sellerBankAccount.findFirst({
-                where: {
-                    sellerId
-                }
-            });
-
-        if (existingAccount) {
-            return res.status(400).json({
-                message:
-                    "Bank account already exists. Use update endpoint."
-            });
-        }
-
-        const bankAccount =
-            await prisma.sellerBankAccount.create({
-                data: {
-                    sellerId,
-                    accountHolderName,
-                    bankName,
-                    accountNumber,
-                    ifscCode,
-                    upiId,
-                    isDefault: true,
-                    isVerified: false
-                }
-            });
-
-        return res.status(201).json({
-            message:
-                "Bank account added successfully",
-            bankAccount
+        // Check for duplicate account number for this seller
+        const duplicateAccount = await prisma.sellerBankAccount.findFirst({
+            where: {
+                sellerId,
+                accountNumber: trimmedAccNum
+            }
         });
 
+        if (duplicateAccount) {
+            return res.status(400).json({
+                message: "This bank account number is already linked to your store."
+            });
+        }
+
+        const existingCount = await prisma.sellerBankAccount.count({
+            where: { sellerId }
+        });
+
+        // First account is default by default; otherwise respect isDefault flag
+        const shouldBeDefault = existingCount === 0 || isDefault === true;
+
+        if (shouldBeDefault && existingCount > 0) {
+            await prisma.sellerBankAccount.updateMany({
+                where: { sellerId },
+                data: { isDefault: false }
+            });
+        }
+
+        const bankAccount = await prisma.sellerBankAccount.create({
+            data: {
+                sellerId,
+                accountHolderName: accountHolderName.trim(),
+                bankName: bankName.trim(),
+                accountNumber: trimmedAccNum,
+                ifscCode: trimmedIfsc,
+                upiId: upiId?.trim() || null,
+                isDefault: shouldBeDefault,
+                isVerified: false
+            }
+        });
+
+        return res.status(201).json({
+            message: "Bank account added successfully",
+            bankAccount: {
+                ...bankAccount,
+                maskedAccountNumber: maskAccountNumber(bankAccount.accountNumber),
+                accountNumber: maskAccountNumber(bankAccount.accountNumber)
+            }
+        });
     } catch (error) {
-
-        console.error(
-            "ADD BANK ACCOUNT ERROR:",
-            error
-        );
-
+        console.error("ADD BANK ACCOUNT ERROR:", error);
         return res.status(500).json({
             message: "Internal Server Error"
         });
     }
 };
 
-export const getBankAccountDetails = async (req: Request,res: Response) => {
+export const updateBankAccountDetails = async (req: Request, res: Response) => {
     try {
-
         const sellerId = req.sellerId!;
+        const id = String(req.params.id);
+        const {
+            accountHolderName,
+            bankName,
+            accountNumber,
+            ifscCode,
+            upiId
+        } = req.body;
 
-        const bankAccount =
-            await prisma.sellerBankAccount.findMany({
-                where: {
-                    sellerId
-                }
-            });
-
-        return res.status(200).json({
-            bankAccount
+        const existingAccount = await prisma.sellerBankAccount.findFirst({
+            where: { id, sellerId }
         });
 
-    } catch (error) {
+        if (!existingAccount) {
+            return res.status(404).json({
+                message: "Bank account not found or does not belong to your shop"
+            });
+        }
 
+        const updateData: any = {};
+
+        if (accountHolderName !== undefined) {
+            if (!accountHolderName.trim()) {
+                return res.status(400).json({ message: "Account holder name cannot be empty" });
+            }
+            updateData.accountHolderName = accountHolderName.trim();
+        }
+
+        if (bankName !== undefined) {
+            if (!bankName.trim()) {
+                return res.status(400).json({ message: "Bank name cannot be empty" });
+            }
+            updateData.bankName = bankName.trim();
+        }
+
+        if (upiId !== undefined) {
+            updateData.upiId = upiId.trim() || null;
+        }
+
+        let materialChange = false;
+
+        // If new unmasked account number supplied and differs
+        if (
+            accountNumber &&
+            typeof accountNumber === "string" &&
+            !accountNumber.includes("•") &&
+            !accountNumber.includes("*")
+        ) {
+            const cleanAcc = accountNumber.trim();
+            if (cleanAcc !== existingAccount.accountNumber) {
+                if (!ACCOUNT_NUM_REGEX.test(cleanAcc)) {
+                    return res.status(400).json({
+                        message: "Invalid account number. Must be between 9 and 18 digits."
+                    });
+                }
+                updateData.accountNumber = cleanAcc;
+                materialChange = true;
+            }
+        }
+
+        // If IFSC supplied and differs
+        if (ifscCode && typeof ifscCode === "string") {
+            const cleanIfsc = ifscCode.trim().toUpperCase();
+            if (cleanIfsc !== existingAccount.ifscCode?.toUpperCase()) {
+                if (!IFSC_REGEX.test(cleanIfsc)) {
+                    return res.status(400).json({
+                        message: "Invalid IFSC code format. Must be 11 characters (e.g. HDFC0001234)."
+                    });
+                }
+                updateData.ifscCode = cleanIfsc;
+                materialChange = true;
+            }
+        }
+
+        // Material changes to account number or IFSC reset verification status
+        if (materialChange) {
+            updateData.isVerified = false;
+        }
+
+        const updated = await prisma.sellerBankAccount.update({
+            where: { id },
+            data: updateData
+        });
+
+        return res.status(200).json({
+            message: "Bank account details updated successfully",
+            bankAccount: {
+                ...updated,
+                maskedAccountNumber: maskAccountNumber(updated.accountNumber),
+                accountNumber: maskAccountNumber(updated.accountNumber)
+            }
+        });
+    } catch (error) {
+        console.error("UPDATE BANK ACCOUNT ERROR:", error);
+        return res.status(500).json({
+            message: "Internal Server Error"
+        });
+    }
+};
+
+export const deleteBankAccountDetails = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+        const id = String(req.params.id);
+
+        const targetAccount = await prisma.sellerBankAccount.findFirst({
+            where: { id, sellerId }
+        });
+
+        if (!targetAccount) {
+            return res.status(404).json({
+                message: "Bank account not found or does not belong to your shop"
+            });
+        }
+
+        // Safety check 1: Pending or in-transit payouts
+        const pendingPayouts = await prisma.sellerPayout.count({
+            where: {
+                bankAccountId: id,
+                status: { in: ["PENDING", "PROCESSING"] }
+            }
+        });
+
+        if (pendingPayouts > 0) {
+            return res.status(400).json({
+                message: `Cannot delete bank account with ${pendingPayouts} pending or in-transit payout(s). Please wait for payouts to complete.`
+            });
+        }
+
+        // Safety check 2: Prevent deletion if it's the only account
+        const totalAccounts = await prisma.sellerBankAccount.count({
+            where: { sellerId }
+        });
+
+        if (totalAccounts <= 1) {
+            return res.status(400).json({
+                message: "Cannot delete your only linked bank account. At least one settlement account is required."
+            });
+        }
+
+        // If target account was default, promote another account to default
+        if (targetAccount.isDefault) {
+            const nextDefault = await prisma.sellerBankAccount.findFirst({
+                where: { sellerId, id: { not: id } },
+                orderBy: [
+                    { isVerified: "desc" },
+                    { createdAt: "desc" }
+                ]
+            });
+
+            if (nextDefault) {
+                await prisma.sellerBankAccount.update({
+                    where: { id: nextDefault.id },
+                    data: { isDefault: true }
+                });
+            }
+        }
+
+        // Preserve historical financial records by nullifying foreign key on completed/failed payouts
+        await prisma.sellerPayout.updateMany({
+            where: { bankAccountId: id },
+            data: { bankAccountId: null }
+        });
+
+        await prisma.sellerBankAccount.delete({
+            where: { id }
+        });
+
+        return res.status(200).json({
+            message: "Bank account removed successfully"
+        });
+    } catch (error) {
+        console.error("DELETE BANK ACCOUNT ERROR:", error);
+        return res.status(500).json({
+            message: "Internal Server Error"
+        });
+    }
+};
+
+export const setDefaultBankAccount = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+        const id = String(req.params.id);
+
+        const targetAccount = await prisma.sellerBankAccount.findFirst({
+            where: { id, sellerId }
+        });
+
+        if (!targetAccount) {
+            return res.status(404).json({
+                message: "Bank account not found or does not belong to your shop"
+            });
+        }
+
+        await prisma.$transaction([
+            prisma.sellerBankAccount.updateMany({
+                where: { sellerId },
+                data: { isDefault: false }
+            }),
+            prisma.sellerBankAccount.update({
+                where: { id },
+                data: { isDefault: true }
+            })
+        ]);
+
+        const updated = await prisma.sellerBankAccount.findUnique({
+            where: { id }
+        });
+
+        return res.status(200).json({
+            message: "Default settlement bank account updated successfully",
+            bankAccount: updated ? {
+                ...updated,
+                maskedAccountNumber: maskAccountNumber(updated.accountNumber),
+                accountNumber: maskAccountNumber(updated.accountNumber)
+            } : null
+        });
+    } catch (error) {
+        console.error("SET DEFAULT BANK ACCOUNT ERROR:", error);
+        return res.status(500).json({
+            message: "Internal Server Error"
+        });
+    }
+};
+
+export const getBankAccountDetails = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+
+        const bankAccounts = await prisma.sellerBankAccount.findMany({
+            where: { sellerId },
+            orderBy: [
+                { isDefault: "desc" },
+                { createdAt: "desc" }
+            ]
+        });
+
+        const maskedBankAccounts = bankAccounts.map((account) => ({
+            ...account,
+            maskedAccountNumber: maskAccountNumber(account.accountNumber),
+            accountNumber: maskAccountNumber(account.accountNumber)
+        }));
+
+        return res.status(200).json({
+            bankAccount: maskedBankAccounts,
+            bankAccounts: maskedBankAccounts
+        });
+    } catch (error) {
         return res.status(500).json({
             message: "Internal Server Error"
         });

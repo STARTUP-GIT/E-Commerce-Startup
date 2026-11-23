@@ -4,6 +4,9 @@ import {
     getShopInfo,
     addBankAccountDetails,
     getBankAccountDetails,
+    updateBankAccountDetails,
+    deleteBankAccountDetails,
+    setDefaultBankAccount,
     raiseBanIssue,
     deleteShop,
     updateShopBanner,
@@ -33,6 +36,9 @@ router.post("/api/shop/agreement/:agreementId/accept", sellerAuth, writeLimiter,
 router.post("/api/shop/agreement/:agreementId/decline", sellerAuth, writeLimiter, declineShopAgreement);
 router.post("/api/shop/bank-account", sellerAuth, writeLimiter, addBankAccountDetails);
 router.get("/api/shop/bank-account", sellerAuth, writeLimiter, getBankAccountDetails);
+router.put("/api/shop/bank-account/:id", sellerAuth, writeLimiter, updateBankAccountDetails);
+router.delete("/api/shop/bank-account/:id", sellerAuth, writeLimiter, deleteBankAccountDetails);
+router.patch("/api/shop/bank-account/:id/default", sellerAuth, writeLimiter, setDefaultBankAccount);
 router.post("/api/shop/ban-appeal", sellerAuth, writeLimiter, raiseBanIssue);
 router.delete("/api/shop", sellerAuth, writeLimiter, deleteShop);
 router.patch("/api/shop/banner", sellerAuth, uploadLimiter, updateShopBanner);

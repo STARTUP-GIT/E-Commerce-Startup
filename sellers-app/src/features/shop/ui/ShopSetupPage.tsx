@@ -264,11 +264,20 @@ export function ShopSetupPage() {
                   longitude={coordinates.longitude}
                   onChange={setCoordinates}
                   onLocationResolved={(loc) => {
-                    if (!selectedState && loc.state) {
+                    if (loc.addressLine1) {
+                      setValue('addressLine1', loc.addressLine1, { shouldValidate: true });
+                    }
+                    if (loc.addressLine2) {
+                      setValue('addressLine2', loc.addressLine2, { shouldValidate: true });
+                    }
+                    if (loc.state) {
                       setValue('state', loc.state, { shouldValidate: true });
                     }
-                    if (!selectedDistrict && loc.district) {
-                      setValue('city', loc.district, { shouldValidate: true });
+                    if (loc.district || loc.city) {
+                      setValue('city', (loc.district || loc.city)!, { shouldValidate: true });
+                    }
+                    if (loc.postalCode) {
+                      setValue('postalCode', loc.postalCode, { shouldValidate: true });
                     }
                   }}
                   helperText="Specify store pickup coordinates for delivery dispatch, or use your device's current location."

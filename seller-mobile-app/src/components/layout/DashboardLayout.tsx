@@ -339,8 +339,8 @@ export function DashboardLayout({
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.userName} numberOfLines={1}>
-                    {user?.firstName} {user?.lastName}
+                  <Text style={styles.userName} numberOfLines={2}>
+                    {(`${user?.firstName || ''} ${user?.lastName || ''}`).trim() || 'Seller'}
                   </Text>
                   <Text style={styles.userEmail} numberOfLines={1}>
                     {user?.email}

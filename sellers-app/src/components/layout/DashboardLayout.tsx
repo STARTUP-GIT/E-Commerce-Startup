@@ -274,15 +274,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
           {/* User info & Logout */}
           <div className="p-4 border-t border-white/5 bg-white/[0.01]">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-purple-900/60 to-indigo-900/60 flex items-center justify-center text-xs font-bold text-white ring-1 ring-white/10 shrink-0">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-purple-900/60 to-indigo-900/60 flex items-center justify-center text-xs font-bold text-white ring-1 ring-white/10 shrink-0 mt-0.5">
                 {user?.firstName?.[0] || 'S'}
               </div>
               <div className="min-w-0 flex-1">
-                <span className="block text-xs font-bold text-white/90 line-clamp-1">
-                  {user?.firstName} {user?.lastName}
+                <span className="block text-xs font-bold text-white/90 break-words leading-snug">
+                  {(`${user?.firstName || ''} ${user?.lastName || ''}`).trim() || 'Seller'}
                 </span>
-                <span className="block text-[10px] text-white/40 truncate">{user?.email}</span>
+                <span className="block text-[10px] text-white/40 truncate mt-0.5">{user?.email}</span>
               </div>
             </div>
             <button
@@ -339,41 +339,47 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
         {/* Warning Banners */}
         {shop && shop.status !== 'APPROVED' && (
-          <div className="px-6 pt-6 animate-fade-in">
-            <div className={`p-4 rounded-xl border flex items-start gap-3 ${
-              shop.status === 'REJECTED' || shop.status === 'SUSPENDED'
-                ? 'border-red-500/20 bg-red-500/5'
-                : 'border-yellow-500/20 bg-yellow-500/5'
-            }`}>
-              <AlertTriangle className={`h-5 w-5 shrink-0 mt-0.5 ${
-                shop.status === 'REJECTED' || shop.status === 'SUSPENDED' || shop.status === 'DISABLED'
-                  ? 'text-red-400'
-                  : 'text-yellow-400'
-              }`} />
-              <div>
-                <h5 className={`text-xs font-bold ${
+          <div className="px-4 sm:px-6 lg:px-8 pt-6 animate-fade-in">
+            <div className="max-w-7xl mx-auto w-full">
+              <div className={`p-4 rounded-xl border flex items-start gap-3 ${
+                shop.status === 'REJECTED' || shop.status === 'SUSPENDED'
+                  ? 'border-red-500/20 bg-red-500/5'
+                  : 'border-yellow-500/20 bg-yellow-500/5'
+              }`}>
+                <AlertTriangle className={`h-5 w-5 shrink-0 mt-0.5 ${
                   shop.status === 'REJECTED' || shop.status === 'SUSPENDED' || shop.status === 'DISABLED'
                     ? 'text-red-400'
                     : 'text-yellow-400'
-                }`}>
-                  {shop.status === 'PENDING' && 'Shop Awaiting Approval'}
-                  {shop.status === 'REJECTED' && 'Shop Approval Rejected'}
-                  {shop.status === 'SUSPENDED' && 'Shop Suspended'}
-                  {shop.status === 'DISABLED' && 'Shop Disabled'}
-                </h5>
-                <p className="text-[11px] text-white/60 leading-relaxed mt-1">
-                  {shop.status === 'PENDING' && 'Your shop is awaiting admin approval. Some features are restricted until approved.'}
-                  {shop.status === 'REJECTED' && `Your shop was rejected. Reason: "${shop.rejectionReason || 'N/A'}". Contact support for more information.`}
-                  {shop.status === 'SUSPENDED' && 'Your shop has been suspended. Contact support for more information.'}
-                  {shop.status === 'DISABLED' && 'Your shop has been disabled by an administrator.'}
-                </p>
+                }`} />
+                <div>
+                  <h5 className={`text-xs font-bold ${
+                    shop.status === 'REJECTED' || shop.status === 'SUSPENDED' || shop.status === 'DISABLED'
+                      ? 'text-red-400'
+                      : 'text-yellow-400'
+                  }`}>
+                    {shop.status === 'PENDING' && 'Shop Awaiting Approval'}
+                    {shop.status === 'REJECTED' && 'Shop Approval Rejected'}
+                    {shop.status === 'SUSPENDED' && 'Shop Suspended'}
+                    {shop.status === 'DISABLED' && 'Shop Disabled'}
+                  </h5>
+                  <p className="text-[11px] text-white/60 leading-relaxed mt-1">
+                    {shop.status === 'PENDING' && 'Your shop is awaiting admin approval. Some features are restricted until approved.'}
+                    {shop.status === 'REJECTED' && `Your shop was rejected. Reason: "${shop.rejectionReason || 'N/A'}". Contact support for more information.`}
+                    {shop.status === 'SUSPENDED' && 'Your shop has been suspended. Contact support for more information.'}
+                    {shop.status === 'DISABLED' && 'Your shop has been disabled by an administrator.'}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {/* Content Body */}
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto min-w-0">{children}</main>
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto min-w-0">
+          <div className="max-w-7xl mx-auto w-full">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

@@ -34,6 +34,9 @@ export const resolveLocation = async (req: Request, res: Response) => {
         let resolvedServiceArea = serviceArea?.trim();
         let postalCode = inputPostalCode?.trim();
         let formattedAddress: string | undefined = undefined;
+        let resolvedAddressLine1: string | undefined = undefined;
+        let resolvedAddressLine2: string | undefined = undefined;
+        let resolvedCountry: string = "India";
 
         if (latitude !== undefined && longitude !== undefined && !isNaN(Number(latitude)) && !isNaN(Number(longitude))) {
             const geocodeResult = await ServiceabilityService.resolveCoordinates(
@@ -46,6 +49,9 @@ export const resolveLocation = async (req: Request, res: Response) => {
             resolvedServiceArea = resolvedServiceArea || geocodeResult.serviceArea;
             postalCode = postalCode || geocodeResult.postalCode;
             formattedAddress = geocodeResult.formattedAddress;
+            resolvedAddressLine1 = geocodeResult.addressLine1;
+            resolvedAddressLine2 = geocodeResult.addressLine2;
+            resolvedCountry = geocodeResult.country || "India";
         }
 
         const serviceability = await ServiceabilityService.checkServiceability({
@@ -64,19 +70,22 @@ export const resolveLocation = async (req: Request, res: Response) => {
             userRole: effectiveRole
         });
 
-        const hasResolvedLocation = Boolean(resolvedState && (resolvedDistrict || resolvedCity));
+        const hasResolvedLocation = Boolean((resolvedState && (resolvedDistrict || resolvedCity)) || formattedAddress || resolvedAddressLine1);
 
         return res.status(200).json({
             resolvedLocation: hasResolvedLocation ? {
                 districtId: serviceability.districtId || districtId,
                 townId: serviceability.townId || townId,
                 serviceAreaId: serviceability.serviceAreaId || serviceAreaId,
-                state: resolvedState!,
-                district: (resolvedDistrict || resolvedCity)!,
-                city: (resolvedCity || resolvedDistrict)!,
+                addressLine1: resolvedAddressLine1,
+                addressLine2: resolvedAddressLine2,
+                state: resolvedState || "",
+                district: (resolvedDistrict || resolvedCity) || "",
+                city: (resolvedCity || resolvedDistrict) || "",
                 town: resolvedTown,
                 serviceArea: resolvedServiceArea,
                 postalCode,
+                country: resolvedCountry || "India",
                 latitude: latitude !== undefined ? Number(latitude) : undefined,
                 longitude: longitude !== undefined ? Number(longitude) : undefined,
                 formattedAddress

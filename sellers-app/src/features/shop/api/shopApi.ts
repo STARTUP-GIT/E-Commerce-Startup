@@ -126,6 +126,27 @@ export const shopApi = {
     return response.data;
   },
 
+  updateBankAccount: async (
+    id: string,
+    payload: Partial<Omit<BankAccountDetails, 'id' | 'isDefault' | 'isVerified'>>
+  ): Promise<{
+    message: string;
+    bankAccount: BankAccountDetails;
+  }> => {
+    const response = await axiosInstance.put(`/seller/api/shop/bank-account/${id}`, payload);
+    return response.data;
+  },
+
+  deleteBankAccount: async (id: string): Promise<{ message: string }> => {
+    const response = await axiosInstance.delete(`/seller/api/shop/bank-account/${id}`);
+    return response.data;
+  },
+
+  setDefaultBankAccount: async (id: string): Promise<{ message: string; bankAccount: BankAccountDetails }> => {
+    const response = await axiosInstance.patch(`/seller/api/shop/bank-account/${id}/default`);
+    return response.data;
+  },
+
   updateBanner: async (bannerUrl: string): Promise<{ message: string; shop: ShopInfo }> => {
     const response = await axiosInstance.patch('/seller/api/shop/banner', { bannerUrl });
     return response.data;

@@ -62,6 +62,27 @@ export function useShop() {
     },
   });
 
+  const updateBankAccountMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: any }) => shopApi.updateBankAccount(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bank-account'] });
+    },
+  });
+
+  const deleteBankAccountMutation = useMutation({
+    mutationFn: (id: string) => shopApi.deleteBankAccount(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bank-account'] });
+    },
+  });
+
+  const setDefaultBankAccountMutation = useMutation({
+    mutationFn: (id: string) => shopApi.setDefaultBankAccount(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bank-account'] });
+    },
+  });
+
   const updateShopMutation = useMutation({
     mutationFn: shopApi.updateShop,
     onSuccess: (data) => {
@@ -122,6 +143,15 @@ export function useShop() {
 
     addBankAccount: addBankAccountMutation.mutateAsync,
     isAddingBank: addBankAccountMutation.isPending,
+
+    updateBankAccount: updateBankAccountMutation.mutateAsync,
+    isUpdatingBank: updateBankAccountMutation.isPending,
+
+    deleteBankAccount: deleteBankAccountMutation.mutateAsync,
+    isDeletingBank: deleteBankAccountMutation.isPending,
+
+    setDefaultBankAccount: setDefaultBankAccountMutation.mutateAsync,
+    isSettingDefaultBank: setDefaultBankAccountMutation.isPending,
 
     deleteShop: deleteShopMutation.mutateAsync,
     isDeletingShop: deleteShopMutation.isPending,
