@@ -784,25 +784,23 @@ export class ServiceabilityService {
                     const area = sublocality || neighborhood || "";
                     const landmark = pointOfInterest || "";
 
-                    // Build addressLine1: doorNo, building, street
+                    // Build addressLine1: doorNo, building, street strictly - never fallback to area or locality
                     const line1Components: string[] = [];
                     if (doorNo) line1Components.push(doorNo);
                     if (buildingName && !doorNo.includes(buildingName)) line1Components.push(buildingName);
                     if (street && !line1Components.includes(street)) line1Components.push(street);
-                    const addressLine1 = line1Components.length > 0
-                        ? line1Components.join(", ")
-                        : (street || area || locality || "");
+                    const addressLine1 = line1Components.length > 0 ? line1Components.join(", ") : undefined;
 
                     // Build addressLine2: cross, area, landmark
                     const line2Components: string[] = [];
                     if (cross) line2Components.push(cross);
-                    if (area && !addressLine1.includes(area) && !line2Components.includes(area)) {
+                    if (area && !line2Components.includes(area)) {
                         line2Components.push(area);
                     }
-                    if (landmark && !addressLine1.includes(landmark) && !line2Components.includes(landmark)) {
+                    if (landmark && !line2Components.includes(landmark)) {
                         line2Components.push(`Near ${landmark}`);
                     }
-                    const addressLine2 = line2Components.join(", ");
+                    const addressLine2 = line2Components.length > 0 ? line2Components.join(", ") : undefined;
 
                     // Clean and validate Indian 6-digit PIN code
                     const cleanPostal = postalCode.replace(/\D/g, "");
@@ -866,18 +864,16 @@ export class ServiceabilityService {
                 if (doorNo) line1Components.push(doorNo);
                 if (buildingName) line1Components.push(buildingName);
                 if (street && !line1Components.includes(street)) line1Components.push(street);
-                const addressLine1 = line1Components.length > 0
-                    ? line1Components.join(", ")
-                    : (street || area || city || "");
+                const addressLine1 = line1Components.length > 0 ? line1Components.join(", ") : undefined;
 
                 const line2Components: string[] = [];
                 if (cross) line2Components.push(cross);
-                if (area && !addressLine1.includes(area)) line2Components.push(area);
-                if (landmark && !addressLine1.includes(landmark)) line2Components.push(`Near ${landmark}`);
-                if (addr.hamlet && !addressLine1.includes(addr.hamlet) && !line2Components.includes(addr.hamlet)) {
+                if (area && !line2Components.includes(area)) line2Components.push(area);
+                if (landmark && !line2Components.includes(landmark)) line2Components.push(`Near ${landmark}`);
+                if (addr.hamlet && !line2Components.includes(addr.hamlet)) {
                     line2Components.push(addr.hamlet);
                 }
-                const addressLine2 = line2Components.join(", ");
+                const addressLine2 = line2Components.length > 0 ? line2Components.join(", ") : undefined;
 
                 const cleanPostal = postalCode.replace(/\D/g, "");
                 const validPostal = cleanPostal.length === 6 ? cleanPostal : postalCode;

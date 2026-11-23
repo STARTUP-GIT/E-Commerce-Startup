@@ -104,7 +104,11 @@ export function ShopSetupPage({ navigation }: ShopSetupPageProps) {
       setLatitude(lat);
       setLongitude(lng);
       setAccuracyMeters(acc);
-      setLocationSource('GPS_DETECTED');
+      if (acc && acc > 30) {
+        setLocationSource('GPS_APPROXIMATE');
+      } else {
+        setLocationSource('GPS_DETECTED');
+      }
 
       try {
         const res = await axiosInstance.post('/api/locations/resolve', {
@@ -117,7 +121,6 @@ export function ShopSetupPage({ navigation }: ShopSetupPageProps) {
           if (loc.doorNo) setDoorNo(loc.doorNo);
           if (loc.buildingName) setBuildingName(loc.buildingName);
           if (loc.street) setStreet(loc.street);
-          else if (loc.addressLine1) setStreet(loc.addressLine1);
           if (loc.cross) setCross(loc.cross);
           if (loc.area) setArea(loc.area);
           else if (loc.addressLine2) setArea(loc.addressLine2);

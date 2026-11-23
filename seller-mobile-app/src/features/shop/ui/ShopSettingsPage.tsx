@@ -44,6 +44,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Navigation,
+  Eye,
 } from 'lucide-react-native';
 import axiosInstance from '@/lib/axios/axiosInstance';
 import { Colors } from '@/theme/colors';
@@ -149,10 +150,6 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
       if (addr.locationSource) {
         setLocationSource(addr.locationSource);
       }
-      // Backward compatibility fallback if doorNo / street aren't set yet
-      if (!addr.doorNo && !addr.street && addr.addressLine1) {
-        setStreet(addr.addressLine1);
-      }
       if (!addr.area && addr.addressLine2) {
         setArea(addr.addressLine2);
       }
@@ -200,7 +197,6 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
           if (loc.doorNo) setDoorNo(loc.doorNo);
           if (loc.buildingName) setBuildingName(loc.buildingName);
           if (loc.street) setStreet(loc.street);
-          else if (loc.addressLine1 && !doorNo) setStreet(loc.addressLine1);
           if (loc.cross) setCross(loc.cross);
           if (loc.area) setArea(loc.area);
           else if (loc.addressLine2) setArea(loc.addressLine2);
@@ -298,7 +294,6 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
         if (loc.doorNo) setDoorNo(loc.doorNo);
         if (loc.buildingName) setBuildingName(loc.buildingName);
         if (loc.street) setStreet(loc.street);
-        else if (loc.addressLine1 && !doorNo) setStreet(loc.addressLine1);
         if (loc.cross) setCross(loc.cross);
         if (loc.area) setArea(loc.area);
         else if (loc.addressLine2) setArea(loc.addressLine2);
@@ -342,6 +337,23 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
     } else {
       showToast('Coordinates not available to preview on map', 'info');
     }
+  };
+
+  const handleOpenStreetView = () => {
+    const lat = parseFloat(pickupLat);
+    const lng = parseFloat(pickupLng);
+    if (lat && lng) {
+      Linking.openURL(`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`);
+    } else {
+      showToast('Coordinates not available for Street View preview', 'info');
+    }
+  };
+
+  const handleConfirmStorefront = () => {
+    setLocationSource('STREET_VIEW_CONFIRMED');
+    setAccuracyMeters(3);
+    setGpsWarning(null);
+    showToast('Storefront entrance visually confirmed at this spot!', 'success');
   };
 
   const handleSavePickupLocation = async () => {
@@ -595,8 +607,10 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
                 <MapPin size={17} color={Colors.emerald} />
                 <CardTitle>Pickup Location &amp; Dispatch Coordinates</CardTitle>
               </View>
-              <Badge variant={locationSource === 'GPS_DETECTED' ? 'success' : locationSource === 'GPS_APPROXIMATE' ? 'warning' : locationSource === 'ADDRESS_SEARCHED' ? 'default' : 'secondary'}>
-                {locationSource === 'GPS_DETECTED'
+              <Badge variant={locationSource === 'STREET_VIEW_CONFIRMED' ? 'success' : locationSource === 'GPS_DETECTED' ? 'success' : locationSource === 'GPS_APPROXIMATE' ? 'warning' : locationSource === 'ADDRESS_SEARCHED' ? 'default' : 'secondary'}>
+                {locationSource === 'STREET_VIEW_CONFIRMED'
+                  ? 'Street View Confirmed'
+                  : locationSource === 'GPS_DETECTED'
                   ? `GPS Fix (±${accuracyMeters || 10}m)`
                   : locationSource === 'GPS_APPROXIMATE'
                   ? `Approx GPS (±${accuracyMeters || 95}m)`
@@ -660,23 +674,107 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
               </TouchableOpacity>
 
               {pickupLat && pickupLng ? (
-                <TouchableOpacity
-                  onPress={handleOpenInMaps}
-                  style={{
-                    paddingVertical: 10,
-                    paddingHorizontal: 10,
-                    borderRadius: 10,
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    borderWidth: 1,
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <ExternalLink size={14} color="rgba(255,255,255,0.7)" />
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity
+                    onPress={handleOpenStreetView}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      paddingVertical: 10,
+                      paddingHorizontal: 8,
+                      borderRadius: 10,
+                      backgroundColor: 'rgba(234, 179, 8, 0.15)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(234, 179, 8, 0.3)',
+                    }}
+                  >
+                    <Eye size={13} color="#fde047" />
+                    <Text style={{ fontSize: 11, color: '#fef08a', fontWeight: '700' }}>360° Street</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={handleOpenInMaps}
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 10,
+                      borderRadius: 10,
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255, 255, 255, 0.1)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <ExternalLink size={14} color="rgba(255,255,255,0.7)" />
+                  </TouchableOpacity>
+                </>
               ) : null}
             </View>
+
+            {/* Street View Storefront Visual Confirmation Banner */}
+            {pickupLat && pickupLng ? (
+              locationSource === 'STREET_VIEW_CONFIRMED' ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: 10,
+                    borderRadius: 8,
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(16, 185, 129, 0.3)',
+                  }}
+                >
+                  <CheckCircle2 size={16} color="#34d399" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#a7f3d0' }}>Storefront Entrance Confirmed</Text>
+                    <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
+                      Storefront verified for rider dispatch and precise customer navigation.
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    padding: 10,
+                    borderRadius: 8,
+                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255, 255, 255, 0.08)',
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#ffffff' }}>Verify Storefront Entrance</Text>
+                    <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 1 }}>
+                      Check 360° Street View or adjust the pin to face your shop entrance.
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={handleConfirmStorefront}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      paddingVertical: 6,
+                      paddingHorizontal: 10,
+                      borderRadius: 6,
+                      backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(16, 185, 129, 0.4)',
+                    }}
+                  >
+                    <Check size={12} color="#34d399" />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#34d399' }}>Confirm Spot</Text>
+                  </TouchableOpacity>
+                </View>
+              )
+            ) : null}
 
             {/* Missing Door Number Alert */}
             {hasMissingDoorNo && (

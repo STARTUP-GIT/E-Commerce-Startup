@@ -41,7 +41,7 @@ export interface StructuredShopAddress {
   country: string;
   latitude: number | null;
   longitude: number | null;
-  locationSource: 'GPS_DETECTED' | 'GPS_APPROXIMATE' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'MANUALLY_ENTERED';
+  locationSource: 'GPS_DETECTED' | 'GPS_APPROXIMATE' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'STREET_VIEW_CONFIRMED' | 'MANUALLY_ENTERED';
   accuracyMeters: number | null;
   formattedAddress: string;
   addressLine1: string;
@@ -98,7 +98,7 @@ export function ShopPickupAddressForm({
     initialAddress?.longitude !== undefined && initialAddress?.longitude !== null ? Number(initialAddress.longitude) : null
   );
   const [locationSource, setLocationSource] = useState<
-    'GPS_DETECTED' | 'GPS_APPROXIMATE' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'MANUALLY_ENTERED'
+    'GPS_DETECTED' | 'GPS_APPROXIMATE' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'STREET_VIEW_CONFIRMED' | 'MANUALLY_ENTERED'
   >(initialAddress?.locationSource || 'MANUALLY_ENTERED');
   const [accuracyMeters, setAccuracyMeters] = useState<number | null>(
     initialAddress?.accuracyMeters !== undefined ? initialAddress.accuracyMeters : null
@@ -283,8 +283,8 @@ export function ShopPickupAddressForm({
               setDoorNo((prev) => loc.doorNo || prev);
               setBuildingName((prev) => loc.buildingName || prev);
 
+              // ONLY set street if an actual route/street exists - NEVER fallback to locality or area!
               if (loc.street) setStreet(loc.street);
-              else if (loc.addressLine1 && !loc.doorNo) setStreet(loc.addressLine1);
 
               if (loc.cross) setCross(loc.cross);
               if (loc.area) setArea(loc.area);
@@ -556,8 +556,8 @@ export function ShopPickupAddressForm({
           setDoorNo((prev) => loc.doorNo || prev);
           setBuildingName((prev) => loc.buildingName || prev);
 
+          // ONLY set street if an actual route/street exists - NEVER fallback to locality or area!
           if (loc.street) setStreet(loc.street);
-          else if (loc.addressLine1 && !loc.doorNo) setStreet(loc.addressLine1);
 
           if (loc.cross) setCross(loc.cross);
           if (loc.area) setArea(loc.area);
@@ -1000,6 +1000,11 @@ export function ShopPickupAddressForm({
             {locationSource === 'MAP_PIN_SELECTED' && (
               <Badge variant="outline" className="text-[10px] text-purple-400 border-purple-500/30">
                 📌 Entrance Pin Set
+              </Badge>
+            )}
+            {locationSource === 'STREET_VIEW_CONFIRMED' && (
+              <Badge variant="outline" className="text-[10px] text-emerald-300 border-emerald-500/40 bg-emerald-500/10">
+                📷 Street View Confirmed
               </Badge>
             )}
             {locationSource === 'MANUALLY_ENTERED' && (
