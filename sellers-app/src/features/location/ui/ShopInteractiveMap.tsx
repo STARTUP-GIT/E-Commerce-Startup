@@ -58,10 +58,11 @@ export function ShopInteractiveMap({
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-  // Default coordinate (Mysuru / Karnataka center) if none provided
-  const effectiveLat = latitude !== null && !isNaN(Number(latitude)) ? Number(latitude) : 12.2958;
-  const effectiveLng = longitude !== null && !isNaN(Number(longitude)) ? Number(longitude) : 76.6394;
+  // India overview default center if no coordinates provided yet (NEVER default to Mysuru or any specific city)
+  const INDIA_CENTER = { lat: 20.5937, lng: 78.9629 };
   const hasCoords = latitude !== null && longitude !== null && !isNaN(Number(latitude)) && !isNaN(Number(longitude));
+  const effectiveLat = hasCoords ? Number(latitude) : INDIA_CENTER.lat;
+  const effectiveLng = hasCoords ? Number(longitude) : INDIA_CENTER.lng;
 
   // 1. Dynamically load Google Maps JavaScript API with Places and Geometry libraries
   useEffect(() => {
@@ -144,7 +145,7 @@ export function ShopInteractiveMap({
 
       const map = new google.maps.Map(mapContainerRef.current, {
         center: { lat: effectiveLat, lng: effectiveLng },
-        zoom: hasCoords ? 18 : 15,
+        zoom: hasCoords ? 18 : 5,
         mapTypeId: mapType,
         zoomControl: true,
         streetViewControl: false,
@@ -161,31 +162,55 @@ export function ShopInteractiveMap({
         ],
       });
 
-      const marker = new google.maps.Marker({
-        position: { lat: effectiveLat, lng: effectiveLng },
-        map,
-        draggable: !disabled,
-        icon: shopMarkerIcon,
-        title: 'Drag pin to exact shop entrance',
-        animation: google.maps.Animation.DROP,
-      });
+      let marker: any = null;
+      if (hasCoords) {
+        marker = new google.maps.Marker({
+          position: { lat: effectiveLat, lng: effectiveLng },
+          map,
+          draggable: !disabled,
+          icon: shopMarkerIcon,
+          title: 'Drag pin to exact shop entrance',
+          animation: google.maps.Animation.DROP,
+        });
 
-      // Draggable marker event: updates coordinates immediately on release
-      marker.addListener('dragend', () => {
-        const pos = marker.getPosition();
-        if (!pos) return;
-        const newLat = Number(pos.lat().toFixed(6));
-        const newLng = Number(pos.lng().toFixed(6));
-        isInternalMoveRef.current = true;
-        onLocationSelect(newLat, newLng, 'MAP_PIN_SELECTED');
-      });
+        // Draggable marker event: updates coordinates immediately on release
+        marker.addListener('dragend', () => {
+          const pos = marker.getPosition();
+          if (!pos) return;
+          const newLat = Number(pos.lat().toFixed(6));
+          const newLng = Number(pos.lng().toFixed(6));
+          isInternalMoveRef.current = true;
+          onLocationSelect(newLat, newLng, 'MAP_PIN_SELECTED');
+        });
+      }
 
-      // Click on map: moves marker to clicked spot immediately
+      // Click on map: moves or places marker at clicked spot immediately
       map.addListener('click', (e: any) => {
         if (disabled || !e.latLng) return;
         const newLat = Number(e.latLng.lat().toFixed(6));
         const newLng = Number(e.latLng.lng().toFixed(6));
-        marker.setPosition({ lat: newLat, lng: newLng });
+        if (!markerRef.current) {
+          const newMarker = new google.maps.Marker({
+            position: { lat: newLat, lng: newLng },
+            map,
+            draggable: !disabled,
+            icon: shopMarkerIcon,
+            title: 'Drag pin to exact shop entrance',
+            animation: google.maps.Animation.DROP,
+          });
+          newMarker.addListener('dragend', () => {
+            const pos = newMarker.getPosition();
+            if (!pos) return;
+            const dragLat = Number(pos.lat().toFixed(6));
+            const dragLng = Number(pos.lng().toFixed(6));
+            isInternalMoveRef.current = true;
+            onLocationSelect(dragLat, dragLng, 'MAP_PIN_SELECTED');
+          });
+          markerRef.current = newMarker;
+        } else {
+          markerRef.current.setMap(map);
+          markerRef.current.setPosition({ lat: newLat, lng: newLng });
+        }
         isInternalMoveRef.current = true;
         onLocationSelect(newLat, newLng, 'MAP_PIN_SELECTED');
       });
@@ -197,7 +222,7 @@ export function ShopInteractiveMap({
 
   // 3. Keep Google Map view & marker synchronized with external coordinate changes
   useEffect(() => {
-    if (!mapInstanceRef.current || !markerRef.current || !window.google?.maps) return;
+    if (!mapInstanceRef.current || !window.google?.maps) return;
 
     if (isInternalMoveRef.current) {
       isInternalMoveRef.current = false;
@@ -205,9 +230,53 @@ export function ShopInteractiveMap({
     }
 
     if (hasCoords) {
-      const pos = { lat: effectiveLat, lng: effectiveLng };
-      markerRef.current.setPosition(pos);
+      const pos = { lat: Number(latitude), lng: Number(longitude) };
+      if (!markerRef.current) {
+        const google = window.google;
+        const shopMarkerIcon = {
+          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+            <svg width="44" height="54" viewBox="0 0 44 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <filter id="shadow" x="0" y="0" width="44" height="54" filterUnits="userSpaceOnUse">
+                  <feDropShadow dx="0" dy="5" stdDeviation="3.5" flood-color="#000000" flood-opacity="0.65"/>
+                </filter>
+              </defs>
+              <g filter="url(#shadow)">
+                <path d="M22 2C11 2 2 11 2 22C2 35 22 50 22 50C22 50 42 35 42 22C42 11 33 2 22 2Z" fill="#10B981" stroke="#FFFFFF" stroke-width="2.5"/>
+                <circle cx="22" cy="21" r="8.5" fill="#FFFFFF"/>
+                <path d="M18 21L20.5 23.5L26 18" stroke="#047857" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </g>
+            </svg>
+          `)}`,
+          scaledSize: new google.maps.Size(44, 54),
+          anchor: new google.maps.Point(22, 50),
+        };
+        const newMarker = new google.maps.Marker({
+          position: pos,
+          map: mapInstanceRef.current,
+          draggable: !disabled,
+          icon: shopMarkerIcon,
+          title: 'Drag pin to exact shop entrance',
+          animation: google.maps.Animation.DROP,
+        });
+        newMarker.addListener('dragend', () => {
+          const mPos = newMarker.getPosition();
+          if (!mPos) return;
+          const dragLat = Number(mPos.lat().toFixed(6));
+          const dragLng = Number(mPos.lng().toFixed(6));
+          isInternalMoveRef.current = true;
+          onLocationSelect(dragLat, dragLng, 'MAP_PIN_SELECTED');
+        });
+        markerRef.current = newMarker;
+      } else {
+        markerRef.current.setMap(mapInstanceRef.current);
+        markerRef.current.setPosition(pos);
+      }
+
       mapInstanceRef.current.panTo(pos);
+      if (mapInstanceRef.current.getZoom() < 16) {
+        mapInstanceRef.current.setZoom(18);
+      }
 
       // Render or update GPS accuracy radius circle overlay
       if (circleRef.current) {
@@ -216,20 +285,31 @@ export function ShopInteractiveMap({
       }
 
       if (accuracyMeters && accuracyMeters > 0) {
-        const isPoorAccuracy = accuracyMeters > 30;
+        const isPoorAccuracy = accuracyMeters > 50;
+        const isApprox = accuracyMeters > 15 && accuracyMeters <= 50;
+        const circleColor = isPoorAccuracy ? '#EF4444' : isApprox ? '#F59E0B' : '#10B981';
         circleRef.current = new window.google.maps.Circle({
           map: mapInstanceRef.current,
           center: pos,
           radius: accuracyMeters,
-          strokeColor: isPoorAccuracy ? '#F59E0B' : '#10B981',
+          strokeColor: circleColor,
           strokeOpacity: 0.7,
           strokeWeight: 1.5,
-          fillColor: isPoorAccuracy ? '#F59E0B' : '#10B981',
+          fillColor: circleColor,
           fillOpacity: 0.12,
         });
       }
+    } else {
+      // Coords cleared or not set: hide marker and accuracy circle
+      if (markerRef.current) {
+        markerRef.current.setMap(null);
+      }
+      if (circleRef.current) {
+        circleRef.current.setMap(null);
+        circleRef.current = null;
+      }
     }
-  }, [effectiveLat, effectiveLng, hasCoords, accuracyMeters]);
+  }, [latitude, longitude, hasCoords, accuracyMeters, disabled, onLocationSelect]);
 
   // Handle map type toggle (Roadmap vs Satellite)
   const toggleMapType = () => {
@@ -243,7 +323,7 @@ export function ShopInteractiveMap({
   // Re-center map directly on currently selected coordinates
   const handleRecenter = () => {
     if (mapInstanceRef.current && hasCoords) {
-      mapInstanceRef.current.panTo({ lat: effectiveLat, lng: effectiveLng });
+      mapInstanceRef.current.panTo({ lat: Number(latitude), lng: Number(longitude) });
       mapInstanceRef.current.setZoom(18);
     } else if (onUseCurrentLocation) {
       onUseCurrentLocation();
@@ -252,9 +332,9 @@ export function ShopInteractiveMap({
 
   // Directional micro-nudge adjustment (~11 meters per step)
   const handleNudge = (deltaLat: number, deltaLng: number) => {
-    if (disabled) return;
-    const currentLat = effectiveLat;
-    const currentLng = effectiveLng;
+    if (disabled || !hasCoords) return;
+    const currentLat = Number(latitude);
+    const currentLng = Number(longitude);
     const newLat = Number((currentLat + deltaLat).toFixed(6));
     const newLng = Number((currentLng + deltaLng).toFixed(6));
 
@@ -299,8 +379,12 @@ export function ShopInteractiveMap({
         {/* Floating Delivery Pin Label */}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none z-10">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-950/90 border border-white/20 text-white text-[11px] font-semibold shadow-xl backdrop-blur-md">
-            <MapPin className="h-3 w-3 text-emerald-400 shrink-0 animate-pulse" />
-            <span>Drag pin or tap map to set entrance</span>
+            <MapPin className={`h-3 w-3 shrink-0 ${hasCoords ? 'text-emerald-400 animate-pulse' : 'text-zinc-400'}`} />
+            <span>
+              {hasCoords
+                ? 'Drag pin or tap map to adjust shop entrance'
+                : "Tap 'Use Current Location' or search address to place pin"}
+            </span>
           </div>
         </div>
 
@@ -311,7 +395,7 @@ export function ShopInteractiveMap({
             size="sm"
             variant="outline"
             onClick={toggleMapType}
-            className="h-8 px-2.5 bg-zinc-900/90 hover:bg-zinc-800 text-white border-white/20 shadow-lg text-[11px] backdrop-blur-md gap-1"
+            className="h-8 px-2.5 bg-zinc-900/90 hover:bg-zinc-800 text-white border-white/20 shadow-lg text-[11px] backdrop-blur-md gap-1 cursor-pointer"
             title="Toggle Satellite / Road Map"
           >
             <Layers className="h-3.5 w-3.5 text-blue-400" />
@@ -323,27 +407,45 @@ export function ShopInteractiveMap({
             size="sm"
             variant="outline"
             onClick={handleRecenter}
-            className="h-8 px-2.5 bg-zinc-900/90 hover:bg-zinc-800 text-white border-white/20 shadow-lg text-[11px] backdrop-blur-md gap-1"
+            className="h-8 px-2.5 bg-zinc-900/90 hover:bg-zinc-800 text-white border-white/20 shadow-lg text-[11px] backdrop-blur-md gap-1 cursor-pointer"
             title="Re-centre Map on Pin"
           >
             <Crosshair className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Re-centre</span>
+            <span>{hasCoords ? 'Re-centre' : 'Detect GPS'}</span>
           </Button>
         </div>
 
+        {/* Empty State Overlay when no location is set */}
+        {!hasCoords && (
+          <div className="absolute inset-x-4 bottom-4 z-10 flex justify-center pointer-events-none">
+            <div className="max-w-md w-full bg-zinc-950/90 border border-white/15 rounded-xl p-3 shadow-2xl backdrop-blur-md text-center pointer-events-auto">
+              <p className="text-xs font-semibold text-white">No Entrance Pin Placed Yet</p>
+              <p className="text-[11px] text-white/60 mt-0.5">
+                Tap <span className="text-emerald-400 font-medium">Use Current Location</span>, search your shop's address, or tap on the map to set your entrance.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* GPS Accuracy Overlay Pill (Bottom-Left) */}
-        {accuracyMeters ? (
+        {hasCoords && accuracyMeters ? (
           <div className="absolute bottom-3 left-3 z-10">
             <div
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold border shadow-lg backdrop-blur-md ${
-                accuracyMeters > 30
+                accuracyMeters > 50
+                  ? 'bg-rose-950/90 border-rose-500/40 text-rose-200'
+                  : accuracyMeters > 15
                   ? 'bg-amber-950/90 border-amber-500/40 text-amber-200'
                   : 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200'
               }`}
             >
               <Info className="h-3 w-3 shrink-0" />
               <span>
-                {accuracyMeters > 30 ? `Approx GPS (±${accuracyMeters}m)` : `High GPS Accuracy (±${accuracyMeters}m)`}
+                {accuracyMeters > 50
+                  ? `Poor GPS (±${accuracyMeters}m) — Drag pin to entrance`
+                  : accuracyMeters > 15
+                  ? `Approx GPS (±${accuracyMeters}m) — Verify entrance`
+                  : `High GPS Accuracy (±${accuracyMeters}m)`}
               </span>
             </div>
           </div>
@@ -361,8 +463,8 @@ export function ShopInteractiveMap({
           <button
             type="button"
             onClick={() => handleNudge(0.0001, 0)}
-            disabled={disabled}
-            className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/15 text-[11px] font-medium text-white transition-colors cursor-pointer"
+            disabled={disabled || !hasCoords}
+            className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed border border-white/15 text-[11px] font-medium text-white transition-colors cursor-pointer"
             title="Move Entrance North (~11m)"
           >
             ↑ North
@@ -370,8 +472,8 @@ export function ShopInteractiveMap({
           <button
             type="button"
             onClick={() => handleNudge(-0.0001, 0)}
-            disabled={disabled}
-            className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/15 text-[11px] font-medium text-white transition-colors cursor-pointer"
+            disabled={disabled || !hasCoords}
+            className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed border border-white/15 text-[11px] font-medium text-white transition-colors cursor-pointer"
             title="Move Entrance South (~11m)"
           >
             ↓ South
@@ -379,8 +481,8 @@ export function ShopInteractiveMap({
           <button
             type="button"
             onClick={() => handleNudge(0, -0.0001)}
-            disabled={disabled}
-            className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/15 text-[11px] font-medium text-white transition-colors cursor-pointer"
+            disabled={disabled || !hasCoords}
+            className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed border border-white/15 text-[11px] font-medium text-white transition-colors cursor-pointer"
             title="Move Entrance West (~11m)"
           >
             ← West
@@ -388,8 +490,8 @@ export function ShopInteractiveMap({
           <button
             type="button"
             onClick={() => handleNudge(0, 0.0001)}
-            disabled={disabled}
-            className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 border border-white/15 text-[11px] font-medium text-white transition-colors cursor-pointer"
+            disabled={disabled || !hasCoords}
+            className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed border border-white/15 text-[11px] font-medium text-white transition-colors cursor-pointer"
             title="Move Entrance East (~11m)"
           >
             East →

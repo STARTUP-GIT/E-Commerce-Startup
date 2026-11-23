@@ -4,12 +4,12 @@ import React from "react";
 import { MapPin, Navigation, Compass, Store, User } from "lucide-react";
 
 interface InteractiveRouteMapProps {
-  pickupLat?: number;
-  pickupLng?: number;
-  dropoffLat?: number;
-  dropoffLng?: number;
-  currentLat?: number;
-  currentLng?: number;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
+  dropoffLat?: number | null;
+  dropoffLng?: number | null;
+  currentLat?: number | null;
+  currentLng?: number | null;
   pickupAddress?: string;
   dropoffAddress?: string;
   distanceKm?: number;
@@ -19,10 +19,10 @@ interface InteractiveRouteMapProps {
 }
 
 export function InteractiveRouteMap({
-  pickupLat = 12.2958,
-  pickupLng = 76.6394,
-  dropoffLat = 12.3106,
-  dropoffLng = 76.6548,
+  pickupLat,
+  pickupLng,
+  dropoffLat,
+  dropoffLng,
   pickupAddress = "Shop Pickup Point",
   dropoffAddress = "Customer Delivery Address",
   distanceKm = 3.5,
@@ -33,9 +33,11 @@ export function InteractiveRouteMap({
   const targetDestination = stepName === "TO_PICKUP" ? "Pickup Location" : "Customer Location";
   const defaultNavUrl =
     navigationUrl ||
-    (stepName === "TO_PICKUP"
+    (stepName === "TO_PICKUP" && pickupLat != null && pickupLng != null
       ? `https://www.google.com/maps/dir/?api=1&destination=${pickupLat},${pickupLng}`
-      : `https://www.google.com/maps/dir/?api=1&destination=${dropoffLat},${dropoffLng}`);
+      : stepName !== "TO_PICKUP" && dropoffLat != null && dropoffLng != null
+      ? `https://www.google.com/maps/dir/?api=1&destination=${dropoffLat},${dropoffLng}`
+      : undefined);
 
   return (
     <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] bg-white/[0.025] backdrop-blur-xl shadow-2xl">

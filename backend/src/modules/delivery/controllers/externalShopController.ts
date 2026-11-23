@@ -112,10 +112,10 @@ export const trackDelivery = async (req: Request, res: Response) => {
 
     if (!delivery) return res.status(404).json({ message: "Delivery tracking record not found." });
 
-    const pickupLat = Number(delivery.pickupLat || 12.2958);
-    const pickupLng = Number(delivery.pickupLng || 76.6394);
-    const dropoffLat = Number(delivery.dropoffLat || 12.3106);
-    const dropoffLng = Number(delivery.dropoffLng || 76.6548);
+    const pickupLat = delivery.pickupLat != null ? Number(delivery.pickupLat) : null;
+    const pickupLng = delivery.pickupLng != null ? Number(delivery.pickupLng) : null;
+    const dropoffLat = delivery.dropoffLat != null ? Number(delivery.dropoffLat) : null;
+    const dropoffLng = delivery.dropoffLng != null ? Number(delivery.dropoffLng) : null;
 
     return res.status(200).json({
       success: true,

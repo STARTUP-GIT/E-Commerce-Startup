@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useShop } from '../hooks/useShop';
@@ -84,10 +84,23 @@ export function ShopSetupPage() {
     (d: any) => d.name.toLowerCase() === (selectedDistrict || '').toLowerCase()
   );
 
-  // Reset district selection if state changes
+  const previousStateRef = useRef<string>(selectedState);
+
+  // Reset district only if state changed to a different state and current city is not valid for it
   useEffect(() => {
-    setValue('city', '');
-  }, [selectedState, setValue]);
+    if (previousStateRef.current && previousStateRef.current.toLowerCase() !== (selectedState || '').toLowerCase()) {
+      const currentCity = watch('city');
+      if (currentCity && districts.length > 0) {
+        const isStillValid = districts.some(
+          (d: any) => d.name.toLowerCase() === currentCity.toLowerCase()
+        );
+        if (!isStillValid) {
+          setValue('city', '');
+        }
+      }
+    }
+    previousStateRef.current = selectedState;
+  }, [selectedState, districts, watch, setValue]);
 
   // Open Coming Soon dialog if selected state is inactive
   useEffect(() => {

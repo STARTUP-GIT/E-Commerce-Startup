@@ -241,10 +241,10 @@ export default function OffersPage() {
                   <InteractiveRouteMap
                     pickupAddress={item.delivery.pickupAddress}
                     dropoffAddress={item.delivery.dropoffAddress}
-                    pickupLat={item.delivery.pickupLatitude || 12.2958}
-                    pickupLng={item.delivery.pickupLongitude || 76.6394}
-                    dropoffLat={item.delivery.dropoffLatitude || 12.3106}
-                    dropoffLng={item.delivery.dropoffLongitude || 76.6548}
+                    pickupLat={item.delivery.pickupLatitude}
+                    pickupLng={item.delivery.pickupLongitude}
+                    dropoffLat={item.delivery.dropoffLatitude}
+                    dropoffLng={item.delivery.dropoffLongitude}
                     distanceKm={item.delivery.distanceKm || 3.5}
                     durationMins={item.delivery.durationMins || 15}
                     stepName="TO_PICKUP"

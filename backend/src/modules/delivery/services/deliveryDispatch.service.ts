@@ -340,8 +340,17 @@ export class DeliveryDispatchService {
   }
 
   static async findEligibleRiders(delivery: any, searchRadiusMeters = 5000) {
-    const pickupLat = Number(delivery.pickupLat || 12.2958);
-    const pickupLng = Number(delivery.pickupLng || 76.6394);
+    if (
+      delivery.pickupLat == null ||
+      delivery.pickupLng == null ||
+      isNaN(Number(delivery.pickupLat)) ||
+      isNaN(Number(delivery.pickupLng))
+    ) {
+      logger.warn(`[Dispatch] Cannot find eligible riders for delivery ${delivery?.id}: pickup coordinates are missing.`);
+      return [];
+    }
+    const pickupLat = Number(delivery.pickupLat);
+    const pickupLng = Number(delivery.pickupLng);
 
     // 1. Find all online, approved, active riders
     const candidateRiders = await prisma.deliveryPartner.findMany({

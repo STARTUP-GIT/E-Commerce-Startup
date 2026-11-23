@@ -136,9 +136,9 @@ export function ShopSettingsPage() {
     return {
       doorNo: addr.doorNo || '',
       buildingName: addr.buildingName || '',
-      street: addr.street || addr.addressLine1 || '',
+      street: addr.street || '',
       cross: addr.cross || '',
-      area: addr.area || addr.addressLine2 || '',
+      area: addr.area || '',
       landmark: addr.landmark || '',
       city: addr.city || addr.district || '',
       district: addr.district || addr.city || '',

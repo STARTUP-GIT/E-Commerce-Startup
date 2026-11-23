@@ -410,10 +410,10 @@ export default function DeliveryExecutionPage({
         <InteractiveRouteMap
           pickupAddress={delivery.pickupAddress}
           dropoffAddress={delivery.dropoffAddress}
-          pickupLat={delivery.pickupLatitude || 12.2958}
-          pickupLng={delivery.pickupLongitude || 76.6394}
-          dropoffLat={delivery.dropoffLatitude || 12.3106}
-          dropoffLng={delivery.dropoffLongitude || 76.6548}
+          pickupLat={delivery.pickupLatitude}
+          pickupLng={delivery.pickupLongitude}
+          dropoffLat={delivery.dropoffLatitude}
+          dropoffLng={delivery.dropoffLongitude}
           distanceKm={delivery.distanceKm || 3.5}
           durationMins={delivery.durationMins || 15}
           navigationUrl={delivery.navigationUrl}

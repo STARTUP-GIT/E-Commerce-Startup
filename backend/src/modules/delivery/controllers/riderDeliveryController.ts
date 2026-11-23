@@ -121,14 +121,12 @@ export const getActiveDelivery = async (req: Request, res: Response) => {
       return res.status(200).json({ success: true, activeDelivery: null });
     }
 
-    // Include external Google navigation URLs
-    const pickupLat = Number(delivery.pickupLat || 12.2958);
-    const pickupLng = Number(delivery.pickupLng || 76.6394);
-    const dropoffLat = Number(delivery.dropoffLat || 12.3106);
-    const dropoffLng = Number(delivery.dropoffLng || 76.6548);
+    // Include external Google navigation URLs only when real coordinates exist (never fallback to Mysuru)
+    const hasPickup = delivery.pickupLat != null && delivery.pickupLng != null && !isNaN(Number(delivery.pickupLat)) && !isNaN(Number(delivery.pickupLng));
+    const hasDropoff = delivery.dropoffLat != null && delivery.dropoffLng != null && !isNaN(Number(delivery.dropoffLat)) && !isNaN(Number(delivery.dropoffLng));
 
-    const pickupNavUrl = GoogleMapsService.getNavigationUrl({ lat: pickupLat, lng: pickupLng });
-    const dropoffNavUrl = GoogleMapsService.getNavigationUrl({ lat: dropoffLat, lng: dropoffLng });
+    const pickupNavUrl = hasPickup ? GoogleMapsService.getNavigationUrl({ lat: Number(delivery.pickupLat), lng: Number(delivery.pickupLng) }) : null;
+    const dropoffNavUrl = hasDropoff ? GoogleMapsService.getNavigationUrl({ lat: Number(delivery.dropoffLat), lng: Number(delivery.dropoffLng) }) : null;
 
     return res.status(200).json({
       success: true,
@@ -170,17 +168,15 @@ export const getDeliveryById = async (req: Request, res: Response) => {
 
     if (!delivery) return res.status(404).json({ message: "Delivery not found" });
 
-    const pickupLat = Number(delivery.pickupLat || 12.2958);
-    const pickupLng = Number(delivery.pickupLng || 76.6394);
-    const dropoffLat = Number(delivery.dropoffLat || 12.3106);
-    const dropoffLng = Number(delivery.dropoffLng || 76.6548);
+    const hasPickup = delivery.pickupLat != null && delivery.pickupLng != null && !isNaN(Number(delivery.pickupLat)) && !isNaN(Number(delivery.pickupLng));
+    const hasDropoff = delivery.dropoffLat != null && delivery.dropoffLng != null && !isNaN(Number(delivery.dropoffLat)) && !isNaN(Number(delivery.dropoffLng));
 
     return res.status(200).json({
       success: true,
       delivery: {
         ...delivery,
-        pickupNavUrl: GoogleMapsService.getNavigationUrl({ lat: pickupLat, lng: pickupLng }),
-        dropoffNavUrl: GoogleMapsService.getNavigationUrl({ lat: dropoffLat, lng: dropoffLng }),
+        pickupNavUrl: hasPickup ? GoogleMapsService.getNavigationUrl({ lat: Number(delivery.pickupLat), lng: Number(delivery.pickupLng) }) : null,
+        dropoffNavUrl: hasDropoff ? GoogleMapsService.getNavigationUrl({ lat: Number(delivery.dropoffLat), lng: Number(delivery.dropoffLng) }) : null,
       },
     });
   } catch (err: any) {

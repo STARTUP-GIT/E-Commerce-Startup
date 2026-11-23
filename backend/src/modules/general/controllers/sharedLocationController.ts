@@ -52,15 +52,16 @@ export const resolveLocation = async (req: Request, res: Response) => {
                 Number(latitude),
                 Number(longitude)
             );
-            resolvedState = resolvedState || geocodeResult.state;
-            resolvedDistrict = resolvedDistrict || geocodeResult.district;
-            resolvedCity = resolvedCity || geocodeResult.city;
-            resolvedServiceArea = resolvedServiceArea || geocodeResult.serviceArea;
-            postalCode = postalCode || geocodeResult.postalCode;
+            // GPS coordinates are authoritative: geocoded values supersede input fallbacks
+            resolvedState = geocodeResult.state || resolvedState;
+            resolvedDistrict = geocodeResult.district || resolvedDistrict;
+            resolvedCity = geocodeResult.city || resolvedCity;
+            resolvedServiceArea = geocodeResult.serviceArea || resolvedServiceArea;
+            postalCode = geocodeResult.postalCode || postalCode;
             formattedAddress = geocodeResult.formattedAddress;
             resolvedAddressLine1 = geocodeResult.addressLine1;
             resolvedAddressLine2 = geocodeResult.addressLine2;
-            resolvedCountry = geocodeResult.country || "India";
+            resolvedCountry = geocodeResult.country || resolvedCountry || "India";
             resolvedDoorNo = geocodeResult.doorNo;
             resolvedBuildingName = geocodeResult.buildingName;
             resolvedStreet = geocodeResult.street;

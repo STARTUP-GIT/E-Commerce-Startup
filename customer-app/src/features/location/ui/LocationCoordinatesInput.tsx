@@ -123,12 +123,12 @@ export function LocationCoordinatesInput({
 
   const initMap = () => {
     if (!mapContainerRef.current || !window.google?.maps) return;
-    const centerLat = hasValidCoords ? numLat : 12.2958;
-    const centerLng = hasValidCoords ? numLng : 76.6394;
+    const centerLat = hasValidCoords ? numLat : 20.5937;
+    const centerLng = hasValidCoords ? numLng : 78.9629;
 
     const map = new window.google.maps.Map(mapContainerRef.current, {
       center: { lat: centerLat, lng: centerLng },
-      zoom: hasValidCoords ? 18 : 15,
+      zoom: hasValidCoords ? 18 : 5,
       mapTypeId: 'roadmap',
       zoomControl: true,
       streetViewControl: false,
@@ -137,33 +137,96 @@ export function LocationCoordinatesInput({
       gestureHandling: 'greedy',
     });
 
-    const marker = new window.google.maps.Marker({
-      position: { lat: centerLat, lng: centerLng },
-      map,
-      draggable: !disabled,
-      title: 'Delivery Pin (Drag to entrance)',
-      animation: window.google.maps.Animation.DROP,
-    });
+    let marker: any = null;
+    if (hasValidCoords) {
+      marker = new window.google.maps.Marker({
+        position: { lat: centerLat, lng: centerLng },
+        map,
+        draggable: !disabled,
+        title: 'Delivery Pin (Drag to entrance)',
+        animation: window.google.maps.Animation.DROP,
+      });
 
-    marker.addListener('dragend', () => {
-      const pos = marker.getPosition();
-      if (!pos) return;
-      const newLat = Number(pos.lat().toFixed(6));
-      const newLng = Number(pos.lng().toFixed(6));
-      updateCoords(newLat, newLng, true);
-    });
+      marker.addListener('dragend', () => {
+        const pos = marker.getPosition();
+        if (!pos) return;
+        const newLat = Number(pos.lat().toFixed(6));
+        const newLng = Number(pos.lng().toFixed(6));
+        updateCoords(newLat, newLng, true);
+      });
+    }
 
     map.addListener('click', (e: any) => {
       if (!e.latLng || disabled) return;
       const newLat = Number(e.latLng.lat().toFixed(6));
       const newLng = Number(e.latLng.lng().toFixed(6));
-      marker.setPosition({ lat: newLat, lng: newLng });
+      if (!markerRef.current) {
+        const newMarker = new window.google.maps.Marker({
+          position: { lat: newLat, lng: newLng },
+          map,
+          draggable: !disabled,
+          title: 'Delivery Pin (Drag to entrance)',
+          animation: window.google.maps.Animation.DROP,
+        });
+        newMarker.addListener('dragend', () => {
+          const pos = newMarker.getPosition();
+          if (!pos) return;
+          const dragLat = Number(pos.lat().toFixed(6));
+          const dragLng = Number(pos.lng().toFixed(6));
+          updateCoords(dragLat, dragLng, true);
+        });
+        markerRef.current = newMarker;
+      } else {
+        markerRef.current.setMap(map);
+        markerRef.current.setPosition({ lat: newLat, lng: newLng });
+      }
       updateCoords(newLat, newLng, true);
     });
 
     mapInstanceRef.current = map;
     markerRef.current = marker;
   };
+
+  // Synchronize Google Map view & pin when external coordinates change
+  useEffect(() => {
+    if (!mapInstanceRef.current || !window.google?.maps) return;
+    if (isInternalMoveRef.current) {
+      isInternalMoveRef.current = false;
+      return;
+    }
+
+    if (hasValidCoords) {
+      const pos = { lat: numLat, lng: numLng };
+      if (!markerRef.current) {
+        const newMarker = new window.google.maps.Marker({
+          position: pos,
+          map: mapInstanceRef.current,
+          draggable: !disabled,
+          title: 'Delivery Pin (Drag to entrance)',
+          animation: window.google.maps.Animation.DROP,
+        });
+        newMarker.addListener('dragend', () => {
+          const mPos = newMarker.getPosition();
+          if (!mPos) return;
+          const dragLat = Number(mPos.lat().toFixed(6));
+          const dragLng = Number(mPos.lng().toFixed(6));
+          updateCoords(dragLat, dragLng, true);
+        });
+        markerRef.current = newMarker;
+      } else {
+        markerRef.current.setMap(mapInstanceRef.current);
+        markerRef.current.setPosition(pos);
+      }
+      mapInstanceRef.current.panTo(pos);
+      if (mapInstanceRef.current.getZoom() < 16) {
+        mapInstanceRef.current.setZoom(18);
+      }
+    } else {
+      if (markerRef.current) {
+        markerRef.current.setMap(null);
+      }
+    }
+  }, [numLat, numLng, hasValidCoords, disabled]);
 
   const updateCoords = (lat: number, lng: number, triggerReverseGeocode = false) => {
     isInternalMoveRef.current = true;
@@ -484,7 +547,7 @@ export function LocationCoordinatesInput({
                 onChange({ latitude: n, longitude: numLng || null });
               }
             }}
-            placeholder="e.g. 12.2958"
+            placeholder="e.g. 12.9716"
             className="h-8 text-xs bg-zinc-900/60"
             disabled={disabled}
           />
@@ -501,7 +564,7 @@ export function LocationCoordinatesInput({
                 onChange({ latitude: numLat || null, longitude: n });
               }
             }}
-            placeholder="e.g. 76.6394"
+            placeholder="e.g. 77.5946"
             className="h-8 text-xs bg-zinc-900/60"
             disabled={disabled}
           />
