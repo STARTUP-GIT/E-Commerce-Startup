@@ -151,6 +151,7 @@ export const SYSTEM_ROLES: RoleDefinition[] = [
             "customers.view", "customers.manage",
             "sellers.view", "sellers.manage",
             "products.view", "products.manage", "categories.manage",
+            "catalog.view", "catalog.manage",
             "orders.view", "orders.manage", "delivery.view", "delivery.manage", "returns.view", "returns.manage",
             "locations.districts.view", "locations.districts.manage", "locations.towns.manage", "locations.areas.manage", "locations.availability.manage",
             "conversations.view", "conversations.manage", "notifications.view", "notifications.manage",
@@ -296,11 +297,17 @@ export const matchesPermission = (granted: string[], required: string): boolean 
     const prefix = required.split(".")[0];
     if (granted.includes(`${prefix}.*`)) return true;
 
-    // Backward compatibility mappings
+    // Backward compatibility & cross-module aliases (symmetrical)
+    if ((required === "locations.districts.view" || required === "catalog.view") &&
+        (granted.includes("catalog.view") || granted.includes("locations.districts.view") || granted.includes("catalog.*") || granted.includes("locations.*"))) {
+        return true;
+    }
+    if ((required === "locations.districts.manage" || required === "catalog.manage") &&
+        (granted.includes("catalog.manage") || granted.includes("locations.districts.manage") || granted.includes("catalog.*") || granted.includes("locations.*"))) {
+        return true;
+    }
     if (required === "admin.users.manage" && (granted.includes("admin.users.create") || granted.includes("admin.users.manage"))) return true;
-    if (required === "locations.districts.view" && (granted.includes("catalog.view") || granted.includes("locations.districts.view"))) return true;
-    if (required === "locations.districts.manage" && (granted.includes("catalog.manage") || granted.includes("locations.districts.manage"))) return true;
-    if (required === "branding.manage" && granted.includes("settings.manage")) return true;
+    if (required === "branding.manage" && (granted.includes("settings.manage") || granted.includes("branding.manage"))) return true;
 
     return false;
 };

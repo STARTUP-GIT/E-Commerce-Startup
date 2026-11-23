@@ -63,20 +63,22 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json(data || { message: 'Refreshed' }, { status: 200 });
 
     const rawSetCookie = backendRes.headers.get('set-cookie');
+    const cookieEntries: string[] = typeof (backendRes.headers as any).getSetCookie === 'function'
+      ? (backendRes.headers as any).getSetCookie()
+      : (rawSetCookie ? splitSetCookieHeader(rawSetCookie) : []);
+    const entriesToProcess = cookieEntries.length > 0 ? cookieEntries : (rawSetCookie ? splitSetCookieHeader(rawSetCookie) : []);
     const isProduction = process.env.NODE_ENV === 'production';
 
-    if (rawSetCookie) {
-      for (const entry of splitSetCookieHeader(rawSetCookie)) {
-        const parsed = parseCookieEntry(entry);
-        if (parsed && (parsed.name === 'admin_session' || parsed.name === 'admin_refresh')) {
-          response.cookies.set(parsed.name, parsed.value, {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: 'lax',
-            path: '/',
-            maxAge: parsed.maxAge ?? (parsed.name === 'admin_refresh' ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 60),
-          });
-        }
+    for (const entry of entriesToProcess) {
+      const parsed = parseCookieEntry(entry);
+      if (parsed && (parsed.name === 'admin_session' || parsed.name === 'admin_refresh')) {
+        response.cookies.set(parsed.name, parsed.value, {
+          httpOnly: true,
+          secure: isProduction,
+          sameSite: 'lax',
+          path: '/',
+          maxAge: parsed.maxAge ?? (parsed.name === 'admin_refresh' ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 60),
+        });
       }
     }
 

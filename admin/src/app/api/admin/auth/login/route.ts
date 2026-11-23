@@ -69,13 +69,16 @@ export async function POST(req: NextRequest) {
 
     // Re-emit only the HttpOnly session cookies on the Admin frontend origin.
     const rawSetCookie = backendRes.headers.get('set-cookie');
+    const cookieEntries: string[] = typeof (backendRes.headers as any).getSetCookie === 'function'
+      ? (backendRes.headers as any).getSetCookie()
+      : (rawSetCookie ? splitSetCookieHeader(rawSetCookie) : []);
+    const entriesToProcess = cookieEntries.length > 0 ? cookieEntries : (rawSetCookie ? splitSetCookieHeader(rawSetCookie) : []);
+
     const forwardedCookies = new Map<string, { value: string; maxAge?: number }>();
-    if (rawSetCookie) {
-      for (const entry of splitSetCookieHeader(rawSetCookie)) {
-        const parsed = parseCookieEntry(entry);
-        if (parsed && (parsed.name === 'admin_session' || parsed.name === 'admin_refresh')) {
-          forwardedCookies.set(parsed.name, parsed);
-        }
+    for (const entry of entriesToProcess) {
+      const parsed = parseCookieEntry(entry);
+      if (parsed && (parsed.name === 'admin_session' || parsed.name === 'admin_refresh')) {
+        forwardedCookies.set(parsed.name, parsed);
       }
     }
 

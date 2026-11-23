@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { authApi } from '../api/authApi';
+import { authApi, AdminProfile } from '../api/authApi';
 import { useRouter } from 'next/navigation';
 import { useUIStore } from '@/lib/store/uiStore';
 import { useSession, signIn, signOut } from 'next-auth/react';
@@ -13,15 +13,20 @@ export function useAuth() {
   const { data: session, status, update: updateSession } = useSession();
 
   // Profile Query: Single source of truth for full active Admin info from backend
-  const profileQuery = useQuery({
+  const profileQuery = useQuery<AdminProfile | null>({
     queryKey: ['profile'],
-    queryFn: async () => {
+    queryFn: async (): Promise<AdminProfile | null> => {
       try {
         const res = await authApi.getProfile();
         return res?.admin ?? null;
       } catch (err: any) {
-        if (err?.response?.status === 401 || err?.response?.status === 403) {
+        if (err?.response?.status === 401) {
           return null;
+        }
+        // 403 is a permission denial, NEVER an expired session. Preserve authenticated profile.
+        if (err?.response?.status === 403) {
+          const prev = queryClient.getQueryData<AdminProfile>(['profile']);
+          if (prev) return prev;
         }
         throw err;
       }

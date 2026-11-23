@@ -4,34 +4,47 @@ import GoogleProvider from 'next-auth/providers/google';
 import { cookies } from 'next/headers';
 import axios from 'axios';
 
-const setSessionCookie = async (cookieHeader: string[] | undefined) => {
+const setSessionCookies = async (cookieHeader: string[] | string | undefined) => {
   if (!cookieHeader) return;
-  const sessionCookieStr = cookieHeader.find((c) => c.startsWith('admin_session='));
-  if (!sessionCookieStr) return;
-
-  const parts = sessionCookieStr.split(';');
-  const [nameValue, ...directives] = parts;
-  const value = nameValue.split('=')[1];
-
-  const options: any = {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-  };
-
-  directives.forEach((d) => {
-    const trimmed = d.trim().toLowerCase();
-    if (trimmed.startsWith('max-age=')) {
-      options.maxAge = parseInt(trimmed.split('=')[1], 10);
-    } else if (trimmed.startsWith('expires=')) {
-      options.expires = new Date(trimmed.split('=')[1]);
-    }
-  });
-
+  const cookieList: string[] = Array.isArray(cookieHeader) ? cookieHeader : [cookieHeader];
   const cookieStore = await cookies();
-  cookieStore.set('admin_session', value, options);
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  for (const cookieStr of cookieList) {
+    if (!cookieStr || typeof cookieStr !== 'string') continue;
+    const parts = cookieStr.split(';');
+    const [nameValue, ...directives] = parts;
+    if (!nameValue) continue;
+    const eqIdx = nameValue.indexOf('=');
+    if (eqIdx === -1) continue;
+    const name = nameValue.slice(0, eqIdx).trim();
+    const value = nameValue.slice(eqIdx + 1).trim();
+
+    if (name !== 'admin_session' && name !== 'admin_refresh') continue;
+
+    const options: any = {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: isProduction,
+      maxAge: name === 'admin_refresh' ? 30 * 24 * 60 * 60 : 60 * 24 * 60 * 60,
+    };
+
+    directives.forEach((d) => {
+      const trimmed = d.trim().toLowerCase();
+      if (trimmed.startsWith('max-age=')) {
+        const parsed = parseInt(trimmed.split('=')[1], 10);
+        if (!isNaN(parsed)) options.maxAge = parsed;
+      } else if (trimmed.startsWith('expires=')) {
+        options.expires = new Date(trimmed.split('=')[1]);
+      }
+    });
+
+    cookieStore.set(name, value, options);
+  }
 };
+
+const setSessionCookie = setSessionCookies;
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -166,6 +179,7 @@ export const authOptions: NextAuthOptions = {
       try {
         const cookieStore = await cookies();
         cookieStore.delete('admin_session');
+        cookieStore.delete('admin_refresh');
         const backendUrl = (process.env.ADMIN_BACKEND_API_URL || process.env.BACKEND_API_URL || 'http://localhost:3003').replace(/\/$/, '');
         await axios.post(`${backendUrl}/api/admin/auth/logout`);
       } catch (error) {

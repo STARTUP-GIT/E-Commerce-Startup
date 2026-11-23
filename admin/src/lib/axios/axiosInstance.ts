@@ -107,6 +107,22 @@ axiosInstance.interceptors.response.use(
       }
     }
 
+    if (status === 403) {
+      const permMsg = error.response?.data?.message || 'You do not have permission to perform this action.';
+      error.message = permMsg;
+
+      if (!isServer && typeof window !== 'undefined') {
+        try {
+          const { useUIStore } = await import('@/lib/store/uiStore');
+          useUIStore.getState().showToast(permMsg, 'error');
+        } catch {
+          // Ignore if UI store cannot be loaded
+        }
+      }
+
+      return Promise.reject(error);
+    }
+
     if (status === 429) {
       const retryAfterHeader = error.response?.headers?.['retry-after'];
       const retryAfterSeconds =

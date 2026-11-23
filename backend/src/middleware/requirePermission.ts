@@ -26,9 +26,7 @@ export const requirePermission =
         }
 
         try {
-            const granted = await getAdminPermissions({
-                id: req.adminId
-            });
+            const granted = await getAdminPermissions(req.adminId);
             req.adminPermissions = granted;
 
             const allowed = required.some((key) => matchesPermission(granted, key));

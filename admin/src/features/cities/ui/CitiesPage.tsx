@@ -29,7 +29,7 @@ function CitiesForm() {
   // Format stateName nicely (first letter capitalized)
   const pathStateName = pathStateNameRaw.charAt(0).toUpperCase() + pathStateNameRaw.slice(1).toLowerCase();
 
-  const { data: citiesData, isLoading: isCitiesLoading } = useQuery({
+  const { data: citiesData, isLoading: isCitiesLoading, error: citiesError } = useQuery({
     queryKey: ['cities'],
     queryFn: cityApi.getCities,
     staleTime: 5 * 60 * 1000,
@@ -179,6 +179,11 @@ function CitiesForm() {
       {isCitiesLoading || isStatesLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
+        </div>
+      ) : citiesError ? (
+        <div className="p-6 rounded-2xl border border-rose-500/20 bg-rose-500/10 text-rose-300 text-xs font-semibold flex items-center justify-between">
+          <span>Failed to load districts: {(citiesError as any)?.message || 'Permission denied or network error.'}</span>
+          <Button size="sm" variant="ghost" onClick={() => queryClient.invalidateQueries({ queryKey: ['cities'] })}>Retry</Button>
         </div>
       ) : !isStateEnabled ? (
         // Blur state when disabled

@@ -92,8 +92,16 @@ const loadSubject = async (adminId: string): Promise<PermissionSubject | null> =
 export const getAdminPermissions = async (
     subject: PermissionSubject | string
 ): Promise<string[]> => {
-    const resolved: PermissionSubject | null =
-        typeof subject === "string" ? await loadSubject(subject) : subject;
+    let resolved: PermissionSubject | null = null;
+    if (typeof subject === "string") {
+        resolved = await loadSubject(subject);
+    } else if (subject && subject.id) {
+        if (subject.isSuperAdmin === undefined && subject.role === undefined && subject.roleId === undefined) {
+            resolved = await loadSubject(subject.id);
+        } else {
+            resolved = subject;
+        }
+    }
     if (!resolved) return [];
 
     const cached = permissionCache.get(resolved.id);
@@ -107,12 +115,26 @@ export const getAdminPermissions = async (
     return permissions;
 };
 
-/** `customers.view` matches `customers.view`, `customers.*` or `*`. */
+/** Symmetrical permission matcher with wildcard and cross-module aliases */
 export const matchesPermission = (granted: string[], required: string): boolean => {
     if (granted.includes("*")) return true;
     if (granted.includes(required)) return true;
     const group = required.split(".")[0];
-    return granted.includes(`${group}.*`);
+    if (granted.includes(`${group}.*`)) return true;
+
+    // Symmetrical district / location / catalog aliases
+    if ((required === "locations.districts.view" || required === "catalog.view") &&
+        (granted.includes("catalog.view") || granted.includes("locations.districts.view") || granted.includes("catalog.*") || granted.includes("locations.*"))) {
+        return true;
+    }
+    if ((required === "locations.districts.manage" || required === "catalog.manage") &&
+        (granted.includes("catalog.manage") || granted.includes("locations.districts.manage") || granted.includes("catalog.*") || granted.includes("locations.*"))) {
+        return true;
+    }
+    if (required === "admin.users.manage" && (granted.includes("admin.users.create") || granted.includes("admin.users.manage"))) return true;
+    if (required === "branding.manage" && (granted.includes("settings.manage") || granted.includes("branding.manage"))) return true;
+
+    return false;
 };
 
 export const hasPermission = async (

@@ -44,8 +44,13 @@ export function useAdminSidebarBadges() {
   const { data, isLoading, refetch } = useQuery<SidebarBadgeCounts>({
     queryKey: ["admin-sidebar-badges"],
     queryFn: async () => {
-      const res = await axiosInstance.get("/api/admin/sidebar-badges");
-      return res.data;
+      try {
+        const res = await axiosInstance.get("/api/admin/sidebar-badges");
+        return res.data || defaultBadgeCounts;
+      } catch {
+        // Never allow badge fetching failure to break navigation
+        return defaultBadgeCounts;
+      }
     },
     staleTime: 20 * 1000,
     refetchOnWindowFocus: true,
