@@ -48,45 +48,60 @@ export const searchSellers = async (req: Request, res: Response) => {
 
 export const getSellers = async (req: Request, res: Response) => {
     try {
-        const { search, status, page = 1, limit = 10 } = req.query;
+        const { search, status, page = 1, limit = 20 } = req.query;
 
         const whereClause: any = {};
 
-        if (status) {
-            whereClause.status = String(status);
+        if (status && typeof status === "string") {
+            const cleanStatus = status.trim().toUpperCase();
+            if (cleanStatus && cleanStatus !== "ALL") {
+                whereClause.status = cleanStatus;
+            }
         }
 
-        if (search) {
+        const trimmedSearch = typeof search === "string" ? search.trim() : "";
+        if (trimmedSearch) {
             whereClause.OR = [
-                { email: { contains: String(search), mode: "insensitive" } },
-                { firstName: { contains: String(search), mode: "insensitive" } },
-                { lastName: { contains: String(search), mode: "insensitive" } },
-                { username: { contains: String(search), mode: "insensitive" } }
+                { email: { contains: trimmedSearch, mode: "insensitive" } },
+                { firstName: { contains: trimmedSearch, mode: "insensitive" } },
+                { lastName: { contains: trimmedSearch, mode: "insensitive" } },
+                { username: { contains: trimmedSearch, mode: "insensitive" } },
+                { phone: { contains: trimmedSearch, mode: "insensitive" } },
+                { shop: { name: { contains: trimmedSearch, mode: "insensitive" } } },
             ];
         }
 
-        const skip = (Number(page) - 1) * Number(limit);
-        const take = Number(limit);
+        const pageNum = Math.max(1, parseInt(String(page), 10) || 1);
+        const limitNum = Math.max(1, Math.min(100, parseInt(String(limit), 10) || 20));
+        const skip = (pageNum - 1) * limitNum;
+        const take = limitNum;
 
         const [sellers, total] = await prisma.$transaction([
             prisma.seller.findMany({
                 where: whereClause,
-                include: { shop: true },
+                include: {
+                    shop: true,
+                    verifications: {
+                        take: 1,
+                        orderBy: { createdAt: "desc" },
+                    },
+                },
                 orderBy: { createdAt: "desc" },
                 skip,
-                take
+                take,
             }),
-            prisma.seller.count({ where: whereClause })
+            prisma.seller.count({ where: whereClause }),
         ]);
 
         return res.status(200).json({
             sellers: sellers.map(sanitizeSeller),
+            total,
             pagination: {
                 total,
-                page: Number(page),
-                limit: Number(limit),
-                pages: Math.ceil(total / Number(limit))
-            }
+                page: pageNum,
+                limit: limitNum,
+                pages: Math.ceil(total / limitNum),
+            },
         });
     } catch (error: any) {
         console.error("GET SELLERS ERROR:", error);
@@ -98,6 +113,10 @@ export const getSeller = async (req: Request, res: Response) => {
     try {
         const sellerId = String(req.params.id);
 
+        if (sellerId === "sellers") {
+            return getSellers(req, res);
+        }
+
         const seller = await prisma.seller.findUnique({
             where: { id: sellerId },
             include: {
@@ -106,9 +125,9 @@ export const getSeller = async (req: Request, res: Response) => {
                 bankAccounts: true,
                 strikes: true,
                 verifications: {
-                    orderBy: { createdAt: "desc" }
-                }
-            }
+                    orderBy: { createdAt: "desc" },
+                },
+            },
         });
 
         if (!seller) {

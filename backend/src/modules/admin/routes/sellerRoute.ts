@@ -22,8 +22,16 @@ const router = Router();
 
 router.use(adminAuth);
 
+// Human-friendly seller search for select dropdowns
 router.get("/search", requirePermission("sellers.manage"), searchSellers);
+
+// Resilient alias in case any client queries /api/admin/sellers/sellers
+router.get("/sellers", requirePermission("sellers.view"), getSellers);
+
+// Standard seller directory list
 router.get("/", requirePermission("sellers.view"), getSellers);
+
+// Individual seller detail and management actions
 router.get("/:id", requirePermission("sellers.view"), getSeller);
 router.patch("/:id/ban", requirePermission("sellers.manage"), banSeller);
 router.patch("/:id/unban", requirePermission("sellers.manage"), unbanSeller);
