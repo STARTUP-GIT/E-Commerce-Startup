@@ -104,7 +104,7 @@ export function ShopSetupPage({ navigation }: ShopSetupPageProps) {
       setLatitude(lat);
       setLongitude(lng);
       setAccuracyMeters(acc);
-      if (acc && acc > 30) {
+      if (acc && acc > 15) {
         setLocationSource('GPS_APPROXIMATE');
       } else {
         setLocationSource('GPS_DETECTED');

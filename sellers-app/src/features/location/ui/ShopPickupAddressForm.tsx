@@ -19,8 +19,8 @@ import {
   X,
   ExternalLink,
   ArrowRight,
-  ArrowLeft,
   Check,
+  Sparkles,
 } from 'lucide-react';
 import { ShopInteractiveMap } from './ShopInteractiveMap';
 import { Input } from '@/shared/components/Input';
@@ -42,12 +42,15 @@ export interface StructuredShopAddress {
   country: string;
   latitude: number | null;
   longitude: number | null;
+  deviceLatitude?: number | null;
+  deviceLongitude?: number | null;
   locationSource: 'GPS_DETECTED' | 'GPS_APPROXIMATE' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'MANUALLY_ENTERED';
   accuracyMeters: number | null;
   formattedAddress: string;
   addressLine1: string;
   addressLine2: string;
   directionsForRider?: string;
+  confirmedAt?: string;
 }
 
 interface ShopPickupAddressFormProps {
@@ -81,18 +84,6 @@ export function ShopPickupAddressForm({
 }: ShopPickupAddressFormProps) {
   const showToast = useUIStore((s) => s.showToast);
 
-  // Flow Step: 'MAP_SELECT' (Step 1: Zomato/Zepto Map & Pin) vs 'ADDRESS_CONFIRM' (Step 2: Structured Address Confirmation)
-  // If the shop already has existing saved coordinates and address, default to confirmation view with "Change on Map" option
-  const hasExistingAddress = Boolean(
-    initialAddress?.latitude &&
-    initialAddress?.longitude &&
-    (initialAddress?.doorNo || initialAddress?.street)
-  );
-
-  const [currentStep, setCurrentStep] = useState<'MAP_SELECT' | 'ADDRESS_CONFIRM'>(
-    hasExistingAddress ? 'ADDRESS_CONFIRM' : 'MAP_SELECT'
-  );
-
   // Address field states
   const [doorNo, setDoorNo] = useState(initialAddress?.doorNo || '');
   const [buildingName, setBuildingName] = useState(initialAddress?.buildingName || '');
@@ -105,16 +96,25 @@ export function ShopPickupAddressForm({
   const [country, setCountry] = useState(initialAddress?.country || 'India');
   const [directionsForRider, setDirectionsForRider] = useState(initialAddress?.directionsForRider || '');
 
-  // Location coordinates and metadata
+  // Confirmed Entrance Pin coordinates
   const [latitude, setLatitude] = useState<number | null>(
     initialAddress?.latitude !== undefined && initialAddress?.latitude !== null ? Number(initialAddress.latitude) : null
   );
   const [longitude, setLongitude] = useState<number | null>(
     initialAddress?.longitude !== undefined && initialAddress?.longitude !== null ? Number(initialAddress.longitude) : null
   );
+
+  // Separate Device GPS coordinates
+  const [deviceCoords, setDeviceCoords] = useState<{ latitude: number; longitude: number } | null>(
+    initialAddress?.deviceLatitude && initialAddress?.deviceLongitude
+      ? { latitude: Number(initialAddress.deviceLatitude), longitude: Number(initialAddress.deviceLongitude) }
+      : null
+  );
+
   const [locationSource, setLocationSource] = useState<
     'GPS_DETECTED' | 'GPS_APPROXIMATE' | 'ADDRESS_SEARCHED' | 'MAP_PIN_SELECTED' | 'MANUALLY_ENTERED'
   >(initialAddress?.locationSource || 'MANUALLY_ENTERED');
+
   const [accuracyMeters, setAccuracyMeters] = useState<number | null>(
     initialAddress?.accuracyMeters !== undefined ? initialAddress.accuracyMeters : null
   );
@@ -127,11 +127,26 @@ export function ShopPickupAddressForm({
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [gpsWarning, setGpsWarning] = useState<string | null>(null);
   const [pinCodeError, setPinCodeError] = useState<string | null>(null);
+  const [candidateAreas, setCandidateAreas] = useState<string[]>([]);
+  const [isConfirmed, setIsConfirmed] = useState(Boolean(initialAddress?.latitude && initialAddress?.longitude));
 
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
-  const reverseGeocodeDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const initialLoadedRef = useRef(false);
   const activeGeocodeReqId = useRef(0);
+  const watchIdRef = useRef<number | null>(null);
+  const watchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clean up GPS watch on unmount
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      if (watchTimeoutRef.current) {
+        clearTimeout(watchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Sync initial address if updated from parent (only once on load to avoid overwriting user edits)
   useEffect(() => {
@@ -163,7 +178,7 @@ export function ShopPickupAddressForm({
     }
   }, [initialAddress]);
 
-  // Derive compiled formatted addresses
+  // Derive compiled formatted dispatch address
   const deriveLines = useCallback(() => {
     const line1Parts: string[] = [];
     if (doorNo.trim()) line1Parts.push(doorNo.trim());
@@ -196,7 +211,7 @@ export function ShopPickupAddressForm({
     return { addressLine1, addressLine2, formattedAddress };
   }, [doorNo, buildingName, street, cross, area, landmark, directionsForRider, city, selectedDistrict, selectedState, postalCode, country]);
 
-  // Emit change to parent
+  // Emit changes to parent
   useEffect(() => {
     const { addressLine1, addressLine2, formattedAddress } = deriveLines();
     onAddressChange({
@@ -213,6 +228,8 @@ export function ShopPickupAddressForm({
       country,
       latitude,
       longitude,
+      deviceLatitude: deviceCoords?.latitude,
+      deviceLongitude: deviceCoords?.longitude,
       locationSource,
       accuracyMeters,
       formattedAddress,
@@ -234,6 +251,7 @@ export function ShopPickupAddressForm({
     country,
     latitude,
     longitude,
+    deviceCoords,
     locationSource,
     accuracyMeters,
     directionsForRider,
@@ -265,21 +283,24 @@ export function ShopPickupAddressForm({
 
       if (!res.ok) return;
       const data = await res.json();
-      // Discard stale response if newer pin movement was triggered
       if (reqId !== activeGeocodeReqId.current) return;
 
       const loc = data?.resolvedLocation;
       if (loc) {
-        // Crucial: preserve manual doorNo and buildingName if geocoder didn't return them
+        // Preserve manual doorNo and buildingName if geocoder didn't return them
         setDoorNo((prev) => loc.doorNo || prev);
         setBuildingName((prev) => loc.buildingName || prev);
 
-        // ONLY set street if an actual route/street exists - NEVER fallback to locality or area!
+        // ONLY set street if an actual route exists - NEVER fallback to locality!
         if (loc.street) setStreet(loc.street);
 
         if (loc.cross) setCross(loc.cross);
         if (loc.area) setArea(loc.area);
         else if (loc.serviceArea) setArea(loc.serviceArea);
+
+        if (loc.candidateAreas && Array.isArray(loc.candidateAreas) && loc.candidateAreas.length > 0) {
+          setCandidateAreas(loc.candidateAreas);
+        }
 
         if (loc.landmark) setLandmark((prev) => prev || loc.landmark);
         if (loc.city) setCity(loc.city);
@@ -292,7 +313,7 @@ export function ShopPickupAddressForm({
     }
   };
 
-  // 1. "Use Current Location" (High-accuracy GPS)
+  // 1. "Use Current Location" (Progressive Fresh High-Accuracy GPS)
   const handleUseCurrentLocation = () => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
       showToast('Geolocation is not supported by your browser. Please search or enter address manually.', 'error');
@@ -302,49 +323,102 @@ export function ShopPickupAddressForm({
     setIsLocating(true);
     setGpsWarning(null);
 
-    const reqId = ++activeGeocodeReqId.current;
+    // Cancel any running watch
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    if (watchTimeoutRef.current) {
+      clearTimeout(watchTimeoutRef.current);
+    }
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        setIsLocating(false);
-        const lat = Number(pos.coords.latitude.toFixed(6));
-        const lng = Number(pos.coords.longitude.toFixed(6));
-        const accuracy = Math.round(pos.coords.accuracy || 0);
+    let bestAcc = Infinity;
 
+    const processPosition = (pos: GeolocationPosition) => {
+      const lat = Number(pos.coords.latitude.toFixed(6));
+      const lng = Number(pos.coords.longitude.toFixed(6));
+      const acc = Math.round(pos.coords.accuracy || 0);
+
+      setDeviceCoords({ latitude: lat, longitude: lng });
+
+      if (acc < bestAcc || !latitude) {
+        bestAcc = acc;
         setLatitude(lat);
         setLongitude(lng);
-        setAccuracyMeters(accuracy);
+        setAccuracyMeters(acc);
 
-        if (accuracy > 30) {
-          setLocationSource('GPS_APPROXIMATE');
-          setGpsWarning(
-            `GPS fix is approximate (±${accuracy}m). Satellites have placed your pin within ${accuracy} metres. Please drag the pin directly over your shop entrance.`
-          );
-        } else {
+        // 4 Display Categories (0-5m High, 5-15m Good, 15-30m Approx, >30m Poor)
+        if (acc <= 5) {
           setLocationSource('GPS_DETECTED');
           setGpsWarning(null);
+        } else if (acc <= 15) {
+          setLocationSource('GPS_DETECTED');
+          setGpsWarning(null);
+        } else if (acc <= 30) {
+          setLocationSource('GPS_APPROXIMATE');
+          setGpsWarning(`GPS fix is approximate (±${acc}m). Satellites have placed your pin within ${acc}m.`);
+        } else {
+          setLocationSource('GPS_APPROXIMATE');
+          setGpsWarning(
+            `GPS accuracy is poor (±${acc}m). Satellites placed your device within ${acc}m. Please drag the green entrance pin directly over your storefront.`
+          );
         }
 
+        const reqId = ++activeGeocodeReqId.current;
         reverseGeocode(lat, lng, reqId);
-        showToast(
-          accuracy > 30
-            ? `Approximate GPS fix (±${accuracy}m). Please adjust pin to entrance.`
-            : 'High-accuracy GPS position captured.',
-          accuracy > 30 ? 'info' : 'success'
-        );
-      },
-      (err) => {
+      }
+
+      // If we achieved good accuracy (<= 15m), stop watching
+      if (acc <= 15 && watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
         setIsLocating(false);
-        let msg = 'Failed to retrieve GPS location.';
-        if (err.code === err.PERMISSION_DENIED) {
-          msg = 'Location permission was denied. Please allow location access or search your address.';
-        } else if (err.code === err.POSITION_UNAVAILABLE) {
-          msg = 'GPS signal is currently unavailable on this device. Please search your address.';
-        } else if (err.code === err.TIMEOUT) {
-          msg = 'Location request timed out. Please retry or search your address.';
+        if (watchTimeoutRef.current) clearTimeout(watchTimeoutRef.current);
+        showToast(`High-accuracy GPS fix acquired (±${acc}m).`, 'success');
+      }
+    };
+
+    const handleGpsError = (err: GeolocationPositionError) => {
+      setIsLocating(false);
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      let msg = 'Failed to retrieve GPS location.';
+      if (err.code === err.PERMISSION_DENIED) {
+        msg = 'Location permission was denied. Please allow location access or search your address.';
+      } else if (err.code === err.POSITION_UNAVAILABLE) {
+        msg = 'GPS signal unavailable on this device. Please search your address.';
+      } else if (err.code === err.TIMEOUT) {
+        msg = 'Location request timed out. Please retry or search your address.';
+      }
+      showToast(msg, 'error');
+    };
+
+    // Fresh fix request with enableHighAccuracy: true, maximumAge: 0
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        processPosition(pos);
+        // If initial fix was poor (> 30m), watch for tighter satellite fix for up to 12s
+        if (pos.coords.accuracy > 30) {
+          watchIdRef.current = navigator.geolocation.watchPosition(processPosition, () => {}, {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+          });
+
+          watchTimeoutRef.current = setTimeout(() => {
+            if (watchIdRef.current !== null) {
+              navigator.geolocation.clearWatch(watchIdRef.current);
+              watchIdRef.current = null;
+            }
+            setIsLocating(false);
+          }, 12000);
+        } else {
+          setIsLocating(false);
+          showToast(`GPS position captured (±${Math.round(pos.coords.accuracy)}m).`, 'success');
         }
-        showToast(msg, 'error');
       },
+      handleGpsError,
       {
         enableHighAccuracy: true,
         timeout: 15000,
@@ -424,7 +498,7 @@ export function ShopPickupAddressForm({
     }
   };
 
-  // When user selects a suggestion: never auto-select first; user explicitly clicks
+  // When user clicks a suggestion
   const handleSelectSearchResult = (result: any) => {
     setShowSearchResults(false);
     setSearchQuery(result.formattedAddress || result.mainText || '');
@@ -520,12 +594,12 @@ export function ShopPickupAddressForm({
       if (result.state) onStateChange(result.state);
       if (result.postalCode) setPostalCode(result.postalCode);
 
+      showToast('Address selected. Please fine-tune pin entrance if necessary.', 'info');
       reverseGeocode(lat, lng, reqId);
-      showToast('Address selected. Review and adjust pin if needed.', 'success');
     }
   };
 
-  // 3. Pin Drag & Map Click Repositioning
+  // 3. User moved pin on map
   const handleMapPinSelected = (lat: number, lng: number) => {
     setLatitude(lat);
     setLongitude(lng);
@@ -534,497 +608,449 @@ export function ShopPickupAddressForm({
     setGpsWarning(null);
 
     const reqId = ++activeGeocodeReqId.current;
-
-    // Debounce reverse geocode after pin movement stops (400ms)
-    if (reverseGeocodeDebounceRef.current) clearTimeout(reverseGeocodeDebounceRef.current);
-    reverseGeocodeDebounceRef.current = setTimeout(() => {
-      reverseGeocode(lat, lng, reqId);
-    }, 400);
+    reverseGeocode(lat, lng, reqId);
   };
 
-  // 4. Confirm Location Button (Transitions to Step 2)
+  // 4. Confirm Location Handler
   const handleConfirmLocation = () => {
     if (!latitude || !longitude) {
-      showToast('Please select a location on the map or use GPS first.', 'info');
+      showToast('Please set your shop entrance on the map or use GPS before confirming.', 'error');
       return;
     }
-    setCurrentStep('ADDRESS_CONFIRM');
-    showToast('Location pin confirmed! Please complete your shop address details.', 'success');
+    if (!doorNo.trim()) {
+      showToast('Please enter your Shop / Door / Building Number.', 'error');
+      return;
+    }
+    if (!street.trim()) {
+      showToast('Please enter your Street / Road Name.', 'error');
+      return;
+    }
+    if (!area.trim()) {
+      showToast('Please enter your Area / Locality.', 'error');
+      return;
+    }
+    if (!postalCode.trim() || postalCode.trim().length !== 6) {
+      showToast('Please enter a valid 6-digit Indian PIN code.', 'error');
+      return;
+    }
+
+    setIsConfirmed(true);
+    const { addressLine1, addressLine2, formattedAddress } = deriveLines();
+    onAddressChange({
+      doorNo,
+      buildingName,
+      street,
+      cross,
+      area,
+      landmark,
+      city: city || selectedDistrict,
+      district: selectedDistrict || city,
+      state: selectedState,
+      postalCode,
+      country,
+      latitude,
+      longitude,
+      deviceLatitude: deviceCoords?.latitude,
+      deviceLongitude: deviceCoords?.longitude,
+      locationSource,
+      accuracyMeters,
+      formattedAddress,
+      addressLine1,
+      addressLine2,
+      directionsForRider,
+      confirmedAt: new Date().toISOString(),
+    });
+    showToast('Shop location & entrance confirmed successfully!', 'success');
   };
+
+  const { addressLine1, addressLine2, formattedAddress } = deriveLines();
 
   return (
     <div className="space-y-4">
       {/* ─────────────────────────────────────────────────────────────
-          STEP 1: ZOMATO / ZEPTO / RAPIDO LOCATION PICKER SCREEN
+          SECTION A: RAPIDO-STYLE SEARCH & GPS CONTROLS
           ───────────────────────────────────────────────────────────── */}
-      {currentStep === 'MAP_SELECT' && (
-        <div className="rounded-2xl border border-white/10 bg-zinc-950/90 shadow-2xl overflow-hidden p-4 sm:p-5 space-y-4">
-          {/* Top Bar: Search + Use Current Location */}
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-emerald-400" />
-                <h3 className="text-sm font-bold text-white tracking-wide">Select Shop Location</h3>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="text-white/60 hover:text-white hover:bg-white/5 gap-1.5 h-8 text-xs cursor-pointer"
-                onClick={() => {
-                  setLocationSource('MANUALLY_ENTERED');
-                  setCurrentStep('ADDRESS_CONFIRM');
-                  showToast('Manual entry mode active. You can fill or edit every field.', 'info');
-                }}
-              >
-                <Edit3 className="h-3.5 w-3.5 text-amber-400" />
-                <span>Enter Manually</span>
-              </Button>
-            </div>
-
-            {/* Places Autocomplete Search Bar */}
-            <div className="relative">
-              <div className="relative">
-                <Search className="absolute left-3.5 top-3 h-4 w-4 text-white/40 pointer-events-none" />
-                <Input
-                  placeholder="Search for area, street name, or building..."
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="pl-10 pr-9 h-10 text-xs sm:text-sm bg-zinc-900/90 border-white/15 focus:border-emerald-500/50"
-                  disabled={disabled}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setSearchResults([]);
-                      setShowSearchResults(false);
-                    }}
-                    className="absolute right-3 top-3 text-white/40 hover:text-white"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Suggestions Dropdown */}
-              {showSearchResults && (
-                <div className="absolute z-30 mt-1.5 w-full rounded-xl border border-white/15 bg-zinc-900/98 shadow-2xl backdrop-blur-xl overflow-hidden max-h-60 overflow-y-auto">
-                  {isSearching ? (
-                    <div className="p-3.5 text-center text-xs text-white/50 flex items-center justify-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
-                      <span>Searching Google Places...</span>
-                    </div>
-                  ) : searchResults.length === 0 ? (
-                    <div className="p-3.5 text-center text-xs text-white/40">No matching places found. Try another search.</div>
-                  ) : (
-                    searchResults.map((res, i) => (
-                      <button
-                        key={res.placeId || i}
-                        type="button"
-                        onClick={() => handleSelectSearchResult(res)}
-                        className="w-full text-left p-3 text-xs text-white/90 hover:bg-white/10 hover:text-white border-b border-white/5 last:border-0 flex items-start gap-3 transition-colors cursor-pointer"
-                      >
-                        <MapPin className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-semibold text-white">{res.mainText}</p>
-                          <p className="text-[11px] text-white/50 line-clamp-1 mt-0.5">{res.secondaryText || res.formattedAddress}</p>
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Quick Action: Use Current Location Button */}
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="w-full h-9 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30 gap-2 text-xs font-semibold cursor-pointer shadow-sm"
-                onClick={handleUseCurrentLocation}
-                disabled={isLocating || disabled}
-              >
-                {isLocating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Detecting GPS Location...</span>
-                  </>
-                ) : (
-                  <>
-                    <Crosshair className="h-4 w-4 text-emerald-400" />
-                    <span>Use Current Location</span>
-                  </>
-                )}
-              </Button>
-            </div>
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div>
+            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-emerald-400" />
+              <span>Shop Pickup Location &amp; Entrance</span>
+            </h4>
+            <p className="text-[11px] text-white/50">
+              Pinpoint your exact shop storefront entrance for delivery rider dispatch.
+            </p>
           </div>
 
-          {/* GPS Accuracy Warning Banner */}
-          {gpsWarning && (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200 text-xs flex items-start gap-2.5">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
-              <div className="space-y-0.5">
-                <p className="font-semibold text-amber-100">GPS Accuracy Warning</p>
-                <p className="text-amber-200/80 leading-relaxed text-[11px]">{gpsWarning}</p>
-              </div>
+          {/* Use Current Location Action Button */}
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleUseCurrentLocation}
+            disabled={disabled || isLocating}
+            className="h-9 px-3.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-semibold text-xs gap-2 shrink-0 cursor-pointer transition-all shadow-lg"
+          >
+            {isLocating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+                <span>Acquiring GPS Fix...</span>
+              </>
+            ) : (
+              <>
+                <Crosshair className="h-4 w-4 text-emerald-400" />
+                <span>Use Current Location</span>
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Live Search Bar with Autocomplete */}
+        <div className="relative">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 pointer-events-none" />
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Search by main road, street, building, landmark, or neighbourhood (e.g. Vivekananda Nagar)..."
+              className="pl-10 pr-9 h-10 text-xs bg-zinc-950/90 border-white/15 focus:border-emerald-500/60 rounded-xl"
+              disabled={disabled}
+            />
+            {isSearching && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-white/40" />
+            )}
+            {searchQuery && !isSearching && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchResults([]);
+                  setShowSearchResults(false);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-0.5 cursor-pointer"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Autocomplete Suggestions Dropdown */}
+          {showSearchResults && searchResults.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1.5 z-30 rounded-xl border border-white/15 bg-zinc-950 shadow-2xl overflow-hidden backdrop-blur-xl max-h-60 overflow-y-auto divide-y divide-white/5">
+              {searchResults.map((item, idx) => (
+                <button
+                  key={item.placeId || idx}
+                  type="button"
+                  onClick={() => handleSelectSearchResult(item)}
+                  className="w-full text-left px-3.5 py-2.5 hover:bg-emerald-500/10 flex items-start gap-2.5 transition-colors cursor-pointer"
+                >
+                  <MapPin className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-white truncate">{item.mainText || item.formattedAddress}</p>
+                    {item.secondaryText && (
+                      <p className="text-[11px] text-white/50 truncate mt-0.5">{item.secondaryText}</p>
+                    )}
+                  </div>
+                </button>
+              ))}
             </div>
           )}
+        </div>
+      </div>
 
-          {/* Interactive Map with Draggable Pin */}
-          <ShopInteractiveMap
-            latitude={latitude}
-            longitude={longitude}
-            onLocationSelect={handleMapPinSelected}
-            accuracyMeters={accuracyMeters}
-            locationSource={locationSource}
-            disabled={disabled}
-            onUseCurrentLocation={handleUseCurrentLocation}
-            isLocating={isLocating}
-          />
-
-          {/* Bottom Card: Detected Location & Confirm Button */}
-          <div className="rounded-xl border border-white/10 bg-zinc-900/90 p-3.5 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-bold text-white uppercase tracking-wider">
-                    {area || street || city || 'Selected Spot'}
-                  </p>
-                  {locationSource === 'GPS_DETECTED' && (
-                    <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/40 bg-emerald-500/10">
-                      GPS Fix (±{accuracyMeters || 10}m)
-                    </Badge>
-                  )}
-                  {locationSource === 'GPS_APPROXIMATE' && (
-                    <Badge variant="outline" className="text-[10px] text-amber-300 border-amber-500/40 bg-amber-500/10">
-                      Approx GPS (±{accuracyMeters || 95}m)
-                    </Badge>
-                  )}
-                  {locationSource === 'MAP_PIN_SELECTED' && (
-                    <Badge variant="outline" className="text-[10px] text-blue-300 border-blue-500/40 bg-blue-500/10">
-                      Pin Positioned
-                    </Badge>
-                  )}
-                  {locationSource === 'ADDRESS_SEARCHED' && (
-                    <Badge variant="outline" className="text-[10px] text-purple-300 border-purple-500/40 bg-purple-500/10">
-                      Places Search
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-white/60 line-clamp-1">
-                  {[street, area, city, selectedState].filter(Boolean).join(', ') || 'Drag the pin to place your shop entrance'}
-                </p>
-                {latitude && longitude && (
-                  <p className="text-[10px] text-white/40 font-mono">
-                    Coordinates: {latitude.toFixed(6)}, {longitude.toFixed(6)}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Confirm Location Primary Button */}
-            <Button
-              type="button"
-              className="w-full h-10 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs sm:text-sm gap-2 cursor-pointer shadow-lg shadow-emerald-500/20"
-              onClick={handleConfirmLocation}
-              disabled={disabled || !latitude || !longitude}
-            >
-              <span>Confirm this Location &amp; Enter Address</span>
-              <ArrowRight className="h-4 w-4" />
-            </Button>
+      {/* GPS Accuracy Warning Banner */}
+      {gpsWarning && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200 text-xs flex items-start gap-2.5">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+          <div className="space-y-0.5">
+            <p className="font-semibold text-amber-100">GPS Accuracy Notice</p>
+            <p className="text-amber-200/80 leading-relaxed text-[11px]">{gpsWarning}</p>
           </div>
         </div>
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          STEP 2: SEPARATE STRUCTURED ADDRESS CONFIRMATION SCREEN
+          SECTION B: INTERACTIVE MAP WITH ENTRANCE PIN & GPS DOT
           ───────────────────────────────────────────────────────────── */}
-      {currentStep === 'ADDRESS_CONFIRM' && (
-        <div className="rounded-2xl border border-white/10 bg-zinc-950/90 shadow-2xl p-4 sm:p-6 space-y-5 animate-fade-in">
-          {/* Confirmed Pin Header Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/10">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-                <MapPin className="h-4 w-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-white">Confirmed Storefront Pin</h3>
-                  <Badge variant="outline" className="text-[10px] text-emerald-300 border-emerald-500/40 bg-emerald-500/10">
-                    {locationSource === 'MAP_PIN_SELECTED' ? 'Entrance Pin Set' : locationSource === 'GPS_DETECTED' ? 'GPS Confirmed' : 'Location Set'}
-                  </Badge>
-                </div>
-                {latitude && longitude ? (
-                  <p className="text-[11px] text-white/50 font-mono">
-                    GPS: {latitude.toFixed(6)}, {longitude.toFixed(6)} {accuracyMeters ? `(±${accuracyMeters}m)` : ''}
-                  </p>
-                ) : (
-                  <p className="text-[11px] text-amber-300">Manual address entry (no map pin selected)</p>
-                )}
-              </div>
-            </div>
+      <ShopInteractiveMap
+        latitude={latitude}
+        longitude={longitude}
+        deviceLatitude={deviceCoords?.latitude ?? null}
+        deviceLongitude={deviceCoords?.longitude ?? null}
+        onLocationSelect={handleMapPinSelected}
+        accuracyMeters={accuracyMeters}
+        locationSource={locationSource}
+        disabled={disabled}
+        onUseCurrentLocation={handleUseCurrentLocation}
+        isLocating={isLocating}
+      />
 
-            <Button
+      {/* Suggested Areas / Neighbourhoods Quick-Select Chips (Vivekananda Nagar Disambiguation) */}
+      {candidateAreas.length > 0 && (
+        <div className="p-3 rounded-xl bg-zinc-950/70 border border-white/10 flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-semibold text-white/60 flex items-center gap-1">
+            <Sparkles className="h-3 w-3 text-emerald-400" />
+            <span>Select exact neighbourhood:</span>
+          </span>
+          {candidateAreas.map((cand) => (
+            <button
+              key={cand}
               type="button"
-              size="sm"
-              variant="outline"
-              className="h-8 px-3 border-white/20 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white text-xs gap-1.5 cursor-pointer"
-              onClick={() => setCurrentStep('MAP_SELECT')}
-              disabled={disabled}
+              onClick={() => {
+                setArea(cand);
+                showToast(`Area updated to "${cand}".`, 'success');
+              }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                area.toLowerCase() === cand.toLowerCase()
+                  ? 'bg-emerald-500 text-black border-emerald-400 font-bold'
+                  : 'bg-white/5 hover:bg-white/10 border-white/15 text-white/90'
+              }`}
             >
-              <ArrowLeft className="h-3.5 w-3.5 text-blue-400" />
-              <span>Change Pin on Map</span>
-            </Button>
-          </div>
-
-          {/* Missing Door Number Alert */}
-          {!doorNo.trim() && (
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-amber-200 text-xs flex items-start gap-2.5">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
-              <div className="space-y-0.5">
-                <p className="font-semibold text-amber-100">Shop / Door / House Number Required</p>
-                <p className="text-amber-200/80 leading-relaxed text-[11px]">
-                  GPS and reverse-geocoding have identified your street and locality, but satellites cannot detect your internal shop or door number. Please enter your Shop / Door / Floor number below so delivery riders can reach your exact counter.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Required Fields Group */}
-          <div className="space-y-4">
-            <h4 className="text-xs font-bold text-white/70 uppercase tracking-wider">
-              Required Address Details
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-semibold text-white/80">
-                  Shop / Door / Building Number <span className="text-rose-400">*</span>
-                </label>
-                <Input
-                  placeholder="e.g. Shop #4, Ground Floor"
-                  value={doorNo}
-                  onChange={(e) => setDoorNo(e.target.value)}
-                  className="h-9 text-xs"
-                  disabled={disabled}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-semibold text-white/80">
-                  Building / Complex Name (Optional)
-                </label>
-                <Input
-                  placeholder="e.g. Phoenix Commercial Hub"
-                  value={buildingName}
-                  onChange={(e) => setBuildingName(e.target.value)}
-                  className="h-9 text-xs"
-                  disabled={disabled}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-semibold text-white/80">
-                  Street / Road Name <span className="text-rose-400">*</span>
-                </label>
-                <Input
-                  placeholder="e.g. 5th Main Road, Double Road"
-                  value={street}
-                  onChange={(e) => setStreet(e.target.value)}
-                  className="h-9 text-xs"
-                  disabled={disabled}
-                  required
-                />
-                <span className="text-[10px] text-white/40">Strictly road or street name. Never locality or area.</span>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-semibold text-white/80">
-                  Cross Road (Optional)
-                </label>
-                <Input
-                  placeholder="e.g. Near 2nd Cross Junction"
-                  value={cross}
-                  onChange={(e) => setCross(e.target.value)}
-                  className="h-9 text-xs"
-                  disabled={disabled}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-semibold text-white/80">
-                  Area / Locality <span className="text-rose-400">*</span>
-                </label>
-                <Input
-                  placeholder="e.g. Saraswathipuram / Indiranagar"
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  className="h-9 text-xs"
-                  disabled={disabled}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-semibold text-white/80">
-                  Landmark (Optional)
-                </label>
-                <Input
-                  placeholder="e.g. Opposite Post Office / Near HDFC Bank"
-                  value={landmark}
-                  onChange={(e) => setLandmark(e.target.value)}
-                  className="h-9 text-xs"
-                  disabled={disabled}
-                />
-              </div>
-            </div>
-
-            {/* City / District / State / PIN Code */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-semibold text-white/80">
-                  City / Town <span className="text-rose-400">*</span>
-                </label>
-                <Input
-                  placeholder="e.g. Mysuru"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="h-9 text-xs"
-                  disabled={disabled}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-semibold text-white/80">
-                  District <span className="text-rose-400">*</span>
-                </label>
-                {isLoadingDistricts ? (
-                  <div className="h-9 rounded-xl bg-white/5 animate-pulse" />
-                ) : districts && districts.length > 0 ? (
-                  <select
-                    value={selectedDistrict}
-                    onChange={(e) => onDistrictChange(e.target.value)}
-                    disabled={disabled}
-                    className="flex h-9 w-full rounded-xl px-2.5 py-1.5 text-xs outline-none bg-zinc-900 border border-white/10 text-white focus:border-emerald-500/50"
-                  >
-                    <option value="" className="bg-zinc-950 text-white/50">Select District</option>
-                    {districts.map((d) => (
-                      <option key={d.name} value={d.name} className="bg-zinc-950 text-white">
-                        {d.name} {!d.isEnabled ? '(Coming Soon)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <Input
-                    placeholder="e.g. Mysuru District"
-                    value={selectedDistrict}
-                    onChange={(e) => onDistrictChange(e.target.value)}
-                    className="h-9 text-xs"
-                    disabled={disabled}
-                    required
-                  />
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-semibold text-white/80">
-                  State <span className="text-rose-400">*</span>
-                </label>
-                {isLoadingConfig ? (
-                  <div className="h-9 rounded-xl bg-white/5 animate-pulse" />
-                ) : (
-                  <select
-                    value={selectedState}
-                    onChange={(e) => onStateChange(e.target.value)}
-                    disabled={disabled}
-                    className="flex h-9 w-full rounded-xl px-2.5 py-1.5 text-xs outline-none bg-zinc-900 border border-white/10 text-white focus:border-emerald-500/50"
-                  >
-                    <option value="" className="bg-zinc-950 text-white/50">Select State</option>
-                    {allStates.map((st) => (
-                      <option key={st.name} value={st.name} className="bg-zinc-950 text-white">
-                        {st.name} {!st.isEnabled ? '(Coming Soon)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-semibold text-white/80">
-                  PIN Code (6 Digits) <span className="text-rose-400">*</span>
-                </label>
-                <Input
-                  placeholder="e.g. 570001"
-                  value={postalCode}
-                  onChange={(e) => handlePostalChange(e.target.value)}
-                  maxLength={6}
-                  className="h-9 text-xs"
-                  disabled={disabled}
-                  required
-                />
-                {pinCodeError && <p className="text-[10px] text-rose-400 mt-0.5">{pinCodeError}</p>}
-              </div>
-            </div>
-
-            {/* Additional Directions for the Rider */}
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-semibold text-white/80">
-                Additional Directions for Delivery Rider (Optional)
-              </label>
-              <textarea
-                placeholder="e.g. Entrance on side lane, 1st floor above medical store, ring doorbell #4"
-                rows={2}
-                value={directionsForRider}
-                onChange={(e) => setDirectionsForRider(e.target.value)}
-                className="flex w-full rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/30 outline-none resize-none bg-zinc-900/90 border border-white/10 focus:border-emerald-500/50"
-                disabled={disabled}
-              />
-            </div>
-          </div>
-
-          {/* Formatted Address Preview Card */}
-          <div className="rounded-xl border border-white/10 bg-zinc-900/60 p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              <h5 className="text-xs font-bold text-white uppercase tracking-wider">
-                Rider Dispatch Address Preview
-              </h5>
-            </div>
-            <p className="text-xs text-white/80 leading-relaxed font-sans whitespace-pre-line">
-              {[
-                [doorNo, buildingName].filter(Boolean).join(', '),
-                [street, cross].filter(Boolean).join(', '),
-                [area, landmark].filter(Boolean).join(', '),
-                [city, selectedDistrict].filter(Boolean).join(', '),
-                [selectedState, postalCode].filter(Boolean).join(' - '),
-                country || 'India',
-              ]
-                .filter((part) => part.trim().length > 0)
-                .join('\n')}
-            </p>
-            {directionsForRider && (
-              <p className="text-[11px] text-emerald-300/80 italic mt-1">
-                Directions: {directionsForRider}
-              </p>
-            )}
-            {latitude && longitude && (
-              <p className="text-[10px] text-white/40 font-mono mt-1 pt-1 border-t border-white/5">
-                Exact Coordinates: {latitude.toFixed(6)}, {longitude.toFixed(6)}
-              </p>
-            )}
-          </div>
+              {cand}
+            </button>
+          ))}
         </div>
       )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          SECTION C: MANDATORY ALWAYS-VISIBLE EDIT ADDRESS FORM
+          ───────────────────────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-white/10 bg-zinc-950/90 shadow-2xl p-4 sm:p-5 space-y-4">
+        <div className="flex items-center justify-between pb-2 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <Edit3 className="h-4 w-4 text-emerald-400" />
+            <h5 className="text-xs font-bold text-white uppercase tracking-wider">
+              Shop Address &amp; Dispatch Details
+            </h5>
+          </div>
+          {latitude && longitude && (
+            <div className="text-[10px] text-white/40 font-mono">
+              Pin: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+            </div>
+          )}
+        </div>
+
+        {/* Required Address Details */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-semibold text-white/80">
+              Shop / Door / Building Number <span className="text-rose-400">*</span>
+            </label>
+            <Input
+              placeholder="e.g. Shop #4, Ground Floor"
+              value={doorNo}
+              onChange={(e) => setDoorNo(e.target.value)}
+              className="h-9 text-xs"
+              disabled={disabled}
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-semibold text-white/80">
+              Building / Complex Name (Optional)
+            </label>
+            <Input
+              placeholder="e.g. Sri Krishna Commercial Hub"
+              value={buildingName}
+              onChange={(e) => setBuildingName(e.target.value)}
+              className="h-9 text-xs"
+              disabled={disabled}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-semibold text-white/80">
+              Street / Road Name <span className="text-rose-400">*</span>
+            </label>
+            <Input
+              placeholder="e.g. Vishwashanti Road / 3rd Main Road"
+              value={street}
+              onChange={(e) => setStreet(e.target.value)}
+              className="h-9 text-xs"
+              disabled={disabled}
+              required
+            />
+            <span className="text-[10px] text-white/40">Strictly road or street name. Never locality or area.</span>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-semibold text-white/80">
+              Cross Road (Optional)
+            </label>
+            <Input
+              placeholder="e.g. 2nd Cross / Near Circle"
+              value={cross}
+              onChange={(e) => setCross(e.target.value)}
+              className="h-9 text-xs"
+              disabled={disabled}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-semibold text-white/80">
+              Area / Locality <span className="text-rose-400">*</span>
+            </label>
+            <Input
+              placeholder="e.g. Vivekananda Nagar"
+              value={area}
+              onChange={(e) => setArea(e.target.value)}
+              className="h-9 text-xs"
+              disabled={disabled}
+              required
+            />
+            <span className="text-[10px] text-white/40">Fully editable. Correct any inaccurate neighbourhood here.</span>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-semibold text-white/80">
+              Landmark (Optional)
+            </label>
+            <Input
+              placeholder="e.g. Near Vivekananda Circle / Opp Bank"
+              value={landmark}
+              onChange={(e) => setLandmark(e.target.value)}
+              className="h-9 text-xs"
+              disabled={disabled}
+            />
+          </div>
+        </div>
+
+        {/* City / District / State / PIN Code */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-semibold text-white/80">
+              City / Town <span className="text-rose-400">*</span>
+            </label>
+            <Input
+              placeholder="e.g. Mysuru"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className="h-9 text-xs"
+              disabled={disabled}
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-semibold text-white/80">
+              District <span className="text-rose-400">*</span>
+            </label>
+            {districts.length > 0 ? (
+              <select
+                value={selectedDistrict}
+                onChange={(e) => onDistrictChange(e.target.value)}
+                disabled={disabled || isLoadingDistricts}
+                className="w-full h-9 rounded-xl px-2.5 text-xs bg-zinc-900 border border-white/10 text-white outline-none focus:border-emerald-500/60"
+              >
+                <option value="">Select District</option>
+                {districts.map((d: any) => (
+                  <option key={d.name} value={d.name}>
+                    {d.name} {!d.isEnabled ? '(Coming Soon)' : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                placeholder="District"
+                value={selectedDistrict}
+                onChange={(e) => onDistrictChange(e.target.value)}
+                className="h-9 text-xs"
+                disabled={disabled}
+                required={districtRequired}
+              />
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-semibold text-white/80">
+              State <span className="text-rose-400">*</span>
+            </label>
+            {allStates.length > 0 ? (
+              <select
+                value={selectedState}
+                onChange={(e) => onStateChange(e.target.value)}
+                disabled={disabled || isLoadingConfig}
+                className="w-full h-9 rounded-xl px-2.5 text-xs bg-zinc-900 border border-white/10 text-white outline-none focus:border-emerald-500/60"
+              >
+                <option value="">Select State</option>
+                {allStates.map((st: any) => (
+                  <option key={st.name} value={st.name}>
+                    {st.name} {!st.isEnabled ? '(Coming Soon)' : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                placeholder="State"
+                value={selectedState}
+                onChange={(e) => onStateChange(e.target.value)}
+                className="h-9 text-xs"
+                disabled={disabled}
+                required
+              />
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-semibold text-white/80">
+              Postal PIN Code <span className="text-rose-400">*</span>
+            </label>
+            <Input
+              placeholder="e.g. 570023"
+              value={postalCode}
+              onChange={(e) => handlePostalChange(e.target.value)}
+              maxLength={6}
+              className={`h-9 text-xs ${pinCodeError ? 'border-rose-500' : ''}`}
+              disabled={disabled}
+              required
+            />
+          </div>
+        </div>
+
+        {pinCodeError && (
+          <p className="text-[11px] text-rose-400 font-medium">{pinCodeError}</p>
+        )}
+
+        {/* Optional Delivery Rider Instructions */}
+        <div className="space-y-1.5">
+          <label className="block text-[11px] font-semibold text-white/80">
+            Instructions for Rider Pickup (Optional)
+          </label>
+          <Input
+            placeholder="e.g. Ground floor glass shop, entrance next to ATM"
+            value={directionsForRider}
+            onChange={(e) => setDirectionsForRider(e.target.value)}
+            className="h-9 text-xs"
+            disabled={disabled}
+          />
+        </div>
+
+        {/* Live Formatted Address Preview */}
+        <div className="rounded-xl border border-white/10 bg-zinc-900/80 p-3 space-y-1">
+          <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
+            Live Dispatch Address Preview
+          </span>
+          <p className="text-xs text-emerald-300 font-medium leading-relaxed">
+            {formattedAddress || 'Complete required address fields to view formatted preview'}
+          </p>
+        </div>
+
+        {/* Confirmation Button */}
+        <Button
+          type="button"
+          onClick={handleConfirmLocation}
+          disabled={disabled || !latitude || !longitude || !doorNo || !street || !area || !postalCode}
+          className="w-full h-10 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xs sm:text-sm gap-2 cursor-pointer shadow-lg shadow-emerald-500/20"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          <span>{isConfirmed ? 'Location & Address Confirmed' : 'Confirm Shop Location & Address'}</span>
+        </Button>
+      </div>
     </div>
   );
 }

@@ -46,6 +46,8 @@ export const resolveLocation = async (req: Request, res: Response) => {
         let resolvedLandmark: string | undefined = undefined;
         let resolvedPrecision: string | undefined = undefined;
         let resolvedHasMissingDoorNo: boolean | undefined = undefined;
+        let resolvedCandidateAreas: string[] = [];
+        let resolvedAddressCandidates: string[] = [];
 
         if (latitude !== undefined && longitude !== undefined && !isNaN(Number(latitude)) && !isNaN(Number(longitude))) {
             const geocodeResult = await ServiceabilityService.resolveCoordinates(
@@ -71,6 +73,8 @@ export const resolveLocation = async (req: Request, res: Response) => {
             resolvedLandmark = geocodeResult.landmark;
             resolvedPrecision = geocodeResult.precision;
             resolvedHasMissingDoorNo = geocodeResult.hasMissingDoorNo;
+            resolvedCandidateAreas = geocodeResult.candidateAreas || [];
+            resolvedAddressCandidates = geocodeResult.addressCandidates || [];
         }
 
         const serviceability = await ServiceabilityService.checkServiceability({
@@ -117,6 +121,8 @@ export const resolveLocation = async (req: Request, res: Response) => {
                 formattedAddress,
                 precision: resolvedPrecision,
                 hasMissingDoorNo: resolvedHasMissingDoorNo,
+                candidateAreas: resolvedCandidateAreas,
+                addressCandidates: resolvedAddressCandidates,
             } : null,
             serviceability
         });

@@ -104,6 +104,10 @@ export function LocationCoordinatesInput({
 
     if (!googleMapsApiKey) return;
 
+    (window as any).__googleCustomerMapsCallback = () => {
+      initMap();
+    };
+
     const scriptId = 'google-maps-customer-script';
     let script = document.getElementById(scriptId) as HTMLScriptElement;
     if (!script) {
@@ -111,13 +115,12 @@ export function LocationCoordinatesInput({
       script.id = scriptId;
       script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
         googleMapsApiKey
-      )}&libraries=places,geometry&loading=async`;
+      )}&libraries=places,geometry&callback=__googleCustomerMapsCallback`;
       script.async = true;
       script.defer = true;
-      script.onload = () => initMap();
       document.head.appendChild(script);
     } else {
-      script.addEventListener('load', () => initMap());
+      initMap();
     }
   }, [showMap, googleMapsApiKey]);
 

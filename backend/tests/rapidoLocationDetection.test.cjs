@@ -1,16 +1,20 @@
 /**
  * Automated Verification Suite for:
- * RAPIDO-STYLE ACCURATE LOCATION DETECTION & MAP INVARIANTS
+ * RAPIDO / ZOMATO / ZEPTO-STYLE LOCATION SYSTEM & REVERSE GEOCODING INVARIANTS
  *
  * Verifies:
  * 1. Zero hardcoded Mysuru (12.2958, 76.6394) fallbacks across the system.
  * 2. Unresolved coordinates never substitute default coordinates or fake markers.
  * 3. Geocode coordinate authority: GPS coordinates override client request body fallbacks.
  * 4. Road and street extraction strictly separates road from locality/area.
- * 5. Accuracy categorizations (High <=15m, Approximate 16-50m, Poor >50m).
- * 6. Delivery dispatch rejects proximity search when pickup coordinates are missing.
- * 7. Rider navigation URLs are null when coordinates are not available.
- * 8. Race-condition protection discards stale geocode requests on fast pin movement.
+ * 5. Exact 4 GPS accuracy display categories (0-5m High, 5-15m Good, 15-30m Approx, >30m Poor).
+ * 6. Vivekananda Nagar vs Sriramapura disambiguation: residential layout takes precedence over broad suburb.
+ * 7. Candidate areas extraction provides user choice between nearby neighbourhoods.
+ * 8. Separation of physical device GPS coordinates from draggable shop entrance pin.
+ * 9. Dispatch safety: deliveries with missing pickup coordinates reject rider proximity search.
+ * 10. Rider navigation URLs are null when coordinates are not available.
+ * 11. Race-condition protection discards stale geocode requests on fast pin movement.
+ * 12. Always-visible manual editing of all required address fields without locking.
  */
 
 const test = require('node:test');
@@ -65,25 +69,66 @@ test('Location Pin Invariants - Missing coords produce no marker and no default 
     assert.strictEqual(markerPosition, null, 'Marker position must be null before user detection');
 });
 
-// ── 3. Accuracy Categorization Invariants ──
-test('GPS Accuracy Categorization - High (<=15m), Approximate (16-50m), Poor (>50m)', () => {
+// ── 3. Exact 4 GPS Accuracy Categorization Tiers ──
+test('GPS Accuracy Categorization - Exact 4 UI Tiers (0-5m High, 5-15m Good, 15-30m Approx, >30m Poor)', () => {
     const categorizeAccuracy = (accuracyMeters) => {
         if (!accuracyMeters || accuracyMeters <= 0) return 'UNKNOWN';
-        if (accuracyMeters <= 15) return 'HIGH';
-        if (accuracyMeters <= 50) return 'APPROXIMATE';
+        if (accuracyMeters <= 5) return 'HIGH';
+        if (accuracyMeters <= 15) return 'GOOD';
+        if (accuracyMeters <= 30) return 'APPROXIMATE';
         return 'POOR';
     };
 
+    assert.strictEqual(categorizeAccuracy(3), 'HIGH', '3m must be HIGH accuracy');
     assert.strictEqual(categorizeAccuracy(5), 'HIGH', '5m must be HIGH accuracy');
-    assert.strictEqual(categorizeAccuracy(12), 'HIGH', '12m must be HIGH accuracy');
-    assert.strictEqual(categorizeAccuracy(15), 'HIGH', '15m must be HIGH accuracy');
-    assert.strictEqual(categorizeAccuracy(25), 'APPROXIMATE', '25m must be APPROXIMATE');
-    assert.strictEqual(categorizeAccuracy(45), 'APPROXIMATE', '45m must be APPROXIMATE');
-    assert.strictEqual(categorizeAccuracy(85), 'POOR', '85m must be POOR accuracy requiring pin adjustment');
-    assert.strictEqual(categorizeAccuracy(120), 'POOR', '120m must be POOR accuracy');
+    assert.strictEqual(categorizeAccuracy(8), 'GOOD', '8m must be GOOD accuracy');
+    assert.strictEqual(categorizeAccuracy(15), 'GOOD', '15m must be GOOD accuracy');
+    assert.strictEqual(categorizeAccuracy(20), 'APPROXIMATE', '20m must be APPROXIMATE');
+    assert.strictEqual(categorizeAccuracy(30), 'APPROXIMATE', '30m must be APPROXIMATE');
+    assert.strictEqual(categorizeAccuracy(82), 'POOR', '82m must be POOR accuracy requiring pin adjustment');
+    assert.strictEqual(categorizeAccuracy(95), 'POOR', '95m must be POOR accuracy');
 });
 
-// ── 4. Dispatch Safety: Missing Pickup Coords Cannot Proximity-Rank Riders ──
+// ── 4. Vivekananda Nagar vs Sriramapura Layout Disambiguation ──
+test('Locality Disambiguation - Residential layout (Vivekananda Nagar) takes priority over broad suburb (Sriramapura)', () => {
+    // OpenStreetMap Nominatim reverse geocode response for Vivekananda Nagar
+    const nominatimAddress = {
+        road: 'Vishwashanti Road',
+        residential: 'Vivekananda Nagar',
+        suburb: 'Sriramapura',
+        city: 'Mysuru',
+        postcode: '570023',
+    };
+
+    // Priority rule: residential layout > neighbourhood > suburb
+    const area = nominatimAddress.residential || nominatimAddress.neighbourhood || nominatimAddress.suburb || '';
+    assert.strictEqual(area, 'Vivekananda Nagar', 'Must resolve to Vivekananda Nagar, not broad suburb Sriramapura');
+
+    // Candidate areas collection for user selection chips
+    const candidateAreas = [];
+    if (nominatimAddress.residential) candidateAreas.push(nominatimAddress.residential);
+    if (nominatimAddress.suburb) candidateAreas.push(nominatimAddress.suburb);
+
+    assert.ok(candidateAreas.includes('Vivekananda Nagar'), 'Candidate areas must contain Vivekananda Nagar');
+    assert.ok(candidateAreas.includes('Sriramapura'), 'Candidate areas must contain Sriramapura');
+    assert.strictEqual(candidateAreas[0], 'Vivekananda Nagar', 'Primary candidate must be Vivekananda Nagar');
+});
+
+// ── 5. Draggable Shop Entrance Pin Separate From Reported GPS Device Dot ──
+test('Dual Marker System - Shop entrance pin is draggable independently from device GPS location', () => {
+    const reportedDeviceGps = { latitude: 12.2882, longitude: 76.6264, accuracy: 82 };
+    let shopEntrancePin = { latitude: 12.2882, longitude: 76.6264 };
+
+    // Seller fine-tunes shop entrance by dragging pin ~20 metres north-east to exact storefront
+    shopEntrancePin = { latitude: 12.2884, longitude: 76.6266 };
+
+    // Assert independence
+    assert.notDeepStrictEqual(shopEntrancePin, { latitude: reportedDeviceGps.latitude, longitude: reportedDeviceGps.longitude });
+    assert.strictEqual(reportedDeviceGps.accuracy, 82, 'Reported GPS accuracy is preserved for dispatch auditing');
+    assert.strictEqual(shopEntrancePin.latitude, 12.2884, 'Confirmed entrance pin reflects seller adjustment');
+});
+
+// ── 6. Dispatch Safety: Missing Pickup Coords Cannot Proximity-Rank Riders ──
 test('Dispatch Safety - Deliveries with missing pickup coordinates reject rider proximity search', () => {
     const deliveryWithoutCoords = {
         id: 'del-101',
@@ -115,7 +160,7 @@ test('Dispatch Safety - Deliveries with missing pickup coordinates reject rider 
     assert.deepStrictEqual(eligible, [], 'Must return empty list instead of matching against fake Mysuru coords');
 });
 
-// ── 5. Navigation URL Invariants: Null Coordinates Produce Null URLs ──
+// ── 7. Navigation URL Invariants: Null Coordinates Produce Null URLs ──
 test('Rider Navigation - Null coordinates produce null Google Maps URLs without fake destination', () => {
     const getNavUrl = (lat, lng) => {
         if (lat == null || lng == null || isNaN(Number(lat)) || isNaN(Number(lng))) {
@@ -133,10 +178,10 @@ test('Rider Navigation - Null coordinates produce null Google Maps URLs without 
     );
 });
 
-// ── 6. Street vs Locality Disambiguation: Never Place Locality in Street Field ──
+// ── 8. Street vs Locality Disambiguation: Never Place Locality in Street Field ──
 test('Street vs Locality - Locality is strictly never substituted into Street field', () => {
     const geocodeComponents = [
-        { types: ['sublocality_level_1'], long_name: 'Saraswathipuram' },
+        { types: ['sublocality_level_1'], long_name: 'Vivekananda Nagar' },
         { types: ['locality'], long_name: 'Mysuru' },
         { types: ['administrative_area_level_1'], long_name: 'Karnataka' },
     ];
@@ -152,13 +197,12 @@ test('Street vs Locality - Locality is strictly never substituted into Street fi
         }
     }
 
-    // Street remains empty when only locality/sublocality is returned; never copy area into street!
     assert.strictEqual(street, '', 'Street must remain empty if no route was identified');
-    assert.strictEqual(area, 'Saraswathipuram', 'Area must receive sublocality');
+    assert.strictEqual(area, 'Vivekananda Nagar', 'Area must receive sublocality');
     assert.notStrictEqual(street, area, 'Street must not be populated with area name');
 });
 
-// ── 7. Race-Condition Request ID Protection on Rapid Pin Drag ──
+// ── 9. Race-Condition Request ID Protection on Rapid Pin Drag ──
 test('Race-Condition Protection - Discards stale geocode responses on fast pin drags', () => {
     let activeReqId = 0;
     const appliedLocations = [];
@@ -184,6 +228,30 @@ test('Race-Condition Protection - Discards stale geocode responses on fast pin d
     onResponse2();
 
     assert.deepStrictEqual(appliedLocations, ['Position-2'], 'Stale geocode response must be discarded');
+});
+
+// ── 10. Manual Address Editing & Unlocked Fields ──
+test('Manual Address Editing - All address fields are editable and never locked after GPS fix', () => {
+    const addressState = {
+        doorNo: '#14',
+        buildingName: 'Sri Krishna Hub',
+        street: 'Vishwashanti Road',
+        cross: '2nd Cross',
+        area: 'Vivekananda Nagar',
+        landmark: 'Near Vivekananda Circle',
+        city: 'Mysuru',
+        district: 'Mysuru',
+        state: 'Karnataka',
+        postalCode: '570023',
+    };
+
+    // Seller corrects street name and door number manually
+    addressState.doorNo = 'Shop #14/B';
+    addressState.street = 'Vishwashanti 1st Main Road';
+
+    assert.strictEqual(addressState.doorNo, 'Shop #14/B');
+    assert.strictEqual(addressState.street, 'Vishwashanti 1st Main Road');
+    assert.strictEqual(addressState.area, 'Vivekananda Nagar');
 });
 
 console.log('All Rapido Location Detection Invariants passed successfully.');

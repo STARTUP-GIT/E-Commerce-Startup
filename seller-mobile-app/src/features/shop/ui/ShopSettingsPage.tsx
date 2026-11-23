@@ -178,8 +178,11 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
       if (acc && acc > 30) {
         setLocationSource('GPS_APPROXIMATE');
         setGpsWarning(
-          `GPS fix is approximate (±${acc}m). Satellites have placed your pin within ${acc} metres of your actual position. Because riders need your exact storefront entrance, please fine-tune the pin using the micro-adjust buttons below.`
+          `GPS accuracy is poor (±${acc}m). Satellites placed your device within ${acc} metres. Please fine-tune the entrance pin using the micro-adjust buttons below.`
         );
+      } else if (acc && acc > 15) {
+        setLocationSource('GPS_APPROXIMATE');
+        setGpsWarning(`GPS accuracy is approximate (±${acc}m). Please verify the entrance pin.`);
       } else {
         setLocationSource('GPS_DETECTED');
         setGpsWarning(null);
