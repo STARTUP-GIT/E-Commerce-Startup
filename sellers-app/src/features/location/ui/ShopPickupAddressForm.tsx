@@ -7,6 +7,7 @@ import { Badge } from '@/shared/components/Badge';
 import { SearchableDropdown } from '@/components/ui/SearchableDropdown';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { useUIStore } from '@/lib/store/uiStore';
+import { ShopInteractiveMap } from './ShopInteractiveMap';
 import {
   MapPin,
   Crosshair,
@@ -105,20 +106,24 @@ export function ShopPickupAddressForm({
 
   // UI interaction states
   const [isLocating, setIsLocating] = useState(false);
-  const [showMap, setShowMap] = useState(false);
+  const [showMap, setShowMap] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [gpsNotice, setGpsNotice] = useState<string | null>(null);
   const [accuracyWarning, setAccuracyWarning] = useState<string | null>(null);
+  const [coordsMismatchWarning, setCoordsMismatchWarning] = useState<string | null>(null);
   const [pinCodeError, setPinCodeError] = useState<string | null>(null);
 
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const initialLoadedRef = useRef(false);
+  const activeGeocodeReqId = useRef(0);
 
-  // Sync initial address if updated from parent
+  // Sync initial address if updated from parent (only once on initial load to avoid wiping user keystrokes)
   useEffect(() => {
-    if (initialAddress) {
+    if (!initialLoadedRef.current && initialAddress) {
+      initialLoadedRef.current = true;
       if (initialAddress.doorNo !== undefined) setDoorNo(initialAddress.doorNo || '');
       if (initialAddress.buildingName !== undefined) setBuildingName(initialAddress.buildingName || '');
       if (initialAddress.street !== undefined) setStreet(initialAddress.street || '');
@@ -127,8 +132,12 @@ export function ShopPickupAddressForm({
       if (initialAddress.landmark !== undefined) setLandmark(initialAddress.landmark || '');
       if (initialAddress.city !== undefined) setCity(initialAddress.city || '');
       if (initialAddress.postalCode !== undefined) setPostalCode(initialAddress.postalCode || '');
-      if (initialAddress.latitude !== undefined) setLatitude(initialAddress.latitude);
-      if (initialAddress.longitude !== undefined) setLongitude(initialAddress.longitude);
+      if (initialAddress.latitude !== undefined && initialAddress.latitude !== null) {
+        setLatitude(Number(initialAddress.latitude));
+      }
+      if (initialAddress.longitude !== undefined && initialAddress.longitude !== null) {
+        setLongitude(Number(initialAddress.longitude));
+      }
       if (initialAddress.locationSource) setLocationSource(initialAddress.locationSource);
       if (initialAddress.accuracyMeters !== undefined) setAccuracyMeters(initialAddress.accuracyMeters);
     }
@@ -220,7 +229,7 @@ export function ShopPickupAddressForm({
     }
   };
 
-  // 1. "Use Current Location" (GPS)
+  // 1. "Use Current Location" (High-accuracy GPS)
   const handleUseCurrentLocation = () => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
       showToast('Geolocation is not supported by your browser. Please enter your address manually.', 'error');
@@ -230,6 +239,9 @@ export function ShopPickupAddressForm({
     setIsLocating(true);
     setGpsNotice(null);
     setAccuracyWarning(null);
+    setCoordsMismatchWarning(null);
+
+    const reqId = ++activeGeocodeReqId.current;
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -258,22 +270,36 @@ export function ShopPickupAddressForm({
 
           if (res.ok) {
             const data = await res.json();
+            // Discard stale response if newer location action was triggered
+            if (reqId !== activeGeocodeReqId.current) return;
+
             const loc = data.resolvedLocation;
             if (loc) {
-              if (loc.doorNo) setDoorNo(loc.doorNo);
-              if (loc.buildingName) setBuildingName(loc.buildingName);
+              // Crucial: preserve manual doorNo and buildingName if geocoder didn't return them
+              setDoorNo((prev) => loc.doorNo || prev);
+              setBuildingName((prev) => loc.buildingName || prev);
+
               if (loc.street) setStreet(loc.street);
               else if (loc.addressLine1 && !loc.doorNo) setStreet(loc.addressLine1);
+
               if (loc.cross) setCross(loc.cross);
               if (loc.area) setArea(loc.area);
               else if (loc.serviceArea) setArea(loc.serviceArea);
+
               if (loc.landmark) setLandmark(loc.landmark);
               if (loc.city) setCity(loc.city);
               if (loc.state) onStateChange(loc.state);
               if (loc.district || loc.city) onDistrictChange(loc.district || loc.city);
               if (loc.postalCode) setPostalCode(loc.postalCode);
 
-              if (loc.hasMissingDoorNo || !loc.doorNo) {
+              // Check region consistency
+              if (selectedState && loc.state && selectedState.toLowerCase() !== loc.state.toLowerCase()) {
+                setCoordsMismatchWarning(
+                  `Detected location is in ${loc.state}, but your store is set to ${selectedState}. Please check your registered region.`
+                );
+              }
+
+              if (loc.hasMissingDoorNo || (!loc.doorNo && !doorNo)) {
                 setGpsNotice(
                   `GPS detected your street (${loc.street || 'nearby road'}) and locality, but satellites cannot detect your specific shop or door number. Please enter your House / Door / Shop Number below.`
                 );
@@ -284,8 +310,10 @@ export function ShopPickupAddressForm({
               showToast('Location and address detected via GPS. Please review and complete any missing details.', 'success');
             }
           }
-        } catch (err: any) {
-          showToast('GPS coordinates captured. Please complete your address fields manually.', 'info');
+        } catch {
+          if (reqId === activeGeocodeReqId.current) {
+            showToast('GPS coordinates captured. Please complete your address fields manually.', 'info');
+          }
         }
       },
       (err) => {
@@ -302,13 +330,13 @@ export function ShopPickupAddressForm({
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 12000,
         maximumAge: 0,
       }
     );
   };
 
-  // 2. Address Search
+  // 2. Address Search & Autocomplete
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -341,15 +369,20 @@ export function ShopPickupAddressForm({
     setShowSearchResults(false);
     setSearchQuery(result.formattedAddress || '');
 
+    const reqId = ++activeGeocodeReqId.current;
+
     if (result.latitude && result.longitude) {
-      setLatitude(result.latitude);
-      setLongitude(result.longitude);
+      setLatitude(Number(result.latitude));
+      setLongitude(Number(result.longitude));
     }
     setLocationSource('ADDRESS_SEARCHED');
     setAccuracyMeters(null);
+    setCoordsMismatchWarning(null);
 
-    if (result.doorNo) setDoorNo(result.doorNo);
-    if (result.buildingName) setBuildingName(result.buildingName);
+    // Preserve existing manual doorNo / buildingName if search result has none
+    setDoorNo((prev) => result.doorNo || prev);
+    setBuildingName((prev) => result.buildingName || prev);
+
     if (result.street) setStreet(result.street);
     if (result.cross) setCross(result.cross);
     if (result.area) setArea(result.area);
@@ -359,7 +392,7 @@ export function ShopPickupAddressForm({
     if (result.district || result.city) onDistrictChange(result.district || result.city);
     if (result.postalCode) setPostalCode(result.postalCode);
 
-    if (result.hasMissingDoorNo || !result.doorNo) {
+    if (result.hasMissingDoorNo || (!result.doorNo && !doorNo)) {
       setGpsNotice('Address selected. Please ensure your House / Door / Shop number and building name are filled in.');
     } else {
       setGpsNotice(null);
@@ -368,37 +401,69 @@ export function ShopPickupAddressForm({
     showToast('Address selected. Details populated.', 'success');
   };
 
-  // 3. Map Pin reposition
-  const handleMapNudge = (dLat: number, dLng: number) => {
-    const newLat = Number(((latitude ?? 12.2958) + dLat).toFixed(6));
-    const newLng = Number(((longitude ?? 76.6394) + dLng).toFixed(6));
+  // 3. Interactive Map Pin & Entrance Fine-Tuning
+  const handleCoordinatesSelected = async (newLat: number, newLng: number, source: 'MAP_PIN_SELECTED') => {
     setLatitude(newLat);
     setLongitude(newLng);
-    setLocationSource('MAP_PIN_SELECTED');
-  };
+    setLocationSource(source);
+    setAccuracyMeters(null);
 
-  const handleReverseGeocodePin = async () => {
-    if (latitude === null || longitude === null) return;
+    const reqId = ++activeGeocodeReqId.current;
+
     try {
       const res = await fetch('/api/locations/resolve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude, longitude, userRole: 'SELLER' }),
+        body: JSON.stringify({ latitude: newLat, longitude: newLng, userRole: 'SELLER' }),
       });
+
       if (res.ok) {
         const data = await res.json();
+        // Ignore response if user clicked or dragged again since this request started
+        if (reqId !== activeGeocodeReqId.current) return;
+
         const loc = data.resolvedLocation;
         if (loc) {
-          if (!street && loc.street) setStreet(loc.street);
-          if (!area && loc.area) setArea(loc.area);
-          if (!selectedState && loc.state) onStateChange(loc.state);
-          if (!selectedDistrict && (loc.district || loc.city)) onDistrictChange(loc.district || loc.city);
-          if (!postalCode && loc.postalCode) setPostalCode(loc.postalCode);
-          showToast('Updated address suggestions from pin position.', 'success');
+          // IMPORTANT: Preserve existing manually entered door number and building name
+          setDoorNo((prev) => loc.doorNo || prev);
+          setBuildingName((prev) => loc.buildingName || prev);
+
+          if (loc.street) setStreet(loc.street);
+          else if (loc.addressLine1 && !loc.doorNo) setStreet(loc.addressLine1);
+
+          if (loc.cross) setCross(loc.cross);
+          if (loc.area) setArea(loc.area);
+          else if (loc.serviceArea) setArea(loc.serviceArea);
+
+          if (loc.landmark) setLandmark(loc.landmark);
+          if (loc.city) setCity(loc.city);
+          if (loc.state) onStateChange(loc.state);
+          if (loc.district || loc.city) onDistrictChange(loc.district || loc.city);
+          if (loc.postalCode) setPostalCode(loc.postalCode);
+
+          if (selectedState && loc.state && selectedState.toLowerCase() !== loc.state.toLowerCase()) {
+            setCoordsMismatchWarning(
+              `Pin coordinates are in ${loc.state}, but your store is set to ${selectedState}. Please check your registered region.`
+            );
+          } else {
+            setCoordsMismatchWarning(null);
+          }
+
+          if (loc.hasMissingDoorNo || (!loc.doorNo && !doorNo)) {
+            setGpsNotice(
+              `Entrance pin moved to (${newLat.toFixed(5)}, ${newLng.toFixed(5)}). Please verify your Door / Shop number.`
+            );
+          } else {
+            setGpsNotice(null);
+          }
+
+          showToast('Shop entrance pin updated. Address synchronized with coordinates.', 'success');
         }
       }
     } catch {
-      showToast('Could not resolve pin address.', 'info');
+      if (reqId === activeGeocodeReqId.current) {
+        showToast('Coordinates updated from map.', 'info');
+      }
     }
   };
 
@@ -542,85 +607,56 @@ export function ShopPickupAddressForm({
         </div>
       )}
 
+      {/* Region / District Mismatch Warning */}
+      {coordsMismatchWarning && (
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-rose-300 text-xs flex items-start gap-2.5">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+          <div>
+            <p className="font-semibold text-rose-200">Region Mismatch Warning</p>
+            <p className="text-rose-300/80 leading-relaxed mt-0.5">{coordsMismatchWarning}</p>
+          </div>
+        </div>
+      )}
+
       {/* Interactive Map Preview Panel */}
       {showMap && (
         <div className="rounded-xl border border-white/10 bg-black/40 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Compass className="h-4 w-4 text-purple-400" />
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider">Map Pin &amp; Coordinates</h4>
+              <Compass className="h-4 w-4 text-emerald-400" />
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                Shop Dispatch Pin &amp; Entrance Location
+              </h4>
             </div>
             <div className="flex items-center gap-2">
               {latitude !== null && longitude !== null && (
-                <span className="text-[11px] font-mono text-white/50">
+                <span className="text-[11px] font-mono text-white/60">
                   {latitude.toFixed(6)}, {longitude.toFixed(6)}
                 </span>
               )}
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 text-[10px] px-2"
-                onClick={handleReverseGeocodePin}
-              >
-                <RotateCcw className="h-3 w-3 mr-1" /> Re-check Pin
-              </Button>
+              {latitude !== null && longitude !== null && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-[10px] px-2 text-white/80 hover:text-white"
+                  onClick={() => handleCoordinatesSelected(latitude, longitude, 'MAP_PIN_SELECTED')}
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" /> Re-sync from Pin
+                </Button>
+              )}
             </div>
           </div>
 
-          {/* Interactive Map Embed */}
-          <div className="relative h-56 w-full rounded-lg overflow-hidden border border-white/10 bg-zinc-900">
-            {latitude !== null && longitude !== null ? (
-              <iframe
-                title="Shop Location Map Preview"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.003}%2C${latitude - 0.003}%2C${longitude + 0.003}%2C${latitude + 0.003}&layer=mapnik&marker=${latitude}%2C${longitude}`}
-                className="w-full h-full border-0 pointer-events-auto"
-                loading="lazy"
-              />
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center p-4 text-center space-y-2">
-                <MapPin className="h-8 w-8 text-white/20" />
-                <p className="text-xs text-white/40">No coordinates selected yet. Click &quot;Use Current Location&quot; or search an address.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Pin Fine-tuning Nudge Controls */}
-          {latitude !== null && longitude !== null && (
-            <div className="flex items-center justify-between text-xs text-white/50 pt-1">
-              <span>Fine-tune pin to exact shop entrance:</span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => handleMapNudge(0.0001, 0)}
-                  className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white"
-                >
-                  North ↑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleMapNudge(-0.0001, 0)}
-                  className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white"
-                >
-                  South ↓
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleMapNudge(0, -0.0001)}
-                  className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white"
-                >
-                  West ←
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleMapNudge(0, 0.0001)}
-                  className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white"
-                >
-                  East →
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Draggable Interactive Leaflet Map Component */}
+          <ShopInteractiveMap
+            latitude={latitude}
+            longitude={longitude}
+            onLocationSelect={handleCoordinatesSelected}
+            accuracyMeters={accuracyMeters}
+            locationSource={locationSource}
+            disabled={disabled}
+          />
         </div>
       )}
 

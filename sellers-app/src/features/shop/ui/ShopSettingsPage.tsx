@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useShop } from '../hooks/useShop';
@@ -129,6 +129,31 @@ export function ShopSettingsPage() {
       });
     }
   }, [shop]);
+
+  const memoizedInitialAddress = useMemo(() => {
+    if (!shop?.defaultPickupAddress) return undefined;
+    const addr = shop.defaultPickupAddress as any;
+    return {
+      doorNo: addr.doorNo || '',
+      buildingName: addr.buildingName || '',
+      street: addr.street || addr.addressLine1 || '',
+      cross: addr.cross || '',
+      area: addr.area || addr.addressLine2 || '',
+      landmark: addr.landmark || '',
+      city: addr.city || addr.district || '',
+      district: addr.district || addr.city || '',
+      state: addr.state || '',
+      postalCode: addr.postalCode || '',
+      country: 'India',
+      latitude: addr.latitude !== undefined && addr.latitude !== null ? Number(addr.latitude) : null,
+      longitude: addr.longitude !== undefined && addr.longitude !== null ? Number(addr.longitude) : null,
+      locationSource: (addr.locationSource as any) || 'MANUALLY_ENTERED',
+      accuracyMeters: addr.accuracyMeters ?? null,
+      formattedAddress: addr.formattedAddress || '',
+      addressLine1: addr.addressLine1 || '',
+      addressLine2: addr.addressLine2 || '',
+    };
+  }, [shop?.id, (shop?.defaultPickupAddress as any)?.id]);
 
   const {
     register: bankRegister,
@@ -560,30 +585,7 @@ export function ShopSettingsPage() {
 
               <div className="border-t border-white/5 pt-3 mt-1">
                 <ShopPickupAddressForm
-                  initialAddress={
-                    shop?.defaultPickupAddress
-                      ? {
-                          doorNo: (shop.defaultPickupAddress as any).doorNo || '',
-                          buildingName: (shop.defaultPickupAddress as any).buildingName || '',
-                          street: (shop.defaultPickupAddress as any).street || editAddressLine1,
-                          cross: (shop.defaultPickupAddress as any).cross || '',
-                          area: (shop.defaultPickupAddress as any).area || editAddressLine2,
-                          landmark: (shop.defaultPickupAddress as any).landmark || '',
-                          city: shop.defaultPickupAddress.city || selectedDistrict,
-                          district: shop.defaultPickupAddress.district || selectedDistrict,
-                          state: selectedState,
-                          postalCode: editPostalCode,
-                          country: 'India',
-                          latitude: coordinates.latitude,
-                          longitude: coordinates.longitude,
-                          locationSource: ((shop.defaultPickupAddress as any).locationSource as any) || 'MANUALLY_ENTERED',
-                          accuracyMeters: (shop.defaultPickupAddress as any).accuracyMeters ?? null,
-                          formattedAddress: shop.defaultPickupAddress.formattedAddress || '',
-                          addressLine1: editAddressLine1,
-                          addressLine2: editAddressLine2,
-                        }
-                      : undefined
-                  }
+                  initialAddress={memoizedInitialAddress}
                   onAddressChange={setPickupAddress}
                   allStates={allStates}
                   districts={districts}

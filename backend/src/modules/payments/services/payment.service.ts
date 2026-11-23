@@ -614,7 +614,11 @@ export const verifyPayment = async (paymentData: {
             const sellerTax = sCalc ? sCalc.totalTaxAmount : ((sellerSubtotal + sellerPackingFee) * gstPercentage) / 100;
 
             const seller = cart.items.find((item: any) => item.product.sellerId === sellerId)!.product.seller;
-            const pickupSellerAddressId = seller.addresses?.[0]?.id;
+            const pickupSellerAddressId = seller.shop?.defaultPickupAddressId
+                || seller.addresses?.find((a: any) => a.id === seller.shop?.defaultPickupAddressId)?.id
+                || seller.addresses?.find((a: any) => a.type === "PICKUP" && a.isDefault)?.id
+                || seller.addresses?.find((a: any) => a.type === "PICKUP")?.id
+                || seller.addresses?.[0]?.id;
 
             if (!pickupSellerAddressId) {
                 throw new Error(`Seller does not have a registered pickup address.`);
@@ -1021,7 +1025,11 @@ export const processCodPayment = async (paymentData: {
             const sellerTax = sCalc ? sCalc.totalTaxAmount : ((sellerSubtotal + sellerPackingFee) * gstPercentage) / 100;
 
             const seller = cart.items.find((item: any) => item.product.sellerId === sellerId)!.product.seller;
-            const pickupSellerAddressId = seller.addresses?.[0]?.id;
+            const pickupSellerAddressId = seller.shop?.defaultPickupAddressId
+                || seller.addresses?.find((a: any) => a.id === seller.shop?.defaultPickupAddressId)?.id
+                || seller.addresses?.find((a: any) => a.type === "PICKUP" && a.isDefault)?.id
+                || seller.addresses?.find((a: any) => a.type === "PICKUP")?.id
+                || seller.addresses?.[0]?.id;
 
             if (!pickupSellerAddressId) {
                 throw new Error(`Seller does not have a registered pickup address.`);

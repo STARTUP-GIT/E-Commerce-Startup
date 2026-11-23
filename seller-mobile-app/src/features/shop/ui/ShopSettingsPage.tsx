@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -119,6 +119,8 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  const mobileGeocodeReqId = useRef(0);
+
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [isSavingLocation, setIsSavingLocation] = useState(false);
 
@@ -160,6 +162,7 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
   const handleDetectPickupLocation = async () => {
     setIsDetectingLocation(true);
     setGpsWarning(null);
+    const reqId = ++mobileGeocodeReqId.current;
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -185,12 +188,14 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
           longitude: lng,
           userRole: 'SELLER',
         });
+        if (reqId !== mobileGeocodeReqId.current) return;
         const loc = res.data?.resolvedLocation;
         if (loc) {
+          // Preserve manual doorNo and buildingName
           if (loc.doorNo) setDoorNo(loc.doorNo);
           if (loc.buildingName) setBuildingName(loc.buildingName);
           if (loc.street) setStreet(loc.street);
-          else if (loc.addressLine1) setStreet(loc.addressLine1);
+          else if (loc.addressLine1 && !doorNo) setStreet(loc.addressLine1);
           if (loc.cross) setCross(loc.cross);
           if (loc.area) setArea(loc.area);
           else if (loc.addressLine2) setArea(loc.addressLine2);
@@ -202,7 +207,7 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
           if (loc.state) setPickupState(loc.state);
           if (loc.postalCode) setPickupPostal(loc.postalCode);
 
-          if (loc.hasMissingDoorNo || !loc.doorNo) {
+          if (loc.hasMissingDoorNo || (!loc.doorNo && !doorNo)) {
             setHasMissingDoorNo(true);
             showToast('GPS detected street & area. Please enter your Door / Shop number.', 'info');
           } else {
@@ -214,8 +219,10 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
           showToast('GPS coordinates captured. Please enter your shop address.', 'success');
         }
       } catch {
-        setHasMissingDoorNo(true);
-        showToast('GPS coordinates captured. Please enter address details manually.', 'info');
+        if (reqId === mobileGeocodeReqId.current) {
+          setHasMissingDoorNo(true);
+          showToast('GPS coordinates captured. Please enter address details manually.', 'info');
+        }
       }
     } catch (err: any) {
       showToast(err.message || 'Failed to detect current location', 'error');
@@ -271,6 +278,38 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
     }
   };
 
+  const resolveMobileCoordinates = async (lat: number, lng: number) => {
+    const reqId = ++mobileGeocodeReqId.current;
+    try {
+      const res = await axiosInstance.post('/api/locations/resolve', {
+        latitude: lat,
+        longitude: lng,
+        userRole: 'SELLER',
+      });
+      if (reqId !== mobileGeocodeReqId.current) return;
+      const loc = res.data?.resolvedLocation;
+      if (loc) {
+        // Crucial: preserve manual doorNo and buildingName
+        if (loc.doorNo) setDoorNo(loc.doorNo);
+        if (loc.buildingName) setBuildingName(loc.buildingName);
+        if (loc.street) setStreet(loc.street);
+        else if (loc.addressLine1 && !doorNo) setStreet(loc.addressLine1);
+        if (loc.cross) setCross(loc.cross);
+        if (loc.area) setArea(loc.area);
+        else if (loc.addressLine2) setArea(loc.addressLine2);
+        if (loc.landmark) setLandmark(loc.landmark);
+        if (loc.city || loc.district) {
+          setPickupCity(loc.city || loc.district);
+          setPickupDistrict(loc.district || loc.city);
+        }
+        if (loc.state) setPickupState(loc.state);
+        if (loc.postalCode) setPickupPostal(loc.postalCode);
+      }
+    } catch {
+      // silently keep coordinates on network error
+    }
+  };
+
   const handleNudgeCoordinate = (direction: 'N' | 'S' | 'E' | 'W') => {
     const lat = parseFloat(pickupLat) || 0;
     const lng = parseFloat(pickupLng) || 0;
@@ -282,9 +321,12 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
     if (direction === 'S') newLat -= step;
     if (direction === 'E') newLng += step;
     if (direction === 'W') newLng -= step;
-    setPickupLat(newLat.toFixed(6));
-    setPickupLng(newLng.toFixed(6));
+    const finalLat = parseFloat(newLat.toFixed(6));
+    const finalLng = parseFloat(newLng.toFixed(6));
+    setPickupLat(finalLat.toFixed(6));
+    setPickupLng(finalLng.toFixed(6));
     setLocationSource('MAP_PIN_SELECTED');
+    resolveMobileCoordinates(finalLat, finalLng);
   };
 
   const handleOpenInMaps = () => {
