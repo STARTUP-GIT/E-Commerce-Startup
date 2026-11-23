@@ -32,7 +32,7 @@ import { Skeleton } from '@/shared/components/Skeleton';
 import { Dialog } from '@/shared/components/Dialog';
 import { useUIStore } from '@/lib/store/uiStore';
 import { SellerAgreementBanner } from './SellerAgreementBanner';
-import { LocationCoordinatesInput } from '@/features/location/ui/LocationCoordinatesInput';
+import { ShopPickupAddressForm, type StructuredShopAddress } from '@/features/location/ui/ShopPickupAddressForm';
 import { PackagingCatalogueSection } from './PackagingCatalogueSection';
 export function ShopSettingsPage() {
   const {
@@ -87,6 +87,7 @@ export function ShopSettingsPage() {
     latitude: null,
     longitude: null,
   });
+  const [pickupAddress, setPickupAddress] = useState<StructuredShopAddress | null>(null);
 
   // Fetch active states & configurations from backend
   const { data: locationsConfig, isLoading: isLoadingConfig } = useQuery({
@@ -182,28 +183,58 @@ export function ShopSettingsPage() {
       if (!editPostalCode.trim()) {
         throw new Error('Postal Code is required.');
       }
-      if (!selectedState) {
+      if (!editShopName.trim()) {
+        throw new Error('Store Name is required.');
+      }
+      if (!editPhone.trim()) {
+        throw new Error('Store Phone Number is required.');
+      }
+      if (!selectedState.trim()) {
         throw new Error('State is required.');
       }
-      if (districtRequired && !selectedDistrict) {
+      if (districtRequired && !selectedDistrict.trim()) {
         throw new Error('District is required.');
+      }
+      if (pickupAddress) {
+        if (!pickupAddress.doorNo.trim() && !pickupAddress.addressLine1.trim()) {
+          throw new Error('House / Door / Shop Number is required for accurate dispatch.');
+        }
+        if (!pickupAddress.street.trim() && !pickupAddress.addressLine1.trim()) {
+          throw new Error('Street / Road Name is required.');
+        }
+        if (!pickupAddress.area.trim() && !pickupAddress.addressLine2.trim()) {
+          throw new Error('Area / Locality is required.');
+        }
+        if (!pickupAddress.postalCode.trim() || pickupAddress.postalCode.trim().length !== 6) {
+          throw new Error('A valid 6-digit Indian PIN code is required.');
+        }
       }
       
       await updateShop({
         shopName: editShopName.trim(),
         description: editDescription.trim(),
         phone: editPhone.trim(),
-        addressLine1: editAddressLine1.trim(),
-        addressLine2: editAddressLine2.trim() || undefined,
-        city: selectedDistrict,
+        doorNo: pickupAddress?.doorNo?.trim(),
+        buildingName: pickupAddress?.buildingName?.trim(),
+        street: pickupAddress?.street?.trim(),
+        cross: pickupAddress?.cross?.trim(),
+        area: pickupAddress?.area?.trim(),
+        landmark: pickupAddress?.landmark?.trim(),
+        addressLine1: pickupAddress?.addressLine1 || editAddressLine1.trim(),
+        addressLine2: pickupAddress?.addressLine2 || editAddressLine2.trim() || undefined,
+        city: pickupAddress?.city || selectedDistrict,
         district: selectedDistrict,
         state: selectedState,
-        postalCode: editPostalCode.trim(),
+        postalCode: pickupAddress?.postalCode || editPostalCode.trim(),
         country: 'India',
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
+        latitude: pickupAddress?.latitude ?? coordinates.latitude,
+        longitude: pickupAddress?.longitude ?? coordinates.longitude,
+        locationSource: pickupAddress?.locationSource,
+        accuracyMeters: pickupAddress?.accuracyMeters,
+        formattedAddress: pickupAddress?.formattedAddress,
       });
       setEditSuccess(true);
+      showToast('Store details and pickup address updated successfully!', 'success');
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to update shop details.');
     }
@@ -527,114 +558,44 @@ export function ShopSettingsPage() {
                 />
               </div>
 
-              <div className="border-t border-white/5 pt-3 mt-1 space-y-4">
-                <LocationCoordinatesInput
-                  latitude={coordinates.latitude}
-                  longitude={coordinates.longitude}
-                  onChange={setCoordinates}
-                  onLocationResolved={(loc) => {
-                    if (loc.addressLine1) setEditAddressLine1(loc.addressLine1);
-                    if (loc.addressLine2) setEditAddressLine2(loc.addressLine2);
-                    if (loc.state) setSelectedState(loc.state);
-                    if (loc.district || loc.city) setSelectedDistrict(loc.district || loc.city || '');
-                    if (loc.postalCode) setEditPostalCode(loc.postalCode);
-                  }}
-                  helperText="Specify store pickup coordinates for delivery dispatch, or use your device's current location."
+              <div className="border-t border-white/5 pt-3 mt-1">
+                <ShopPickupAddressForm
+                  initialAddress={
+                    shop?.defaultPickupAddress
+                      ? {
+                          doorNo: (shop.defaultPickupAddress as any).doorNo || '',
+                          buildingName: (shop.defaultPickupAddress as any).buildingName || '',
+                          street: (shop.defaultPickupAddress as any).street || editAddressLine1,
+                          cross: (shop.defaultPickupAddress as any).cross || '',
+                          area: (shop.defaultPickupAddress as any).area || editAddressLine2,
+                          landmark: (shop.defaultPickupAddress as any).landmark || '',
+                          city: shop.defaultPickupAddress.city || selectedDistrict,
+                          district: shop.defaultPickupAddress.district || selectedDistrict,
+                          state: selectedState,
+                          postalCode: editPostalCode,
+                          country: 'India',
+                          latitude: coordinates.latitude,
+                          longitude: coordinates.longitude,
+                          locationSource: ((shop.defaultPickupAddress as any).locationSource as any) || 'MANUALLY_ENTERED',
+                          accuracyMeters: (shop.defaultPickupAddress as any).accuracyMeters ?? null,
+                          formattedAddress: shop.defaultPickupAddress.formattedAddress || '',
+                          addressLine1: editAddressLine1,
+                          addressLine2: editAddressLine2,
+                        }
+                      : undefined
+                  }
+                  onAddressChange={setPickupAddress}
+                  allStates={allStates}
+                  districts={districts}
+                  selectedState={selectedState}
+                  onStateChange={setSelectedState}
+                  selectedDistrict={selectedDistrict}
+                  onDistrictChange={setSelectedDistrict}
+                  districtRequired={districtRequired}
+                  isLoadingConfig={isLoadingConfig}
+                  isLoadingDistricts={isLoadingDistricts}
+                  disabled={isUpdatingShop}
                 />
-
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-white/60 ml-1">Address Line 1</label>
-                    <Input
-                      placeholder="Flat, House no., Building, Street address"
-                      value={editAddressLine1}
-                      onChange={(e) => setEditAddressLine1(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-white/60 ml-1">Address Line 2 (Optional)</label>
-                    <Input
-                      placeholder="Apartment, Suite, Unit, Landmark"
-                      value={editAddressLine2}
-                      onChange={(e) => setEditAddressLine2(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      {isLoadingConfig ? (
-                        <Skeleton className="h-10 w-full rounded-xl" />
-                      ) : (
-                        <SearchableDropdown
-                          options={allStates}
-                          value={selectedState}
-                          onChange={(val) => {
-                            setSelectedState(val);
-                            setSelectedDistrict('');
-                          }}
-                          placeholder="Select State"
-                          label="State"
-                        />
-                      )}
-                    </div>
-
-                    <div className="space-y-1">
-                      {isLoadingDistricts ? (
-                        <Skeleton className="h-10 w-full rounded-xl" />
-                      ) : !selectedState ? (
-                        <div className="space-y-1.5 relative w-full">
-                          <label className="block text-[10px] font-bold text-white/50 uppercase tracking-wider">
-                            District {districtRequired ? '' : '(Optional)'}
-                          </label>
-                          <button
-                            type="button"
-                            disabled
-                            className="w-full h-10 flex items-center justify-between px-3 rounded-xl border border-white/10 bg-neutral-900/60 text-xs text-white/30 cursor-not-allowed text-left font-medium select-none"
-                          >
-                            Select a State first
-                          </button>
-                        </div>
-                      ) : districts.length === 0 ? (
-                        <div className="space-y-1.5 relative w-full">
-                          <label className="block text-[10px] font-bold text-white/50 uppercase tracking-wider">
-                            District {districtRequired ? '' : '(Optional)'}
-                          </label>
-                          <button
-                            type="button"
-                            disabled
-                            className="w-full h-10 flex items-center justify-between px-3 rounded-xl border border-white/10 bg-neutral-900/60 text-xs text-white/30 cursor-not-allowed text-left font-medium select-none"
-                          >
-                            No operational districts
-                          </button>
-                        </div>
-                      ) : (
-                        <SearchableDropdown
-                          options={districts}
-                          value={selectedDistrict}
-                          onChange={setSelectedDistrict}
-                          placeholder={districtRequired ? 'Select District' : 'Select District (Optional)'}
-                          label={`District ${districtRequired ? '' : '(Optional)'}`}
-                          isLoading={isLoadingDistricts}
-                        />
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-white/60 ml-1">Postal Code</label>
-                      <Input
-                        placeholder="e.g. 560001"
-                        value={editPostalCode}
-                        onChange={(e) => setEditPostalCode(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-white/60 ml-1">Country</label>
-                      <Input value="India" disabled readOnly />
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <Button type="submit" className="w-full mt-4" isLoading={isUpdatingShop}>

@@ -8,9 +8,11 @@ import {
   Image,
   Switch,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { useShop } from '../hooks/useShop';
+import { shopApi } from '../api/shopApi';
 import { shopService } from '../services/shopService';
 import { productService } from '@/features/products/services/productService';
 import { useFileUpload } from '@/features/storage/hooks/useFileUpload';
@@ -37,6 +39,11 @@ import {
   Check,
   Pencil,
   Trash2,
+  Search,
+  ExternalLink,
+  AlertTriangle,
+  CheckCircle2,
+  Navigation,
 } from 'lucide-react-native';
 import axiosInstance from '@/lib/axios/axiosInstance';
 import { Colors } from '@/theme/colors';
@@ -89,48 +96,88 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
   const [editUpiId, setEditUpiId] = useState('');
 
   // Store Pickup Location & Dispatch Coordinates State
-  const [pickupLine1, setPickupLine1] = useState('');
-  const [pickupLine2, setPickupLine2] = useState('');
+  const [doorNo, setDoorNo] = useState('');
+  const [buildingName, setBuildingName] = useState('');
+  const [street, setStreet] = useState('');
+  const [cross, setCross] = useState('');
+  const [area, setArea] = useState('');
+  const [landmark, setLandmark] = useState('');
   const [pickupCity, setPickupCity] = useState('');
+  const [pickupDistrict, setPickupDistrict] = useState('');
   const [pickupState, setPickupState] = useState('');
   const [pickupPostal, setPickupPostal] = useState('');
   const [pickupLat, setPickupLat] = useState('');
   const [pickupLng, setPickupLng] = useState('');
+  const [accuracyMeters, setAccuracyMeters] = useState<number | null>(null);
+  const [locationSource, setLocationSource] = useState<string>('MANUALLY_ENTERED');
+  const [hasMissingDoorNo, setHasMissingDoorNo] = useState(false);
+  const [gpsWarning, setGpsWarning] = useState<string | null>(null);
+
+  // Address search state
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [isSavingLocation, setIsSavingLocation] = useState(false);
 
   useEffect(() => {
-    if (shop) {
-      if (shop.defaultPickupAddress) {
-        setPickupLine1(shop.defaultPickupAddress.addressLine1 || '');
-        setPickupLine2(shop.defaultPickupAddress.addressLine2 || '');
-        setPickupCity(shop.defaultPickupAddress.city || '');
-        setPickupState(shop.defaultPickupAddress.state || '');
-        setPickupPostal(shop.defaultPickupAddress.postalCode || '');
-        if (shop.defaultPickupAddress.latitude) {
-          setPickupLat(String(shop.defaultPickupAddress.latitude));
-        }
-        if (shop.defaultPickupAddress.longitude) {
-          setPickupLng(String(shop.defaultPickupAddress.longitude));
-        }
+    if (shop && shop.defaultPickupAddress) {
+      const addr = shop.defaultPickupAddress;
+      setDoorNo(addr.doorNo || '');
+      setBuildingName(addr.buildingName || '');
+      setStreet(addr.street || '');
+      setCross(addr.cross || '');
+      setArea(addr.area || '');
+      setLandmark(addr.landmark || '');
+      setPickupCity(addr.city || '');
+      setPickupDistrict(addr.district || addr.city || '');
+      setPickupState(addr.state || '');
+      setPickupPostal(addr.postalCode || '');
+      if (addr.latitude !== undefined && addr.latitude !== null) {
+        setPickupLat(String(addr.latitude));
+      }
+      if (addr.longitude !== undefined && addr.longitude !== null) {
+        setPickupLng(String(addr.longitude));
+      }
+      if (addr.accuracyMeters) {
+        setAccuracyMeters(addr.accuracyMeters);
+      }
+      if (addr.locationSource) {
+        setLocationSource(addr.locationSource);
+      }
+      // Backward compatibility fallback if doorNo / street aren't set yet
+      if (!addr.doorNo && !addr.street && addr.addressLine1) {
+        setStreet(addr.addressLine1);
+      }
+      if (!addr.area && addr.addressLine2) {
+        setArea(addr.addressLine2);
       }
     }
   }, [shop]);
 
-
   const handleDetectPickupLocation = async () => {
     setIsDetectingLocation(true);
+    setGpsWarning(null);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        showToast('Location permission denied. Please enter coordinates manually.', 'error');
+        showToast('Location permission denied. Please enter coordinates or search manually.', 'error');
         return;
       }
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
       const lat = parseFloat(pos.coords.latitude.toFixed(6));
       const lng = parseFloat(pos.coords.longitude.toFixed(6));
+      const acc = pos.coords.accuracy ? Math.round(pos.coords.accuracy) : null;
       setPickupLat(String(lat));
       setPickupLng(String(lng));
+      setAccuracyMeters(acc);
+      setLocationSource('GPS_DETECTED');
+
+      if (acc && acc > 50) {
+        setGpsWarning(`GPS accuracy is approx ±${acc}m. Please review the street and door number.`);
+      }
 
       try {
         const res = await axiosInstance.post('/api/locations/resolve', {
@@ -140,17 +187,35 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
         });
         const loc = res.data?.resolvedLocation;
         if (loc) {
-          if (loc.addressLine1) setPickupLine1(loc.addressLine1);
-          if (loc.addressLine2) setPickupLine2(loc.addressLine2);
-          if (loc.city || loc.district) setPickupCity(loc.city || loc.district);
+          if (loc.doorNo) setDoorNo(loc.doorNo);
+          if (loc.buildingName) setBuildingName(loc.buildingName);
+          if (loc.street) setStreet(loc.street);
+          else if (loc.addressLine1) setStreet(loc.addressLine1);
+          if (loc.cross) setCross(loc.cross);
+          if (loc.area) setArea(loc.area);
+          else if (loc.addressLine2) setArea(loc.addressLine2);
+          if (loc.landmark) setLandmark(loc.landmark);
+          if (loc.city || loc.district) {
+            setPickupCity(loc.city || loc.district);
+            setPickupDistrict(loc.district || loc.city);
+          }
           if (loc.state) setPickupState(loc.state);
           if (loc.postalCode) setPickupPostal(loc.postalCode);
-          showToast('Location coordinates & address populated. Please review before saving.', 'success');
+
+          if (loc.hasMissingDoorNo || !loc.doorNo) {
+            setHasMissingDoorNo(true);
+            showToast('GPS detected street & area. Please enter your Door / Shop number.', 'info');
+          } else {
+            setHasMissingDoorNo(false);
+            showToast('High-accuracy GPS address populated. Review before saving.', 'success');
+          }
         } else {
-          showToast('GPS coordinates captured from current device location', 'success');
+          setHasMissingDoorNo(true);
+          showToast('GPS coordinates captured. Please enter your shop address.', 'success');
         }
       } catch {
-        showToast('GPS coordinates captured. Please complete address details manually.', 'info');
+        setHasMissingDoorNo(true);
+        showToast('GPS coordinates captured. Please enter address details manually.', 'info');
       }
     } catch (err: any) {
       showToast(err.message || 'Failed to detect current location', 'error');
@@ -159,24 +224,137 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
     }
   };
 
-  const handleSavePickupLocation = async () => {
-    if (!pickupLine1.trim() || !pickupCity.trim() || !pickupState.trim() || !pickupPostal.trim()) {
-      showToast('Address line 1, city, state, and postal code are required', 'error');
+  const handleSearchAddress = async () => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 3) {
+      showToast('Please type at least 3 characters to search', 'error');
       return;
     }
+    setIsSearching(true);
+    try {
+      const results = await shopApi.searchAddresses(searchQuery.trim(), pickupCity || undefined);
+      setSearchResults(results || []);
+      if (!results || results.length === 0) {
+        showToast('No matching locations found. Try different keywords.', 'info');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to search address', 'error');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelectSearchResult = (result: any) => {
+    if (result.doorNo) setDoorNo(result.doorNo);
+    if (result.buildingName) setBuildingName(result.buildingName);
+    if (result.street) setStreet(result.street);
+    if (result.cross) setCross(result.cross);
+    if (result.area) setArea(result.area);
+    if (result.landmark) setLandmark(result.landmark);
+    if (result.city) setPickupCity(result.city);
+    if (result.district) setPickupDistrict(result.district);
+    if (result.state) setPickupState(result.state);
+    if (result.postalCode) setPickupPostal(result.postalCode);
+    if (result.latitude) setPickupLat(String(result.latitude));
+    if (result.longitude) setPickupLng(String(result.longitude));
+    setLocationSource('ADDRESS_SEARCHED');
+    setAccuracyMeters(result.accuracyMeters || 15);
+    setSearchModalOpen(false);
+    setSearchQuery('');
+    setSearchResults([]);
+
+    if (result.hasMissingDoorNo || !result.doorNo) {
+      setHasMissingDoorNo(true);
+      showToast('Location selected. Please add your Door / Shop number.', 'info');
+    } else {
+      setHasMissingDoorNo(false);
+      showToast('Address populated from search. Review before saving.', 'success');
+    }
+  };
+
+  const handleNudgeCoordinate = (direction: 'N' | 'S' | 'E' | 'W') => {
+    const lat = parseFloat(pickupLat) || 0;
+    const lng = parseFloat(pickupLng) || 0;
+    if (!lat || !lng) return;
+    const step = 0.0001; // ~11 meters
+    let newLat = lat;
+    let newLng = lng;
+    if (direction === 'N') newLat += step;
+    if (direction === 'S') newLat -= step;
+    if (direction === 'E') newLng += step;
+    if (direction === 'W') newLng -= step;
+    setPickupLat(newLat.toFixed(6));
+    setPickupLng(newLng.toFixed(6));
+    setLocationSource('MAP_PIN_SELECTED');
+  };
+
+  const handleOpenInMaps = () => {
+    const lat = parseFloat(pickupLat);
+    const lng = parseFloat(pickupLng);
+    if (lat && lng) {
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`);
+    } else {
+      showToast('Coordinates not available to preview on map', 'info');
+    }
+  };
+
+  const handleSavePickupLocation = async () => {
+    const dNo = doorNo.trim();
+    const st = street.trim();
+    const ar = area.trim();
+    const ct = pickupCity.trim();
+    const stt = pickupState.trim();
+    const pin = pickupPostal.trim();
+
+    if (!dNo) {
+      showToast('House / Door / Shop number is required', 'error');
+      return;
+    }
+    if (!st) {
+      showToast('Street / Road name is required', 'error');
+      return;
+    }
+    if (!ar) {
+      showToast('Area / Locality is required', 'error');
+      return;
+    }
+    if (!ct) {
+      showToast('City / Town is required', 'error');
+      return;
+    }
+    if (!stt) {
+      showToast('State is required', 'error');
+      return;
+    }
+    if (!/^[1-9][0-9]{5}$/.test(pin)) {
+      showToast('Enter a valid 6-digit Indian PIN code', 'error');
+      return;
+    }
+
+    const compiledLine1 = [dNo, buildingName.trim(), st].filter(Boolean).join(', ');
+    const compiledLine2 = [cross.trim(), ar, landmark.trim()].filter(Boolean).join(', ');
+
     setIsSavingLocation(true);
     try {
       await updateShop({
-        addressLine1: pickupLine1.trim(),
-        addressLine2: pickupLine2.trim() || undefined,
-        city: pickupCity.trim(),
-        district: pickupCity.trim(),
-        state: pickupState.trim(),
-        postalCode: pickupPostal.trim(),
+        doorNo: dNo,
+        buildingName: buildingName.trim() || undefined,
+        street: st,
+        cross: cross.trim() || undefined,
+        area: ar,
+        landmark: landmark.trim() || undefined,
+        addressLine1: compiledLine1,
+        addressLine2: compiledLine2 || undefined,
+        city: ct,
+        district: pickupDistrict.trim() || ct,
+        state: stt,
+        postalCode: pin,
         country: 'India',
         latitude: pickupLat ? parseFloat(pickupLat) : undefined,
         longitude: pickupLng ? parseFloat(pickupLng) : undefined,
+        locationSource,
+        accuracyMeters: accuracyMeters ?? undefined,
       });
+      setHasMissingDoorNo(false);
       showToast('Store pickup location and coordinates updated successfully', 'success');
     } catch (err: any) {
       showToast(err.message || 'Failed to update pickup location', 'error');
@@ -365,34 +543,198 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
         {/* Store Pickup Location & Dispatch Coordinates */}
         <Card>
           <CardHeader>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <MapPin size={17} color={Colors.emerald} />
-              <CardTitle>Pickup Location &amp; Dispatch Coordinates</CardTitle>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <MapPin size={17} color={Colors.emerald} />
+                <CardTitle>Pickup Location &amp; Dispatch Coordinates</CardTitle>
+              </View>
+              <Badge variant={locationSource === 'GPS_DETECTED' ? 'success' : locationSource === 'ADDRESS_SEARCHED' ? 'default' : 'secondary'}>
+                {locationSource === 'GPS_DETECTED'
+                  ? 'GPS Detected'
+                  : locationSource === 'ADDRESS_SEARCHED'
+                  ? 'Address Searched'
+                  : locationSource === 'MAP_PIN_SELECTED'
+                  ? 'Pin Selected'
+                  : 'Manual Entry'}
+              </Badge>
             </View>
-            <CardDescription>Authoritative merchant location for rider pickup and delivery routing</CardDescription>
+            <CardDescription>Authoritative merchant pickup location for rider dispatch and customer ETA calculation</CardDescription>
           </CardHeader>
-          <CardContent style={{ gap: 10 }}>
+          <CardContent style={{ gap: 12 }}>
+            {/* Quick Action Buttons */}
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                onPress={handleDetectPickupLocation}
+                disabled={isDetectingLocation}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 10,
+                  paddingHorizontal: 8,
+                  borderRadius: 10,
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(16, 185, 129, 0.3)',
+                }}
+              >
+                {isDetectingLocation ? (
+                  <ActivityIndicator size="small" color={Colors.emerald} />
+                ) : (
+                  <>
+                    <Crosshair size={14} color={Colors.emerald} />
+                    <Text style={{ fontSize: 11, color: Colors.emerald, fontWeight: '700' }}>Use GPS</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setSearchModalOpen(true)}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 10,
+                  paddingHorizontal: 8,
+                  borderRadius: 10,
+                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(59, 130, 246, 0.3)',
+                }}
+              >
+                <Search size={14} color="#60a5fa" />
+                <Text style={{ fontSize: 11, color: '#93c5fd', fontWeight: '700' }}>Search Address</Text>
+              </TouchableOpacity>
+
+              {pickupLat && pickupLng ? (
+                <TouchableOpacity
+                  onPress={handleOpenInMaps}
+                  style={{
+                    paddingVertical: 10,
+                    paddingHorizontal: 10,
+                    borderRadius: 10,
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <ExternalLink size={14} color="rgba(255,255,255,0.7)" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {/* Missing Door Number Alert */}
+            {hasMissingDoorNo && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                  padding: 10,
+                  borderRadius: 8,
+                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(245, 158, 11, 0.3)',
+                }}
+              >
+                <AlertTriangle size={16} color="#fbbf24" style={{ marginTop: 2 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#fef3c7' }}>Door / Shop Number Required</Text>
+                  <Text style={{ fontSize: 11, color: '#fde68a', marginTop: 2 }}>
+                    GPS/Search identified your street &amp; area, but cannot detect your exact door number. Please specify your Door / Shop number below for delivery dispatch.
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* GPS Warning Banner */}
+            {gpsWarning && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: 8,
+                  borderRadius: 6,
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(59, 130, 246, 0.2)',
+                }}
+              >
+                <AlertTriangle size={14} color="#93c5fd" />
+                <Text style={{ fontSize: 10, color: '#bfdbfe', flex: 1 }}>{gpsWarning}</Text>
+              </View>
+            )}
+
+            {/* Structured Address Fields */}
             <Input
-              label="Address Line 1 *"
-              placeholder="Building, street, door no."
-              value={pickupLine1}
-              onChangeText={setPickupLine1}
+              label="House / Door / Shop No. *"
+              placeholder="e.g. Shop #4, Ground Floor"
+              value={doorNo}
+              onChangeText={setDoorNo}
             />
+
             <Input
-              label="Address Line 2 (Optional)"
-              placeholder="Area, landmark"
-              value={pickupLine2}
-              onChangeText={setPickupLine2}
+              label="Building / Apartment / Complex Name"
+              placeholder="e.g. Phoenix Commercial Complex"
+              value={buildingName}
+              onChangeText={setBuildingName}
             />
+
+            <Input
+              label="Street / Road Name *"
+              placeholder="e.g. 5th Main Road, Double Road"
+              value={street}
+              onChangeText={setStreet}
+            />
+
+            <Input
+              label="Cross / Main Road (Optional)"
+              placeholder="e.g. Near 2nd Cross Junction"
+              value={cross}
+              onChangeText={setCross}
+            />
+
+            <Input
+              label="Area / Locality *"
+              placeholder="e.g. Saraswathipuram / Indiranagar"
+              value={area}
+              onChangeText={setArea}
+            />
+
+            <Input
+              label="Landmark (Optional)"
+              placeholder="e.g. Opposite Post Office / Near Bank"
+              value={landmark}
+              onChangeText={setLandmark}
+            />
+
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1 }}>
                 <Input
-                  label="City / District *"
+                  label="City / Town *"
                   placeholder="e.g. Mysuru"
                   value={pickupCity}
                   onChangeText={setPickupCity}
                 />
               </View>
+              <View style={{ flex: 1 }}>
+                <Input
+                  label="District *"
+                  placeholder="e.g. Mysuru District"
+                  value={pickupDistrict}
+                  onChangeText={setPickupDistrict}
+                />
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1 }}>
                 <Input
                   label="State *"
@@ -401,35 +743,30 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
                   onChangeText={setPickupState}
                 />
               </View>
-            </View>
-            <Input
-              label="Postal Code *"
-              placeholder="e.g. 570001"
-              keyboardType="number-pad"
-              maxLength={6}
-              value={pickupPostal}
-              onChangeText={setPickupPostal}
-            />
-
-            {/* GPS Coordinates */}
-            <View style={{ marginTop: 4, gap: 8, padding: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#ffffff' }}>GPS Coordinates</Text>
-                <TouchableOpacity
-                  onPress={handleDetectPickupLocation}
-                  disabled={isDetectingLocation}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: 'rgba(59,130,246,0.15)' }}
-                >
-                  {isDetectingLocation ? (
-                    <ActivityIndicator size="small" color="#60a5fa" />
-                  ) : (
-                    <>
-                      <Crosshair size={12} color="#60a5fa" />
-                      <Text style={{ fontSize: 10, color: '#93c5fd', fontWeight: '700' }}>Use Current GPS</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Input
+                  label="PIN Code * (6 digits)"
+                  placeholder="e.g. 570001"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={pickupPostal}
+                  onChangeText={setPickupPostal}
+                />
               </View>
+            </View>
+
+            {/* GPS Coordinates & Fine Tuning */}
+            <View style={{ gap: 8, padding: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Navigation size={13} color="#60a5fa" />
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#ffffff' }}>GPS Dispatch Coordinates</Text>
+                </View>
+                {accuracyMeters ? (
+                  <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Accuracy: ±{accuracyMeters}m</Text>
+                ) : null}
+              </View>
+
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <View style={{ flex: 1 }}>
                   <Input
@@ -450,7 +787,59 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
                   />
                 </View>
               </View>
+
+              {/* Nudge Buttons for Fine Tuning */}
+              {pickupLat && pickupLng ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.04)' }}>
+                  <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)' }}>Micro-adjust dispatch pin (~11m):</Text>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    {(['N', 'S', 'W', 'E'] as const).map((dir) => (
+                      <TouchableOpacity
+                        key={dir}
+                        onPress={() => handleNudgeCoordinate(dir)}
+                        style={{
+                          width: 28,
+                          height: 24,
+                          borderRadius: 6,
+                          backgroundColor: 'rgba(255,255,255,0.06)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#ffffff' }}>{dir}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
             </View>
+
+            {/* Assembled Pickup Address Summary Card */}
+            {(doorNo || street || area || pickupCity) ? (
+              <View style={{ padding: 10, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', gap: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <CheckCircle2 size={13} color={Colors.emerald} />
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#ffffff' }}>Dispatch Address Preview</Text>
+                </View>
+                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 16 }}>
+                  {[
+                    [doorNo, buildingName].filter(Boolean).join(', '),
+                    [street, cross].filter(Boolean).join(', '),
+                    [area, landmark].filter(Boolean).join(', '),
+                    [pickupCity, pickupDistrict].filter(Boolean).join(', '),
+                    [pickupState, pickupPostal].filter(Boolean).join(' - '),
+                    'India',
+                  ]
+                    .filter((part) => part.trim().length > 0)
+                    .join('\n')}
+                </Text>
+                {pickupLat && pickupLng ? (
+                  <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
+                    Coordinates: {pickupLat}, {pickupLng}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
 
             <Button
               variant="default"
@@ -632,6 +1021,73 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
             >
               Save Bank Changes
             </Button>
+          </View>
+        </Dialog>
+
+        {/* Address Search Dialog */}
+        <Dialog
+          open={searchModalOpen}
+          onClose={() => setSearchModalOpen(false)}
+          title="Search Address or Landmark"
+          description="Type shop, building, street or locality name to auto-fill address"
+        >
+          <View style={{ gap: 10 }}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Input
+                  placeholder="e.g. Indiranagar 100ft Road, MG Road..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  onSubmitEditing={handleSearchAddress}
+                  returnKeyType="search"
+                />
+              </View>
+              <Button
+                variant="default"
+                size="sm"
+                loading={isSearching}
+                onPress={handleSearchAddress}
+                icon={<Search size={14} color="#000000" />}
+              >
+                Search
+              </Button>
+            </View>
+
+            {searchResults.length > 0 ? (
+              <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false}>
+                <View style={{ gap: 8 }}>
+                  {searchResults.map((item, idx) => (
+                    <TouchableOpacity
+                      key={item.placeId || `${item.latitude}-${item.longitude}-${idx}`}
+                      onPress={() => handleSelectSearchResult(item)}
+                      style={{
+                        padding: 10,
+                        borderRadius: 8,
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        gap: 2,
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <MapPin size={13} color={Colors.emerald} />
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#ffffff' }}>
+                          {item.formattedAddress.split(',')[0]}
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 10, color: 'rgba(255, 255, 255, 0.55)', paddingLeft: 19 }}>
+                        {item.formattedAddress}
+                      </Text>
+                      {item.hasMissingDoorNo && (
+                        <Text style={{ fontSize: 9, color: '#fbbf24', paddingLeft: 19, marginTop: 2 }}>
+                          * Door number will need manual entry
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            ) : null}
           </View>
         </Dialog>
 

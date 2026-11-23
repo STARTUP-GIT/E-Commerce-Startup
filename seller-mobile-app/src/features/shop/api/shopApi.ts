@@ -16,6 +16,14 @@ export interface ShopAddress {
   longitude?: number | null;
   formattedAddress?: string;
   placeId?: string;
+  doorNo?: string;
+  buildingName?: string;
+  street?: string;
+  cross?: string;
+  area?: string;
+  landmark?: string;
+  locationSource?: string;
+  accuracyMeters?: number | null;
 }
 
 export interface ShopInfo {
@@ -90,6 +98,14 @@ export interface ShopSetupPayload {
   longitude?: number | null;
   formattedAddress?: string;
   placeId?: string;
+  doorNo?: string;
+  buildingName?: string;
+  street?: string;
+  cross?: string;
+  area?: string;
+  landmark?: string;
+  locationSource?: string;
+  accuracyMeters?: number | null;
   type?: string;
   label?: string;
   contactName?: string;
@@ -227,5 +243,12 @@ export const shopApi = {
   }> => {
     const response = await axiosInstance.get(`/api/locations/states/${encodeURIComponent(stateName)}/districts`);
     return response.data;
+  },
+
+  searchAddresses: async (query: string, city?: string): Promise<any[]> => {
+    const response = await axiosInstance.get('/api/locations/search', {
+      params: { q: query, city },
+    });
+    return response.data?.results || [];
   },
 };

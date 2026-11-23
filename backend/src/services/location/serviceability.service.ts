@@ -62,6 +62,13 @@ export interface ServiceabilityCheckResult {
 }
 
 export interface GeocodeLocationResult {
+    doorNo?: string;
+    buildingName?: string;
+    street?: string;
+    cross?: string;
+    area?: string;
+    locality?: string;
+    landmark?: string;
     addressLine1?: string;
     addressLine2?: string;
     state: string;
@@ -73,6 +80,28 @@ export interface GeocodeLocationResult {
     latitude: number;
     longitude: number;
     formattedAddress?: string;
+    precision?: string;
+    hasMissingDoorNo?: boolean;
+}
+
+export interface AddressSearchResult {
+    placeId: string;
+    formattedAddress: string;
+    latitude: number;
+    longitude: number;
+    doorNo?: string;
+    buildingName?: string;
+    street?: string;
+    cross?: string;
+    area?: string;
+    locality?: string;
+    landmark?: string;
+    city: string;
+    district: string;
+    state: string;
+    postalCode?: string;
+    country: string;
+    hasMissingDoorNo: boolean;
 }
 
 // Canonical district mapping and aliases
@@ -692,6 +721,7 @@ export class ServiceabilityService {
 
     /**
      * Resolve GPS coordinates to human-readable administrative hierarchy.
+     * Extracts full Indian address components (Door/Flat No, Building, Street, Cross, Area, Landmark, City, District, State, PIN).
      * NEVER defaults to Mysuru or any arbitrary district on resolution failure.
      */
     static async resolveCoordinates(latitude: number, longitude: number): Promise<GeocodeLocationResult> {
@@ -715,6 +745,7 @@ export class ServiceabilityService {
                     let country = "India";
                     let postalCode = "";
                     let serviceArea = "";
+                    let pointOfInterest = "";
 
                     for (const comp of result.address_components) {
                         const types = comp.types;
@@ -741,24 +772,35 @@ export class ServiceabilityService {
                             country = comp.long_name;
                         } else if (types.includes("postal_code")) {
                             postalCode = comp.long_name;
+                        } else if (types.includes("point_of_interest") || types.includes("landmark")) {
+                            pointOfInterest = comp.long_name;
                         }
                     }
 
-                    // Build addressLine1: premise/building, house/street number, route
+                    const doorNo = subpremise || streetNumber || "";
+                    const buildingName = premise || "";
+                    const street = route || "";
+                    const cross = neighborhood && neighborhood !== sublocality && (neighborhood.toLowerCase().includes("cross") || neighborhood.toLowerCase().includes("main")) ? neighborhood : "";
+                    const area = sublocality || neighborhood || "";
+                    const landmark = pointOfInterest || "";
+
+                    // Build addressLine1: doorNo, building, street
                     const line1Components: string[] = [];
-                    if (premise) line1Components.push(premise);
-                    if (streetNumber && !premise.includes(streetNumber)) line1Components.push(streetNumber);
-                    if (route) line1Components.push(route);
+                    if (doorNo) line1Components.push(doorNo);
+                    if (buildingName && !doorNo.includes(buildingName)) line1Components.push(buildingName);
+                    if (street && !line1Components.includes(street)) line1Components.push(street);
                     const addressLine1 = line1Components.length > 0
                         ? line1Components.join(", ")
-                        : (sublocality || locality || "");
+                        : (street || area || locality || "");
 
-                    // Build addressLine2: subpremise (flat/suite), neighborhood, sublocality
+                    // Build addressLine2: cross, area, landmark
                     const line2Components: string[] = [];
-                    if (subpremise) line2Components.push(subpremise);
-                    if (neighborhood && !addressLine1.includes(neighborhood)) line2Components.push(neighborhood);
-                    if (sublocality && !addressLine1.includes(sublocality) && !line2Components.includes(sublocality)) {
-                        line2Components.push(sublocality);
+                    if (cross) line2Components.push(cross);
+                    if (area && !addressLine1.includes(area) && !line2Components.includes(area)) {
+                        line2Components.push(area);
+                    }
+                    if (landmark && !addressLine1.includes(landmark) && !line2Components.includes(landmark)) {
+                        line2Components.push(`Near ${landmark}`);
                     }
                     const addressLine2 = line2Components.join(", ");
 
@@ -768,8 +810,16 @@ export class ServiceabilityService {
 
                     // Canonical alias normalization
                     const canonicalDistrict = normalizeDistrictName(district || locality);
+                    const locationType = result.geometry?.location_type || "APPROXIMATE";
 
                     return {
+                        doorNo: doorNo || undefined,
+                        buildingName: buildingName || undefined,
+                        street: street || undefined,
+                        cross: cross || undefined,
+                        area: area || undefined,
+                        locality: locality || sublocality || undefined,
+                        landmark: landmark || undefined,
                         addressLine1: addressLine1 || undefined,
                         addressLine2: addressLine2 || undefined,
                         state,
@@ -780,7 +830,9 @@ export class ServiceabilityService {
                         postalCode: validPostal || undefined,
                         latitude,
                         longitude,
-                        formattedAddress: result.formatted_address
+                        formattedAddress: result.formatted_address,
+                        precision: locationType,
+                        hasMissingDoorNo: Boolean(!doorNo && !buildingName)
                     };
                 }
             } catch (err: any) {
@@ -798,25 +850,33 @@ export class ServiceabilityService {
 
             if (response.data && response.data.address) {
                 const addr = response.data.address;
-                const houseNumber = addr.house_number || addr.house_name || addr.building || "";
-                const road = addr.road || addr.pedestrian || addr.footway || addr.path || addr.street || "";
-                const suburb = addr.suburb || addr.neighbourhood || addr.residential || addr.subdivision || "";
+                const doorNo = addr.house_number || "";
+                const buildingName = addr.house_name || addr.building || "";
+                const street = addr.road || addr.pedestrian || addr.footway || addr.path || addr.street || "";
+                const cross = addr.neighbourhood && (addr.neighbourhood.toLowerCase().includes("cross") || addr.neighbourhood.toLowerCase().includes("main")) ? addr.neighbourhood : "";
+                const area = addr.suburb || addr.neighbourhood || addr.residential || addr.subdivision || "";
                 const city = addr.city || addr.town || addr.village || addr.municipality || "";
                 const rawDistrict = addr.state_district || addr.county || addr.district || city || "";
                 const state = addr.state || "";
                 const country = addr.country || "India";
                 const postalCode = addr.postcode || "";
+                const landmark = addr.amenity || addr.landmark || "";
 
                 const line1Components: string[] = [];
-                if (houseNumber) line1Components.push(houseNumber);
-                if (road) line1Components.push(road);
+                if (doorNo) line1Components.push(doorNo);
+                if (buildingName) line1Components.push(buildingName);
+                if (street && !line1Components.includes(street)) line1Components.push(street);
                 const addressLine1 = line1Components.length > 0
                     ? line1Components.join(", ")
-                    : (suburb || city || "");
+                    : (street || area || city || "");
 
                 const line2Components: string[] = [];
-                if (suburb && !addressLine1.includes(suburb)) line2Components.push(suburb);
-                if (addr.hamlet && !addressLine1.includes(addr.hamlet)) line2Components.push(addr.hamlet);
+                if (cross) line2Components.push(cross);
+                if (area && !addressLine1.includes(area)) line2Components.push(area);
+                if (landmark && !addressLine1.includes(landmark)) line2Components.push(`Near ${landmark}`);
+                if (addr.hamlet && !addressLine1.includes(addr.hamlet) && !line2Components.includes(addr.hamlet)) {
+                    line2Components.push(addr.hamlet);
+                }
                 const addressLine2 = line2Components.join(", ");
 
                 const cleanPostal = postalCode.replace(/\D/g, "");
@@ -825,17 +885,26 @@ export class ServiceabilityService {
                 const canonicalDistrict = normalizeDistrictName(rawDistrict || city);
 
                 return {
+                    doorNo: doorNo || undefined,
+                    buildingName: buildingName || undefined,
+                    street: street || undefined,
+                    cross: cross || undefined,
+                    area: area || undefined,
+                    locality: city || area || undefined,
+                    landmark: landmark || undefined,
                     addressLine1: addressLine1 || undefined,
                     addressLine2: addressLine2 || undefined,
                     state,
                     district: canonicalDistrict,
                     city: city || canonicalDistrict,
                     country: country || "India",
-                    serviceArea: suburb || undefined,
+                    serviceArea: area || undefined,
                     postalCode: validPostal || undefined,
                     latitude,
                     longitude,
-                    formattedAddress: response.data.display_name
+                    formattedAddress: response.data.display_name,
+                    precision: doorNo ? "ROOFTOP" : street ? "RANGE_INTERPOLATED" : "APPROXIMATE",
+                    hasMissingDoorNo: Boolean(!doorNo && !buildingName)
                 };
             }
         } catch (err: any) {
@@ -844,14 +913,156 @@ export class ServiceabilityService {
 
         // Return empty result when resolution fails - never substitute an arbitrary district
         return {
+            doorNo: undefined,
+            buildingName: undefined,
+            street: undefined,
+            cross: undefined,
+            area: undefined,
+            locality: undefined,
+            landmark: undefined,
+            addressLine1: undefined,
+            addressLine2: undefined,
             state: "",
             district: "",
             city: "",
             country: "India",
             latitude,
             longitude,
-            formattedAddress: undefined
+            formattedAddress: undefined,
+            precision: "UNKNOWN",
+            hasMissingDoorNo: true
         };
+    }
+
+    /**
+     * Search address, locality, landmark, or building for autocomplete
+     */
+    static async searchAddress(query: string, cityHint?: string): Promise<AddressSearchResult[]> {
+        const cleanQuery = query.trim();
+        if (!cleanQuery) return [];
+
+        const apiKey = process.env.GOOGLE_MAPS_SERVER_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+        const results: AddressSearchResult[] = [];
+
+        if (apiKey) {
+            try {
+                const fullQuery = cityHint ? `${cleanQuery}, ${cityHint}, India` : `${cleanQuery}, India`;
+                const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullQuery)}&components=country:IN&key=${apiKey}`;
+                const response = await axios.get(url, { timeout: 4000 });
+
+                if (response.data?.status === "OK" && Array.isArray(response.data?.results)) {
+                    for (const item of response.data.results.slice(0, 6)) {
+                        let streetNumber = "";
+                        let route = "";
+                        let premise = "";
+                        let subpremise = "";
+                        let sublocality = "";
+                        let neighborhood = "";
+                        let locality = "";
+                        let district = "";
+                        let state = "";
+                        let postalCode = "";
+                        let landmark = "";
+
+                        for (const comp of item.address_components || []) {
+                            const types = comp.types || [];
+                            if (types.includes("street_number")) streetNumber = comp.long_name;
+                            else if (types.includes("route")) route = comp.long_name;
+                            else if (types.includes("premise")) premise = comp.long_name;
+                            else if (types.includes("subpremise")) subpremise = comp.long_name;
+                            else if (types.includes("sublocality_level_1") || types.includes("sublocality")) sublocality = comp.long_name;
+                            else if (types.includes("neighborhood") || types.includes("sublocality_level_2")) neighborhood = comp.long_name;
+                            else if (types.includes("locality")) locality = comp.long_name;
+                            else if (types.includes("administrative_area_level_2")) district = comp.long_name;
+                            else if (types.includes("administrative_area_level_1")) state = comp.long_name;
+                            else if (types.includes("postal_code")) postalCode = comp.long_name;
+                            else if (types.includes("point_of_interest") || types.includes("landmark")) landmark = comp.long_name;
+                        }
+
+                        const doorNo = subpremise || streetNumber;
+                        const buildingName = premise;
+                        const cleanPostal = postalCode.replace(/\D/g, "");
+
+                        results.push({
+                            placeId: item.place_id || `google_${item.geometry.location.lat}_${item.geometry.location.lng}`,
+                            formattedAddress: item.formatted_address,
+                            latitude: item.geometry.location.lat,
+                            longitude: item.geometry.location.lng,
+                            doorNo: doorNo || undefined,
+                            buildingName: buildingName || undefined,
+                            street: route || undefined,
+                            cross: neighborhood && (neighborhood.toLowerCase().includes("cross") || neighborhood.toLowerCase().includes("main")) ? neighborhood : undefined,
+                            area: sublocality || neighborhood || undefined,
+                            locality: locality || sublocality || undefined,
+                            landmark: landmark || undefined,
+                            city: locality || normalizeDistrictName(district) || "Mysuru",
+                            district: normalizeDistrictName(district || locality),
+                            state: state || "Karnataka",
+                            postalCode: cleanPostal.length === 6 ? cleanPostal : undefined,
+                            country: "India",
+                            hasMissingDoorNo: Boolean(!doorNo && !buildingName),
+                        });
+                    }
+
+                    if (results.length > 0) return results;
+                }
+            } catch (err: any) {
+                logger.warn(`[ServiceabilityService] Google Geocode search error: ${err?.message}`);
+            }
+        }
+
+        // OpenStreetMap Nominatim Search Fallback
+        try {
+            const fullQuery = cityHint && !cleanQuery.toLowerCase().includes(cityHint.toLowerCase()) 
+                ? `${cleanQuery}, ${cityHint}, India` 
+                : `${cleanQuery}, India`;
+
+            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullQuery)}&format=json&addressdetails=1&countrycodes=in&limit=6`;
+            const response = await axios.get(url, {
+                timeout: 4000,
+                headers: { "User-Agent": "AtlasBasket/1.0" }
+            });
+
+            if (Array.isArray(response.data)) {
+                for (const item of response.data) {
+                    const addr = item.address || {};
+                    const doorNo = addr.house_number || "";
+                    const buildingName = addr.house_name || addr.building || "";
+                    const street = addr.road || addr.pedestrian || addr.street || "";
+                    const cross = addr.neighbourhood && (addr.neighbourhood.toLowerCase().includes("cross") || addr.neighbourhood.toLowerCase().includes("main")) ? addr.neighbourhood : "";
+                    const area = addr.suburb || addr.neighbourhood || addr.residential || "";
+                    const city = addr.city || addr.town || addr.village || "";
+                    const rawDistrict = addr.state_district || addr.county || addr.district || city || "";
+                    const state = addr.state || "";
+                    const postalCode = (addr.postcode || "").replace(/\D/g, "");
+                    const landmark = addr.amenity || addr.landmark || "";
+
+                    results.push({
+                        placeId: String(item.place_id || `osm_${item.lat}_${item.lon}`),
+                        formattedAddress: item.display_name,
+                        latitude: parseFloat(item.lat),
+                        longitude: parseFloat(item.lon),
+                        doorNo: doorNo || undefined,
+                        buildingName: buildingName || undefined,
+                        street: street || undefined,
+                        cross: cross || undefined,
+                        area: area || undefined,
+                        locality: city || area || undefined,
+                        landmark: landmark || undefined,
+                        city: city || normalizeDistrictName(rawDistrict) || "Mysuru",
+                        district: normalizeDistrictName(rawDistrict || city),
+                        state: state || "Karnataka",
+                        postalCode: postalCode.length === 6 ? postalCode : undefined,
+                        country: "India",
+                        hasMissingDoorNo: Boolean(!doorNo && !buildingName),
+                    });
+                }
+            }
+        } catch (err: any) {
+            logger.warn(`[ServiceabilityService] Nominatim search error: ${err?.message}`);
+        }
+
+        return results;
     }
 
     /**

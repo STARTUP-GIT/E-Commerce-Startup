@@ -18,7 +18,7 @@ import { shopApi } from '../api/shopApi';
 import { useLocationStore } from '@/lib/store/locationStore';
 
 import { SearchableDropdown } from '@/components/ui/SearchableDropdown';
-import { LocationCoordinatesInput } from '@/features/location/ui/LocationCoordinatesInput';
+import { ShopPickupAddressForm, type StructuredShopAddress } from '@/features/location/ui/ShopPickupAddressForm';
 
 export function ShopSetupPage() {
   const { createShop, isCreatingShop } = useShop();
@@ -73,6 +73,7 @@ export function ShopSetupPage() {
 
   const districts = districtsData?.allDistricts ?? [];
   const setComingSoon = useLocationStore((state) => state.setComingSoon);
+  const [pickupAddress, setPickupAddress] = useState<StructuredShopAddress | null>(null);
 
   const selectedStateObj = allStates.find(
     (st: any) => st.name.toLowerCase() === (selectedState || '').toLowerCase()
@@ -162,6 +163,15 @@ export function ShopSetupPage() {
         district: data.city,
         latitude: coordinates.latitude,
         longitude: coordinates.longitude,
+        doorNo: pickupAddress?.doorNo?.trim(),
+        buildingName: pickupAddress?.buildingName?.trim(),
+        street: pickupAddress?.street?.trim(),
+        cross: pickupAddress?.cross?.trim(),
+        area: pickupAddress?.area?.trim(),
+        landmark: pickupAddress?.landmark?.trim(),
+        locationSource: pickupAddress?.locationSource,
+        accuracyMeters: pickupAddress?.accuracyMeters,
+        formattedAddress: pickupAddress?.formattedAddress,
         contactName: `${user?.firstName} ${user?.lastName ?? ''}`.trim(),
         type: 'STORE',
         label: 'PICKUP',
@@ -258,141 +268,43 @@ export function ShopSetupPage() {
                 )}
               </div>
 
-              <div className="border-t border-white/5 pt-3 mt-1 space-y-4">
-                <LocationCoordinatesInput
-                  latitude={coordinates.latitude}
-                  longitude={coordinates.longitude}
-                  onChange={setCoordinates}
-                  onLocationResolved={(loc) => {
-                    if (loc.addressLine1) {
-                      setValue('addressLine1', loc.addressLine1, { shouldValidate: true });
-                    }
-                    if (loc.addressLine2) {
-                      setValue('addressLine2', loc.addressLine2, { shouldValidate: true });
-                    }
-                    if (loc.state) {
-                      setValue('state', loc.state, { shouldValidate: true });
-                    }
-                    if (loc.district || loc.city) {
-                      setValue('city', (loc.district || loc.city)!, { shouldValidate: true });
-                    }
-                    if (loc.postalCode) {
-                      setValue('postalCode', loc.postalCode, { shouldValidate: true });
-                    }
+              <div className="border-t border-white/5 pt-3 mt-1">
+                <ShopPickupAddressForm
+                  onAddressChange={(addr) => {
+                    setPickupAddress(addr);
+                    setCoordinates({ latitude: addr.latitude, longitude: addr.longitude });
+                    setValue('addressLine1', addr.addressLine1, { shouldValidate: true });
+                    setValue('addressLine2', addr.addressLine2, { shouldValidate: true });
+                    setValue('state', addr.state, { shouldValidate: true });
+                    setValue('city', addr.district || addr.city, { shouldValidate: true });
+                    setValue('postalCode', addr.postalCode, { shouldValidate: true });
+                    setValue('latitude', addr.latitude);
+                    setValue('longitude', addr.longitude);
+                    setValue('formattedAddress', addr.formattedAddress);
                   }}
-                  helperText="Specify store pickup coordinates for delivery dispatch, or use your device's current location."
+                  allStates={allStates}
+                  districts={districts}
+                  selectedState={selectedState || ''}
+                  onStateChange={(st) => {
+                    handleStateChange(st);
+                  }}
+                  selectedDistrict={selectedDistrict || ''}
+                  onDistrictChange={(dist) => {
+                    handleDistrictChange(dist);
+                  }}
+                  districtRequired={districtRequired}
+                  isLoadingConfig={isLoadingConfig}
+                  isLoadingDistricts={isLoadingDistricts}
+                  disabled={isCreatingShop}
                 />
-
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-white/60 ml-1">Address Line 1</label>
-                    <Input
-                      placeholder="Flat, House no., Building, Street address"
-                      error={!!errors.addressLine1}
-                      {...register('addressLine1')}
-                    />
-                    {errors.addressLine1 && (
-                      <p className="text-[10px] text-red-400 ml-1 mt-0.5">{errors.addressLine1.message}</p>
-                    )}
+                {(errors.addressLine1 || errors.state || errors.city || errors.postalCode) && (
+                  <div className="mt-2 text-xs text-red-400 space-y-0.5">
+                    {errors.addressLine1 && <p>• {errors.addressLine1.message}</p>}
+                    {errors.state && <p>• {errors.state.message}</p>}
+                    {errors.city && <p>• {errors.city.message}</p>}
+                    {errors.postalCode && <p>• {errors.postalCode.message}</p>}
                   </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-white/60 ml-1">Address Line 2 (Optional)</label>
-                    <Input
-                      placeholder="Apartment, Suite, Unit, Landmark"
-                      {...register('addressLine2')}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* State selection */}
-                    <div className="space-y-1">
-                      {isLoadingConfig ? (
-                        <Skeleton className="h-10 w-full rounded-xl" />
-                      ) : (
-                        <SearchableDropdown
-                          options={allStates}
-                          value={selectedState}
-                          onChange={handleStateChange}
-                          placeholder="Select State"
-                          label="State"
-                        />
-                      )}
-                      {errors.state && (
-                        <p className="text-[10px] text-red-400 ml-1 mt-0.5">{errors.state.message}</p>
-                      )}
-                    </div>
-
-                    {/* District selection */}
-                    <div className="space-y-1">
-                      {isLoadingDistricts ? (
-                        <Skeleton className="h-10 w-full rounded-xl" />
-                      ) : !selectedState ? (
-                        <div className="space-y-1.5 relative w-full">
-                          <label className="block text-[10px] font-bold text-white/50 uppercase tracking-wider">
-                            District {districtRequired ? '' : '(Optional)'}
-                          </label>
-                          <button
-                            type="button"
-                            disabled
-                            className="w-full h-10 flex items-center justify-between px-3 rounded-xl border border-white/10 bg-neutral-900/60 text-xs text-white/30 cursor-not-allowed text-left font-medium select-none"
-                          >
-                            Select a State first
-                          </button>
-                        </div>
-                      ) : districts.length === 0 ? (
-                        <div className="space-y-1.5 relative w-full">
-                          <label className="block text-[10px] font-bold text-white/50 uppercase tracking-wider">
-                            District {districtRequired ? '' : '(Optional)'}
-                          </label>
-                          <button
-                            type="button"
-                            disabled
-                            className="w-full h-10 flex items-center justify-between px-3 rounded-xl border border-white/10 bg-neutral-900/60 text-xs text-white/30 cursor-not-allowed text-left font-medium select-none"
-                          >
-                            No operational districts available
-                          </button>
-                        </div>
-                      ) : (
-                        <SearchableDropdown
-                          options={districts}
-                          value={selectedDistrict || ''}
-                          onChange={handleDistrictChange}
-                          placeholder={districtRequired ? 'Select District' : 'Select District (Optional)'}
-                          label={`District ${districtRequired ? '' : '(Optional)'}`}
-                          isLoading={isLoadingDistricts}
-                        />
-                      )}
-                      {errors.city && (
-                        <p className="text-[10px] text-red-400 ml-1 mt-0.5">{errors.city.message}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-white/60 ml-1">Postal Code</label>
-                      <Input
-                        placeholder="e.g. 560001"
-                        error={!!errors.postalCode}
-                        {...register('postalCode')}
-                      />
-                      {errors.postalCode && (
-                        <p className="text-[10px] text-red-400 ml-1 mt-0.5">{errors.postalCode.message}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-white/60 ml-1">Country</label>
-                      <Input
-                        value="India"
-                        disabled
-                        readOnly
-                      />
-                      <input type="hidden" value="India" {...register('country')} />
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Business Verification */}

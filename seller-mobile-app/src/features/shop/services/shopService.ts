@@ -14,6 +14,14 @@ export interface ShopSetupInput {
   longitude?: number | null;
   formattedAddress?: string;
   placeId?: string;
+  doorNo?: string;
+  buildingName?: string;
+  street?: string;
+  cross?: string;
+  area?: string;
+  landmark?: string;
+  locationSource?: string;
+  accuracyMeters?: number | null;
 }
 
 export interface BankDetailsInput {
@@ -38,8 +46,11 @@ export const shopService = {
     if (!data.phone || data.phone.length < 10) {
       return { valid: false, error: 'Please enter a valid phone number' };
     }
-    if (!data.addressLine1 || data.addressLine1.length < 5) {
-      return { valid: false, error: 'Address is too short' };
+    const effectiveAddress = (data.doorNo && data.street)
+      ? `${data.doorNo}, ${data.street}`
+      : data.addressLine1;
+    if (!effectiveAddress || effectiveAddress.length < 3) {
+      return { valid: false, error: 'Door/Shop number and street address are required' };
     }
     if (!data.state) {
       return { valid: false, error: 'State selection is required' };
@@ -47,8 +58,8 @@ export const shopService = {
     if (districtRequired && (!data.city || !data.city.trim())) {
       return { valid: false, error: 'District selection is required' };
     }
-    if (!data.postalCode || data.postalCode.length < 3) {
-      return { valid: false, error: 'Postal code is required' };
+    if (!data.postalCode || !/^[1-9][0-9]{5}$/.test(data.postalCode.trim())) {
+      return { valid: false, error: 'Valid 6-digit Indian PIN code is required' };
     }
     return { valid: true };
   },

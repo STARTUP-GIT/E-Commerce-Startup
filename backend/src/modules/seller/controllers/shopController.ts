@@ -61,9 +61,57 @@ export const createShop = async (req: Request,res: Response) => {
             longitude,
             formattedAddress,
             placeId,
+            doorNo,
+            buildingName,
+            street,
+            cross,
+            area,
+            landmark,
+            locationSource,
+            accuracyMeters,
             gstRegistered,
             gstNumber
         } = req.body;
+
+        // Structured Indian address derivation
+        const effectiveDoorNo = typeof doorNo === "string" ? doorNo.trim() : "";
+        const effectiveBuilding = typeof buildingName === "string" ? buildingName.trim() : "";
+        const effectiveStreet = typeof street === "string" ? street.trim() : "";
+        const effectiveCross = typeof cross === "string" ? cross.trim() : "";
+        const effectiveArea = typeof area === "string" ? area.trim() : "";
+        const effectiveLandmark = typeof landmark === "string" ? landmark.trim() : "";
+
+        const line1Parts: string[] = [];
+        if (effectiveDoorNo) line1Parts.push(effectiveDoorNo);
+        if (effectiveBuilding && !effectiveDoorNo.includes(effectiveBuilding)) line1Parts.push(effectiveBuilding);
+        if (effectiveStreet && !line1Parts.includes(effectiveStreet)) line1Parts.push(effectiveStreet);
+        const derivedAddressLine1 = line1Parts.length > 0 ? line1Parts.join(", ") : (addressLine1?.trim() || "");
+
+        const line2Parts: string[] = [];
+        if (effectiveCross) line2Parts.push(effectiveCross);
+        if (effectiveArea && !derivedAddressLine1.includes(effectiveArea)) line2Parts.push(effectiveArea);
+        if (effectiveLandmark && !derivedAddressLine1.includes(effectiveLandmark)) line2Parts.push(`Near ${effectiveLandmark}`);
+        const derivedAddressLine2 = line2Parts.length > 0 ? line2Parts.join(", ") : (addressLine2?.trim() || null);
+
+        const fullAddrParts: string[] = [];
+        if (derivedAddressLine1) fullAddrParts.push(derivedAddressLine1);
+        if (derivedAddressLine2) fullAddrParts.push(derivedAddressLine2);
+        if (city?.trim()) fullAddrParts.push(city.trim());
+        if (district?.trim() && district.trim().toLowerCase() !== city?.trim().toLowerCase()) fullAddrParts.push(district.trim());
+        if (state?.trim() && postalCode?.trim()) fullAddrParts.push(`${state.trim()} - ${postalCode.trim()}`);
+        else if (state?.trim()) fullAddrParts.push(state.trim());
+        fullAddrParts.push(country?.trim() || "India");
+        const derivedFormatted = formattedAddress?.trim() || fullAddrParts.join(", ");
+
+        // Validate 6-digit Indian PIN code
+        if (postalCode) {
+            const cleanPin = String(postalCode).replace(/\D/g, "");
+            if (cleanPin.length !== 6 || !/^[1-9][0-9]{5}$/.test(cleanPin)) {
+                return res.status(400).json({
+                    message: "Invalid PIN code. Must be a valid 6-digit Indian postal PIN code."
+                });
+            }
+        }
 
         // Map/normalize type to SellerAddressType enum
         let addressType: SellerAddressType = SellerAddressType.PICKUP;
@@ -214,8 +262,8 @@ export const createShop = async (req: Request,res: Response) => {
                             label,
 
                             phone,
-                            addressLine1,
-                            addressLine2,
+                            addressLine1: derivedAddressLine1 || addressLine1,
+                            addressLine2: derivedAddressLine2,
 
                             city,
                             district: district || city,
@@ -225,8 +273,17 @@ export const createShop = async (req: Request,res: Response) => {
 
                             latitude: validLat,
                             longitude: validLng,
-                            formattedAddress: formattedAddress?.trim() || null,
+                            formattedAddress: derivedFormatted,
                             placeId: placeId?.trim() || null,
+
+                            doorNo: effectiveDoorNo || null,
+                            buildingName: effectiveBuilding || null,
+                            street: effectiveStreet || null,
+                            cross: effectiveCross || null,
+                            area: effectiveArea || null,
+                            landmark: effectiveLandmark || null,
+                            locationSource: locationSource || (validLat && validLng ? "GPS_DETECTED" : "MANUALLY_ENTERED"),
+                            accuracyMeters: accuracyMeters !== undefined && accuracyMeters !== null ? Number(accuracyMeters) : null,
 
                             isDefault: true
                         }
@@ -1083,6 +1140,14 @@ export const updateShop = async (req: Request, res: Response) => {
             longitude,
             formattedAddress,
             placeId,
+            doorNo,
+            buildingName,
+            street,
+            cross,
+            area,
+            landmark,
+            locationSource,
+            accuracyMeters,
         } = req.body;
 
         const shop = await prisma.shop.findUnique({
@@ -1100,6 +1165,16 @@ export const updateShop = async (req: Request, res: Response) => {
             return res.status(400).json({
                 message: "The marketplace only operates in India"
             });
+        }
+
+        // Validate 6-digit Indian postal PIN code
+        if (postalCode) {
+            const cleanPin = String(postalCode).replace(/\D/g, "");
+            if (cleanPin.length !== 6 || !/^[1-9][0-9]{5}$/.test(cleanPin)) {
+                return res.status(400).json({
+                    message: "Invalid PIN code. Must be a valid 6-digit Indian postal PIN code."
+                });
+            }
         }
 
         if (state) {
@@ -1146,32 +1221,68 @@ export const updateShop = async (req: Request, res: Response) => {
             }
         }
 
+        const effectiveDoorNo = typeof doorNo === "string" ? doorNo.trim() : (doorNo === null ? "" : undefined);
+        const effectiveBuilding = typeof buildingName === "string" ? buildingName.trim() : (buildingName === null ? "" : undefined);
+        const effectiveStreet = typeof street === "string" ? street.trim() : (street === null ? "" : undefined);
+        const effectiveCross = typeof cross === "string" ? cross.trim() : (cross === null ? "" : undefined);
+        const effectiveArea = typeof area === "string" ? area.trim() : (area === null ? "" : undefined);
+        const effectiveLandmark = typeof landmark === "string" ? landmark.trim() : (landmark === null ? "" : undefined);
+
+        let derivedAddressLine1: string | undefined = undefined;
+        let derivedAddressLine2: string | undefined = undefined;
+
+        if (effectiveDoorNo !== undefined || effectiveBuilding !== undefined || effectiveStreet !== undefined) {
+            const line1Parts: string[] = [];
+            const d = effectiveDoorNo ?? shop.defaultPickupAddress?.doorNo ?? "";
+            const b = effectiveBuilding ?? shop.defaultPickupAddress?.buildingName ?? "";
+            const s = effectiveStreet ?? shop.defaultPickupAddress?.street ?? "";
+            if (d) line1Parts.push(d);
+            if (b && !d.includes(b)) line1Parts.push(b);
+            if (s && !line1Parts.includes(s)) line1Parts.push(s);
+            if (line1Parts.length > 0) {
+                derivedAddressLine1 = line1Parts.join(", ");
+            }
+        }
+
+        if (effectiveCross !== undefined || effectiveArea !== undefined || effectiveLandmark !== undefined) {
+            const line2Parts: string[] = [];
+            const c = effectiveCross ?? shop.defaultPickupAddress?.cross ?? "";
+            const a = effectiveArea ?? shop.defaultPickupAddress?.area ?? "";
+            const l = effectiveLandmark ?? shop.defaultPickupAddress?.landmark ?? "";
+            if (c) line2Parts.push(c);
+            if (a) line2Parts.push(a);
+            if (l) line2Parts.push(`Near ${l}`);
+            if (line2Parts.length > 0) {
+                derivedAddressLine2 = line2Parts.join(", ");
+            }
+        }
+
         const result = await prisma.$transaction(async (tx) => {
-            if (shop.defaultPickupAddressId) {
-                let updatedLat = shop.defaultPickupAddress?.latitude !== null && shop.defaultPickupAddress?.latitude !== undefined
-                    ? Number(shop.defaultPickupAddress.latitude)
-                    : null;
-                let updatedLng = shop.defaultPickupAddress?.longitude !== null && shop.defaultPickupAddress?.longitude !== undefined
-                    ? Number(shop.defaultPickupAddress.longitude)
-                    : null;
+            let updatedLat = shop.defaultPickupAddress?.latitude !== null && shop.defaultPickupAddress?.latitude !== undefined
+                ? Number(shop.defaultPickupAddress.latitude)
+                : null;
+            let updatedLng = shop.defaultPickupAddress?.longitude !== null && shop.defaultPickupAddress?.longitude !== undefined
+                ? Number(shop.defaultPickupAddress.longitude)
+                : null;
 
-                if (latitude !== undefined || longitude !== undefined) {
-                    const coordValidation = validateCoordinatePair(latitude, longitude);
-                    if (!coordValidation.valid) {
-                        return res.status(400).json({
-                            message: coordValidation.message
-                        });
-                    }
-                    updatedLat = coordValidation.lat;
-                    updatedLng = coordValidation.lng;
+            if (latitude !== undefined || longitude !== undefined) {
+                const coordValidation = validateCoordinatePair(latitude, longitude);
+                if (!coordValidation.valid) {
+                    return res.status(400).json({
+                        message: coordValidation.message
+                    });
                 }
+                updatedLat = coordValidation.lat;
+                updatedLng = coordValidation.lng;
+            }
 
+            if (shop.defaultPickupAddressId) {
                 await tx.sellerAddress.update({
                     where: { id: shop.defaultPickupAddressId },
                     data: {
                         phone: phone ?? undefined,
-                        addressLine1: addressLine1 ?? undefined,
-                        addressLine2: addressLine2 !== undefined ? (addressLine2?.trim() || null) : undefined,
+                        addressLine1: derivedAddressLine1 ?? (addressLine1 ?? undefined),
+                        addressLine2: derivedAddressLine2 !== undefined ? derivedAddressLine2 : (addressLine2 !== undefined ? (addressLine2?.trim() || null) : undefined),
                         city: city ?? undefined,
                         district: district ?? (city ?? undefined),
                         state: state ?? undefined,
@@ -1181,7 +1292,50 @@ export const updateShop = async (req: Request, res: Response) => {
                         longitude: updatedLng,
                         formattedAddress: formattedAddress !== undefined ? (formattedAddress?.trim() || null) : undefined,
                         placeId: placeId !== undefined ? (placeId?.trim() || null) : undefined,
+                        doorNo: effectiveDoorNo !== undefined ? (effectiveDoorNo || null) : undefined,
+                        buildingName: effectiveBuilding !== undefined ? (effectiveBuilding || null) : undefined,
+                        street: effectiveStreet !== undefined ? (effectiveStreet || null) : undefined,
+                        cross: effectiveCross !== undefined ? (effectiveCross || null) : undefined,
+                        area: effectiveArea !== undefined ? (effectiveArea || null) : undefined,
+                        landmark: effectiveLandmark !== undefined ? (effectiveLandmark || null) : undefined,
+                        locationSource: locationSource ?? undefined,
+                        accuracyMeters: accuracyMeters !== undefined && accuracyMeters !== null ? Number(accuracyMeters) : undefined,
                     }
+                });
+            } else if (addressLine1 || derivedAddressLine1 || city || state) {
+                const seller = await tx.seller.findUnique({ where: { id: sellerId } });
+                const newAddr = await tx.sellerAddress.create({
+                    data: {
+                        sellerId,
+                        fullName: seller ? `${seller.firstName} ${seller.lastName}`.trim() : "Shop Pickup",
+                        contactName: seller ? `${seller.firstName} ${seller.lastName}`.trim() : "Shop Pickup",
+                        type: SellerAddressType.PICKUP,
+                        phone: phone || seller?.phone || "",
+                        addressLine1: derivedAddressLine1 || addressLine1 || "",
+                        addressLine2: derivedAddressLine2 || (addressLine2?.trim() || null),
+                        city: city || "",
+                        district: district || city || "",
+                        state: state || "",
+                        postalCode: postalCode || "",
+                        country: country || "India",
+                        latitude: updatedLat,
+                        longitude: updatedLng,
+                        formattedAddress: formattedAddress?.trim() || null,
+                        placeId: placeId?.trim() || null,
+                        doorNo: effectiveDoorNo || null,
+                        buildingName: effectiveBuilding || null,
+                        street: effectiveStreet || null,
+                        cross: effectiveCross || null,
+                        area: effectiveArea || null,
+                        landmark: effectiveLandmark || null,
+                        locationSource: locationSource || "MANUALLY_ENTERED",
+                        accuracyMeters: accuracyMeters !== undefined && accuracyMeters !== null ? Number(accuracyMeters) : null,
+                        isDefault: true,
+                    }
+                });
+                await tx.shop.update({
+                    where: { id: shop.id },
+                    data: { defaultPickupAddressId: newAddr.id }
                 });
             }
 

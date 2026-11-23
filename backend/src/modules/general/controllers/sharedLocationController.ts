@@ -37,6 +37,15 @@ export const resolveLocation = async (req: Request, res: Response) => {
         let resolvedAddressLine1: string | undefined = undefined;
         let resolvedAddressLine2: string | undefined = undefined;
         let resolvedCountry: string = "India";
+        let resolvedDoorNo: string | undefined = undefined;
+        let resolvedBuildingName: string | undefined = undefined;
+        let resolvedStreet: string | undefined = undefined;
+        let resolvedCross: string | undefined = undefined;
+        let resolvedArea: string | undefined = undefined;
+        let resolvedLocality: string | undefined = undefined;
+        let resolvedLandmark: string | undefined = undefined;
+        let resolvedPrecision: string | undefined = undefined;
+        let resolvedHasMissingDoorNo: boolean | undefined = undefined;
 
         if (latitude !== undefined && longitude !== undefined && !isNaN(Number(latitude)) && !isNaN(Number(longitude))) {
             const geocodeResult = await ServiceabilityService.resolveCoordinates(
@@ -52,6 +61,15 @@ export const resolveLocation = async (req: Request, res: Response) => {
             resolvedAddressLine1 = geocodeResult.addressLine1;
             resolvedAddressLine2 = geocodeResult.addressLine2;
             resolvedCountry = geocodeResult.country || "India";
+            resolvedDoorNo = geocodeResult.doorNo;
+            resolvedBuildingName = geocodeResult.buildingName;
+            resolvedStreet = geocodeResult.street;
+            resolvedCross = geocodeResult.cross;
+            resolvedArea = geocodeResult.area;
+            resolvedLocality = geocodeResult.locality;
+            resolvedLandmark = geocodeResult.landmark;
+            resolvedPrecision = geocodeResult.precision;
+            resolvedHasMissingDoorNo = geocodeResult.hasMissingDoorNo;
         }
 
         const serviceability = await ServiceabilityService.checkServiceability({
@@ -77,6 +95,13 @@ export const resolveLocation = async (req: Request, res: Response) => {
                 districtId: serviceability.districtId || districtId,
                 townId: serviceability.townId || townId,
                 serviceAreaId: serviceability.serviceAreaId || serviceAreaId,
+                doorNo: resolvedDoorNo,
+                buildingName: resolvedBuildingName,
+                street: resolvedStreet,
+                cross: resolvedCross,
+                area: resolvedArea,
+                locality: resolvedLocality,
+                landmark: resolvedLandmark,
                 addressLine1: resolvedAddressLine1,
                 addressLine2: resolvedAddressLine2,
                 state: resolvedState || "",
@@ -88,13 +113,36 @@ export const resolveLocation = async (req: Request, res: Response) => {
                 country: resolvedCountry || "India",
                 latitude: latitude !== undefined ? Number(latitude) : undefined,
                 longitude: longitude !== undefined ? Number(longitude) : undefined,
-                formattedAddress
+                formattedAddress,
+                precision: resolvedPrecision,
+                hasMissingDoorNo: resolvedHasMissingDoorNo,
             } : null,
             serviceability
         });
     } catch (error: any) {
         console.error("RESOLVE LOCATION ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+/**
+ * GET /api/locations/search?q=...&city=...
+ * Autocomplete & search for buildings, streets, areas, and localities
+ */
+export const searchLocations = async (req: Request, res: Response) => {
+    try {
+        const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
+        const cityHint = typeof req.query.city === "string" ? req.query.city.trim() : undefined;
+
+        if (!query || query.length < 2) {
+            return res.status(200).json({ results: [] });
+        }
+
+        const results = await ServiceabilityService.searchAddress(query, cityHint);
+        return res.status(200).json({ results });
+    } catch (error: any) {
+        console.error("SEARCH LOCATIONS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Failed to search locations", results: [] });
     }
 };
 

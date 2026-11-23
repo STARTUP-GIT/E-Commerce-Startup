@@ -6,7 +6,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { useQuery } from '@tanstack/react-query';
 import { useShop } from '../hooks/useShop';
 import { shopApi } from '../api/shopApi';
@@ -18,7 +20,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/sha
 import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Dialog } from '@/shared/components/Dialog';
-import { Store, ChevronDown, Check } from 'lucide-react-native';
+import { Store, ChevronDown, Check, MapPin, Crosshair, AlertTriangle } from 'lucide-react-native';
+import axiosInstance from '@/lib/axios/axiosInstance';
 import { Colors } from '@/theme/colors';
 
 interface ShopSetupPageProps {
@@ -34,9 +37,21 @@ export function ShopSetupPage({ navigation }: ShopSetupPageProps) {
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
   const [phone, setPhone] = useState('');
+  const [doorNo, setDoorNo] = useState('');
+  const [buildingName, setBuildingName] = useState('');
+  const [street, setStreet] = useState('');
+  const [cross, setCross] = useState('');
+  const [area, setArea] = useState('');
+  const [landmark, setLandmark] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
   const [addressLine2, setAddressLine2] = useState('');
   const [postalCode, setPostalCode] = useState('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [accuracyMeters, setAccuracyMeters] = useState<number | null>(null);
+  const [locationSource, setLocationSource] = useState<string>('MANUALLY_ENTERED');
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [hasMissingDoorNo, setHasMissingDoorNo] = useState(false);
   const [gstRegistered, setGstRegistered] = useState(false);
   const [gstNumber, setGstNumber] = useState('');
 
@@ -74,6 +89,75 @@ export function ShopSetupPage({ navigation }: ShopSetupPageProps) {
     setSlug(autoSlug);
   };
 
+  const handleDetectLocation = async () => {
+    setIsDetectingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        showToast('Location permission denied. Please enter address manually.', 'error');
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
+      const lat = parseFloat(pos.coords.latitude.toFixed(6));
+      const lng = parseFloat(pos.coords.longitude.toFixed(6));
+      const acc = pos.coords.accuracy ? Math.round(pos.coords.accuracy) : null;
+      setLatitude(lat);
+      setLongitude(lng);
+      setAccuracyMeters(acc);
+      setLocationSource('GPS_DETECTED');
+
+      try {
+        const res = await axiosInstance.post('/api/locations/resolve', {
+          latitude: lat,
+          longitude: lng,
+          userRole: 'SELLER',
+        });
+        const loc = res.data?.resolvedLocation;
+        if (loc) {
+          if (loc.doorNo) setDoorNo(loc.doorNo);
+          if (loc.buildingName) setBuildingName(loc.buildingName);
+          if (loc.street) setStreet(loc.street);
+          else if (loc.addressLine1) setStreet(loc.addressLine1);
+          if (loc.cross) setCross(loc.cross);
+          if (loc.area) setArea(loc.area);
+          else if (loc.addressLine2) setArea(loc.addressLine2);
+          if (loc.landmark) setLandmark(loc.landmark);
+          if (loc.postalCode) setPostalCode(loc.postalCode);
+
+          if (loc.state) {
+            const matchedState = allStates.find((s) => s.name.toLowerCase() === loc.state.toLowerCase());
+            if (matchedState) {
+              setSelectedState(matchedState.name);
+            } else {
+              setSelectedState(loc.state);
+            }
+          }
+          if (loc.city || loc.district) {
+            setSelectedCity(loc.city || loc.district);
+          }
+
+          if (loc.hasMissingDoorNo || !loc.doorNo) {
+            setHasMissingDoorNo(true);
+            showToast('GPS detected area. Please enter your exact Door / Shop number.', 'info');
+          } else {
+            setHasMissingDoorNo(false);
+            showToast('Location and address detected via GPS.', 'success');
+          }
+        } else {
+          setHasMissingDoorNo(true);
+          showToast('GPS coordinates captured. Please enter your shop address.', 'success');
+        }
+      } catch {
+        setHasMissingDoorNo(true);
+        showToast('GPS coordinates captured. Please complete address manually.', 'info');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to detect current location', 'error');
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  };
+
   const handleSelectState = (st: { name: string; isEnabled: boolean }) => {
     setStateModalOpen(false);
     if (!st.isEnabled) {
@@ -94,18 +178,30 @@ export function ShopSetupPage({ navigation }: ShopSetupPageProps) {
   };
 
   const handleSubmit = async () => {
+    const compiledLine1 = [doorNo.trim(), buildingName.trim(), street.trim()].filter(Boolean).join(', ') || addressLine1.trim();
+    const compiledLine2 = [cross.trim(), area.trim(), landmark.trim()].filter(Boolean).join(', ') || addressLine2.trim();
+
     const validation = shopService.validateShopSetup(
       {
         shopName,
         slug,
         description,
         phone,
-        addressLine1,
-        addressLine2,
+        doorNo: doorNo.trim(),
+        buildingName: buildingName.trim() || undefined,
+        street: street.trim(),
+        cross: cross.trim() || undefined,
+        area: area.trim(),
+        landmark: landmark.trim() || undefined,
+        addressLine1: compiledLine1,
+        addressLine2: compiledLine2 || undefined,
         city: selectedCity,
+        district: selectedCity,
         state: selectedState,
-        postalCode,
+        postalCode: postalCode.trim(),
         country: 'India',
+        latitude,
+        longitude,
       },
       districtRequired
     );
@@ -121,12 +217,23 @@ export function ShopSetupPage({ navigation }: ShopSetupPageProps) {
         slug: slug.trim(),
         description: description.trim(),
         phone: phone.trim(),
-        addressLine1: addressLine1.trim(),
-        addressLine2: addressLine2.trim() || undefined,
+        doorNo: doorNo.trim() || undefined,
+        buildingName: buildingName.trim() || undefined,
+        street: street.trim() || undefined,
+        cross: cross.trim() || undefined,
+        area: area.trim() || undefined,
+        landmark: landmark.trim() || undefined,
+        addressLine1: compiledLine1,
+        addressLine2: compiledLine2 || undefined,
         city: selectedCity.trim(),
+        district: selectedCity.trim(),
         state: selectedState.trim(),
         postalCode: postalCode.trim(),
         country: 'India',
+        latitude: latitude ?? undefined,
+        longitude: longitude ?? undefined,
+        locationSource,
+        accuracyMeters: accuracyMeters ?? undefined,
         gstRegistered,
         gstNumber: gstRegistered ? gstNumber.trim() : undefined,
       });
@@ -188,25 +295,101 @@ export function ShopSetupPage({ navigation }: ShopSetupPageProps) {
         {/* Pickup Dispatch Address */}
         <Card>
           <CardHeader>
-            <CardTitle>Pickup Dispatch Address</CardTitle>
-            <CardDescription>Address where platform couriers collect shipments</CardDescription>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <MapPin size={16} color={Colors.purpleLight} />
+                <CardTitle>Pickup Dispatch Address</CardTitle>
+              </View>
+              <TouchableOpacity
+                onPress={handleDetectLocation}
+                disabled={isDetectingLocation}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                  backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                }}
+              >
+                {isDetectingLocation ? (
+                  <ActivityIndicator size="small" color={Colors.purpleLight} />
+                ) : (
+                  <>
+                    <Crosshair size={12} color={Colors.purpleLight} />
+                    <Text style={{ fontSize: 10, color: Colors.purpleLight, fontWeight: '700' }}>Use GPS</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+            <CardDescription>Address where platform couriers collect merchant orders for dispatch</CardDescription>
           </CardHeader>
           <CardContent style={{ gap: 8 }}>
+            {hasMissingDoorNo && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 6,
+                  padding: 8,
+                  borderRadius: 6,
+                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(245, 158, 11, 0.3)',
+                }}
+              >
+                <AlertTriangle size={14} color="#fbbf24" style={{ marginTop: 2 }} />
+                <Text style={{ fontSize: 10, color: '#fde68a', flex: 1 }}>
+                  GPS detected area &amp; street, but cannot detect door number. Please specify your Door / Shop number.
+                </Text>
+              </View>
+            )}
+
             <Input
-              label="Address Line 1"
-              placeholder="Shop No, Building Name, Street"
-              value={addressLine1}
-              onChangeText={setAddressLine1}
+              label="House / Door / Shop No. *"
+              placeholder="e.g. Shop #12, Ground Floor"
+              value={doorNo}
+              onChangeText={setDoorNo}
             />
+
             <Input
-              label="Address Line 2 (Optional)"
-              placeholder="Landmark, Area"
-              value={addressLine2}
-              onChangeText={setAddressLine2}
+              label="Building / Complex Name (Optional)"
+              placeholder="e.g. Orion Avenue"
+              value={buildingName}
+              onChangeText={setBuildingName}
+            />
+
+            <Input
+              label="Street / Road Name *"
+              placeholder="e.g. 1st Main Road"
+              value={street}
+              onChangeText={setStreet}
+            />
+
+            <Input
+              label="Cross / Main Road (Optional)"
+              placeholder="e.g. Near 4th Cross"
+              value={cross}
+              onChangeText={setCross}
+            />
+
+            <Input
+              label="Area / Locality *"
+              placeholder="e.g. Indiranagar"
+              value={area}
+              onChangeText={setArea}
+            />
+
+            <Input
+              label="Landmark (Optional)"
+              placeholder="e.g. Opp Metro Station"
+              value={landmark}
+              onChangeText={setLandmark}
             />
 
             {/* State Picker Button */}
-            <Text style={styles.inputLabel}>State / Region</Text>
+            <Text style={styles.inputLabel}>State / Region *</Text>
             <TouchableOpacity
               onPress={() => setStateModalOpen(true)}
               style={styles.pickerBtn}
@@ -218,7 +401,7 @@ export function ShopSetupPage({ navigation }: ShopSetupPageProps) {
             </TouchableOpacity>
 
             {/* District Picker Button */}
-            <Text style={styles.inputLabel}>City / District</Text>
+            <Text style={styles.inputLabel}>City / District *</Text>
             <TouchableOpacity
               onPress={() => {
                 if (!selectedState) {
@@ -236,9 +419,10 @@ export function ShopSetupPage({ navigation }: ShopSetupPageProps) {
             </TouchableOpacity>
 
             <Input
-              label="Postal Code (PIN)"
+              label="Postal Code (PIN) * (6 digits)"
               placeholder="560001"
               keyboardType="number-pad"
+              maxLength={6}
               value={postalCode}
               onChangeText={setPostalCode}
             />

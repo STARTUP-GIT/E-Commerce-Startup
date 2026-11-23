@@ -1,6 +1,7 @@
 import express from "express";
 import {
     resolveLocation,
+    searchLocations,
     checkServiceability,
     getAvailableCities,
     submitLocationRequest,
@@ -12,8 +13,9 @@ import { cache } from "../../../middleware/cache.js";
 
 const router = express.Router();
 
-// Location detection and resolution
+// Location detection, search and resolution
 router.post("/resolve", resolveLocation);
+router.get("/search", publicReadLimiter, searchLocations);
 
 // Serviceability checks
 router.post("/check-serviceability", checkServiceability);

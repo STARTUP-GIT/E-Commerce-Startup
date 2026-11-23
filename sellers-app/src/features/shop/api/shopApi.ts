@@ -16,6 +16,14 @@ export interface ShopAddress {
   longitude?: number | null;
   formattedAddress?: string;
   placeId?: string;
+  doorNo?: string;
+  buildingName?: string;
+  street?: string;
+  cross?: string;
+  area?: string;
+  landmark?: string;
+  locationSource?: string;
+  accuracyMeters?: number | null;
 }
 
 export interface ShopInfo {
@@ -90,6 +98,14 @@ export interface ShopSetupPayload {
   longitude?: number | null;
   formattedAddress?: string;
   placeId?: string;
+  doorNo?: string;
+  buildingName?: string;
+  street?: string;
+  cross?: string;
+  area?: string;
+  landmark?: string;
+  locationSource?: string;
+  accuracyMeters?: number | null;
   type?: string;
   label?: string;
   contactName?: string;
@@ -227,6 +243,13 @@ export const shopApi = {
       districts: districtsArray.map(d => d.name),
       allDistricts: districtsArray.map(d => ({ name: d.name, isEnabled: true })),
     };
+  },
+
+  searchAddresses: async (query: string, city?: string): Promise<any[]> => {
+    const response = await axiosInstance.get('/api/locations/search', {
+      params: { q: query, city },
+    });
+    return response.data?.results || [];
   },
 
   submitShopApproval: async (payload?: { notes?: string }): Promise<{ message: string; approvalRequest: any }> => {
