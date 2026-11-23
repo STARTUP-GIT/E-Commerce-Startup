@@ -43,7 +43,8 @@ export const getOrders = async ( req: Request,res: Response) => {
                 },
                 order: {
                     include: {
-                        payments: true
+                        payments: true,
+                        packagingSnapshots: true
                     }
                 },
                 items: {
@@ -52,6 +53,7 @@ export const getOrders = async ( req: Request,res: Response) => {
                     }
                 },
                 packingProof: true,
+                packagingSnapshots: true,
                 delivery: true
             },
             orderBy: {

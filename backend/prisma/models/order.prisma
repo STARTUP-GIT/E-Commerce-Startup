@@ -46,6 +46,7 @@ model Order {
   returnRequests         ReturnRequest[]
   sellerOrders           SellerOrder[]
   supportTickets         SupportTicket[]
+  packagingSnapshots     OrderPackagingSnapshot[]
 
   @@index([customerId])
   @@index([orderNumber])
@@ -99,6 +100,7 @@ model SellerOrder {
   items                  OrderItem[]
   timelineEvents         OrderTimelineEvent[]
   packingProof           PackingProof?
+  packagingSnapshots     OrderPackagingSnapshot[]
   order                  Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
   pickupSellerAddress    SellerAddress        @relation("SellerOrderPickupAddress", fields: [pickupSellerAddressId], references: [id])
   seller                 Seller               @relation(fields: [sellerId], references: [id])

@@ -426,3 +426,49 @@ export const getFeaturedShops = async (req: Request, res: Response) => {
         });
     }
 };
+
+/**
+ * Get approved and active packaging options for a shop
+ * Used during customer checkout and product viewing
+ */
+export const getShopPackagingOptions = async (req: Request, res: Response) => {
+    try {
+        const shopId = String(req.params.shopId);
+        const categoryId = req.query.categoryId as string | undefined;
+        const productId = req.query.productId as string | undefined;
+
+        if (!shopId) {
+            return res.status(400).json({ message: "shopId is required" });
+        }
+
+        const options = await prisma.packagingOption.findMany({
+            where: {
+                shopId,
+                status: "APPROVED",
+                isActive: true
+            },
+            orderBy: [
+                { isOptional: "asc" }, // mandatory options first
+                { price: "asc" }
+            ]
+        });
+
+        // Filter by applicable products or categories if specific product/category is requested
+        const filtered = options.filter(opt => {
+            if (opt.applicableProductIds.length > 0 && productId) {
+                return opt.applicableProductIds.includes(productId);
+            }
+            if (opt.applicableCategoryIds.length > 0 && categoryId) {
+                return opt.applicableCategoryIds.includes(categoryId);
+            }
+            return true;
+        });
+
+        return res.status(200).json({
+            packagingOptions: filtered
+        });
+    } catch (error: any) {
+        console.error("GET SHOP PACKAGING OPTIONS ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};

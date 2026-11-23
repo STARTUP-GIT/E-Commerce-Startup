@@ -47,6 +47,7 @@ export function usePayment() {
       couponCode?: string;
       buyNow?: BuyNowParams;
       selectedDeliveryMethod?: string;
+      selectedPackaging?: Array<{ packagingOptionId: string; quantity?: number }>;
     }) => checkoutApi.checkoutCod(payload),
     onSuccess: (data: any) => {
       const orderNumber = data.order?.orderNumber || '';
@@ -60,10 +61,11 @@ export function usePayment() {
   const processPayment = async (params: {
     shippingAddressId: string;
     couponCode?: string;
-    userEmail: string;
-    userName: string;
     buyNow?: BuyNowParams;
     selectedDeliveryMethod?: string;
+    selectedPackaging?: Array<{ packagingOptionId: string; quantity?: number }>;
+    userEmail: string;
+    userName: string;
   }) => {
     setError(null);
     try {
@@ -77,6 +79,7 @@ export function usePayment() {
         couponCode: params.couponCode,
         buyNow: params.buyNow,
         selectedDeliveryMethod: params.selectedDeliveryMethod,
+        selectedPackaging: params.selectedPackaging,
       });
 
       if (orderDetails.gateway === 'RAZORPAY') {
@@ -119,6 +122,7 @@ export function usePayment() {
               couponCode: params.couponCode,
               buyNow: params.buyNow,
               selectedDeliveryMethod: params.selectedDeliveryMethod,
+              selectedPackaging: params.selectedPackaging,
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
@@ -156,6 +160,7 @@ export function usePayment() {
     couponCode?: string;
     buyNow?: BuyNowParams;
     selectedDeliveryMethod?: string;
+    selectedPackaging?: Array<{ packagingOptionId: string; quantity?: number }>;
   }) => {
     setError(null);
     try {

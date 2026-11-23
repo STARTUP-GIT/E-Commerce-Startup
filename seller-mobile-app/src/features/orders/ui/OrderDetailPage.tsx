@@ -405,6 +405,20 @@ export function OrderDetailPage({ route, navigation }: OrderDetailPageProps) {
               <Text style={styles.summaryLabel}>Packaging Fee</Text>
               <Text style={styles.summaryVal}>{productService.formatPrice(order.packingFee)}</Text>
             </View>
+            {(order as any).packagingSnapshots && (order as any).packagingSnapshots.length > 0 && (
+              <View style={{ gap: 4, paddingVertical: 4, paddingLeft: 4 }}>
+                {(order as any).packagingSnapshots.map((pkg: any) => (
+                  <View key={pkg.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 6 }}>
+                    <Text style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.6)' }}>
+                      • {pkg.name} {pkg.quantity > 1 ? `(x${pkg.quantity})` : ''}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: '#ffffff' }}>
+                      {productService.formatPrice(pkg.totalFee)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Shipping Amount</Text>
               <Text style={styles.summaryVal}>{productService.formatPrice(order.shippingAmount)}</Text>

@@ -22,6 +22,27 @@ export interface CheckoutSummary {
   platformFeeTotal: number;
   discountTotal: number;
   taxTotal: number;
+  availablePackaging?: Array<{
+    id: string;
+    shopId: string;
+    shopName: string;
+    name: string;
+    description: string | null;
+    price: number;
+    imageUrl: string | null;
+    type: string | null;
+    isOptional: boolean;
+  }>;
+  packagingSnapshots?: Array<{
+    id?: string;
+    packagingOptionId?: string;
+    name: string;
+    price: number;
+    quantity: number;
+    totalFee: number;
+    imageUrl?: string;
+    isOptional: boolean;
+  }>;
   productTaxableTotal?: number;
   productCgstTotal?: number;
   productSgstTotal?: number;
@@ -41,8 +62,18 @@ export interface CheckoutSummary {
 }
 
 export const checkoutApi = {
-  getSummary: async (couponCode?: string, buyNow?: BuyNowParams, selectedDeliveryMethod?: string): Promise<{ checkoutSummary: CheckoutSummary }> => {
-    const response = await axiosInstance.post('/api/checkout', { couponCode, buyNow, selectedDeliveryMethod });
+  getSummary: async (
+    couponCode?: string,
+    buyNow?: BuyNowParams,
+    selectedDeliveryMethod?: string,
+    selectedPackaging?: Array<{ packagingOptionId: string; quantity?: number }>
+  ): Promise<{ checkoutSummary: CheckoutSummary }> => {
+    const response = await axiosInstance.post('/api/checkout', {
+      couponCode,
+      buyNow,
+      selectedDeliveryMethod,
+      selectedPackaging,
+    });
     return response.data;
   },
   validateCheckout: async (buyNow?: BuyNowParams): Promise<{ isValid: boolean; message?: string }> => {
@@ -66,12 +97,17 @@ export const checkoutApi = {
     const response = await axiosInstance.get('/api/checkout/delivery-methods');
     return response.data;
   },
+  getShopPackaging: async (shopId: string): Promise<{ packagingOptions: any[] }> => {
+    const response = await axiosInstance.get(`/api/shops/${shopId}/packaging`);
+    return response.data;
+  },
   checkoutCod: async (payload: {
     shippingAddressId: string;
     billingAddressId?: string;
     couponCode?: string;
     buyNow?: BuyNowParams;
     selectedDeliveryMethod?: string;
+    selectedPackaging?: Array<{ packagingOptionId: string; quantity?: number }>;
   }): Promise<{ message: string; order: any }> => {
     const response = await axiosInstance.post('/api/checkout/cod', payload);
     return response.data;

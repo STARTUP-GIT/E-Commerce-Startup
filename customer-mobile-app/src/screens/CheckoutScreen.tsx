@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,6 +22,7 @@ import {
   ShieldCheck,
   AlertTriangle,
   Info,
+  Package,
 } from 'lucide-react-native';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -41,6 +43,8 @@ interface CheckoutSummary {
   taxTotal: number;
   grandTotal: number;
   appliedCoupon?: any;
+  availablePackaging?: any[];
+  packagingSnapshots?: any[];
 }
 
 interface DeliveryMethodOption {
@@ -89,6 +93,13 @@ export const CheckoutScreen: React.FC = () => {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+
+  // Packaging Options Selection
+  const [selectedPackagingIds, setSelectedPackagingIds] = useState<string[]>([]);
+  const selectedPackaging = useMemo(
+    () => selectedPackagingIds.map((id) => ({ packagingOptionId: id, quantity: 1 })),
+    [selectedPackagingIds]
+  );
 
   // Authoritative Pricing Breakdown from Backend
   const [checkoutSummary, setCheckoutSummary] = useState<CheckoutSummary | null>(null);
@@ -242,6 +253,7 @@ export const CheckoutScreen: React.FC = () => {
         couponCode: couponCode.trim() || undefined,
         buyNow: buyNowParams,
         selectedDeliveryMethod: selectedDeliveryMethod || undefined,
+        selectedPackaging,
       });
 
       if (res.data?.checkoutSummary) {
@@ -255,7 +267,7 @@ export const CheckoutScreen: React.FC = () => {
     } finally {
       setIsCalculatingSummary(false);
     }
-  }, [activeAddress, couponCode, buyNowParams, selectedDeliveryMethod]);
+  }, [activeAddress, couponCode, buyNowParams, selectedDeliveryMethod, selectedPackaging]);
 
   useEffect(() => {
     void refreshCheckoutSummary();
@@ -330,6 +342,7 @@ export const CheckoutScreen: React.FC = () => {
           couponCode: couponCode.trim() || undefined,
           buyNow: buyNowParams,
           selectedDeliveryMethod,
+          selectedPackaging,
         });
 
         if (!buyNow) {
@@ -355,6 +368,7 @@ export const CheckoutScreen: React.FC = () => {
           couponCode: couponCode.trim() || undefined,
           buyNow: buyNowParams,
           selectedDeliveryMethod,
+          selectedPackaging,
         });
 
         const gatewayOrderId = createRes.data?.gatewayOrderId || `order_${Date.now()}`;
@@ -366,6 +380,7 @@ export const CheckoutScreen: React.FC = () => {
           couponCode: couponCode.trim() || undefined,
           buyNow: buyNowParams,
           selectedDeliveryMethod,
+          selectedPackaging,
           razorpayOrderId: gatewayOrderId,
           razorpayPaymentId: `pay_mob_${Date.now()}`,
           razorpaySignature: 'mobile_verified_signature',
@@ -515,6 +530,104 @@ export const CheckoutScreen: React.FC = () => {
           )}
         </View>
 
+        {/* Packaging & Protection Options */}
+        {checkoutSummary?.availablePackaging && checkoutSummary.availablePackaging.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Package size={16} color={colors.primary} />
+              <Text style={styles.cardTitle}>Packaging &amp; Protection</Text>
+            </View>
+
+            {/* Mandatory Packaging Disclosures */}
+            {checkoutSummary.availablePackaging
+              .filter((p: any) => !p.isOptional)
+              .map((pkg: any) => (
+                <View key={pkg.id} style={styles.mandatoryPkgBox}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.pkgTitle}>{pkg.name}</Text>
+                      <View style={styles.requiredTag}>
+                        <Text style={styles.requiredTagText}>Required by {pkg.shopName || 'Seller'}</Text>
+                      </View>
+                    </View>
+                    {pkg.description ? (
+                      <Text style={styles.pkgDesc}>{pkg.description}</Text>
+                    ) : null}
+                  </View>
+                  <Text style={styles.pkgPrice}>+{productService.formatPrice(pkg.price)}</Text>
+                </View>
+              ))}
+
+            {/* Optional Packaging Choices */}
+            {checkoutSummary.availablePackaging.some((p: any) => p.isOptional) && (
+              <View style={{ gap: 8, marginTop: 4 }}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.foregroundDim }}>
+                  Optional Add-ons
+                </Text>
+                {checkoutSummary.availablePackaging
+                  .filter((p: any) => p.isOptional)
+                  .map((pkg: any) => {
+                    const isSelected = selectedPackagingIds.includes(pkg.id);
+                    return (
+                      <TouchableOpacity
+                        key={pkg.id}
+                        onPress={() => {
+                          setSelectedPackagingIds((prev) =>
+                            isSelected ? prev.filter((id) => id !== pkg.id) : [...prev, pkg.id]
+                          );
+                        }}
+                        style={[
+                          styles.optionalPkgCard,
+                          isSelected && styles.optionalPkgCardSelected,
+                        ]}
+                        activeOpacity={0.7}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}>
+                          <View style={styles.pkgThumbBox}>
+                            {pkg.imageUrl ? (
+                              <Image source={{ uri: pkg.imageUrl }} style={styles.pkgThumbImage} resizeMode="cover" />
+                            ) : (
+                              <Package size={18} color="rgba(255,255,255,0.4)" />
+                            )}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text style={styles.pkgTitle}>{pkg.name}</Text>
+                              <Text style={styles.pkgPrice}>+{productService.formatPrice(pkg.price)}</Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                              {pkg.type && (
+                                <View style={styles.pkgTypePill}>
+                                  <Text style={styles.pkgTypePillText}>{pkg.type}</Text>
+                                </View>
+                              )}
+                              <Text style={styles.pkgShopText} numberOfLines={1}>
+                                {pkg.shopName}
+                              </Text>
+                            </View>
+                            {pkg.description ? (
+                              <Text style={styles.pkgDesc} numberOfLines={1}>
+                                {pkg.description}
+                              </Text>
+                            ) : null}
+                          </View>
+                        </View>
+                        <View
+                          style={[
+                            styles.pkgCheckbox,
+                            isSelected && styles.pkgCheckboxSelected,
+                          ]}
+                        >
+                          {isSelected && <Check size={12} color="#000000" />}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Payment Method */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -597,9 +710,21 @@ export const CheckoutScreen: React.FC = () => {
           </View>
 
           {packingFeeTotal > 0 && (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Packaging & Handling</Text>
-              <Text style={styles.summaryVal}>{productService.formatPrice(packingFeeTotal)}</Text>
+            <View style={{ gap: 2 }}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Packaging & Handling</Text>
+                <Text style={styles.summaryVal}>{productService.formatPrice(packingFeeTotal)}</Text>
+              </View>
+              {checkoutSummary?.packagingSnapshots && checkoutSummary.packagingSnapshots.length > 0 && (
+                <View style={{ paddingLeft: 8, gap: 2 }}>
+                  {checkoutSummary.packagingSnapshots.map((snap: any, idx: number) => (
+                    <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>• {snap.name}</Text>
+                      <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>{productService.formatPrice(snap.totalFee)}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           )}
 
@@ -966,5 +1091,102 @@ const styles = StyleSheet.create({
   },
   placeOrderTextDisabled: {
     color: colors.foregroundDim,
+  },
+  mandatoryPkgBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+    marginBottom: 8,
+  },
+  pkgTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.foreground,
+  },
+  pkgPrice: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#34d399',
+  },
+  pkgDesc: {
+    fontSize: 10,
+    color: colors.foregroundDim,
+    marginTop: 2,
+  },
+  requiredTag: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  requiredTagText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fcd34d',
+  },
+  optionalPkgCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  optionalPkgCardSelected: {
+    backgroundColor: 'rgba(168, 85, 247, 0.08)',
+    borderColor: colors.primary,
+  },
+  pkgThumbBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  pkgThumbImage: {
+    width: '100%',
+    height: '100%',
+  },
+  pkgTypePill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  pkgTypePillText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: colors.foregroundMuted,
+    textTransform: 'uppercase',
+  },
+  pkgShopText: {
+    fontSize: 10,
+    color: colors.foregroundDim,
+    flex: 1,
+  },
+  pkgCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  pkgCheckboxSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
 });

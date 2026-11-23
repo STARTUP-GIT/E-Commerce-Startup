@@ -76,9 +76,11 @@ export const getOrder = async (req: Request, res: Response) => {
                             }
                         },
                         delivery: true,
-                        packingProof: true
+                        packingProof: true,
+                        packagingSnapshots: true
                     }
                 },
+                packagingSnapshots: true,
                 timelineEvents: {
                     orderBy: {
                         occurredAt: "asc"

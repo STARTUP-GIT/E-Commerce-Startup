@@ -5,16 +5,25 @@ import { sendPaymentNotification } from "../utils/paymentHelper.js";
 import { IndianGstService, roundCurrency } from "../../../services/gst/gst.service.js";
 import { ServiceabilityService } from "../../../services/location/serviceability.service.js";
 
-// Helper to calculate payment totals (including packing fees, shipping, platform fee placeholder, and GST)
+// Helper to calculate payment totals (including packaging fees, shipping, platform fee placeholder, and GST)
 export const calculateTotals = async (params: {
     customerId: string;
     couponCode?: string;
     packingFees?: { sellerId: string; amount: number }[];
+    selectedPackaging?: { packagingOptionId: string; quantity?: number; sellerId?: string }[];
     shippingAddressId?: string;
     buyNow?: { productId: string; productVariantId?: string; quantity: number };
     selectedDeliveryMethod?: string;
 }) => {
-    const { customerId, couponCode, packingFees = [], shippingAddressId, buyNow, selectedDeliveryMethod } = params;
+    const {
+        customerId,
+        couponCode,
+        packingFees = [],
+        selectedPackaging = [],
+        shippingAddressId,
+        buyNow,
+        selectedDeliveryMethod
+    } = params;
 
     let cart: any = null;
     if (buyNow) {
@@ -189,25 +198,134 @@ export const calculateTotals = async (params: {
         sellerSubtotals.set(seller.id, currentSellerSubtotal + itemTotal);
     }
 
-    // 2. Determine and calculate Packing Fees dynamically from database Shop configuration
+    // 2. Determine and calculate Packaging Fees dynamically from Packaging Catalogue or fallback to legacy Shop configuration
     let packingFeeTotal = 0;
     const validatedPackingFeesBySeller = new Map<string, number>();
+    const packagingSnapshotsList: Array<{
+        packagingOptionId: string | null;
+        name: string;
+        price: number;
+        quantity: number;
+        totalFee: number;
+        imageUrl: string | null;
+        isOptional: boolean;
+        sellerId: string;
+        shopId: string;
+    }> = [];
+    const availablePackagingList: Array<{
+        id: string;
+        shopId: string;
+        shopName: string;
+        name: string;
+        description: string | null;
+        price: number;
+        imageUrl: string | null;
+        type: string | null;
+        isOptional: boolean;
+    }> = [];
 
     for (const sellerId of sellerSubtotals.keys()) {
         const shop = sellerShopMap.get(sellerId);
-        let amount = 0;
-        // Enforce admin approval and active toggle
-        if (shop && shop.packingFeeApprovalStatus === "APPROVED" && (shop.packingFeeEnabled || shop.enablePackingFee)) {
-            const rawAmount = Number(shop.packingFeeAmount) || 0;
-            // Never exceed the approved maximum ceiling
-            const maxApproved = shop.packingFeeApprovedMaxAmount !== null && shop.packingFeeApprovedMaxAmount !== undefined
-                ? Number(shop.packingFeeApprovedMaxAmount)
-                : rawAmount;
-            amount = Math.max(0, Math.min(rawAmount, maxApproved));
+        if (!shop) {
+            validatedPackingFeesBySeller.set(sellerId, 0);
+            continue;
         }
-        validatedPackingFeesBySeller.set(sellerId, amount);
-        packingFeeTotal += amount;
+
+        let sellerPackingFee = 0;
+
+        // Query active approved packaging catalogue options for this shop
+        const approvedOptions = await prisma.packagingOption.findMany({
+            where: {
+                shopId: shop.id,
+                status: "APPROVED",
+                isActive: true
+            }
+        });
+
+        if (approvedOptions.length > 0) {
+            // Find products in cart for this seller
+            const sellerItems = cart.items.filter((item: any) => item.product?.sellerId === sellerId);
+            const sellerProductIds = sellerItems.map((item: any) => item.productId);
+            const sellerCategoryIds = sellerItems.map((item: any) => item.product?.categoryId).filter(Boolean);
+
+            for (const option of approvedOptions) {
+                // Check if this option applies to items in cart
+                const appliesToProduct = option.applicableProductIds.length === 0 || 
+                    option.applicableProductIds.some((pid: string) => sellerProductIds.includes(pid));
+                const appliesToCategory = option.applicableCategoryIds.length === 0 || 
+                    option.applicableCategoryIds.some((cid: string) => sellerCategoryIds.includes(cid));
+
+                if (!appliesToProduct && !appliesToCategory) {
+                    continue;
+                }
+
+                availablePackagingList.push({
+                    id: option.id,
+                    shopId: shop.id,
+                    shopName: shop.name,
+                    name: option.name,
+                    description: option.description || null,
+                    price: Number(option.price) || 0,
+                    imageUrl: option.imageUrl || null,
+                    type: option.type || null,
+                    isOptional: option.isOptional,
+                });
+
+                if (!option.isOptional) {
+                    // Mandatory packaging: automatically added and disclosed
+                    const optPrice = Number(option.price) || 0;
+                    const optQty = 1;
+                    const itemFee = roundCurrency(optPrice * optQty);
+                    sellerPackingFee += itemFee;
+                    packagingSnapshotsList.push({
+                        packagingOptionId: option.id,
+                        name: option.name,
+                        price: optPrice,
+                        quantity: optQty,
+                        totalFee: itemFee,
+                        imageUrl: option.imageUrl || null,
+                        isOptional: false,
+                        sellerId,
+                        shopId: shop.id
+                    });
+                } else {
+                    // Optional packaging: customer must have selected it
+                    const selected = selectedPackaging.find(sp => sp.packagingOptionId === option.id);
+                    if (selected) {
+                        const optPrice = Number(option.price) || 0;
+                        const optQty = Math.max(1, selected.quantity || 1);
+                        const itemFee = roundCurrency(optPrice * optQty);
+                        sellerPackingFee += itemFee;
+                        packagingSnapshotsList.push({
+                            packagingOptionId: option.id,
+                            name: option.name,
+                            price: optPrice,
+                            quantity: optQty,
+                            totalFee: itemFee,
+                            imageUrl: option.imageUrl || null,
+                            isOptional: true,
+                            sellerId,
+                            shopId: shop.id
+                        });
+                    }
+                }
+            }
+        } else {
+            // Backward compatibility fallback to legacy single maximum fee
+            if (shop.packingFeeApprovalStatus === "APPROVED" && (shop.packingFeeEnabled || shop.enablePackingFee)) {
+                const rawAmount = Number(shop.packingFeeAmount) || 0;
+                const maxApproved = shop.packingFeeApprovedMaxAmount !== null && shop.packingFeeApprovedMaxAmount !== undefined
+                    ? Number(shop.packingFeeApprovedMaxAmount)
+                    : rawAmount;
+                sellerPackingFee = Math.max(0, Math.min(rawAmount, maxApproved));
+            }
+        }
+
+        sellerPackingFee = roundCurrency(sellerPackingFee);
+        validatedPackingFeesBySeller.set(sellerId, sellerPackingFee);
+        packingFeeTotal += sellerPackingFee;
     }
+    packingFeeTotal = roundCurrency(packingFeeTotal);
 
     // 3. Shipping charges (0 if Seller Delivery is selected)
     const uniqueSellersCount = sellerSubtotals.size;
@@ -293,7 +411,7 @@ export const calculateTotals = async (params: {
     });
 
     const subtotalAfterDiscount = Math.max(0, productSubtotal - discountTotal);
-    const grandTotal = gstBreakdown.grandTotal;
+    const grandTotal = roundCurrency(gstBreakdown.grandTotal - discountTotal + packingFeeTotal);
 
     return {
         cart,
@@ -309,7 +427,9 @@ export const calculateTotals = async (params: {
         appliedCoupon,
         sellerSubtotals,
         validatedPackingFeesBySeller,
-        gstBreakdown
+        gstBreakdown,
+        packagingSnapshots: packagingSnapshotsList,
+        availablePackaging: availablePackagingList
     };
 };
 
@@ -319,12 +439,13 @@ export const createPayment = async (paymentData: {
     billingAddressId?: string;
     couponCode?: string;
     packingFees?: { sellerId: string; amount: number }[];
+    selectedPackaging?: { packagingOptionId: string; quantity?: number; sellerId?: string }[];
     buyNow?: { productId: string; productVariantId?: string; quantity: number };
 }) => {
-    const { customerId, shippingAddressId, couponCode, packingFees, buyNow } = paymentData;
+    const { customerId, shippingAddressId, couponCode, packingFees, selectedPackaging, buyNow } = paymentData;
 
     // 1. Calculate totals dynamically
-    const totals = await calculateTotals({ customerId, couponCode, packingFees, shippingAddressId, buyNow });
+    const totals = await calculateTotals({ customerId, couponCode, packingFees, selectedPackaging, shippingAddressId, buyNow });
 
     const receipt = `RCPT_${Date.now()}`;
     const gateway = process.env.PAYMENT_GATEWAY || "RAZORPAY";
@@ -368,6 +489,7 @@ export const verifyPayment = async (paymentData: {
     billingAddressId?: string;
     couponCode?: string;
     packingFees?: { sellerId: string; amount: number }[];
+    selectedPackaging?: { packagingOptionId: string; quantity?: number; sellerId?: string }[];
     buyNow?: { productId: string; productVariantId?: string; quantity: number };
     selectedDeliveryMethod?: string;
     // Gateway payload
@@ -382,6 +504,7 @@ export const verifyPayment = async (paymentData: {
         billingAddressId,
         couponCode,
         packingFees,
+        selectedPackaging,
         buyNow,
         selectedDeliveryMethod,
         razorpayOrderId,
@@ -429,7 +552,7 @@ export const verifyPayment = async (paymentData: {
     }
 
     // 2. Re-calculate totals and check stock levels
-    const totals = await calculateTotals({ customerId, couponCode, packingFees, shippingAddressId, buyNow });
+    const totals = await calculateTotals({ customerId, couponCode, packingFees, selectedPackaging, shippingAddressId, buyNow, selectedDeliveryMethod });
     const {
         cart,
         productSubtotal,
@@ -627,7 +750,43 @@ export const verifyPayment = async (paymentData: {
             }
         }
 
+        // Create immutable OrderPackagingSnapshot records
+        for (const snap of totals.packagingSnapshots || []) {
+            const sOrderId = createdSellerOrdersMap.get(snap.sellerId);
+            await tx.orderPackagingSnapshot.create({
+                data: {
+                    orderId: order.id,
+                    sellerOrderId: sOrderId || null,
+                    packagingOptionId: snap.packagingOptionId || null,
+                    name: snap.name,
+                    price: snap.price,
+                    quantity: snap.quantity,
+                    totalFee: snap.totalFee,
+                    imageUrl: snap.imageUrl || null,
+                    isOptional: snap.isOptional
+                }
+            });
+        }
+
         // Create Payment record
+        // Create immutable OrderPackagingSnapshot records
+        for (const snap of totals.packagingSnapshots || []) {
+            const sOrderId = createdSellerOrdersMap.get(snap.sellerId);
+            await tx.orderPackagingSnapshot.create({
+                data: {
+                    orderId: order.id,
+                    sellerOrderId: sOrderId || null,
+                    packagingOptionId: snap.packagingOptionId || null,
+                    name: snap.name,
+                    price: snap.price,
+                    quantity: snap.quantity,
+                    totalFee: snap.totalFee,
+                    imageUrl: snap.imageUrl || null,
+                    isOptional: snap.isOptional
+                }
+            });
+        }
+
         const invoiceNumber = IndianGstService.generateInvoiceNumber("INV-AB-", Date.now() % 1000000);
         await tx.payment.create({
             data: {
@@ -779,6 +938,7 @@ export const processCodPayment = async (paymentData: {
     billingAddressId?: string;
     couponCode?: string;
     packingFees?: { sellerId: string; amount: number }[];
+    selectedPackaging?: { packagingOptionId: string; quantity?: number; sellerId?: string }[];
     buyNow?: { productId: string; productVariantId?: string; quantity: number };
     selectedDeliveryMethod?: string;
 }) => {
@@ -788,6 +948,7 @@ export const processCodPayment = async (paymentData: {
         billingAddressId,
         couponCode,
         packingFees,
+        selectedPackaging,
         buyNow,
         selectedDeliveryMethod = "PORTAL_DELIVERY"
     } = paymentData;
@@ -801,7 +962,7 @@ export const processCodPayment = async (paymentData: {
         throw new Error("Cash on Delivery is currently disabled by administrator.");
     }
 
-    const totals = await calculateTotals({ customerId, couponCode, packingFees, shippingAddressId, buyNow, selectedDeliveryMethod });
+    const totals = await calculateTotals({ customerId, couponCode, packingFees, selectedPackaging, shippingAddressId, buyNow, selectedDeliveryMethod });
     const {
         cart,
         productSubtotal,
@@ -991,6 +1152,24 @@ export const processCodPayment = async (paymentData: {
                     });
                 }
             }
+        }
+
+        // Create immutable OrderPackagingSnapshot records
+        for (const snap of totals.packagingSnapshots || []) {
+            const sOrderId = createdSellerOrdersMap.get(snap.sellerId);
+            await tx.orderPackagingSnapshot.create({
+                data: {
+                    orderId: order.id,
+                    sellerOrderId: sOrderId || null,
+                    packagingOptionId: snap.packagingOptionId || null,
+                    name: snap.name,
+                    price: snap.price,
+                    quantity: snap.quantity,
+                    totalFee: snap.totalFee,
+                    imageUrl: snap.imageUrl || null,
+                    isOptional: snap.isOptional
+                }
+            });
         }
 
         const invoiceNumber = IndianGstService.generateInvoiceNumber("INV-AB-", Date.now() % 1000000);

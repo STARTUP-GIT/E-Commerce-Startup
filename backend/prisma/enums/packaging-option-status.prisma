@@ -1,0 +1,7 @@
+enum PackagingOptionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+  SUSPENDED
+}

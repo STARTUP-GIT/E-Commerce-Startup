@@ -154,11 +154,27 @@ export const OrderDetailScreen: React.FC = () => {
           </View>
 
           {Number((order as any).packingFeeTotal || (order as any).packingFee) > 0 && (
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Packaging & Handling</Text>
-              <Text style={styles.priceVal}>
-                {productService.formatPrice((order as any).packingFeeTotal || (order as any).packingFee)}
-              </Text>
+            <View style={{ gap: 2 }}>
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Packaging & Handling</Text>
+                <Text style={styles.priceVal}>
+                  {productService.formatPrice((order as any).packingFeeTotal || (order as any).packingFee)}
+                </Text>
+              </View>
+              {(order as any).packagingSnapshots && (order as any).packagingSnapshots.length > 0 && (
+                <View style={{ paddingLeft: 8, gap: 2, marginBottom: 4 }}>
+                  {(order as any).packagingSnapshots.map((snap: any, idx: number) => (
+                    <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
+                        • {snap.name} {snap.quantity > 1 ? `(x${snap.quantity})` : ''}
+                      </Text>
+                      <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
+                        {productService.formatPrice(snap.totalFee)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           )}
 

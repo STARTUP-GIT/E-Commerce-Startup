@@ -38,6 +38,7 @@ model Admin {
   publishedPolicies          MarketplacePolicyNotice[] @relation("PolicyPublishedBy")
   notifications              Notification[]
   reviewedPackingFeeRequests PackingFeeRequest[]       @relation("PackingFeeRequestReviewedBy")
+  reviewedPackagingOptions  PackagingOption[]         @relation("PackagingOptionReviewedBy")
   approvedPostmortems        PostmortemReport[]        @relation("PostmortemApprovedBy")
   createdPostmortems         PostmortemReport[]        @relation("PostmortemCreatedBy")
   reviewedProductReports     ProductReport[]           @relation("ProductReportReviewedBy")

@@ -44,6 +44,25 @@ export interface ShopInfo {
   packingFeeRequests?: any[];
 }
 
+export interface PackagingOption {
+  id: string;
+  shopId: string;
+  name: string;
+  description: string | null;
+  price: number;
+  imageUrl: string | null;
+  imagePublicId: string | null;
+  type: string | null;
+  isOptional: boolean;
+  applicableCategoryIds: string[];
+  applicableProductIds: string[];
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED' | 'SUSPENDED';
+  rejectionReason: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface BankAccountDetails {
   id: string;
   accountHolderName: string;
@@ -144,6 +163,31 @@ export const shopApi = {
     amount?: number;
   }): Promise<{ message: string; shop: ShopInfo }> => {
     const response = await axiosInstance.patch('/seller/api/shop/packing-fee', payload);
+    return response.data;
+  },
+
+  getPackagingOptions: async (): Promise<{ packagingOptions: PackagingOption[] }> => {
+    const response = await axiosInstance.get('/seller/api/shop/packaging');
+    return response.data;
+  },
+
+  createPackagingOption: async (payload: Partial<PackagingOption>): Promise<{ message: string; packagingOption: PackagingOption }> => {
+    const response = await axiosInstance.post('/seller/api/shop/packaging', payload);
+    return response.data;
+  },
+
+  updatePackagingOption: async (id: string, payload: Partial<PackagingOption>): Promise<{ message: string; packagingOption: PackagingOption; resubmittedForApproval: boolean }> => {
+    const response = await axiosInstance.put(`/seller/api/shop/packaging/${id}`, payload);
+    return response.data;
+  },
+
+  togglePackagingOption: async (id: string, isActive?: boolean): Promise<{ message: string; packagingOption: PackagingOption }> => {
+    const response = await axiosInstance.patch(`/seller/api/shop/packaging/${id}/toggle`, { isActive });
+    return response.data;
+  },
+
+  deletePackagingOption: async (id: string): Promise<{ message: string }> => {
+    const response = await axiosInstance.delete(`/seller/api/shop/packaging/${id}`);
     return response.data;
   },
 

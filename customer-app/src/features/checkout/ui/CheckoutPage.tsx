@@ -11,7 +11,7 @@ import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Badge } from '@/shared/components/Badge';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { MapPin, Ticket, ShieldCheck, ShieldAlert, CreditCard, ChevronRight, Truck, Info } from 'lucide-react';
+import { MapPin, Ticket, ShieldCheck, ShieldAlert, CreditCard, ChevronRight, Truck, Info, Package, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { profileApi } from '@/features/auth/profile/api/profileApi';
@@ -33,6 +33,11 @@ export function CheckoutPage() {
 
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState<string>('ATLASBASKET_DELIVERY');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
+  const [selectedPackagingIds, setSelectedPackagingIds] = useState<string[]>([]);
+
+  const selectedPackaging = React.useMemo(() => {
+    return selectedPackagingIds.map((id) => ({ packagingOptionId: id, quantity: 1 }));
+  }, [selectedPackagingIds]);
 
   const {
     summary,
@@ -42,7 +47,7 @@ export function CheckoutPage() {
     isApplyingCoupon,
     removeCoupon,
     couponCode,
-  } = useCheckout(buyNowParams, selectedDeliveryMethod);
+  } = useCheckout(buyNowParams, selectedDeliveryMethod, selectedPackaging);
 
   const { processPayment, processCodPayment, isProcessing: paymentLoading, error: paymentError } = usePayment();
 
@@ -188,6 +193,7 @@ export function CheckoutPage() {
         couponCode: couponCode || undefined,
         buyNow: buyNowParams,
         selectedDeliveryMethod,
+        selectedPackaging,
       });
     } else {
       processPayment({
@@ -197,6 +203,7 @@ export function CheckoutPage() {
         userName: session?.user?.name || 'Customer',
         buyNow: buyNowParams,
         selectedDeliveryMethod,
+        selectedPackaging,
       });
     }
   };
@@ -365,6 +372,131 @@ export function CheckoutPage() {
             </CardContent>
           </Card>
 
+          {/* Packaging & Protection Options */}
+          {summary?.availablePackaging && summary.availablePackaging.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                  <Package className="h-4 w-4 text-primary" />
+                  Packaging &amp; Protection
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Select premium boxes, gift wrapping, or specialized protective packaging for your items.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Mandatory Packaging Disclosures */}
+                {summary.availablePackaging
+                  .filter((p) => !p.isOptional)
+                  .map((pkg) => (
+                    <div
+                      key={pkg.id}
+                      className="p-3 border border-amber-500/20 bg-amber-500/5 rounded-xl flex items-center justify-between text-xs"
+                    >
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">{pkg.name}</span>
+                          <Badge variant="outline" className="text-[9px] text-amber-400 border-amber-500/30">
+                            Required by {pkg.shopName || 'Seller'}
+                          </Badge>
+                        </div>
+                        {pkg.description && (
+                          <p className="text-[11px] text-muted-foreground">{pkg.description}</p>
+                        )}
+                      </div>
+                      <span className="font-bold text-foreground shrink-0 pl-2">
+                        +{productListService.formatPrice(pkg.price)}
+                      </span>
+                    </div>
+                  ))}
+
+                {/* Optional Packaging Choices */}
+                {summary.availablePackaging.some((p) => p.isOptional) && (
+                  <div className="space-y-2.5 pt-1">
+                    <span className="text-[11px] font-semibold text-muted-foreground block">
+                      Optional Add-ons
+                    </span>
+                    <div className="grid gap-2.5 sm:grid-cols-2">
+                      {summary.availablePackaging
+                        .filter((p) => p.isOptional)
+                        .map((pkg) => {
+                          const isSelected = selectedPackagingIds.includes(pkg.id);
+                          return (
+                            <div
+                              key={pkg.id}
+                              onClick={() => {
+                                setSelectedPackagingIds((prev) =>
+                                  isSelected ? prev.filter((id) => id !== pkg.id) : [...prev, pkg.id]
+                                );
+                              }}
+                              className={`p-3 border rounded-xl cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
+                                isSelected
+                                  ? 'border-primary bg-primary/[0.04] ring-1 ring-primary/20'
+                                  : 'border-border bg-zinc-950/20 hover:border-zinc-700'
+                              }`}
+                            >
+                              <div className="flex items-start gap-2.5">
+                                <div className="h-11 w-11 rounded-lg bg-zinc-800/80 border border-border flex items-center justify-center shrink-0 overflow-hidden">
+                                  {pkg.imageUrl ? (
+                                    <img
+                                      src={pkg.imageUrl}
+                                      alt={pkg.name}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <Package className="h-5 w-5 text-muted-foreground" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span className="font-semibold text-xs text-foreground truncate">
+                                      {pkg.name}
+                                    </span>
+                                    <span className="font-bold text-xs text-emerald-400 shrink-0">
+                                      +{productListService.formatPrice(pkg.price)}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    {pkg.type && (
+                                      <Badge variant="outline" className="text-[9px] px-1 py-0 uppercase">
+                                        {pkg.type}
+                                      </Badge>
+                                    )}
+                                    <span className="text-[10px] text-zinc-500 truncate">
+                                      {pkg.shopName}
+                                    </span>
+                                  </div>
+                                  {pkg.description && (
+                                    <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
+                                      {pkg.description}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between pt-1 border-t border-border/50 text-[11px]">
+                                <span className={isSelected ? 'text-primary font-bold' : 'text-zinc-500'}>
+                                  {isSelected ? 'Added to order' : 'Click to add'}
+                                </span>
+                                <div
+                                  className={`h-4 w-4 rounded border flex items-center justify-center transition-colors ${
+                                    isSelected
+                                      ? 'bg-primary border-primary text-black'
+                                      : 'border-zinc-600 bg-transparent'
+                                  }`}
+                                >
+                                  {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Payment Method Selection */}
           <Card>
             <CardHeader>
@@ -506,11 +638,23 @@ export function CheckoutPage() {
                   </span>
                 </div>
                 {packingFeeTotal > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Packing Fee</span>
-                    <span className="font-semibold text-foreground">
-                      {productListService.formatPrice(packingFeeTotal)}
-                    </span>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Packing Fee</span>
+                      <span className="font-semibold text-foreground">
+                        {productListService.formatPrice(packingFeeTotal)}
+                      </span>
+                    </div>
+                    {summary?.packagingSnapshots && summary.packagingSnapshots.length > 0 && (
+                      <div className="pl-2 space-y-0.5 text-[10px] text-zinc-400">
+                        {summary.packagingSnapshots.map((snap: any, idx: number) => (
+                          <div key={idx} className="flex justify-between">
+                            <span>• {snap.name}</span>
+                            <span>{productListService.formatPrice(snap.totalFee)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
                 {platformFeeTotal > 0 && (

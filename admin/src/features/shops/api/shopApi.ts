@@ -17,6 +17,26 @@ export const shopApi = {
     const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/approve-packing`, { approvedMaxFee });
     return response.data;
   },
+  getPackagingOptions: async (params?: { status?: string; shopId?: string; search?: string; page?: number; limit?: number }) => {
+    const response = await axiosInstance.get('/api/admin/packaging', { params });
+    return response.data;
+  },
+  approvePackagingOption: async (id: string) => {
+    const response = await axiosInstance.patch(`/api/admin/packaging/${id}/approve`);
+    return response.data;
+  },
+  rejectPackagingOption: async (id: string, reason: string) => {
+    const response = await axiosInstance.patch(`/api/admin/packaging/${id}/reject`, { reason });
+    return response.data;
+  },
+  requestChangesPackagingOption: async (id: string, reason: string) => {
+    const response = await axiosInstance.patch(`/api/admin/packaging/${id}/request-changes`, { reason });
+    return response.data;
+  },
+  suspendPackagingOption: async (id: string, reason?: string) => {
+    const response = await axiosInstance.patch(`/api/admin/packaging/${id}/suspend`, { reason });
+    return response.data;
+  },
   rejectPackingPermission: async (id: string, reason?: string) => {
     const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/reject-packing`, { reason });
     return response.data;

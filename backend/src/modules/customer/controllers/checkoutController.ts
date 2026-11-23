@@ -5,7 +5,8 @@ import { calculateTotals } from "../../payments/services/payment.service.js";
 // Helper to validate cart items and check stock levels
 const runCheckoutValidation = async (
     customerId: string,
-    buyNow?: { productId: string; productVariantId?: string; quantity: number }
+    buyNow?: { productId: string; productVariantId?: string; quantity: number },
+    selectedPackaging?: { packagingOptionId: string; quantity?: number; sellerId?: string }[]
 ) => {
     try {
         const address = await prisma.customerAddress.findFirst({
@@ -17,7 +18,8 @@ const runCheckoutValidation = async (
         const totals = await calculateTotals({
             customerId,
             shippingAddressId: address?.id,
-            buyNow
+            buyNow,
+            selectedPackaging
         });
         return { isValid: true, cart: totals.cart, totals };
     } catch (error: any) {
@@ -194,7 +196,7 @@ export const removeCoupon = async (req: Request, res: Response) => {
 export const checkout = async (req: Request, res: Response) => {
     try {
         const customerId = req.customerId;
-        const { couponCode, buyNow, selectedDeliveryMethod } = req.body;
+        const { couponCode, buyNow, selectedDeliveryMethod, selectedPackaging, packingFees } = req.body;
 
         if (!customerId) {
             return res.status(401).json({
@@ -213,7 +215,9 @@ export const checkout = async (req: Request, res: Response) => {
             couponCode,
             shippingAddressId: address?.id,
             buyNow,
-            selectedDeliveryMethod
+            selectedDeliveryMethod,
+            selectedPackaging,
+            packingFees
         });
 
         const itemsSummary = totals.cart.items.map((item: any) => {
@@ -248,6 +252,8 @@ export const checkout = async (req: Request, res: Response) => {
                 placeOfSupplyState: totals.gstBreakdown?.placeOfSupplyState || "Karnataka",
                 isInterState: totals.gstBreakdown?.isInterState || false,
                 grandTotal: totals.grandTotal,
+                availablePackaging: totals.availablePackaging || [],
+                packagingSnapshots: totals.packagingSnapshots || [],
                 appliedCoupon: totals.appliedCoupon
                     ? {
                           id: totals.appliedCoupon.id,
@@ -312,7 +318,7 @@ export const getEnabledDeliveryMethods = async (req: Request, res: Response) => 
 export const checkoutCod = async (req: Request, res: Response) => {
     try {
         const customerId = req.customerId;
-        const { shippingAddressId, billingAddressId, couponCode, packingFees, buyNow, selectedDeliveryMethod } = req.body;
+        const { shippingAddressId, billingAddressId, couponCode, packingFees, selectedPackaging, buyNow, selectedDeliveryMethod } = req.body;
 
         if (!customerId) {
             return res.status(401).json({ message: "Unauthorized" });
@@ -330,6 +336,7 @@ export const checkoutCod = async (req: Request, res: Response) => {
             billingAddressId,
             couponCode,
             packingFees,
+            selectedPackaging,
             buyNow,
             selectedDeliveryMethod
         });

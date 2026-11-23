@@ -194,9 +194,17 @@ export function SellerInvoice({ order, className = '' }: SellerInvoiceProps) {
               <span className="font-semibold text-zinc-800 text-right break-words">{productService.formatPrice(Number(order.subtotal))}</span>
             </div>
             {Number(order.packingFee) > 0 && (
-              <div className="flex justify-between gap-4 text-zinc-600">
-                <span className="shrink-0">Packing Fee</span>
-                <span className="font-semibold text-zinc-800 text-right">{productService.formatPrice(Number(order.packingFee))}</span>
+              <div className="space-y-0.5">
+                <div className="flex justify-between gap-4 text-zinc-600">
+                  <span className="shrink-0">Packaging Fee</span>
+                  <span className="font-semibold text-zinc-800 text-right">{productService.formatPrice(Number(order.packingFee))}</span>
+                </div>
+                {((order as any).packagingSnapshots || (order as any).order?.packagingSnapshots)?.map((snap: any) => (
+                  <div key={snap.id} className="flex justify-between gap-4 text-[11px] text-zinc-500 pl-2">
+                    <span>{snap.name} {snap.quantity > 1 ? `(x${snap.quantity})` : ''}</span>
+                    <span>{productService.formatPrice(Number(snap.totalFee))}</span>
+                  </div>
+                ))}
               </div>
             )}
             <div className="flex justify-between gap-4 text-zinc-600">

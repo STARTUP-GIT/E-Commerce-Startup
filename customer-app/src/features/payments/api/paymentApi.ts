@@ -12,6 +12,7 @@ export interface CreatePaymentPayload {
   packingFees?: { sellerId: string; amount: number }[];
   buyNow?: BuyNowParams;
   selectedDeliveryMethod?: string;
+  selectedPackaging?: Array<{ packagingOptionId: string; quantity?: number }>;
 }
 
 export interface RazorpayOrderDetails {
@@ -29,6 +30,7 @@ export interface VerifyPaymentPayload {
   packingFees?: { sellerId: string; amount: number }[];
   buyNow?: BuyNowParams;
   selectedDeliveryMethod?: string;
+  selectedPackaging?: Array<{ packagingOptionId: string; quantity?: number }>;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   razorpaySignature?: string;

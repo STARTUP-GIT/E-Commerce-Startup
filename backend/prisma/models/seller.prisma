@@ -103,6 +103,7 @@ model Shop {
   packingFeeRequestedAt       DateTime?
   packingFeeApprovedMaxAmount Decimal?                 @db.Decimal(10, 2)
   packingFeeRequests          PackingFeeRequest[]
+  packagingOptions            PackagingOption[]
   agreements                  ShopAgreement[]
   approvalRequests            ShopApprovalRequest[]
   defaultPickupAddress        SellerAddress?           @relation("ShopDefaultPickupAddress", fields: [defaultPickupAddressId], references: [id])

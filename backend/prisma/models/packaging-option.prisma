@@ -1,0 +1,52 @@
+model PackagingOption {
+  id                    String                 @id @default(cuid())
+  shopId                String
+  name                  String
+  description           String?
+  price                 Decimal                @db.Decimal(10, 2)
+  imageUrl              String?
+  imagePublicId         String?
+  type                  String?                @default("BOX")
+  isOptional            Boolean                @default(true)
+  applicableCategoryIds String[]               @default([])
+  applicableProductIds  String[]               @default([])
+  status                PackagingOptionStatus  @default(PENDING)
+  rejectionReason       String?
+  reviewedByAdminId     String?                @db.VarChar(30)
+  reviewedAt            DateTime?
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  shop                  Shop                   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  reviewedByAdmin       Admin?                 @relation("PackagingOptionReviewedBy", fields: [reviewedByAdminId], references: [id])
+  orderPackagingSnapshots OrderPackagingSnapshot[]
+
+  @@index([shopId])
+  @@index([shopId, status, isActive])
+  @@index([status])
+  @@map("packaging_options")
+}
+
+model OrderPackagingSnapshot {
+  id                String           @id @default(cuid())
+  orderId           String
+  sellerOrderId     String?
+  packagingOptionId String?
+  name              String
+  price             Decimal          @db.Decimal(10, 2)
+  quantity          Int              @default(1)
+  totalFee          Decimal          @db.Decimal(10, 2)
+  imageUrl          String?
+  isOptional        Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+
+  order             Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sellerOrder       SellerOrder?     @relation(fields: [sellerOrderId], references: [id], onDelete: Cascade)
+  packagingOption   PackagingOption? @relation(fields: [packagingOptionId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([sellerOrderId])
+  @@index([packagingOptionId])
+  @@map("order_packaging_snapshots")
+}

@@ -24,6 +24,7 @@ import { Input } from '@/shared/components/Input';
 import { Dialog } from '@/shared/components/Dialog';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { SellerAgreementBanner } from './SellerAgreementBanner';
+import { PackagingCatalogueSection } from './PackagingCatalogueSection';
 import {
   Store,
   CreditCard,
@@ -50,10 +51,6 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
     isAddingBank,
     updateBanner,
     updateLogo,
-    requestPackingFeeApproval,
-    togglePackingFee,
-    isRequestingPackingFee,
-    isTogglingPackingFee,
     updateShop,
     isUpdatingShop,
   } = useShop();
@@ -73,15 +70,6 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
   const [ifscCode, setIfscCode] = useState('');
   const [upiId, setUpiId] = useState('');
 
-  // Packaging Fee State
-  const [feeModalOpen, setFeeModalOpen] = useState(false);
-  const [requestedMaxFee, setRequestedMaxFee] = useState('');
-  const [feeReason, setFeeReason] = useState('');
-  const [feeNotes, setFeeNotes] = useState('');
-  const [isPackingEnabled, setIsPackingEnabled] = useState(false);
-  const [packingFeeAmount, setPackingFeeAmount] = useState('0');
-  const [isSavingFee, setIsSavingFee] = useState(false);
-
   // Store Pickup Location & Dispatch Coordinates State
   const [pickupLine1, setPickupLine1] = useState('');
   const [pickupLine2, setPickupLine2] = useState('');
@@ -95,8 +83,6 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
 
   useEffect(() => {
     if (shop) {
-      setIsPackingEnabled(Boolean(shop.packingFeeEnabled));
-      setPackingFeeAmount(String(shop.packingFeeAmount ?? '0'));
       if (shop.defaultPickupAddress) {
         setPickupLine1(shop.defaultPickupAddress.addressLine1 || '');
         setPickupLine2(shop.defaultPickupAddress.addressLine2 || '');
@@ -113,31 +99,6 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
     }
   }, [shop]);
 
-  const handleSavePackingFeeSettings = async () => {
-    const amountNum = parseFloat(packingFeeAmount);
-    if (isPackingEnabled) {
-      const maxCeiling =
-        shop?.packingFeeApprovedMaxAmount !== null && shop?.packingFeeApprovedMaxAmount !== undefined
-          ? Number(shop.packingFeeApprovedMaxAmount)
-          : 500;
-      if (isNaN(amountNum) || amountNum < 0 || amountNum > maxCeiling) {
-        showToast(`Fee must be a valid number between ₹0 and ₹${maxCeiling.toFixed(2)}`, 'error');
-        return;
-      }
-    }
-    setIsSavingFee(true);
-    try {
-      await togglePackingFee({
-        enabled: isPackingEnabled,
-        amount: isPackingEnabled ? amountNum : 0,
-      });
-      showToast('Packaging fee settings saved successfully', 'success');
-    } catch (err: any) {
-      showToast(err.message || 'Failed to save packaging fee settings', 'error');
-    } finally {
-      setIsSavingFee(false);
-    }
-  };
 
   const handleDetectPickupLocation = async () => {
     setIsDetectingLocation(true);
@@ -234,32 +195,6 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
     }
   };
 
-  const handleRequestPackingFee = async () => {
-    const feeNum = parseFloat(requestedMaxFee);
-    if (isNaN(feeNum) || feeNum <= 0) {
-      showToast('Please enter a positive fee amount', 'error');
-      return;
-    }
-    if (feeReason.trim().length < 10) {
-      showToast('Reason must be at least 10 characters', 'error');
-      return;
-    }
-
-    try {
-      await requestPackingFeeApproval({
-        requestedMaxFee: feeNum,
-        reason: feeReason.trim(),
-        supportingNotes: feeNotes.trim() || undefined,
-      });
-      showToast('Packaging fee authorization requested', 'success');
-      setFeeModalOpen(false);
-      setRequestedMaxFee('');
-      setFeeReason('');
-      setFeeNotes('');
-    } catch (err: any) {
-      showToast(err.message || 'Failed to submit packaging fee request', 'error');
-    }
-  };
 
   return (
     <DashboardLayout title="Shop & Bank" navigation={navigation} currentRoute="/shop">
@@ -326,84 +261,8 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
           </CardContent>
         </Card>
 
-        {/* Packaging Fee Setting */}
-        <Card>
-          <CardHeader>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Package size={17} color={Colors.purpleLight} />
-              <CardTitle>Packaging &amp; Delivery Fee Policy</CardTitle>
-            </View>
-            <CardDescription>Configure packaging add-ons under admin authorization</CardDescription>
-          </CardHeader>
-          <CardContent style={{ gap: 12 }}>
-            <View style={styles.feeStatusRow}>
-              <Text style={styles.feeLabel}>Admin Authorization Status:</Text>
-              <Badge
-                variant={
-                  shop?.packingFeeApprovalStatus === 'APPROVED'
-                    ? 'success'
-                    : shop?.packingFeeApprovalStatus === 'REJECTED'
-                    ? 'destructive'
-                    : 'default'
-                }
-              >
-                {shop?.packingFeeApprovalStatus || 'NOT REQUESTED'}
-              </Badge>
-            </View>
-
-            {shop?.packingFeeApprovalStatus === 'APPROVED' ? (
-              <View style={{ gap: 12 }}>
-                <View style={styles.feeToggleRow}>
-                  <View style={{ flex: 1, paddingRight: 8 }}>
-                    <Text style={styles.toggleText}>Enable Customer Packaging Fee</Text>
-                    <Text style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.5)', marginTop: 2 }}>
-                      Approved Ceiling: ₹{Number(shop.packingFeeApprovedMaxAmount || 500).toFixed(2)}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={Boolean(isPackingEnabled)}
-                    onValueChange={(val) => setIsPackingEnabled(val)}
-                    trackColor={{ false: 'rgba(255,255,255,0.1)', true: Colors.purple }}
-                    thumbColor="#ffffff"
-                  />
-                </View>
-
-                {isPackingEnabled && (
-                  <View style={{ gap: 8 }}>
-                    <Input
-                      label={`Packaging Fee Amount (₹)`}
-                      placeholder="e.g. 20.00"
-                      keyboardType="numeric"
-                      value={packingFeeAmount}
-                      onChangeText={setPackingFeeAmount}
-                    />
-                    <Button
-                      variant="default"
-                      size="sm"
-                      loading={isSavingFee || isTogglingPackingFee}
-                      onPress={handleSavePackingFeeSettings}
-                    >
-                      Save Packaging Fee
-                    </Button>
-                  </View>
-                )}
-              </View>
-            ) : (
-              <View style={{ gap: 8 }}>
-                <Text style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.6)', lineHeight: 16 }}>
-                  You are currently not authorized to charge customers packaging or delivery fees. Administration approval is required.
-                </Text>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onPress={() => setFeeModalOpen(true)}
-                >
-                  Request Packaging Fee Approval
-                </Button>
-              </View>
-            )}
-          </CardContent>
-        </Card>
+        {/* Packaging Catalogue Section */}
+        <PackagingCatalogueSection />
 
         {/* Store Pickup Location & Dispatch Coordinates */}
         <Card>
@@ -602,39 +461,6 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
           </View>
         </Dialog>
 
-        {/* Packaging Fee Request Dialog */}
-        <Dialog
-          open={feeModalOpen}
-          onClose={() => setFeeModalOpen(false)}
-          title="Packaging Fee Authorization"
-          description="Request marketplace permission to charge customer packaging fees"
-        >
-          <View style={{ gap: 10 }}>
-            <Input
-              label="Requested Max Fee (₹)"
-              placeholder="40.00"
-              keyboardType="decimal-pad"
-              value={requestedMaxFee}
-              onChangeText={setRequestedMaxFee}
-            />
-            <Input
-              label="Reason for Packaging Fee"
-              placeholder="Custom bubble wrap, wooden crate protection, fragile ceramic packing…"
-              multiline
-              numberOfLines={3}
-              value={feeReason}
-              onChangeText={setFeeReason}
-            />
-            <Button
-              variant="default"
-              loading={isRequestingPackingFee}
-              onPress={handleRequestPackingFee}
-              style={{ marginTop: 10 }}
-            >
-              Submit Authorization Request
-            </Button>
-          </View>
-        </Dialog>
       </ScrollView>
     </DashboardLayout>
   );

@@ -51,8 +51,9 @@ export const getOrder = async (req: Request, res: Response) => {
                 shippingAddress: true,
                 billingAddress: true,
                 coupon: true,
+                packagingSnapshots: true,
                 sellerOrders: {
-                    include: { seller: { include: { shop: true } }, items: true }
+                    include: { seller: { include: { shop: true } }, items: true, packagingSnapshots: true }
                 },
                 payments: true,
                 timelineEvents: { orderBy: { createdAt: "asc" } }

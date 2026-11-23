@@ -100,10 +100,11 @@ export const getSidebarBadges = async (req: Request, res: Response) => {
             prisma.returnRequest.count({
                 where: { status: { in: ["REQUESTED", "PENDING_REVIEW"] } }
             }),
-            // Packing Fee Requests: pending requests
-            prisma.packingFeeRequest.count({
-                where: { status: "PENDING" }
-            }),
+            // Packing Fee Requests / Packaging Catalogue: pending requests
+            Promise.all([
+                prisma.packingFeeRequest.count({ where: { status: "PENDING" } }),
+                prisma.packagingOption.count({ where: { status: "PENDING" } })
+            ]).then(([p1, p2]) => p1 + p2),
             // Seller Payouts: pending payout processing
             prisma.sellerPayout.count({
                 where: { status: "PENDING" }
@@ -131,6 +132,7 @@ export const getSidebarBadges = async (req: Request, res: Response) => {
             orders: ordersPending,
             returns: returnsPending,
             packingFeeRequests: packingFeeRequestsPending,
+            packagingOptions: packingFeeRequestsPending,
             sellerPayouts: sellerPayoutsPending,
             locationRequests: locationRequestsPending,
             adminAccessRequests: adminAccessRequestsPending,

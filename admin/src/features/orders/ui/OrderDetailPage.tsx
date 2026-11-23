@@ -236,9 +236,21 @@ export function OrderDetailPage() {
                   <span className="text-white/80">{formatPrice(order.shippingTotal ?? 0)}</span>
                 </div>
                 {Number(order.packingFeeTotal) > 0 && (
-                  <div className="flex justify-between">
-                    <span>Packing Fees</span>
-                    <span className="text-white/80">{formatPrice(order.packingFeeTotal)}</span>
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span>Packaging Fees</span>
+                      <span className="text-white/80">{formatPrice(order.packingFeeTotal)}</span>
+                    </div>
+                    {order.packagingSnapshots && order.packagingSnapshots.length > 0 && (
+                      <div className="pl-2 border-l border-white/10 space-y-0.5 text-[11px] text-white/50">
+                        {order.packagingSnapshots.map((snap: any) => (
+                          <div key={snap.id} className="flex justify-between">
+                            <span>{snap.name} {snap.quantity > 1 ? `(x${snap.quantity})` : ''}</span>
+                            <span>{formatPrice(snap.totalFee)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
                 {Number(order.taxTotal) > 0 && (

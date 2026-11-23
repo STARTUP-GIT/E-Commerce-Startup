@@ -156,7 +156,14 @@ export const revokePackingFee = async (req: Request, res: Response) => {
 export const createPayment = async (req: Request, res: Response) => {
     try {
         const customerId = req.customerId;
-        const { shippingAddressId, billingAddressId, couponCode, packingFees } = req.body;
+        const {
+            shippingAddressId,
+            billingAddressId,
+            couponCode,
+            packingFees,
+            selectedPackaging,
+            buyNow
+        } = req.body;
 
         if (!customerId) {
             return res.status(401).json({
@@ -175,7 +182,9 @@ export const createPayment = async (req: Request, res: Response) => {
             shippingAddressId,
             billingAddressId,
             couponCode,
-            packingFees
+            packingFees,
+            selectedPackaging,
+            buyNow
         });
 
         return res.status(200).json(session);
@@ -196,6 +205,9 @@ export const verifyPayment = async (req: Request, res: Response) => {
             billingAddressId,
             couponCode,
             packingFees,
+            selectedPackaging,
+            buyNow,
+            selectedDeliveryMethod,
             razorpayOrderId,
             razorpayPaymentId,
             razorpaySignature,
@@ -214,6 +226,9 @@ export const verifyPayment = async (req: Request, res: Response) => {
             billingAddressId,
             couponCode,
             packingFees,
+            selectedPackaging,
+            buyNow,
+            selectedDeliveryMethod,
             razorpayOrderId,
             razorpayPaymentId,
             razorpaySignature,

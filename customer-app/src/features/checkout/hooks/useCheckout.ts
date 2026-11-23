@@ -2,13 +2,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { checkoutApi, BuyNowParams } from '../api/checkoutApi';
 import { useState } from 'react';
 
-export function useCheckout(buyNow?: BuyNowParams, selectedDeliveryMethod?: string) {
+export function useCheckout(
+  buyNow?: BuyNowParams,
+  selectedDeliveryMethod?: string,
+  selectedPackaging?: Array<{ packagingOptionId: string; quantity?: number }>
+) {
   const queryClient = useQueryClient();
   const [couponCode, setCouponCode] = useState<string>('');
 
   const summaryQuery = useQuery({
-    queryKey: ['checkout-summary', couponCode, buyNow, selectedDeliveryMethod],
-    queryFn: () => checkoutApi.getSummary(couponCode || undefined, buyNow, selectedDeliveryMethod),
+    queryKey: ['checkout-summary', couponCode, buyNow, selectedDeliveryMethod, selectedPackaging],
+    queryFn: () => checkoutApi.getSummary(couponCode || undefined, buyNow, selectedDeliveryMethod, selectedPackaging),
   });
 
   const validateQuery = useQuery({
