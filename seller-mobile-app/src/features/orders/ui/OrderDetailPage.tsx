@@ -329,6 +329,34 @@ export function OrderDetailPage({ route, navigation }: OrderDetailPageProps) {
                 Phone: {order.order.shippingAddress.phone}
               </Text>
             ) : null}
+            {order.selectedDeliveryMethod ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <Truck size={14} color="#60a5fa" />
+                <Text style={{ fontSize: 11, color: '#93c5fd', fontWeight: '600' }}>
+                  {order.selectedDeliveryMethod === 'THIRD_PARTY_DELIVERY'
+                    ? 'Third-Party Online Delivery'
+                    : order.selectedDeliveryMethod === 'ATLASBASKET_DELIVERY' || order.selectedDeliveryMethod === 'PORTAL_DELIVERY'
+                    ? 'AtlasBasket Delivery'
+                    : order.selectedDeliveryMethod === 'SELLER_DELIVERY' || order.selectedDeliveryMethod === 'SELF_DELIVERY'
+                    ? 'Seller Delivery'
+                    : order.selectedDeliveryMethod}
+                </Text>
+              </View>
+            ) : null}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }}>
+              <Text style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.6)' }}>Delivery Fee:</Text>
+              <Text style={{ fontSize: 11, color: '#ffffff', fontWeight: '700' }}>
+                {Number(order.shippingAmount) > 0 ? productService.formatPrice(order.shippingAmount) : 'Free (₹0.00)'}
+              </Text>
+            </View>
+            {Number(order.packingFee) > 0 && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
+                <Text style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.6)' }}>Packaging Fee:</Text>
+                <Text style={{ fontSize: 11, color: '#ffffff', fontWeight: '700' }}>
+                  {productService.formatPrice(order.packingFee)}
+                </Text>
+              </View>
+            )}
           </CardContent>
         </Card>
 

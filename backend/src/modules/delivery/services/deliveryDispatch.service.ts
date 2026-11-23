@@ -102,12 +102,12 @@ export class DeliveryDispatchService {
       longitude: dropoffAddress.longitude ? Number(dropoffAddress.longitude) : undefined,
     };
 
-    const { pickupResult, dropoffResult } = await DeliveryLocationService.validateDeliveryJobLocations(pickupLoc, dropoffLoc);
+    const { pickupCheck, dropoffCheck } = await DeliveryLocationService.validateDeliveryJobLocations(pickupLoc, dropoffLoc);
 
-    const pickupLat = pickupAddress.latitude ? Number(pickupAddress.latitude) : (pickupResult.resolvedLocation.latitude || 0);
-    const pickupLng = pickupAddress.longitude ? Number(pickupAddress.longitude) : (pickupResult.resolvedLocation.longitude || 0);
-    const dropoffLat = dropoffAddress.latitude ? Number(dropoffAddress.latitude) : (dropoffResult.resolvedLocation.latitude || 0);
-    const dropoffLng = dropoffAddress.longitude ? Number(dropoffAddress.longitude) : (dropoffResult.resolvedLocation.longitude || 0);
+    const pickupLat = pickupAddress.latitude ? Number(pickupAddress.latitude) : (pickupCheck.resolvedLocation.latitude || 0);
+    const pickupLng = pickupAddress.longitude ? Number(pickupAddress.longitude) : (pickupCheck.resolvedLocation.longitude || 0);
+    const dropoffLat = dropoffAddress.latitude ? Number(dropoffAddress.latitude) : (dropoffCheck.resolvedLocation.latitude || 0);
+    const dropoffLng = dropoffAddress.longitude ? Number(dropoffAddress.longitude) : (dropoffCheck.resolvedLocation.longitude || 0);
 
     const route = await GoogleMapsService.calculateRoute(
       { lat: pickupLat, lng: pickupLng },
@@ -227,12 +227,12 @@ export class DeliveryDispatchService {
       longitude: input.dropoffAddress.longitude,
     };
 
-    const { pickupResult, dropoffResult } = await DeliveryLocationService.validateDeliveryJobLocations(shopLoc, dropoffLoc);
+    const { pickupCheck, dropoffCheck } = await DeliveryLocationService.validateDeliveryJobLocations(shopLoc, dropoffLoc);
 
-    const pickupLat = shop.latitude ? Number(shop.latitude) : (pickupResult.resolvedLocation.latitude || 0);
-    const pickupLng = shop.longitude ? Number(shop.longitude) : (pickupResult.resolvedLocation.longitude || 0);
-    const dropoffLat = input.dropoffAddress.latitude || dropoffResult.resolvedLocation.latitude || 0;
-    const dropoffLng = input.dropoffAddress.longitude || dropoffResult.resolvedLocation.longitude || 0;
+    const pickupLat = shop.latitude ? Number(shop.latitude) : (pickupCheck.resolvedLocation.latitude || 0);
+    const pickupLng = shop.longitude ? Number(shop.longitude) : (pickupCheck.resolvedLocation.longitude || 0);
+    const dropoffLat = input.dropoffAddress.latitude || dropoffCheck.resolvedLocation.latitude || 0;
+    const dropoffLng = input.dropoffAddress.longitude || dropoffCheck.resolvedLocation.longitude || 0;
 
     const route = await GoogleMapsService.calculateRoute(
       { lat: pickupLat, lng: pickupLng },
@@ -274,8 +274,8 @@ export class DeliveryDispatchService {
       phone: input.customerPhone,
       addressLine1: input.dropoffAddress.addressLine1,
       addressLine2: input.dropoffAddress.addressLine2,
-      city: input.dropoffAddress.city || dropoffResult.resolvedLocation.district || "",
-      state: input.dropoffAddress.state || dropoffResult.resolvedLocation.state || "",
+      city: input.dropoffAddress.city || dropoffCheck.resolvedLocation.district || "",
+      state: input.dropoffAddress.state || dropoffCheck.resolvedLocation.state || "",
       postalCode: input.dropoffAddress.postalCode,
       latitude: dropoffLat,
       longitude: dropoffLng,

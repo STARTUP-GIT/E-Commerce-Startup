@@ -63,6 +63,7 @@ export function usePayment() {
     userEmail: string;
     userName: string;
     buyNow?: BuyNowParams;
+    selectedDeliveryMethod?: string;
   }) => {
     setError(null);
     try {
@@ -75,6 +76,7 @@ export function usePayment() {
         shippingAddressId: params.shippingAddressId,
         couponCode: params.couponCode,
         buyNow: params.buyNow,
+        selectedDeliveryMethod: params.selectedDeliveryMethod,
       });
 
       if (orderDetails.gateway === 'RAZORPAY') {
@@ -116,6 +118,7 @@ export function usePayment() {
               shippingAddressId: params.shippingAddressId,
               couponCode: params.couponCode,
               buyNow: params.buyNow,
+              selectedDeliveryMethod: params.selectedDeliveryMethod,
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,

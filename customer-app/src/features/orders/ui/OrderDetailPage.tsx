@@ -134,13 +134,19 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
                     {sellerOrder.selectedDeliveryMethod && (
                       <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 font-semibold shrink-0">
                         • <Truck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground/60" />
-                        <span>{sellerOrder.selectedDeliveryMethod === 'PORTAL_DELIVERY' ? 'Portal Delivery' : 'Delivered by Seller'}</span>
+                        <span>
+                          {sellerOrder.selectedDeliveryMethod === 'THIRD_PARTY_DELIVERY'
+                            ? 'Third-Party Online Delivery'
+                            : sellerOrder.selectedDeliveryMethod === 'ATLASBASKET_DELIVERY' || sellerOrder.selectedDeliveryMethod === 'PORTAL_DELIVERY'
+                            ? 'AtlasBasket Delivery'
+                            : 'Delivered by Seller'}
+                        </span>
                       </span>
                     )}
                     {!sellerOrder.selectedDeliveryMethod && sellerOrder.deliveryMode && (
                       <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 font-semibold shrink-0">
                         • <Truck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground/60" />
-                        <span>{sellerOrder.deliveryMode === 'SELF' ? 'Delivered by Seller' : 'Portal Delivery'}</span>
+                        <span>{sellerOrder.deliveryMode === 'SELF' ? 'Delivered by Seller' : 'AtlasBasket Delivery'}</span>
                       </span>
                     )}
                   </div>

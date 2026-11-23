@@ -1,5 +1,13 @@
 import axiosInstance from '@/lib/axios/axiosInstance';
 
+export interface DeliveryMethodCoverageSummary {
+  primaryCity: string | null;
+  totalDistricts: number;
+  totalTowns: number;
+  totalServiceAreas: number;
+  activeLocations?: string[];
+}
+
 export interface DeliveryMethodSetting {
   id: string;
   name: string;
@@ -7,6 +15,11 @@ export interface DeliveryMethodSetting {
   description?: string | null;
   enabled: boolean;
   displayOrder: number;
+  isConfigured?: boolean;
+  isOperational?: boolean;
+  statusNote?: string;
+  providerType?: string;
+  coverageSummary?: DeliveryMethodCoverageSummary;
   activeProductCount?: number;
   createdAt: string;
   updatedAt: string;

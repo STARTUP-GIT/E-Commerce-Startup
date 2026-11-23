@@ -957,15 +957,27 @@ export const assignDeliveryMethod = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Delivery method has already been assigned to this order" });
         }
 
-        const displayMethod = methodSetting.code.toUpperCase() === "SELLER_DELIVERY"
-            ? "SELF_DELIVERY"
-            : methodSetting.code.toUpperCase();
+        const code = methodSetting.code.toUpperCase();
+        let displayMethod = code;
+        let titleName = methodSetting.name;
+        if (code === "ATLASBASKET_DELIVERY" || code === "PORTAL_DELIVERY") {
+            displayMethod = "ATLASBASKET_DELIVERY";
+            titleName = "AtlasBasket Delivery";
+        } else if (code === "SELLER_DELIVERY" || code === "SELF_DELIVERY") {
+            displayMethod = "SELLER_DELIVERY";
+            titleName = "Seller Delivery";
+        } else if (code === "THIRD_PARTY_DELIVERY" || code === "THIRD_PARTY_ONLINE") {
+            displayMethod = "THIRD_PARTY_DELIVERY";
+            titleName = "Third-Party Online Delivery";
+        }
+
+        const isSelf = displayMethod === "SELLER_DELIVERY" || displayMethod === "SELF_DELIVERY";
 
         const updatedOrder = await prisma.sellerOrder.update({
             where: { id: orderId as string },
             data: {
                 selectedDeliveryMethod: displayMethod,
-                deliveryMode: displayMethod === "SELF_DELIVERY" ? "SELF" : "PLATFORM",
+                deliveryMode: isSelf ? "SELF" : "PLATFORM",
                 deliveryAssignedAt: new Date(),
                 deliveryAssignedBy: "SELLER",
             },
@@ -978,7 +990,7 @@ export const assignDeliveryMethod = async (req: Request, res: Response) => {
                 orderId: sellerOrder.orderId,
                 status: sellerOrder.status,
                 title: "Delivery Method Assigned",
-                description: `Delivery method set to ${displayMethod === "SELF_DELIVERY" ? "Seller Delivery" : "Portal Delivery"}.`,
+                description: `Delivery method set to ${titleName}.`,
             },
         });
 
@@ -994,12 +1006,23 @@ export const assignDeliveryMethod = async (req: Request, res: Response) => {
 
 export const getAllowedDeliveryMethods = async (req: Request, res: Response) => {
     try {
+        const { ensureDefaultDeliveryMethods, isThirdPartyDeliveryConfigured } = await import("../../admin/controllers/deliveryMethodController.js");
+        await ensureDefaultDeliveryMethods();
         const methods = await prisma.deliveryMethodSetting.findMany({
             where: { enabled: true },
             orderBy: { displayOrder: "asc" },
         });
 
-        return res.status(200).json({ deliveryMethods: methods });
+        const isThirdPartyConfigured = isThirdPartyDeliveryConfigured();
+        const filtered = methods.filter((m) => {
+            const code = m.code.toUpperCase();
+            if (code === "THIRD_PARTY_DELIVERY" || code === "THIRD_PARTY_ONLINE") {
+                return isThirdPartyConfigured;
+            }
+            return true;
+        });
+
+        return res.status(200).json({ deliveryMethods: filtered });
     } catch (error: any) {
         console.error("GET ALLOWED DELIVERY METHODS ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });

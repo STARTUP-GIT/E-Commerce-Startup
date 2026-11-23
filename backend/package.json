@@ -29,9 +29,6 @@
     "test": "node ./tests/runTests.cjs && node ./tests/logger.test.cjs && node ./tests/productionAudit.test.cjs && node ./tests/enforcementAndFinancial.test.cjs && node ./tests/platformFeeAndMessaging.test.cjs && node ./tests/centralizedBranding.test.cjs && node ./tests/separateCustomerAndSellerBranding.test.cjs && node ./tests/authAndSessionSync.test.cjs && node ./tests/conversationAndInboxSync.test.cjs && node ./tests/shopOnboardingAndAgreements.test.cjs && node ./tests/onDemandWebSocketAndMessaging.test.cjs && node ./tests/redisAndWebSocketCrossProcess.test.cjs",
     "test:redis": "node ./tests/redisAndWebSocketCrossProcess.test.cjs"
   },
-  "prisma": {
-    "schema": "prisma/"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC",

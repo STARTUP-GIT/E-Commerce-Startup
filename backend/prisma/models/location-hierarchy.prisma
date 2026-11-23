@@ -76,9 +76,9 @@ model LocationAuditLog {
   adminId        String?
   adminEmail     String?
   adminName      String?
-  entityType     String   // STATE, DISTRICT, CITY_TOWN, SERVICE_AREA
+  entityType     String // STATE, DISTRICT, CITY_TOWN, SERVICE_AREA
   entityId       String
-  action         String   // CREATE, UPDATE, DELETE, STATUS_TOGGLE
+  action         String // CREATE, UPDATE, DELETE, STATUS_TOGGLE
   previousValues Json?
   newValues      Json?
   createdAt      DateTime @default(now())

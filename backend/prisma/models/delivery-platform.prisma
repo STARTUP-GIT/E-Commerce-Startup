@@ -139,6 +139,7 @@ model DeliveryGlobalSetting {
   id                           Int      @id @default(1)
   brandName                    String   @default("AtlasBasket Delivery")
   brandLogoUrl                 String?
+  brandFaviconUrl              String?
   brandTagline                 String?  @default("Local Delivery Fleet")
   riderPayoutPercentage        Decimal  @default(90.00) @db.Decimal(5, 2)
   platformCommissionPercentage Decimal  @default(10.00) @db.Decimal(5, 2)

@@ -116,10 +116,15 @@ export function OffersScreen() {
                 <View>
                   <Text style={styles.eyebrow}>ESTIMATED RIDER PAYOUT</Text>
                   <Text style={styles.amount}>{currencyFromPaise(offer.delivery.riderPayoutAmountPaise)}</Text>
+                  {(offer.delivery.totalAmountPaise ?? 0) > 0 ? (
+                    <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>
+                      Delivery Fee: {currencyFromPaise(offer.delivery.totalAmountPaise!)}
+                    </Text>
+                  ) : null}
                 </View>
                 <View style={{ alignItems: "flex-end" }}>
                   <Text style={styles.eyebrow}>EST. DISTANCE</Text>
-                  <Text style={styles.distance}>{offer.delivery.distanceKm ? `${offer.delivery.distanceKm} km` : "3–5 km"}</Text>
+                  <Text style={styles.distance}>{offer.delivery.distanceKm ? `${offer.delivery.distanceKm} km` : "Local Zone"}</Text>
                   <Text style={styles.duration}>~{offer.delivery.durationMins || 15} mins</Text>
                 </View>
               </View>

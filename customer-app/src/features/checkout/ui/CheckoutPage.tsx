@@ -11,7 +11,7 @@ import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { Badge } from '@/shared/components/Badge';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { MapPin, Ticket, ShieldCheck, ShieldAlert, CreditCard, ChevronRight, Truck } from 'lucide-react';
+import { MapPin, Ticket, ShieldCheck, ShieldAlert, CreditCard, ChevronRight, Truck, Info } from 'lucide-react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { profileApi } from '@/features/auth/profile/api/profileApi';
@@ -31,7 +31,7 @@ export function CheckoutPage() {
     quantity: parseInt(searchParams.get('quantity') || '1', 10)
   } : undefined;
 
-  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState<'PORTAL_DELIVERY' | 'SELF_DELIVERY'>('PORTAL_DELIVERY');
+  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState<string>('ATLASBASKET_DELIVERY');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
 
   const {
@@ -66,25 +66,9 @@ export function CheckoutPage() {
   const enabledMethods = paymentMethodsData?.paymentMethods || [];
 
   const enabledDeliveryMethods = deliveryMethodsData?.deliveryMethods || [];
-  const isPortalDeliveryGloballyEnabled = enabledDeliveryMethods.length === 0 || enabledDeliveryMethods.some((m) => m.code === 'PORTAL_DELIVERY');
+  const isAtlasBasketGloballyEnabled = enabledDeliveryMethods.length === 0 || enabledDeliveryMethods.some((m) => m.code === 'ATLASBASKET_DELIVERY' || m.code === 'PORTAL_DELIVERY');
+  const isThirdPartyGloballyEnabled = enabledDeliveryMethods.some((m) => m.code === 'THIRD_PARTY_DELIVERY' || m.code === 'THIRD_PARTY_ONLINE');
   const isSellerDeliveryGloballyEnabled = enabledDeliveryMethods.length === 0 || enabledDeliveryMethods.some((m) => m.code === 'SELLER_DELIVERY' || m.code === 'SELF_DELIVERY');
-
-  React.useEffect(() => {
-    if (!isPortalDeliveryGloballyEnabled && isSellerDeliveryGloballyEnabled) {
-      setSelectedDeliveryMethod('SELF_DELIVERY');
-    } else if (isPortalDeliveryGloballyEnabled && !isSellerDeliveryGloballyEnabled) {
-      setSelectedDeliveryMethod('PORTAL_DELIVERY');
-    }
-  }, [isPortalDeliveryGloballyEnabled, isSellerDeliveryGloballyEnabled]);
-
-  React.useEffect(() => {
-    if (enabledMethods.length > 0 && !selectedPaymentMethod) {
-      const defaultMethod = enabledMethods[0]?.code;
-      if (defaultMethod) {
-        setSelectedPaymentMethod(defaultMethod);
-      }
-    }
-  }, [enabledMethods, selectedPaymentMethod]);
 
   const { data: locationsConfig } = useQuery({
     queryKey: ['locations-config'],
@@ -103,8 +87,6 @@ export function CheckoutPage() {
     staleTime: 10 * 60 * 1000,
   });
 
-  const setComingSoon = useLocationStore((state) => state.setComingSoon);
-
   const stateObj = locationsConfig?.allStates?.find(
     (st: any) => st.name.toLowerCase() === activeAddress?.state?.toLowerCase()
   );
@@ -116,6 +98,68 @@ export function CheckoutPage() {
     (stateObj && !stateObj.isEnabled) ||
     (districtObj && !districtObj.isEnabled)
   );
+
+  // Compute available delivery methods based on admin enablement and address eligibility
+  const availableDeliveryMethods = React.useMemo(() => {
+    const list: Array<{ code: string; name: string; description: string; badge: string; isFree: boolean }> = [];
+
+    if (isAtlasBasketGloballyEnabled && isPortalCovered) {
+      list.push({
+        code: 'ATLASBASKET_DELIVERY',
+        name: 'AtlasBasket Delivery',
+        description: 'Delivered using AtlasBasket local logistics fleet',
+        badge: 'Standard Charge',
+        isFree: false,
+      });
+    }
+
+    if (isThirdPartyGloballyEnabled) {
+      list.push({
+        code: 'THIRD_PARTY_DELIVERY',
+        name: 'Third-Party Online Delivery',
+        description: 'Fulfilled through partner external logistics platform',
+        badge: 'Standard Charge',
+        isFree: false,
+      });
+    }
+
+    if (isSellerDeliveryGloballyEnabled) {
+      list.push({
+        code: 'SELLER_DELIVERY',
+        name: 'Seller Delivery',
+        description: 'Delivered directly by seller',
+        badge: 'Free Shipping (₹0)',
+        isFree: true,
+      });
+    }
+
+    return list;
+  }, [isAtlasBasketGloballyEnabled, isPortalCovered, isThirdPartyGloballyEnabled, isSellerDeliveryGloballyEnabled]);
+
+  React.useEffect(() => {
+    if (availableDeliveryMethods.length > 0) {
+      const exists = availableDeliveryMethods.some(
+        (m) =>
+          m.code === selectedDeliveryMethod ||
+          (selectedDeliveryMethod === 'PORTAL_DELIVERY' && m.code === 'ATLASBASKET_DELIVERY') ||
+          (selectedDeliveryMethod === 'SELF_DELIVERY' && m.code === 'SELLER_DELIVERY')
+      );
+      if (!exists) {
+        setSelectedDeliveryMethod(availableDeliveryMethods[0].code);
+      }
+    } else {
+      setSelectedDeliveryMethod('');
+    }
+  }, [availableDeliveryMethods, selectedDeliveryMethod]);
+
+  React.useEffect(() => {
+    if (enabledMethods.length > 0 && !selectedPaymentMethod) {
+      const defaultMethod = enabledMethods[0]?.code;
+      if (defaultMethod) {
+        setSelectedPaymentMethod(defaultMethod);
+      }
+    }
+  }, [enabledMethods, selectedPaymentMethod]);
 
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,9 +173,12 @@ export function CheckoutPage() {
 
   const handlePlaceOrder = () => {
     const addr = activeAddress;
-    if (!addr) return;
+    if (!addr || !selectedDeliveryMethod || availableDeliveryMethods.length === 0) return;
 
-    if (selectedDeliveryMethod === 'PORTAL_DELIVERY' && !isPortalCovered) {
+    if (
+      (selectedDeliveryMethod === 'ATLASBASKET_DELIVERY' || selectedDeliveryMethod === 'PORTAL_DELIVERY') &&
+      !isPortalCovered
+    ) {
       return;
     }
 
@@ -149,6 +196,7 @@ export function CheckoutPage() {
         userEmail: session?.user?.email || '',
         userName: session?.user?.name || 'Customer',
         buyNow: buyNowParams,
+        selectedDeliveryMethod,
       });
     }
   };
@@ -241,42 +289,77 @@ export function CheckoutPage() {
             </CardContent>
           </Card>
 
-          {/* Delivered By Options (Read-Only Information Card) */}
+          {/* Delivery Method Selection Card */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-sm font-bold">
                 <Truck className="h-4 w-4 text-primary" />
-                <span>Delivered By</span>
+                <span>Delivery Method</span>
               </CardTitle>
-              <CardDescription className="text-xs">Fulfillment method configured by seller.</CardDescription>
+              <CardDescription className="text-xs">
+                Select your preferred delivery fulfillment method.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {selectedDeliveryMethod === 'SELF_DELIVERY' ? (
-                <div className="p-3.5 border border-border/80 bg-muted/20 rounded-xl space-y-2 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-foreground text-xs sm:text-sm">• Seller Delivery</span>
-                    <Badge variant="success" className="text-[10px]">Free Shipping (₹0)</Badge>
+              {availableDeliveryMethods.length === 0 ? (
+                <div className="p-3.5 text-xs font-medium text-amber-400 bg-amber-500/10 rounded-xl border border-amber-500/20 flex items-start gap-2">
+                  <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
+                  <div>
+                    <span className="font-bold block">Delivery Unavailable</span>
+                    <span>No delivery methods are currently operational for {activeAddress?.city || 'this area'}, {activeAddress?.state}. Coming soon.</span>
                   </div>
-                  <p className="text-muted-foreground text-[11px]">Delivered directly by seller</p>
                 </div>
               ) : (
-                <div className="p-3.5 border border-border/80 bg-muted/20 rounded-xl space-y-2 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-foreground text-xs sm:text-sm">• Portal Delivery</span>
-                    <Badge variant="outline" className="text-[10px]">Standard Charge</Badge>
-                  </div>
-                  <p className="text-muted-foreground text-[11px]">Delivered using portal logistics</p>
+                <div className="grid gap-2.5">
+                  {availableDeliveryMethods.map((dm) => {
+                    const isSelected =
+                      selectedDeliveryMethod === dm.code ||
+                      (selectedDeliveryMethod === 'PORTAL_DELIVERY' && dm.code === 'ATLASBASKET_DELIVERY') ||
+                      (selectedDeliveryMethod === 'SELF_DELIVERY' && dm.code === 'SELLER_DELIVERY');
+
+                    return (
+                      <div
+                        key={dm.code}
+                        onClick={() => setSelectedDeliveryMethod(dm.code)}
+                        className={`p-3.5 border rounded-xl cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-primary bg-primary/[0.04]'
+                            : 'border-border bg-zinc-950/20 hover:border-zinc-700'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="font-bold text-foreground text-xs sm:text-sm block">
+                              • {dm.name}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                              {dm.description}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge variant={dm.isFree ? 'success' : 'outline'} className="text-[10px]">
+                              {dm.badge}
+                            </Badge>
+                            {isSelected && (
+                              <Badge variant="default" className="text-[10px]">
+                                Selected
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
-              {/* Portal Coverage Warning */}
-              {selectedDeliveryMethod === 'PORTAL_DELIVERY' && isPortalDeliveryGloballyEnabled && activeAddress && !isPortalCovered && (
-                <div className="p-3 text-xs font-medium text-amber-400 bg-amber-500/10 rounded-xl border border-amber-500/20 flex items-start gap-2 mt-2">
-                  <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
-                  <div>
-                    <span className="font-bold block">Portal Delivery Unavailable</span>
-                    <span>Portal Delivery is unavailable in {activeAddress.city}, {activeAddress.state}.</span>
-                  </div>
+              {/* In-House Fleet Coverage Warning */}
+              {isAtlasBasketGloballyEnabled && activeAddress && !isPortalCovered && (
+                <div className="p-2.5 text-xs text-amber-400/90 bg-amber-500/5 rounded-lg border border-amber-500/10 flex items-center gap-2 mt-2">
+                  <Info className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                  <span className="text-[11px]">
+                    AtlasBasket Delivery is not yet operational in {activeAddress.city}, {activeAddress.state}.
+                  </span>
                 </div>
               )}
             </CardContent>
@@ -504,7 +587,9 @@ export function CheckoutPage() {
                   items.length === 0 ||
                   !activeAddress ||
                   (validation && !validation.isValid) ||
-                  (selectedDeliveryMethod === 'PORTAL_DELIVERY' && !isPortalCovered)
+                  !selectedDeliveryMethod ||
+                  availableDeliveryMethods.length === 0 ||
+                  ((selectedDeliveryMethod === 'ATLASBASKET_DELIVERY' || selectedDeliveryMethod === 'PORTAL_DELIVERY') && !isPortalCovered)
                 }
                 className="w-full flex items-center justify-center gap-2 py-6 text-sm font-bold cursor-pointer"
               >

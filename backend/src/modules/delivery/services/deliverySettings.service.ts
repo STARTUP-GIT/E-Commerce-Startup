@@ -189,6 +189,7 @@ export class DeliverySettingsService {
             id: 1,
             brandName: "AtlasBasket Delivery",
             brandLogoUrl: null,
+            brandFaviconUrl: null,
             brandTagline: "Local Delivery Fleet",
             riderPayoutPercentage: new Prisma.Decimal(90.0),
             platformCommissionPercentage: new Prisma.Decimal(10.0),
@@ -248,6 +249,7 @@ export class DeliverySettingsService {
         id: 1,
         brandName: "AtlasBasket Delivery",
         brandLogoUrl: null,
+        brandFaviconUrl: null,
         brandTagline: "Local Delivery Fleet",
         riderPayoutPercentage: 90,
         platformCommissionPercentage: 10,
@@ -294,6 +296,7 @@ export class DeliverySettingsService {
     payload: {
       brandName?: string;
       brandLogoUrl?: string | null;
+      brandFaviconUrl?: string | null;
       brandTagline?: string;
       riderPayoutPercentage?: number;
       platformCommissionPercentage?: number;

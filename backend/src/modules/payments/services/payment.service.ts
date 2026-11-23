@@ -209,10 +209,11 @@ export const calculateTotals = async (params: {
         packingFeeTotal += amount;
     }
 
-    // 3. Shipping charges (0 if SELF_DELIVERY is selected)
+    // 3. Shipping charges (0 if Seller Delivery is selected)
     const uniqueSellersCount = sellerSubtotals.size;
     let shippingTotal = 0;
-    if (selectedDeliveryMethod !== "SELF_DELIVERY") {
+    const isSellerFulfilled = selectedDeliveryMethod === "SELF_DELIVERY" || selectedDeliveryMethod === "SELLER_DELIVERY";
+    if (!isSellerFulfilled) {
         shippingTotal = uniqueSellersCount > 0 ? 10 + (uniqueSellersCount - 1) * 5 : 0;
     }
 
@@ -459,7 +460,7 @@ export const verifyPayment = async (paymentData: {
                 couponId: appliedCoupon?.id || null,
                 status: "CONFIRMED",
                 paymentMethod: "RAZORPAY",
-                selectedDeliveryMethod: selectedDeliveryMethod || "PORTAL_DELIVERY",
+                selectedDeliveryMethod: selectedDeliveryMethod || "ATLASBASKET_DELIVERY",
                 subtotal: productSubtotal,
                 shippingTotal,
                 taxTotal: gstBreakdown ? gstBreakdown.totalTaxAmount : gstAmount,
@@ -511,7 +512,7 @@ export const verifyPayment = async (paymentData: {
                     pickupSellerAddressId,
                     status: "PENDING",
                     paymentMethod: "RAZORPAY",
-                    selectedDeliveryMethod: selectedDeliveryMethod || "PORTAL_DELIVERY",
+                    selectedDeliveryMethod: selectedDeliveryMethod || "ATLASBASKET_DELIVERY",
                     subtotal: sellerSubtotal,
                     shippingAmount: shippingTotal / sellerSubtotals.size, // Distribute shipping charges equally
                     taxAmount: sellerTax,
@@ -519,7 +520,7 @@ export const verifyPayment = async (paymentData: {
                     platformFee: null,
                     platformCommission,
                     sellerEarnings,
-                    deliveryMode: shop.deliveryMode,
+                    deliveryMode: (selectedDeliveryMethod === "SELF_DELIVERY" || selectedDeliveryMethod === "SELLER_DELIVERY") ? "SELF" : shop.deliveryMode,
                     isInterState: sCalc?.isInterState || false,
                     cgstAmount: sCalc?.cgstAmount || 0,
                     sgstAmount: sCalc?.sgstAmount || 0,
@@ -829,7 +830,7 @@ export const processCodPayment = async (paymentData: {
                 couponId: appliedCoupon?.id || null,
                 status: "PENDING_CONFIRMATION",
                 paymentMethod: "COD",
-                selectedDeliveryMethod,
+                selectedDeliveryMethod: selectedDeliveryMethod || "ATLASBASKET_DELIVERY",
                 subtotal: productSubtotal,
                 shippingTotal,
                 taxTotal: gstBreakdown ? gstBreakdown.totalTaxAmount : gstAmount,
@@ -880,7 +881,7 @@ export const processCodPayment = async (paymentData: {
                     pickupSellerAddressId,
                     status: "PENDING",
                     paymentMethod: "COD",
-                    selectedDeliveryMethod,
+                    selectedDeliveryMethod: selectedDeliveryMethod || "ATLASBASKET_DELIVERY",
                     subtotal: sellerSubtotal,
                     shippingAmount: shippingTotal / sellerSubtotals.size,
                     taxAmount: sellerTax,
@@ -888,7 +889,7 @@ export const processCodPayment = async (paymentData: {
                     platformFee: null,
                     platformCommission,
                     sellerEarnings,
-                    deliveryMode: selectedDeliveryMethod === "SELF_DELIVERY" ? "SELF" : shop.deliveryMode,
+                    deliveryMode: (selectedDeliveryMethod === "SELF_DELIVERY" || selectedDeliveryMethod === "SELLER_DELIVERY") ? "SELF" : shop.deliveryMode,
                     isInterState: sCalc?.isInterState || false,
                     cgstAmount: sCalc?.cgstAmount || 0,
                     sgstAmount: sCalc?.sgstAmount || 0,

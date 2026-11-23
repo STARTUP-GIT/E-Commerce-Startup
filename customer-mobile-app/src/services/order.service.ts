@@ -19,6 +19,8 @@ export interface SellerOrder {
   status: string;
   subtotal: number | string;
   shippingFee: number | string;
+  packingFee?: number | string;
+  selectedDeliveryMethod?: string;
   items: OrderItem[];
 }
 
@@ -31,7 +33,11 @@ export interface Order {
   grandTotal: number | string;
   subtotal: number | string;
   shippingTotal: number | string;
+  packingFeeTotal?: number | string;
+  platformFeeTotal?: number | string;
+  taxTotal?: number | string;
   discountTotal?: number | string;
+  selectedDeliveryMethod?: string;
   shippingAddress?: {
     fullName: string;
     phone: string;

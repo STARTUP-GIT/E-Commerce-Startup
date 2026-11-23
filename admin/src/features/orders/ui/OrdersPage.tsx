@@ -73,8 +73,11 @@ export function OrdersPage() {
             className="h-10 px-3 rounded-lg border border-white/10 bg-[#0c0c10] text-xs font-semibold text-white/80 focus:outline-none focus:border-white/30"
           >
             <option value="">All Delivery Methods</option>
-            <option value="PORTAL_DELIVERY">Portal Delivery</option>
-            <option value="SELF_DELIVERY">Seller Delivery</option>
+            <option value="THIRD_PARTY_DELIVERY">Third-Party Online Delivery</option>
+            <option value="ATLASBASKET_DELIVERY">AtlasBasket Delivery</option>
+            <option value="SELLER_DELIVERY">Seller Delivery</option>
+            <option value="PORTAL_DELIVERY">Portal Delivery (Legacy)</option>
+            <option value="SELF_DELIVERY">Seller Delivery (Legacy)</option>
           </select>
         </div>
 
@@ -123,7 +126,11 @@ export function OrdersPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="text-[9px] font-semibold">
-                        {order.selectedDeliveryMethod === 'SELF_DELIVERY' ? 'Seller Delivery' : 'Portal Delivery'}
+                        {order.selectedDeliveryMethod === 'THIRD_PARTY_DELIVERY'
+                          ? 'Third-Party Delivery'
+                          : order.selectedDeliveryMethod === 'ATLASBASKET_DELIVERY' || order.selectedDeliveryMethod === 'PORTAL_DELIVERY'
+                          ? 'AtlasBasket Delivery'
+                          : 'Seller Delivery'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs font-semibold text-white/80">{formatPrice(order.grandTotal ?? order.totalAmount ?? order.amount ?? 0)}</TableCell>

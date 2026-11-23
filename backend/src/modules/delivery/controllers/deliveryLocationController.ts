@@ -113,3 +113,80 @@ export const submitLocationRequest = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: "Failed to record location request" });
   }
 };
+
+export const getDeliveryQuote = async (req: Request, res: Response) => {
+  try {
+    const { distanceKm, pickupLat, pickupLng, dropoffLat, dropoffLng, method } = req.body;
+    const selectedMethod = String(method || "ATLASBASKET_DELIVERY").toUpperCase();
+
+    // Check Seller Delivery
+    if (selectedMethod === "SELLER_DELIVERY" || selectedMethod === "SELF_DELIVERY") {
+      return res.status(200).json({
+        success: true,
+        method: "SELLER_DELIVERY",
+        quote: {
+          distanceKm: 0,
+          deliveryFeePaise: 0,
+          deliveryFeeRupees: 0,
+          isFree: true,
+          note: "Fulfilled directly by seller",
+        },
+      });
+    }
+
+    // Check Third-Party Delivery
+    if (selectedMethod === "THIRD_PARTY_DELIVERY" || selectedMethod === "THIRD_PARTY_ONLINE") {
+      const { isThirdPartyDeliveryConfigured } = await import("../../admin/controllers/deliveryMethodController.js");
+      const isConfigured = isThirdPartyDeliveryConfigured();
+      if (!isConfigured) {
+        return res.status(400).json({
+          success: false,
+          method: "THIRD_PARTY_DELIVERY",
+          isConfigured: false,
+          message: "Third-party delivery provider not configured in environment.",
+        });
+      }
+    }
+
+    // AtlasBasket / Standard Distance Calculation
+    let distance = Number(distanceKm);
+    if ((!distance || isNaN(distance) || distance <= 0) && pickupLat && pickupLng && dropoffLat && dropoffLng) {
+      const R = 6371; // Earth radius in km
+      const dLat = ((Number(dropoffLat) - Number(pickupLat)) * Math.PI) / 180;
+      const dLon = ((Number(dropoffLng) - Number(pickupLng)) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((Number(pickupLat) * Math.PI) / 180) *
+          Math.cos((Number(dropoffLat) * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      distance = Number((R * c).toFixed(2));
+    }
+
+    if (isNaN(distance) || distance <= 0) {
+      distance = 3.5; // standard city dispatch baseline
+    }
+
+    const { DeliverySettingsService } = await import("../services/deliverySettings.service.js");
+    const quote = await DeliverySettingsService.calculateQuote(distance);
+
+    return res.status(200).json({
+      success: true,
+      method: selectedMethod,
+      quote: {
+        distanceKm: quote.distanceKm,
+        deliveryFeePaise: quote.deliveryFeePaise,
+        deliveryFeeRupees: Number((quote.deliveryFeePaise / 100).toFixed(2)),
+        baseChargePaise: quote.baseChargePaise,
+        distanceChargePaise: quote.distanceChargePaise,
+        riderPayoutPaise: quote.riderPayoutPaise,
+        platformCommissionPaise: quote.platformCommissionPaise,
+        riderPayoutPercentage: quote.riderPayoutPercentage,
+      },
+    });
+  } catch (err: any) {
+    logger.error(`[DeliveryLocation] getDeliveryQuote error: ${err?.message}`);
+    return res.status(500).json({ success: false, message: "Failed to calculate delivery quote" });
+  }
+};

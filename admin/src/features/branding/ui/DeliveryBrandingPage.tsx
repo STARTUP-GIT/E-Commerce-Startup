@@ -35,6 +35,7 @@ interface DeliveryBrandingFormState {
   brandName: string;
   brandTagline: string;
   brandLogoUrl: string;
+  brandFaviconUrl: string;
 
   // Hero Section
   heroBadgeText: string;
@@ -71,6 +72,7 @@ const DEFAULT_FORM: DeliveryBrandingFormState = {
   brandName: "AtlasBasket Delivery",
   brandTagline: "Local Delivery Fleet",
   brandLogoUrl: "",
+  brandFaviconUrl: "",
   heroBadgeText: "Local Delivery Network",
   heroHeadingLine1: "Deliver locally.",
   heroHeadingLine2: "Earn directly with every trip.",
@@ -140,6 +142,7 @@ export function DeliveryBrandingPage() {
       brandName: s.brandName || "AtlasBasket Delivery",
       brandTagline: s.brandTagline || "Local Delivery Fleet",
       brandLogoUrl: s.brandLogoUrl || "",
+      brandFaviconUrl: s.brandFaviconUrl || "",
       heroBadgeText: s.heroBadgeText || "Local Delivery Network",
       heroHeadingLine1: s.heroHeadingLine1 || "Deliver locally.",
       heroHeadingLine2: s.heroHeadingLine2 || "Earn directly with every trip.",
@@ -178,6 +181,7 @@ export function DeliveryBrandingPage() {
       brandName: form.brandName.trim(),
       brandTagline: form.brandTagline.trim(),
       brandLogoUrl: form.brandLogoUrl.trim() || null,
+      brandFaviconUrl: form.brandFaviconUrl.trim() || null,
       heroBadgeText: form.heroBadgeText.trim(),
       heroHeadingLine1: form.heroHeadingLine1.trim(),
       heroHeadingLine2: form.heroHeadingLine2.trim(),
@@ -211,6 +215,7 @@ export function DeliveryBrandingPage() {
         brandName: s.brandName || "AtlasBasket Delivery",
         brandTagline: s.brandTagline || "Local Delivery Fleet",
         brandLogoUrl: s.brandLogoUrl || "",
+        brandFaviconUrl: s.brandFaviconUrl || "",
         heroBadgeText: s.heroBadgeText || "Local Delivery Network",
         heroHeadingLine1: s.heroHeadingLine1 || "Deliver locally.",
         heroHeadingLine2: s.heroHeadingLine2 || "Earn directly with every trip.",
@@ -549,6 +554,56 @@ export function DeliveryBrandingPage() {
                     />
                   </div>
                 </div>
+
+                {/* Favicon / HTML Title Icon Upload & URL */}
+                <div className="pt-3 border-t border-white/[0.06] space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-xs font-semibold text-zinc-200 block">
+                        Portal Favicon / Browser Tab Icon
+                      </label>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                        Controls the icon displayed in browser tabs and HTML title in the Delivery Portal.
+                      </p>
+                    </div>
+                    {form.brandFaviconUrl.trim() && (
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/10">
+                        <span className="text-[10px] text-zinc-400 font-mono">Icon:</span>
+                        <img
+                          src={form.brandFaviconUrl}
+                          alt="Favicon"
+                          className="h-4 w-4 object-contain rounded-sm"
+                          onError={(e) => {
+                            (e.target as any).style.display = "none";
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <ImageUploadField
+                    value={form.brandFaviconUrl}
+                    folder="delivery_branding"
+                    label="Upload Browser Favicon (PNG/ICO/WEBP)"
+                    hint="Recommended: 32x32 or 64x64 PNG or ICO with transparent background"
+                    onChange={(res) => update("brandFaviconUrl")(res.url)}
+                    onRemove={() => update("brandFaviconUrl")("")}
+                    disabled={!canManage}
+                  />
+
+                  <div>
+                    <span className="text-[11px] text-zinc-400 block mb-1">
+                      Or paste an absolute favicon URL:
+                    </span>
+                    <Input
+                      value={form.brandFaviconUrl}
+                      onChange={(e) => update("brandFaviconUrl")(e.target.value)}
+                      placeholder="https://.../favicon.ico"
+                      disabled={!canManage}
+                      className="bg-white/[0.03] border-white/10 text-white text-xs"
+                    />
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -867,6 +922,42 @@ export function DeliveryBrandingPage() {
 
               {/* Preview Container */}
               <div className="rounded-2xl border border-white/[0.08] bg-[#07070a] overflow-hidden shadow-2xl">
+                {/* Simulated Browser Chrome Tab Bar with Live Favicon & Title */}
+                <div className="bg-[#121217] px-3 pt-2.5 pb-1 border-b border-white/[0.08] flex items-center gap-2 select-none">
+                  <div className="flex items-center gap-1.5 mr-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                  </div>
+                  <div className="flex items-center gap-2 bg-[#07070a] px-3 py-1.5 rounded-t-lg border-t border-x border-white/10 max-w-[280px] text-[11px] text-zinc-200 shadow-sm">
+                    {form.brandFaviconUrl.trim() ? (
+                      <img
+                        src={form.brandFaviconUrl}
+                        alt="Favicon"
+                        className="h-3.5 w-3.5 object-contain rounded-sm shrink-0"
+                        onError={(e) => {
+                          (e.target as any).style.display = "none";
+                        }}
+                      />
+                    ) : form.brandLogoUrl.trim() ? (
+                      <img
+                        src={form.brandLogoUrl}
+                        alt="Favicon"
+                        className="h-3.5 w-3.5 object-contain rounded-sm shrink-0"
+                        onError={(e) => {
+                          (e.target as any).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <Truck className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+                    )}
+                    <span className="truncate font-medium">
+                      {form.brandName || "AtlasBasket Delivery"} — Partner Network
+                    </span>
+                    <span className="text-[10px] text-zinc-500 ml-auto pl-1">×</span>
+                  </div>
+                </div>
+
                 {/* 1. Preview Navbar */}
                 <div className="px-4 py-3 border-b border-white/[0.08] bg-[#07070a]/90 backdrop-blur-md flex items-center justify-between">
                   <div className="flex items-center gap-2">

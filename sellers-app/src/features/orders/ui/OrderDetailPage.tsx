@@ -519,7 +519,11 @@ export function OrderDetailPage() {
                       <div className="flex items-center gap-2">
                         <CheckCircle className="h-4 w-4 text-emerald-400" />
                         <span className="text-xs font-bold text-emerald-400">
-                          {order.selectedDeliveryMethod === 'PORTAL_DELIVERY' ? 'Portal Delivery' : 'Seller Delivery'}
+                          {order.selectedDeliveryMethod === 'THIRD_PARTY_DELIVERY'
+                            ? 'Third-Party Online Delivery'
+                            : order.selectedDeliveryMethod === 'ATLASBASKET_DELIVERY' || order.selectedDeliveryMethod === 'PORTAL_DELIVERY'
+                            ? 'AtlasBasket Delivery'
+                            : 'Seller Delivery'}
                         </span>
                       </div>
                       {order.deliveryAssignedAt && (

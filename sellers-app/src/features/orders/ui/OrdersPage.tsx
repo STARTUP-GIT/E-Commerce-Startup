@@ -175,7 +175,11 @@ export function OrdersPage() {
                             {ord.paymentMethod === 'COD' || ord.order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Razorpay Online'}
                           </Badge>
                           <Badge variant="secondary" className="text-[9px] font-semibold">
-                            {ord.selectedDeliveryMethod === 'SELF_DELIVERY' ? 'Seller Delivery' : 'Portal Delivery'}
+                            {ord.selectedDeliveryMethod === 'THIRD_PARTY_DELIVERY'
+                              ? 'Third-Party Delivery'
+                              : ord.selectedDeliveryMethod === 'ATLASBASKET_DELIVERY' || ord.selectedDeliveryMethod === 'PORTAL_DELIVERY'
+                              ? 'AtlasBasket Delivery'
+                              : 'Seller Delivery'}
                           </Badge>
                         </div>
 
@@ -283,7 +287,11 @@ export function OrdersPage() {
                           </TableCell>
                           <TableCell>
                             <Badge variant="secondary" className="text-[8px] font-semibold">
-                              {ord.selectedDeliveryMethod === 'SELF_DELIVERY' ? 'Seller Delivery' : 'Portal Delivery'}
+                              {ord.selectedDeliveryMethod === 'THIRD_PARTY_DELIVERY'
+                                ? 'Third-Party Delivery'
+                                : ord.selectedDeliveryMethod === 'ATLASBASKET_DELIVERY' || ord.selectedDeliveryMethod === 'PORTAL_DELIVERY'
+                                ? 'AtlasBasket Delivery'
+                                : 'Seller Delivery'}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-xs text-white/70">

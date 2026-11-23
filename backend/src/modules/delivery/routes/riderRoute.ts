@@ -38,6 +38,7 @@ import {
   checkDeliveryServiceability,
   resolveGpsLocation,
   submitLocationRequest,
+  getDeliveryQuote,
 } from "../controllers/deliveryLocationController.js";
 import { prisma } from "../../../config/prisma.js";
 
@@ -55,6 +56,7 @@ router.get("/api/delivery/locations/catalogue", getDeliveryCatalogue);
 router.post("/api/delivery/serviceability/check", checkDeliveryServiceability);
 router.get("/api/delivery/serviceability/resolve-gps", resolveGpsLocation);
 router.post("/api/delivery/location-request", submitLocationRequest);
+router.post("/api/delivery/quote", getDeliveryQuote);
 
 // Dynamic Operational Districts (Strictly from Database enabled by Admin with delivery operational rules)
 router.get("/api/delivery/districts", async (req, res) => {
@@ -113,6 +115,7 @@ router.get("/api/delivery/settings/public", async (req, res) => {
       settings: {
         brandName: settings.brandName || "AtlasBasket Delivery",
         brandLogoUrl: settings.brandLogoUrl || null,
+        brandFaviconUrl: settings.brandFaviconUrl || null,
         brandTagline: settings.brandTagline || "Local Delivery Fleet",
         riderPayoutPercentage: Number(settings.riderPayoutPercentage),
         baseChargePaise: settings.baseChargePaise,

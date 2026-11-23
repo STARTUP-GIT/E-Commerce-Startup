@@ -89,6 +89,15 @@ export const OrderDetailScreen: React.FC = () => {
               <View style={styles.sellerRow}>
                 <Store size={14} color={colors.foregroundMuted} />
                 <Text style={styles.sellerName}>{so.shopName || 'Local Seller'}</Text>
+                {so.selectedDeliveryMethod ? (
+                  <Text style={{ fontSize: 11, color: '#38bdf8', marginLeft: 'auto', fontWeight: '500' }}>
+                    {so.selectedDeliveryMethod === 'THIRD_PARTY_DELIVERY'
+                      ? 'Third-Party Delivery'
+                      : so.selectedDeliveryMethod === 'ATLASBASKET_DELIVERY' || so.selectedDeliveryMethod === 'PORTAL_DELIVERY'
+                      ? 'AtlasBasket Delivery'
+                      : 'Seller Delivery'}
+                  </Text>
+                ) : null}
               </View>
 
               {so.items.map((item) => (
@@ -144,10 +153,39 @@ export const OrderDetailScreen: React.FC = () => {
             <Text style={styles.priceVal}>{productService.formatPrice(order.subtotal)}</Text>
           </View>
 
+          {Number((order as any).packingFeeTotal || (order as any).packingFee) > 0 && (
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Packaging & Handling</Text>
+              <Text style={styles.priceVal}>
+                {productService.formatPrice((order as any).packingFeeTotal || (order as any).packingFee)}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Shipping</Text>
-            <Text style={styles.priceVal}>{productService.formatPrice(order.shippingTotal)}</Text>
+            <Text style={styles.priceLabel}>Delivery Fee</Text>
+            <Text style={[styles.priceVal, Number(order.shippingTotal) === 0 && { color: colors.success }]}>
+              {Number(order.shippingTotal) > 0 ? productService.formatPrice(order.shippingTotal) : 'Free'}
+            </Text>
           </View>
+
+          {Number((order as any).platformFeeTotal || (order as any).platformFee) > 0 && (
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Platform Fee</Text>
+              <Text style={styles.priceVal}>
+                {productService.formatPrice((order as any).platformFeeTotal || (order as any).platformFee)}
+              </Text>
+            </View>
+          )}
+
+          {Number((order as any).taxTotal || (order as any).gstAmount || (order as any).taxAmount) > 0 && (
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Taxes & GST</Text>
+              <Text style={styles.priceVal}>
+                {productService.formatPrice((order as any).taxTotal || (order as any).gstAmount || (order as any).taxAmount)}
+              </Text>
+            </View>
+          )}
 
           {Number(order.discountTotal) > 0 && (
             <View style={styles.priceRow}>

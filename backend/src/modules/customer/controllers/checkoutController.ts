@@ -284,13 +284,25 @@ export const getEnabledPaymentMethods = async (req: Request, res: Response) => {
 
 export const getEnabledDeliveryMethods = async (req: Request, res: Response) => {
     try {
-        const { ensureDefaultDeliveryMethods } = await import("../../admin/controllers/deliveryMethodController.js");
+        const { ensureDefaultDeliveryMethods, isThirdPartyDeliveryConfigured } = await import("../../admin/controllers/deliveryMethodController.js");
         await ensureDefaultDeliveryMethods();
         const methods = await prisma.deliveryMethodSetting.findMany({
             where: { enabled: true },
             orderBy: { displayOrder: "asc" }
         });
-        return res.status(200).json({ deliveryMethods: methods });
+
+        const isThirdPartyConfigured = isThirdPartyDeliveryConfigured();
+
+        // Filter out third-party delivery if not configured by developers in environment
+        const eligibleMethods = methods.filter((m) => {
+            const code = m.code.toUpperCase();
+            if (code === "THIRD_PARTY_DELIVERY" || code === "THIRD_PARTY_ONLINE") {
+                return isThirdPartyConfigured;
+            }
+            return true;
+        });
+
+        return res.status(200).json({ deliveryMethods: eligibleMethods });
     } catch (error: any) {
         console.error("GET ENABLED DELIVERY METHODS ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
