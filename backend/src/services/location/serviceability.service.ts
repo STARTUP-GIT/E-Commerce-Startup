@@ -1210,52 +1210,13 @@ export class ServiceabilityService {
                 const addr = response.data.address;
                 const doorNo = addr.house_number || "";
                 const buildingName = addr.house_name || addr.building || "";
-                // Strict road mapping: NEVER copy area or city into street
-                let street = addr.road || addr.pedestrian || addr.footway || addr.path || addr.street || "";
-                let cross =
+                // Strict road mapping: NEVER copy area or city into street. If no road is returned, leave empty and editable.
+                const street = addr.road || addr.pedestrian || addr.footway || addr.path || addr.street || "";
+                const cross =
                     addr.neighbourhood &&
                     (addr.neighbourhood.toLowerCase().includes("cross") || addr.neighbourhood.toLowerCase().includes("main"))
                         ? addr.neighbourhood
                         : "";
-
-                // If street is empty because entrance pin is positioned slightly into the storefront/building lot,
-                // probe within 25m for the fronting road without displacing the entrance pin coordinates
-                const probedCandidateAreas: string[] = [];
-                if (!street) {
-                    const probeOffsets = [
-                        [0, 0.00022],   // ~24m East
-                        [0, -0.00022],  // ~24m West
-                        [0.00022, 0],   // ~24m North
-                        [-0.00022, 0],  // ~24m South
-                    ];
-                    for (const [dLat, dLng] of probeOffsets) {
-                        try {
-                            const pLat = Number((latitude + dLat).toFixed(6));
-                            const pLng = Number((longitude + dLng).toFixed(6));
-                            const pUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${pLat}&lon=${pLng}&addressdetails=1`;
-                            const pRes = await axios.get(pUrl, {
-                                timeout: 2000,
-                                headers: { "User-Agent": "AtlasBasket/1.0" },
-                            });
-                            const pAddr = pRes.data?.address;
-                            if (pAddr) {
-                                const pRoad = pAddr.road || pAddr.pedestrian || pAddr.footway || pAddr.street;
-                                if (pRoad && !street) {
-                                    street = pRoad;
-                                    if (!cross && pAddr.neighbourhood && (pAddr.neighbourhood.toLowerCase().includes("cross") || pAddr.neighbourhood.toLowerCase().includes("main"))) {
-                                        cross = pAddr.neighbourhood;
-                                    }
-                                }
-                                const pLayout = pAddr.residential || pAddr.neighbourhood || pAddr.quarter || pAddr.subdivision;
-                                if (pLayout && !probedCandidateAreas.includes(pLayout)) {
-                                    probedCandidateAreas.push(pLayout);
-                                }
-                            }
-                        } catch {
-                            // continue probe
-                        }
-                    }
-                }
 
                 // Prioritize specific residential/neighbourhood layouts (e.g. "Vivekananda Nagar") over broader suburb ("Sriramapura")
                 const specificLayout =
@@ -1265,9 +1226,6 @@ export class ServiceabilityService {
 
                 const candidateAreas: string[] = [];
                 if (specificLayout && !candidateAreas.includes(specificLayout)) candidateAreas.push(specificLayout);
-                for (const pArea of probedCandidateAreas) {
-                    if (!candidateAreas.includes(pArea)) candidateAreas.push(pArea);
-                }
                 if (broaderSuburb && !candidateAreas.includes(broaderSuburb)) candidateAreas.push(broaderSuburb);
                 if (addr.residential && !candidateAreas.includes(addr.residential)) candidateAreas.push(addr.residential);
                 if (addr.neighbourhood && !candidateAreas.includes(addr.neighbourhood)) candidateAreas.push(addr.neighbourhood);
@@ -1456,49 +1414,55 @@ export class ServiceabilityService {
 
         // OpenStreetMap Nominatim Search Fallback
         try {
-            const fullQuery = cityHint && !cleanQuery.toLowerCase().includes(cityHint.toLowerCase()) 
-                ? `${cleanQuery}, ${cityHint}, India` 
-                : `${cleanQuery}, India`;
+            const queriesToTry: string[] = [];
+            if (cityHint && !cleanQuery.toLowerCase().includes(cityHint.toLowerCase())) {
+                queriesToTry.push(`${cleanQuery}, ${cityHint}, India`);
+                queriesToTry.push(`${cleanQuery} ${cityHint}`);
+            }
+            queriesToTry.push(cleanQuery);
 
-            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullQuery)}&format=json&addressdetails=1&countrycodes=in&limit=6`;
-            const response = await axios.get(url, {
-                timeout: 4000,
-                headers: { "User-Agent": "AtlasBasket/1.0" }
-            });
+            for (const q of queriesToTry) {
+                const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&countrycodes=in&limit=6`;
+                const response = await axios.get(url, {
+                    timeout: 4000,
+                    headers: { "User-Agent": "AtlasBasket/1.0" }
+                });
 
-            if (Array.isArray(response.data)) {
-                for (const item of response.data) {
-                    const addr = item.address || {};
-                    const doorNo = addr.house_number || "";
-                    const buildingName = addr.house_name || addr.building || "";
-                    const street = addr.road || addr.pedestrian || addr.street || "";
-                    const cross = addr.neighbourhood && (addr.neighbourhood.toLowerCase().includes("cross") || addr.neighbourhood.toLowerCase().includes("main")) ? addr.neighbourhood : "";
-                    const area = addr.residential || addr.neighbourhood || addr.suburb || "";
-                    const city = addr.city || addr.town || addr.village || "";
-                    const rawDistrict = addr.state_district || addr.county || addr.district || city || "";
-                    const state = addr.state || "";
-                    const postalCode = (addr.postcode || "").replace(/\D/g, "");
-                    const landmark = addr.amenity || addr.landmark || "";
+                if (Array.isArray(response.data) && response.data.length > 0) {
+                    for (const item of response.data) {
+                        const addr = item.address || {};
+                        const doorNo = addr.house_number || "";
+                        const buildingName = addr.house_name || addr.building || "";
+                        const street = addr.road || addr.pedestrian || addr.street || "";
+                        const cross = addr.neighbourhood && (addr.neighbourhood.toLowerCase().includes("cross") || addr.neighbourhood.toLowerCase().includes("main")) ? addr.neighbourhood : "";
+                        const area = addr.residential || addr.neighbourhood || addr.suburb || "";
+                        const city = addr.city || addr.town || addr.village || "";
+                        const rawDistrict = addr.state_district || addr.county || addr.district || city || "";
+                        const state = addr.state || "";
+                        const postalCode = (addr.postcode || "").replace(/\D/g, "");
+                        const landmark = addr.amenity || addr.landmark || "";
 
-                    results.push({
-                        placeId: String(item.place_id || `osm_${item.lat}_${item.lon}`),
-                        formattedAddress: item.display_name,
-                        latitude: parseFloat(item.lat),
-                        longitude: parseFloat(item.lon),
-                        doorNo: doorNo || undefined,
-                        buildingName: buildingName || undefined,
-                        street: street || undefined,
-                        cross: cross || undefined,
-                        area: area || undefined,
-                        locality: city || area || undefined,
-                        landmark: landmark || undefined,
-                        city: city || normalizeDistrictName(rawDistrict) || "Mysuru",
-                        district: normalizeDistrictName(rawDistrict || city),
-                        state: state || "Karnataka",
-                        postalCode: postalCode.length === 6 ? postalCode : undefined,
-                        country: "India",
-                        hasMissingDoorNo: Boolean(!doorNo && !buildingName),
-                    });
+                        results.push({
+                            placeId: String(item.place_id || `osm_${item.lat}_${item.lon}`),
+                            formattedAddress: item.display_name,
+                            latitude: parseFloat(item.lat),
+                            longitude: parseFloat(item.lon),
+                            doorNo: doorNo || undefined,
+                            buildingName: buildingName || undefined,
+                            street: street || undefined,
+                            cross: cross || undefined,
+                            area: area || undefined,
+                            locality: city || area || undefined,
+                            landmark: landmark || undefined,
+                            city: city || normalizeDistrictName(rawDistrict) || "Mysuru",
+                            district: normalizeDistrictName(rawDistrict || city),
+                            state: state || "Karnataka",
+                            postalCode: postalCode.length === 6 ? postalCode : undefined,
+                            country: "India",
+                            hasMissingDoorNo: Boolean(!doorNo && !buildingName),
+                        });
+                    }
+                    if (results.length > 0) break;
                 }
             }
         } catch (err: any) {

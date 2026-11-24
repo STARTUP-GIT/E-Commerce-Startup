@@ -274,8 +274,90 @@ export function ShopPickupAddressForm({
     }
   };
 
-  // Parses Google Maps Geocoder address components per Google Places & Geocoding types
-  const parseGoogleComponents = (components: any[]) => {
+  // Computes distance in meters between two geographical coordinates
+  const computeDistanceMeters = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 6371e3;
+    const phi1 = (lat1 * Math.PI) / 180;
+    const phi2 = (lat2 * Math.PI) / 180;
+    const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+    const deltaLambda = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+      Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
+  };
+
+  // Inspects all Google Geocode candidates, scores relevance for a delivery entrance, and extracts components per Google types
+  const evaluateAndParseGoogleResults = (results: any[], targetLat: number, targetLng: number) => {
+    if (!results || results.length === 0) return null;
+
+    let bestScore = -Infinity;
+    let bestResult = results[0];
+
+    const candidateAreas: string[] = [];
+
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      let score = 0;
+
+      // 1. Location type scoring
+      const locType = r.geometry?.location_type || 'APPROXIMATE';
+      if (locType === 'ROOFTOP') score += 40;
+      else if (locType === 'RANGE_INTERPOLATED') score += 30;
+      else if (locType === 'GEOMETRIC_CENTER') score += 15;
+      else score += 5;
+
+      // 2. Result type scoring prioritizing entrance and premise accuracy
+      const types: string[] = r.types || [];
+      if (types.includes('premise') || types.includes('subpremise')) score += 30;
+      if (types.includes('street_address')) score += 25;
+      if (types.includes('establishment') || types.includes('point_of_interest')) score += 20;
+      if (types.includes('route')) score += 15;
+      if (types.includes('plus_code')) score -= 30;
+
+      // 3. Proximity scoring relative to authoritative pin
+      const rLat = typeof r.geometry?.location?.lat === 'function' ? r.geometry.location.lat() : r.geometry?.location?.lat;
+      const rLng = typeof r.geometry?.location?.lng === 'function' ? r.geometry.location.lng() : r.geometry?.location?.lng;
+      if (typeof rLat === 'number' && typeof rLng === 'number') {
+        const dist = computeDistanceMeters(targetLat, targetLng, rLat, rLng);
+        if (dist <= 30) score += 35;
+        else if (dist <= 75) score += 25;
+        else if (dist <= 200) score += 15;
+        else if (dist <= 500) score += 5;
+        else if (dist > 3000) score -= 40;
+      }
+
+      // 4. Component richness bonuses
+      const comps = r.address_components || [];
+      if (comps.some((c: any) => c.types?.includes('route'))) score += 20;
+      if (comps.some((c: any) => c.types?.includes('premise') || c.types?.includes('subpremise'))) score += 15;
+      if (comps.some((c: any) => c.types?.includes('street_number'))) score += 15;
+      if (comps.some((c: any) => c.types?.includes('neighborhood') || c.types?.includes('sublocality_level_2'))) score += 15;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestResult = r;
+      }
+
+      // Collect all candidate neighbourhoods and sublocalities
+      for (const comp of comps) {
+        const cTypes: string[] = comp.types || [];
+        if (
+          cTypes.includes('neighborhood') ||
+          cTypes.includes('sublocality_level_2') ||
+          cTypes.includes('sublocality_level_1') ||
+          cTypes.includes('sublocality')
+        ) {
+          const name = comp.long_name?.trim();
+          if (name && !candidateAreas.includes(name)) {
+            candidateAreas.push(name);
+          }
+        }
+      }
+    }
+
+    // Extract address components strictly by Google type from the winning candidate
     let streetNumber = '';
     let premise = '';
     let subpremise = '';
@@ -288,58 +370,85 @@ export function ShopPickupAddressForm({
     let district = '';
     let state = '';
     let postalCode = '';
+    let landmark = '';
 
-    for (const comp of components) {
+    for (const comp of bestResult.address_components || []) {
       const types: string[] = comp.types || [];
       if (types.includes('street_number')) streetNumber = comp.long_name;
       else if (types.includes('subpremise')) subpremise = comp.long_name;
       else if (types.includes('premise')) premise = comp.long_name;
       else if (types.includes('route')) route = comp.long_name;
+      else if (types.includes('intersection')) crossStreet = comp.long_name;
       else if (types.includes('sublocality_level_3')) {
         if (!crossStreet && (comp.long_name.toLowerCase().includes('cross') || comp.long_name.toLowerCase().includes('main'))) {
           crossStreet = comp.long_name;
         }
-      }
-      else if (types.includes('sublocality_level_2')) {
+      } else if (types.includes('sublocality_level_2')) {
         sublocality2 = comp.long_name;
         if (!crossStreet && (comp.long_name.toLowerCase().includes('cross') || comp.long_name.toLowerCase().includes('main'))) {
           crossStreet = comp.long_name;
         }
-      }
-      else if (types.includes('neighborhood')) {
+      } else if (types.includes('neighborhood')) {
         neighborhood = comp.long_name;
-      }
-      else if (types.includes('sublocality_level_1') || types.includes('sublocality')) {
+      } else if (types.includes('sublocality_level_1') || types.includes('sublocality')) {
         sublocality1 = comp.long_name;
-      }
-      else if (types.includes('locality')) {
+      } else if (types.includes('locality')) {
         locality = comp.long_name;
-      }
-      else if (types.includes('administrative_area_level_2')) {
+      } else if (types.includes('administrative_area_level_2')) {
         district = comp.long_name;
-      }
-      else if (types.includes('administrative_area_level_1')) {
+      } else if (types.includes('administrative_area_level_1')) {
         state = comp.long_name;
-      }
-      else if (types.includes('postal_code')) {
+      } else if (types.includes('postal_code')) {
         postalCode = comp.long_name.replace(/\D/g, '');
+      } else if (types.includes('point_of_interest') || types.includes('establishment')) {
+        landmark = comp.long_name;
+      }
+    }
+
+    // If route was missing on the winning candidate (e.g. winning candidate is a building/establishment),
+    // check if a close candidate (<150m) provides the route
+    if (!route) {
+      for (const r of results) {
+        const rLat = typeof r.geometry?.location?.lat === 'function' ? r.geometry.location.lat() : r.geometry?.location?.lat;
+        const rLng = typeof r.geometry?.location?.lng === 'function' ? r.geometry.location.lng() : r.geometry?.location?.lng;
+        if (typeof rLat === 'number' && typeof rLng === 'number') {
+          if (computeDistanceMeters(targetLat, targetLng, rLat, rLng) <= 150) {
+            const comp = r.address_components?.find((c: any) => c.types?.includes('route'));
+            if (comp?.long_name) {
+              route = comp.long_name;
+              break;
+            }
+          }
+        }
       }
     }
 
     const doorNoResult = subpremise || streetNumber;
     const buildingResult = premise;
-    const areaResult = neighborhood || sublocality2 || sublocality1;
+    // Area priority: specific neighborhood or sublocality2 over broad sublocality1
+    const areaResult =
+      (neighborhood && neighborhood !== locality && neighborhood !== district ? neighborhood : '') ||
+      (sublocality2 && sublocality2 !== locality && sublocality2 !== district ? sublocality2 : '') ||
+      (sublocality1 && sublocality1 !== locality && sublocality1 !== district ? sublocality1 : '') ||
+      (candidateAreas.length > 0 ? candidateAreas[0] : '');
+
+    // Filter candidate areas: never allow city or district to be in candidateAreas
+    const validCandidateAreas = candidateAreas.filter(
+      (a) => a !== locality && a !== district
+    );
 
     return {
-      doorNo: doorNoResult,
-      buildingName: buildingResult,
-      street: route,
-      cross: crossStreet,
-      area: areaResult,
-      city: locality,
-      district: district || locality,
-      state,
+      doorNo: doorNoResult || '',
+      buildingName: buildingResult || '',
+      street: route || '',
+      cross: crossStreet || '',
+      area: areaResult || '',
+      landmark: landmark || '',
+      city: locality || '',
+      district: district || locality || '',
+      state: state || '',
       postalCode: postalCode.length === 6 ? postalCode : '',
+      candidateAreas: validCandidateAreas,
     };
   };
 
@@ -417,49 +526,11 @@ export function ShopPickupAddressForm({
         if (reqId !== activeGeocodeReqId.current) return;
 
         if (results && results.length > 0) {
-          const primary = results[0];
-          const parsed = parseGoogleComponents(primary.address_components || []);
-
-          // If street is missing on first candidate, scan other candidates for route
-          if (!parsed.street) {
-            for (let i = 1; i < results.length; i++) {
-              for (const comp of results[i].address_components || []) {
-                if (comp.types?.includes('route') && comp.long_name) {
-                  parsed.street = comp.long_name;
-                  break;
-                }
-              }
-              if (parsed.street) break;
-            }
+          const parsed = evaluateAndParseGoogleResults(results, lat, lng);
+          if (parsed) {
+            applyAddressData(parsed, forceOverwrite);
+            return;
           }
-
-          // Collect all distinct neighbourhood & sublocality candidate areas
-          const candidates: string[] = [];
-          for (const res of results) {
-            for (const comp of res.address_components || []) {
-              const types = comp.types || [];
-              if (
-                types.includes('neighborhood') ||
-                types.includes('sublocality_level_2') ||
-                types.includes('sublocality_level_1') ||
-                types.includes('sublocality')
-              ) {
-                const name = comp.long_name;
-                if (name && !candidates.includes(name) && name !== parsed.city && name !== parsed.district) {
-                  candidates.push(name);
-                }
-              }
-            }
-          }
-
-          applyAddressData(
-            {
-              ...parsed,
-              candidateAreas: candidates,
-            },
-            forceOverwrite
-          );
-          return;
         }
       } catch (clientErr) {
         // Fall back to server reverse geocoding
@@ -554,7 +625,7 @@ export function ShopPickupAddressForm({
         watchIdRef.current = null;
         setIsLocating(false);
         if (watchTimeoutRef.current) clearTimeout(watchTimeoutRef.current);
-        showToast(`High-accuracy GPS fix acquired (±${acc}m).`, 'success');
+        showToast('High-accuracy GPS location acquired.', 'success');
       }
     };
 
@@ -595,7 +666,7 @@ export function ShopPickupAddressForm({
           }, 12000);
         } else {
           setIsLocating(false);
-          showToast(`GPS position captured (±${Math.round(pos.coords.accuracy)}m).`, 'success');
+          showToast('GPS location captured from device.', 'success');
         }
       },
       handleGpsError,
@@ -706,7 +777,9 @@ export function ShopPickupAddressForm({
               setGpsWarning(null);
 
               let route = '';
+              let crossStreet = '';
               let sublocality = '';
+              let sublocality2 = '';
               let neighborhood = '';
               let locCity = '';
               let locDistrict = '';
@@ -714,47 +787,76 @@ export function ShopPickupAddressForm({
               let locPostal = '';
               let premise = '';
               let subpremise = '';
+              let landmark = '';
 
               for (const comp of place.address_components || []) {
                 const types = comp.types || [];
                 if (types.includes('street_number')) subpremise = comp.long_name;
                 else if (types.includes('premise')) premise = comp.long_name;
                 else if (types.includes('route')) route = comp.long_name;
-                else if (types.includes('sublocality_level_1') || types.includes('sublocality')) sublocality = comp.long_name;
-                else if (types.includes('neighborhood') || types.includes('sublocality_level_2')) neighborhood = comp.long_name;
-                else if (types.includes('locality')) locCity = comp.long_name;
-                else if (types.includes('administrative_area_level_2')) locDistrict = comp.long_name;
-                else if (types.includes('administrative_area_level_1')) locState = comp.long_name;
-                else if (types.includes('postal_code')) locPostal = comp.long_name.replace(/\D/g, '');
+                else if (types.includes('intersection')) crossStreet = comp.long_name;
+                else if (types.includes('sublocality_level_3')) {
+                  if (!crossStreet && (comp.long_name.toLowerCase().includes('cross') || comp.long_name.toLowerCase().includes('main'))) {
+                    crossStreet = comp.long_name;
+                  }
+                } else if (types.includes('sublocality_level_2')) {
+                  sublocality2 = comp.long_name;
+                  if (!crossStreet && (comp.long_name.toLowerCase().includes('cross') || comp.long_name.toLowerCase().includes('main'))) {
+                    crossStreet = comp.long_name;
+                  }
+                } else if (types.includes('neighborhood')) {
+                  neighborhood = comp.long_name;
+                } else if (types.includes('sublocality_level_1') || types.includes('sublocality')) {
+                  sublocality = comp.long_name;
+                } else if (types.includes('locality')) {
+                  locCity = comp.long_name;
+                } else if (types.includes('administrative_area_level_2')) {
+                  locDistrict = comp.long_name;
+                } else if (types.includes('administrative_area_level_1')) {
+                  locState = comp.long_name;
+                } else if (types.includes('postal_code')) {
+                  locPostal = comp.long_name.replace(/\D/g, '');
+                } else if (types.includes('point_of_interest') || types.includes('establishment')) {
+                  landmark = comp.long_name;
+                }
               }
 
               if (subpremise) setDoorNo(subpremise);
               if (premise) setBuildingName(premise);
               if (route) setStreet(route);
-              const derivedArea = sublocality || neighborhood;
+              if (crossStreet) setCross(crossStreet);
+              const derivedArea = neighborhood || sublocality2 || sublocality;
               if (derivedArea) setArea(derivedArea);
+              if (landmark) setLandmark(landmark);
               if (locCity) setCity(locCity);
               if (locDistrict) onDistrictChange(locDistrict);
               if (locState) onStateChange(locState);
               if (locPostal && locPostal.length === 6) setPostalCode(locPostal);
 
-              showToast('Location selected from Google Places. Verify details.', 'success');
+              const cands: string[] = [];
+              if (neighborhood && !cands.includes(neighborhood)) cands.push(neighborhood);
+              if (sublocality2 && !cands.includes(sublocality2)) cands.push(sublocality2);
+              if (sublocality && !cands.includes(sublocality)) cands.push(sublocality);
+              if (cands.length > 0) setCandidateAreas(cands);
+
+              showToast('Location selected from Google Places. Fine-tune entrance pin on map if needed.', 'success');
+              return;
             } else {
-              fallbackSelect(result, reqId);
+              fallbackSelect(result);
             }
           }
         );
         return;
       } catch {
-        fallbackSelect(result, reqId);
+        fallbackSelect(result);
         return;
       }
     }
 
-    fallbackSelect(result, reqId);
+    fallbackSelect(result);
   };
 
-  const fallbackSelect = (result: any, reqId: number) => {
+  const fallbackSelect = (result: any) => {
     if (result.latitude && result.longitude) {
       const lat = Number(Number(result.latitude).toFixed(6));
       const lng = Number(Number(result.longitude).toFixed(6));
@@ -774,8 +876,12 @@ export function ShopPickupAddressForm({
       if (result.state) onStateChange(result.state);
       if (result.postalCode) setPostalCode(result.postalCode);
 
-      showToast('Address selected. Please fine-tune pin entrance if necessary.', 'info');
-      reverseGeocode(lat, lng, reqId);
+      if (result.area) {
+        setCandidateAreas([result.area]);
+      }
+
+      showToast('Address selected. Fine-tune entrance pin on the map if needed.', 'info');
+      // Selected result preserved as current location without reverse-geocode overwrite
     }
   };
 
