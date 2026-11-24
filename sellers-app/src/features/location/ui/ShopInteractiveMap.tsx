@@ -528,17 +528,6 @@ export function ShopInteractiveMap({
           </div>
         )}
 
-        {/* GPS Accuracy Overlay Pill (Bottom-Left) — Clean Non-Disruptive Accuracy Pill */}
-        {hasCoords && accuracyMeters ? (
-          <div className="absolute bottom-3 left-3 z-10">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold border shadow-lg backdrop-blur-md bg-zinc-950/90 border-white/20 text-white/80">
-              <Compass className="h-3 w-3 text-emerald-400 shrink-0" />
-              <span>
-                GPS fix ±{accuracyMeters}m · Pin position authoritative
-              </span>
-            </div>
-          </div>
-        ) : null}
       </div>
 
       {/* Micro-adjust Nudge Toolbar (~11 meters per step) */}

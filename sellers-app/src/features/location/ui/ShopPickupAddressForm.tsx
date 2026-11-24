@@ -274,8 +274,199 @@ export function ShopPickupAddressForm({
     }
   };
 
+  // Parses Google Maps Geocoder address components per Google Places & Geocoding types
+  const parseGoogleComponents = (components: any[]) => {
+    let streetNumber = '';
+    let premise = '';
+    let subpremise = '';
+    let route = '';
+    let crossStreet = '';
+    let neighborhood = '';
+    let sublocality2 = '';
+    let sublocality1 = '';
+    let locality = '';
+    let district = '';
+    let state = '';
+    let postalCode = '';
+
+    for (const comp of components) {
+      const types: string[] = comp.types || [];
+      if (types.includes('street_number')) streetNumber = comp.long_name;
+      else if (types.includes('subpremise')) subpremise = comp.long_name;
+      else if (types.includes('premise')) premise = comp.long_name;
+      else if (types.includes('route')) route = comp.long_name;
+      else if (types.includes('sublocality_level_3')) {
+        if (!crossStreet && (comp.long_name.toLowerCase().includes('cross') || comp.long_name.toLowerCase().includes('main'))) {
+          crossStreet = comp.long_name;
+        }
+      }
+      else if (types.includes('sublocality_level_2')) {
+        sublocality2 = comp.long_name;
+        if (!crossStreet && (comp.long_name.toLowerCase().includes('cross') || comp.long_name.toLowerCase().includes('main'))) {
+          crossStreet = comp.long_name;
+        }
+      }
+      else if (types.includes('neighborhood')) {
+        neighborhood = comp.long_name;
+      }
+      else if (types.includes('sublocality_level_1') || types.includes('sublocality')) {
+        sublocality1 = comp.long_name;
+      }
+      else if (types.includes('locality')) {
+        locality = comp.long_name;
+      }
+      else if (types.includes('administrative_area_level_2')) {
+        district = comp.long_name;
+      }
+      else if (types.includes('administrative_area_level_1')) {
+        state = comp.long_name;
+      }
+      else if (types.includes('postal_code')) {
+        postalCode = comp.long_name.replace(/\D/g, '');
+      }
+    }
+
+    const doorNoResult = subpremise || streetNumber;
+    const buildingResult = premise;
+    const areaResult = neighborhood || sublocality2 || sublocality1;
+
+    return {
+      doorNo: doorNoResult,
+      buildingName: buildingResult,
+      street: route,
+      cross: crossStreet,
+      area: areaResult,
+      city: locality,
+      district: district || locality,
+      state,
+      postalCode: postalCode.length === 6 ? postalCode : '',
+    };
+  };
+
+  // Applies resolved address data to form fields with overwrite protection for manual edits unless forceOverwrite is requested
+  const applyAddressData = (
+    data: {
+      doorNo?: string;
+      buildingName?: string;
+      street?: string;
+      cross?: string;
+      area?: string;
+      candidateAreas?: string[];
+      landmark?: string;
+      city?: string;
+      district?: string;
+      state?: string;
+      postalCode?: string;
+    },
+    forceOverwrite = false
+  ) => {
+    if ((forceOverwrite || !isManuallyEditedRef.current.doorNo || !doorNo.trim()) && data.doorNo) {
+      setDoorNo(data.doorNo);
+    }
+    if ((forceOverwrite || !isManuallyEditedRef.current.buildingName || !buildingName.trim()) && data.buildingName) {
+      setBuildingName(data.buildingName);
+    }
+    // STRICT: ONLY set street if an actual route exists - NEVER fallback to locality or area!
+    if ((forceOverwrite || !isManuallyEditedRef.current.street || !street.trim()) && data.street) {
+      setStreet(data.street);
+    }
+    if ((forceOverwrite || !isManuallyEditedRef.current.cross || !cross.trim()) && data.cross) {
+      setCross(data.cross);
+    }
+    if ((forceOverwrite || !isManuallyEditedRef.current.area || !area.trim()) && data.area) {
+      setArea(data.area);
+    }
+    if (data.candidateAreas && Array.isArray(data.candidateAreas) && data.candidateAreas.length > 0) {
+      setCandidateAreas(data.candidateAreas);
+    }
+    if ((forceOverwrite || !isManuallyEditedRef.current.landmark || !landmark.trim()) && data.landmark) {
+      setLandmark(data.landmark);
+    }
+    if ((forceOverwrite || !isManuallyEditedRef.current.city || !city.trim()) && data.city) {
+      setCity(data.city);
+    }
+    if (data.state) {
+      onStateChange(data.state);
+    }
+    if (data.district) {
+      onDistrictChange(data.district);
+    } else if (data.city) {
+      onDistrictChange(data.city);
+    }
+    if ((forceOverwrite || !isManuallyEditedRef.current.postalCode || !postalCode.trim()) && data.postalCode) {
+      setPostalCode(data.postalCode);
+    }
+  };
+
   // Reverse geocodes coordinates with race-condition & manual-edit protection
-  const reverseGeocode = async (lat: number, lng: number, reqId: number) => {
+  const reverseGeocode = async (lat: number, lng: number, reqId: number, forceOverwrite = false) => {
+    // 1. Attempt client-side Google Maps Geocoder if Google Maps JS API is available in browser
+    if (typeof window !== 'undefined' && (window as any).google?.maps?.Geocoder) {
+      try {
+        const geocoder = new (window as any).google.maps.Geocoder();
+        const results = await new Promise<any[]>((resolve, reject) => {
+          geocoder.geocode({ location: { lat, lng } }, (res: any[], status: string) => {
+            if (status === 'OK' && res && res.length > 0) {
+              resolve(res);
+            } else {
+              reject(new Error(`Google Geocoder status: ${status}`));
+            }
+          });
+        });
+
+        if (reqId !== activeGeocodeReqId.current) return;
+
+        if (results && results.length > 0) {
+          const primary = results[0];
+          const parsed = parseGoogleComponents(primary.address_components || []);
+
+          // If street is missing on first candidate, scan other candidates for route
+          if (!parsed.street) {
+            for (let i = 1; i < results.length; i++) {
+              for (const comp of results[i].address_components || []) {
+                if (comp.types?.includes('route') && comp.long_name) {
+                  parsed.street = comp.long_name;
+                  break;
+                }
+              }
+              if (parsed.street) break;
+            }
+          }
+
+          // Collect all distinct neighbourhood & sublocality candidate areas
+          const candidates: string[] = [];
+          for (const res of results) {
+            for (const comp of res.address_components || []) {
+              const types = comp.types || [];
+              if (
+                types.includes('neighborhood') ||
+                types.includes('sublocality_level_2') ||
+                types.includes('sublocality_level_1') ||
+                types.includes('sublocality')
+              ) {
+                const name = comp.long_name;
+                if (name && !candidates.includes(name) && name !== parsed.city && name !== parsed.district) {
+                  candidates.push(name);
+                }
+              }
+            }
+          }
+
+          applyAddressData(
+            {
+              ...parsed,
+              candidateAreas: candidates,
+            },
+            forceOverwrite
+          );
+          return;
+        }
+      } catch (clientErr) {
+        // Fall back to server reverse geocoding
+      }
+    }
+
+    // 2. Server Reverse Geocode (/api/locations/resolve)
     try {
       const res = await fetch('/api/locations/resolve', {
         method: 'POST',
@@ -289,42 +480,22 @@ export function ShopPickupAddressForm({
 
       const loc = data?.resolvedLocation;
       if (loc) {
-        // Protect manual user edits: only populate fields the seller has not manually edited
-        if (!isManuallyEditedRef.current.doorNo && loc.doorNo) {
-          setDoorNo(loc.doorNo);
-        }
-        if (!isManuallyEditedRef.current.buildingName && loc.buildingName) {
-          setBuildingName(loc.buildingName);
-        }
-
-        // STRICT: ONLY set street if an actual route exists - NEVER fallback to locality or area!
-        if (!isManuallyEditedRef.current.street && loc.street) {
-          setStreet(loc.street);
-        }
-
-        if (!isManuallyEditedRef.current.cross && loc.cross) {
-          setCross(loc.cross);
-        }
-        if (!isManuallyEditedRef.current.area) {
-          if (loc.area) setArea(loc.area);
-          else if (loc.serviceArea) setArea(loc.serviceArea);
-        }
-
-        if (loc.candidateAreas && Array.isArray(loc.candidateAreas) && loc.candidateAreas.length > 0) {
-          setCandidateAreas(loc.candidateAreas);
-        }
-
-        if (!isManuallyEditedRef.current.landmark && loc.landmark) {
-          setLandmark(loc.landmark);
-        }
-        if (!isManuallyEditedRef.current.city && loc.city) {
-          setCity(loc.city);
-        }
-        if (loc.state) onStateChange(loc.state);
-        if (loc.district || loc.city) onDistrictChange(loc.district || loc.city);
-        if (!isManuallyEditedRef.current.postalCode && loc.postalCode) {
-          setPostalCode(loc.postalCode);
-        }
+        applyAddressData(
+          {
+            doorNo: loc.doorNo,
+            buildingName: loc.buildingName,
+            street: loc.street,
+            cross: loc.cross,
+            area: loc.area || loc.serviceArea,
+            candidateAreas: loc.candidateAreas,
+            landmark: loc.landmark,
+            city: loc.city,
+            district: loc.district,
+            state: loc.state,
+            postalCode: loc.postalCode,
+          },
+          forceOverwrite
+        );
       }
     } catch {
       // Keep selected coordinates on network failure
@@ -608,7 +779,7 @@ export function ShopPickupAddressForm({
     }
   };
 
-  // 3. User moved pin on map (Authoritative Entrance Pin with 400ms debounce)
+  // 3. User moved pin on map (Authoritative Entrance Pin with 300ms debounce)
   const handleMapPinSelected = (lat: number, lng: number) => {
     setLatitude(lat);
     setLongitude(lng);
@@ -616,14 +787,17 @@ export function ShopPickupAddressForm({
     setAccuracyMeters(null);
     setGpsWarning(null);
 
+    // Moving the pin to a new location authoritatively updates address fields from that position
+    isManuallyEditedRef.current = {};
+
     if (mapGeocodeDebounceRef.current) {
       clearTimeout(mapGeocodeDebounceRef.current);
     }
 
     const reqId = ++activeGeocodeReqId.current;
     mapGeocodeDebounceRef.current = setTimeout(() => {
-      reverseGeocode(lat, lng, reqId);
-    }, 400);
+      reverseGeocode(lat, lng, reqId, true);
+    }, 300);
   };
 
   // 4. Confirm Location Handler
@@ -843,14 +1017,14 @@ export function ShopPickupAddressForm({
                 }
                 isManuallyEditedRef.current = {};
                 const reqId = ++activeGeocodeReqId.current;
-                reverseGeocode(latitude, longitude, reqId);
+                reverseGeocode(latitude, longitude, reqId, true);
                 showToast('Re-syncing address from map entrance pin...', 'info');
               }}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white/5 hover:bg-white/10 text-white/80 border border-white/10 transition-colors cursor-pointer"
               title="Re-populate address fields directly from the green entrance pin"
             >
               <RotateCcw className="h-3 w-3 text-emerald-400" />
-              <span>Re-sync from Pin</span>
+              <span>Re-sync address from map pin</span>
             </button>
           </div>
         </div>

@@ -1211,12 +1211,51 @@ export class ServiceabilityService {
                 const doorNo = addr.house_number || "";
                 const buildingName = addr.house_name || addr.building || "";
                 // Strict road mapping: NEVER copy area or city into street
-                const street = addr.road || addr.pedestrian || addr.footway || addr.path || addr.street || "";
-                const cross =
+                let street = addr.road || addr.pedestrian || addr.footway || addr.path || addr.street || "";
+                let cross =
                     addr.neighbourhood &&
                     (addr.neighbourhood.toLowerCase().includes("cross") || addr.neighbourhood.toLowerCase().includes("main"))
                         ? addr.neighbourhood
                         : "";
+
+                // If street is empty because entrance pin is positioned slightly into the storefront/building lot,
+                // probe within 25m for the fronting road without displacing the entrance pin coordinates
+                const probedCandidateAreas: string[] = [];
+                if (!street) {
+                    const probeOffsets = [
+                        [0, 0.00022],   // ~24m East
+                        [0, -0.00022],  // ~24m West
+                        [0.00022, 0],   // ~24m North
+                        [-0.00022, 0],  // ~24m South
+                    ];
+                    for (const [dLat, dLng] of probeOffsets) {
+                        try {
+                            const pLat = Number((latitude + dLat).toFixed(6));
+                            const pLng = Number((longitude + dLng).toFixed(6));
+                            const pUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${pLat}&lon=${pLng}&addressdetails=1`;
+                            const pRes = await axios.get(pUrl, {
+                                timeout: 2000,
+                                headers: { "User-Agent": "AtlasBasket/1.0" },
+                            });
+                            const pAddr = pRes.data?.address;
+                            if (pAddr) {
+                                const pRoad = pAddr.road || pAddr.pedestrian || pAddr.footway || pAddr.street;
+                                if (pRoad && !street) {
+                                    street = pRoad;
+                                    if (!cross && pAddr.neighbourhood && (pAddr.neighbourhood.toLowerCase().includes("cross") || pAddr.neighbourhood.toLowerCase().includes("main"))) {
+                                        cross = pAddr.neighbourhood;
+                                    }
+                                }
+                                const pLayout = pAddr.residential || pAddr.neighbourhood || pAddr.quarter || pAddr.subdivision;
+                                if (pLayout && !probedCandidateAreas.includes(pLayout)) {
+                                    probedCandidateAreas.push(pLayout);
+                                }
+                            }
+                        } catch {
+                            // continue probe
+                        }
+                    }
+                }
 
                 // Prioritize specific residential/neighbourhood layouts (e.g. "Vivekananda Nagar") over broader suburb ("Sriramapura")
                 const specificLayout =
@@ -1226,6 +1265,9 @@ export class ServiceabilityService {
 
                 const candidateAreas: string[] = [];
                 if (specificLayout && !candidateAreas.includes(specificLayout)) candidateAreas.push(specificLayout);
+                for (const pArea of probedCandidateAreas) {
+                    if (!candidateAreas.includes(pArea)) candidateAreas.push(pArea);
+                }
                 if (broaderSuburb && !candidateAreas.includes(broaderSuburb)) candidateAreas.push(broaderSuburb);
                 if (addr.residential && !candidateAreas.includes(addr.residential)) candidateAreas.push(addr.residential);
                 if (addr.neighbourhood && !candidateAreas.includes(addr.neighbourhood)) candidateAreas.push(addr.neighbourhood);
