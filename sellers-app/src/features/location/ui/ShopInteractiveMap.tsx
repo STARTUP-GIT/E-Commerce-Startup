@@ -528,29 +528,13 @@ export function ShopInteractiveMap({
           </div>
         )}
 
-        {/* GPS Accuracy Overlay Pill (Bottom-Left) — Exact 4 Tiers */}
+        {/* GPS Accuracy Overlay Pill (Bottom-Left) — Clean Non-Disruptive Accuracy Pill */}
         {hasCoords && accuracyMeters ? (
           <div className="absolute bottom-3 left-3 z-10">
-            <div
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold border shadow-lg backdrop-blur-md ${
-                accuracyMeters > 30
-                  ? 'bg-rose-950/90 border-rose-500/40 text-rose-200'
-                  : accuracyMeters > 15
-                  ? 'bg-amber-950/90 border-amber-500/40 text-amber-200'
-                  : accuracyMeters > 5
-                  ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200'
-                  : 'bg-teal-950/90 border-teal-500/40 text-teal-200'
-              }`}
-            >
-              <Info className="h-3 w-3 shrink-0" />
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold border shadow-lg backdrop-blur-md bg-zinc-950/90 border-white/20 text-white/80">
+              <Compass className="h-3 w-3 text-emerald-400 shrink-0" />
               <span>
-                {accuracyMeters > 30
-                  ? `Poor GPS (±${accuracyMeters}m) — Please adjust pin over entrance`
-                  : accuracyMeters > 15
-                  ? `Approximate GPS (±${accuracyMeters}m)`
-                  : accuracyMeters > 5
-                  ? `Good accuracy (±${accuracyMeters}m)`
-                  : `High accuracy (±${accuracyMeters}m)`}
+                GPS fix ±{accuracyMeters}m · Pin position authoritative
               </span>
             </div>
           </div>

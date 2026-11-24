@@ -131,8 +131,10 @@ export function ShopPickupAddressForm({
   const [isConfirmed, setIsConfirmed] = useState(Boolean(initialAddress?.latitude && initialAddress?.longitude));
 
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const mapGeocodeDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const initialLoadedRef = useRef(false);
   const activeGeocodeReqId = useRef(0);
+  const isManuallyEditedRef = useRef<{ [field: string]: boolean }>({});
   const watchIdRef = useRef<number | null>(null);
   const watchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -272,7 +274,7 @@ export function ShopPickupAddressForm({
     }
   };
 
-  // Reverse geocodes coordinates with race-condition protection
+  // Reverse geocodes coordinates with race-condition & manual-edit protection
   const reverseGeocode = async (lat: number, lng: number, reqId: number) => {
     try {
       const res = await fetch('/api/locations/resolve', {
@@ -287,26 +289,42 @@ export function ShopPickupAddressForm({
 
       const loc = data?.resolvedLocation;
       if (loc) {
-        // Preserve manual doorNo and buildingName if geocoder didn't return them
-        setDoorNo((prev) => loc.doorNo || prev);
-        setBuildingName((prev) => loc.buildingName || prev);
+        // Protect manual user edits: only populate fields the seller has not manually edited
+        if (!isManuallyEditedRef.current.doorNo && loc.doorNo) {
+          setDoorNo(loc.doorNo);
+        }
+        if (!isManuallyEditedRef.current.buildingName && loc.buildingName) {
+          setBuildingName(loc.buildingName);
+        }
 
-        // ONLY set street if an actual route exists - NEVER fallback to locality!
-        if (loc.street) setStreet(loc.street);
+        // STRICT: ONLY set street if an actual route exists - NEVER fallback to locality or area!
+        if (!isManuallyEditedRef.current.street && loc.street) {
+          setStreet(loc.street);
+        }
 
-        if (loc.cross) setCross(loc.cross);
-        if (loc.area) setArea(loc.area);
-        else if (loc.serviceArea) setArea(loc.serviceArea);
+        if (!isManuallyEditedRef.current.cross && loc.cross) {
+          setCross(loc.cross);
+        }
+        if (!isManuallyEditedRef.current.area) {
+          if (loc.area) setArea(loc.area);
+          else if (loc.serviceArea) setArea(loc.serviceArea);
+        }
 
         if (loc.candidateAreas && Array.isArray(loc.candidateAreas) && loc.candidateAreas.length > 0) {
           setCandidateAreas(loc.candidateAreas);
         }
 
-        if (loc.landmark) setLandmark((prev) => prev || loc.landmark);
-        if (loc.city) setCity(loc.city);
+        if (!isManuallyEditedRef.current.landmark && loc.landmark) {
+          setLandmark(loc.landmark);
+        }
+        if (!isManuallyEditedRef.current.city && loc.city) {
+          setCity(loc.city);
+        }
         if (loc.state) onStateChange(loc.state);
         if (loc.district || loc.city) onDistrictChange(loc.district || loc.city);
-        if (loc.postalCode) setPostalCode(loc.postalCode);
+        if (!isManuallyEditedRef.current.postalCode && loc.postalCode) {
+          setPostalCode(loc.postalCode);
+        }
       }
     } catch {
       // Keep selected coordinates on network failure
@@ -347,22 +365,13 @@ export function ShopPickupAddressForm({
         setLongitude(lng);
         setAccuracyMeters(acc);
 
-        // 4 Display Categories (0-5m High, 5-15m Good, 15-30m Approx, >30m Poor)
-        if (acc <= 5) {
+        // Track GPS fix source without disruptive alarm banners
+        if (acc <= 15) {
           setLocationSource('GPS_DETECTED');
-          setGpsWarning(null);
-        } else if (acc <= 15) {
-          setLocationSource('GPS_DETECTED');
-          setGpsWarning(null);
-        } else if (acc <= 30) {
-          setLocationSource('GPS_APPROXIMATE');
-          setGpsWarning(`GPS fix is approximate (±${acc}m). Satellites have placed your pin within ${acc}m.`);
         } else {
           setLocationSource('GPS_APPROXIMATE');
-          setGpsWarning(
-            `GPS accuracy is poor (±${acc}m). Satellites placed your device within ${acc}m. Please drag the green entrance pin directly over your storefront.`
-          );
         }
+        setGpsWarning(null);
 
         const reqId = ++activeGeocodeReqId.current;
         reverseGeocode(lat, lng, reqId);
@@ -599,7 +608,7 @@ export function ShopPickupAddressForm({
     }
   };
 
-  // 3. User moved pin on map
+  // 3. User moved pin on map (Authoritative Entrance Pin with 400ms debounce)
   const handleMapPinSelected = (lat: number, lng: number) => {
     setLatitude(lat);
     setLongitude(lng);
@@ -607,8 +616,14 @@ export function ShopPickupAddressForm({
     setAccuracyMeters(null);
     setGpsWarning(null);
 
+    if (mapGeocodeDebounceRef.current) {
+      clearTimeout(mapGeocodeDebounceRef.current);
+    }
+
     const reqId = ++activeGeocodeReqId.current;
-    reverseGeocode(lat, lng, reqId);
+    mapGeocodeDebounceRef.current = setTimeout(() => {
+      reverseGeocode(lat, lng, reqId);
+    }, 400);
   };
 
   // 4. Confirm Location Handler
@@ -758,17 +773,6 @@ export function ShopPickupAddressForm({
         </div>
       </div>
 
-      {/* GPS Accuracy Warning Banner */}
-      {gpsWarning && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200 text-xs flex items-start gap-2.5">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
-          <div className="space-y-0.5">
-            <p className="font-semibold text-amber-100">GPS Accuracy Notice</p>
-            <p className="text-amber-200/80 leading-relaxed text-[11px]">{gpsWarning}</p>
-          </div>
-        </div>
-      )}
-
       {/* ─────────────────────────────────────────────────────────────
           SECTION B: INTERACTIVE MAP WITH ENTRANCE PIN & GPS DOT
           ───────────────────────────────────────────────────────────── */}
@@ -797,6 +801,7 @@ export function ShopPickupAddressForm({
               key={cand}
               type="button"
               onClick={() => {
+                isManuallyEditedRef.current.area = true;
                 setArea(cand);
                 showToast(`Area updated to "${cand}".`, 'success');
               }}
@@ -816,18 +821,38 @@ export function ShopPickupAddressForm({
           SECTION C: MANDATORY ALWAYS-VISIBLE EDIT ADDRESS FORM
           ───────────────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-white/10 bg-zinc-950/90 shadow-2xl p-4 sm:p-5 space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-white/10">
+        <div className="flex items-center justify-between pb-2 border-b border-white/10 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Edit3 className="h-4 w-4 text-emerald-400" />
             <h5 className="text-xs font-bold text-white uppercase tracking-wider">
               Shop Address &amp; Dispatch Details
             </h5>
           </div>
-          {latitude && longitude && (
-            <div className="text-[10px] text-white/40 font-mono">
-              Pin: {latitude.toFixed(6)}, {longitude.toFixed(6)}
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {latitude && longitude && (
+              <div className="text-[10px] text-white/40 font-mono">
+                Pin: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (!latitude || !longitude) {
+                  showToast('Please place an entrance pin on the map first.', 'info');
+                  return;
+                }
+                isManuallyEditedRef.current = {};
+                const reqId = ++activeGeocodeReqId.current;
+                reverseGeocode(latitude, longitude, reqId);
+                showToast('Re-syncing address from map entrance pin...', 'info');
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white/5 hover:bg-white/10 text-white/80 border border-white/10 transition-colors cursor-pointer"
+              title="Re-populate address fields directly from the green entrance pin"
+            >
+              <RotateCcw className="h-3 w-3 text-emerald-400" />
+              <span>Re-sync from Pin</span>
+            </button>
+          </div>
         </div>
 
         {/* Required Address Details */}
@@ -839,7 +864,10 @@ export function ShopPickupAddressForm({
             <Input
               placeholder="e.g. Shop #4, Ground Floor"
               value={doorNo}
-              onChange={(e) => setDoorNo(e.target.value)}
+              onChange={(e) => {
+                isManuallyEditedRef.current.doorNo = true;
+                setDoorNo(e.target.value);
+              }}
               className="h-9 text-xs"
               disabled={disabled}
               required
@@ -853,7 +881,10 @@ export function ShopPickupAddressForm({
             <Input
               placeholder="e.g. Sri Krishna Commercial Hub"
               value={buildingName}
-              onChange={(e) => setBuildingName(e.target.value)}
+              onChange={(e) => {
+                isManuallyEditedRef.current.buildingName = true;
+                setBuildingName(e.target.value);
+              }}
               className="h-9 text-xs"
               disabled={disabled}
             />
@@ -868,7 +899,10 @@ export function ShopPickupAddressForm({
             <Input
               placeholder="e.g. Vishwashanti Road / 3rd Main Road"
               value={street}
-              onChange={(e) => setStreet(e.target.value)}
+              onChange={(e) => {
+                isManuallyEditedRef.current.street = true;
+                setStreet(e.target.value);
+              }}
               className="h-9 text-xs"
               disabled={disabled}
               required
@@ -883,7 +917,10 @@ export function ShopPickupAddressForm({
             <Input
               placeholder="e.g. 2nd Cross / Near Circle"
               value={cross}
-              onChange={(e) => setCross(e.target.value)}
+              onChange={(e) => {
+                isManuallyEditedRef.current.cross = true;
+                setCross(e.target.value);
+              }}
               className="h-9 text-xs"
               disabled={disabled}
             />
@@ -898,7 +935,10 @@ export function ShopPickupAddressForm({
             <Input
               placeholder="e.g. Vivekananda Nagar"
               value={area}
-              onChange={(e) => setArea(e.target.value)}
+              onChange={(e) => {
+                isManuallyEditedRef.current.area = true;
+                setArea(e.target.value);
+              }}
               className="h-9 text-xs"
               disabled={disabled}
               required
@@ -913,7 +953,10 @@ export function ShopPickupAddressForm({
             <Input
               placeholder="e.g. Near Vivekananda Circle / Opp Bank"
               value={landmark}
-              onChange={(e) => setLandmark(e.target.value)}
+              onChange={(e) => {
+                isManuallyEditedRef.current.landmark = true;
+                setLandmark(e.target.value);
+              }}
               className="h-9 text-xs"
               disabled={disabled}
             />
@@ -929,7 +972,10 @@ export function ShopPickupAddressForm({
             <Input
               placeholder="e.g. Mysuru"
               value={city}
-              onChange={(e) => setCity(e.target.value)}
+              onChange={(e) => {
+                isManuallyEditedRef.current.city = true;
+                setCity(e.target.value);
+              }}
               className="h-9 text-xs"
               disabled={disabled}
               required
@@ -1003,7 +1049,10 @@ export function ShopPickupAddressForm({
             <Input
               placeholder="e.g. 570023"
               value={postalCode}
-              onChange={(e) => handlePostalChange(e.target.value)}
+              onChange={(e) => {
+                isManuallyEditedRef.current.postalCode = true;
+                handlePostalChange(e.target.value);
+              }}
               maxLength={6}
               className={`h-9 text-xs ${pinCodeError ? 'border-rose-500' : ''}`}
               disabled={disabled}
@@ -1024,7 +1073,10 @@ export function ShopPickupAddressForm({
           <Input
             placeholder="e.g. Ground floor glass shop, entrance next to ATM"
             value={directionsForRider}
-            onChange={(e) => setDirectionsForRider(e.target.value)}
+            onChange={(e) => {
+              isManuallyEditedRef.current.directionsForRider = true;
+              setDirectionsForRider(e.target.value);
+            }}
             className="h-9 text-xs"
             disabled={disabled}
           />

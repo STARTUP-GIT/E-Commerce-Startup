@@ -84,6 +84,38 @@ export interface GeocodeLocationResult {
     hasMissingDoorNo?: boolean;
     candidateAreas?: string[];
     addressCandidates?: string[];
+    selectedReason?: string;
+    evaluatedCandidatesCount?: number;
+    candidateScores?: Array<{
+        index: number;
+        address: string;
+        locationType: string;
+        types: string[];
+        distanceMeters: number;
+        score: number;
+        reasons: string[];
+        extractedNeighborhood?: string;
+        extractedRoute?: string;
+    }>;
+}
+
+export interface EvaluatedGeocodeCandidate {
+    index: number;
+    address: string;
+    locationType: string;
+    types: string[];
+    distanceMeters: number;
+    score: number;
+    reasons: string[];
+    hasRoute: boolean;
+    hasDoorOrPremise: boolean;
+    hasNeighborhood: boolean;
+    extractedNeighborhood?: string;
+    extractedRoute?: string;
+    extractedPostal?: string;
+    extractedLocality?: string;
+    extractedDistrict?: string;
+    extractedState?: string;
 }
 
 export interface AddressSearchResult {
@@ -722,8 +754,236 @@ export class ServiceabilityService {
     }
 
     /**
+     * Compute Haversine distance in meters between two lat/lng coordinates
+     */
+    static computeDistanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+        const R = 6371000;
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLng = ((lng2 - lng1) * Math.PI) / 180;
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return Math.round(R * c);
+    }
+
+    /**
+     * Multi-Result Reverse-Geocoding Evaluation Algorithm:
+     * Evaluates a Google Geocoding candidate based on geometry location_type, proximity to pin,
+     * presence of route, door/premise, and specific layout / neighborhood.
+     */
+    static evaluateGeocodeCandidate(
+        result: any,
+        targetLat: number,
+        targetLng: number,
+        index: number
+    ): EvaluatedGeocodeCandidate {
+        let score = 0;
+        const reasons: string[] = [];
+
+        const locType = result.geometry?.location_type || "APPROXIMATE";
+        if (locType === "ROOFTOP") {
+            score += 40;
+            reasons.push("ROOFTOP location_type (+40)");
+        } else if (locType === "RANGE_INTERPOLATED") {
+            score += 30;
+            reasons.push("RANGE_INTERPOLATED location_type (+30)");
+        } else if (locType === "GEOMETRIC_CENTER") {
+            score += 15;
+            reasons.push("GEOMETRIC_CENTER location_type (+15)");
+        } else if (locType === "APPROXIMATE") {
+            score += 5;
+            reasons.push("APPROXIMATE location_type (+5)");
+        }
+
+        const candLat = result.geometry?.location?.lat;
+        const candLng = result.geometry?.location?.lng;
+        let distanceMeters = 0;
+        if (typeof candLat === "number" && typeof candLng === "number") {
+            distanceMeters = ServiceabilityService.computeDistanceMeters(targetLat, targetLng, candLat, candLng);
+            if (distanceMeters <= 30) {
+                score += 35;
+                reasons.push(`Proximity ${distanceMeters}m <= 30m (+35)`);
+            } else if (distanceMeters <= 75) {
+                score += 25;
+                reasons.push(`Proximity ${distanceMeters}m <= 75m (+25)`);
+            } else if (distanceMeters <= 200) {
+                score += 15;
+                reasons.push(`Proximity ${distanceMeters}m <= 200m (+15)`);
+            } else if (distanceMeters <= 500) {
+                score += 5;
+                reasons.push(`Proximity ${distanceMeters}m <= 500m (+5)`);
+            } else if (distanceMeters > 5000) {
+                score -= 40;
+                reasons.push(`Far distance ${distanceMeters}m > 5000m (-40)`);
+            } else if (distanceMeters > 2000) {
+                score -= 20;
+                reasons.push(`Far distance ${distanceMeters}m > 2000m (-20)`);
+            }
+        }
+
+        const types: string[] = result.types || [];
+        if (types.includes("street_address")) {
+            score += 35;
+            reasons.push("Type street_address (+35)");
+        }
+        if (types.includes("premise") || types.includes("subpremise")) {
+            score += 25;
+            reasons.push("Type premise/subpremise (+25)");
+        }
+        if (types.includes("route")) {
+            score += 25;
+            reasons.push("Type route (+25)");
+        }
+        if (types.includes("point_of_interest") || types.includes("establishment")) {
+            score += 20;
+            reasons.push("Type POI/establishment (+20)");
+        }
+        if (types.includes("neighborhood") || types.includes("sublocality_level_2")) {
+            score += 20;
+            reasons.push("Type specific neighborhood/sublocality_2 (+20)");
+        }
+        if (types.includes("plus_code")) {
+            score -= 30;
+            reasons.push("Plus code penalty (-30)");
+        }
+
+        // Penalize broad polygons if they lack street/route
+        const isBroadPolygon = types.every((t) =>
+            [
+                "sublocality",
+                "sublocality_level_1",
+                "locality",
+                "administrative_area_level_2",
+                "administrative_area_level_1",
+                "country",
+                "political",
+            ].includes(t)
+        );
+        if (isBroadPolygon && !types.includes("street_address") && !types.includes("route")) {
+            score -= 20;
+            reasons.push("Broad polygon without street level detail (-20)");
+        }
+
+        // Component analysis
+        let hasRoute = false;
+        let hasDoorOrPremise = false;
+        let hasNeighborhood = false;
+        let extractedNeighborhood: string | undefined;
+        let extractedRoute: string | undefined;
+        let extractedPostal: string | undefined;
+        let extractedLocality: string | undefined;
+        let extractedDistrict: string | undefined;
+        let extractedState: string | undefined;
+
+        for (const comp of result.address_components || []) {
+            const cTypes: string[] = comp.types || [];
+            if (cTypes.includes("route")) {
+                hasRoute = true;
+                extractedRoute = comp.long_name;
+            }
+            if (cTypes.includes("street_number") || cTypes.includes("subpremise") || cTypes.includes("premise")) {
+                hasDoorOrPremise = true;
+            }
+            if (cTypes.includes("neighborhood") || cTypes.includes("sublocality_level_2")) {
+                hasNeighborhood = true;
+                if (!extractedNeighborhood) extractedNeighborhood = comp.long_name;
+            } else if (cTypes.includes("sublocality_level_1") || cTypes.includes("sublocality")) {
+                if (!extractedNeighborhood) extractedNeighborhood = comp.long_name;
+            }
+            if (cTypes.includes("postal_code")) {
+                extractedPostal = comp.long_name;
+            }
+            if (cTypes.includes("locality")) {
+                extractedLocality = comp.long_name;
+            }
+            if (cTypes.includes("administrative_area_level_2")) {
+                extractedDistrict = comp.long_name;
+            }
+            if (cTypes.includes("administrative_area_level_1")) {
+                extractedState = comp.long_name;
+            }
+        }
+
+        if (hasRoute) {
+            score += 25;
+            reasons.push(`Contains route '${extractedRoute}' (+25)`);
+        }
+        if (hasDoorOrPremise) {
+            score += 15;
+            reasons.push("Contains door/premise (+15)");
+        }
+        if (hasNeighborhood) {
+            score += 20;
+            reasons.push(`Contains neighborhood '${extractedNeighborhood}' (+20)`);
+        }
+        if (extractedPostal) {
+            score += 5;
+            reasons.push("Contains postal code (+5)");
+        }
+        if (extractedLocality) {
+            score += 5;
+            reasons.push("Contains locality (+5)");
+        }
+
+        return {
+            index,
+            address: result.formatted_address || `Candidate #${index}`,
+            locationType: locType,
+            types,
+            distanceMeters,
+            score,
+            reasons,
+            hasRoute,
+            hasDoorOrPremise,
+            hasNeighborhood,
+            extractedNeighborhood,
+            extractedRoute,
+            extractedPostal,
+            extractedLocality,
+            extractedDistrict,
+            extractedState,
+        };
+    }
+
+    /**
+     * Optional auxiliary road signal from Google Roads API (Snap to Roads)
+     * Does NOT displace the entrance pin coordinates.
+     */
+    static async snapToRoadAuxiliary(
+        latitude: number,
+        longitude: number,
+        apiKey: string
+    ): Promise<string | undefined> {
+        try {
+            const url = `https://roads.googleapis.com/v1/snapToRoads?path=${latitude},${longitude}&interpolate=false&key=${apiKey}`;
+            const response = await axios.get(url, { timeout: 2500 });
+            if (response.data?.snappedPoints?.length > 0) {
+                const snapped = response.data.snappedPoints[0];
+                if (snapped.placeId) {
+                    const placeUrl = `https://maps.googleapis.com/maps/api/geocode/json?place_id=${snapped.placeId}&key=${apiKey}`;
+                    const placeRes = await axios.get(placeUrl, { timeout: 2500 });
+                    if (placeRes.data?.status === "OK" && placeRes.data?.results?.length > 0) {
+                        const comp = placeRes.data.results[0].address_components?.find((c: any) =>
+                            c.types?.includes("route")
+                        );
+                        if (comp?.long_name) {
+                            return comp.long_name;
+                        }
+                    }
+                }
+            }
+        } catch (err: any) {
+            logger.debug(`[ServiceabilityService] Roads API snap auxiliary check: ${err?.message}`);
+        }
+        return undefined;
+    }
+
+    /**
      * Resolve GPS coordinates to human-readable administrative hierarchy.
      * Extracts full Indian address components (Door/Flat No, Building, Street, Cross, Area, Landmark, City, District, State, PIN).
+     * Authoritative pin: Always uses the exact entrance pin coordinates passed in.
      * NEVER defaults to Mysuru or any arbitrary district on resolution failure.
      */
     static async resolveCoordinates(latitude: number, longitude: number): Promise<GeocodeLocationResult> {
@@ -736,32 +996,52 @@ export class ServiceabilityService {
                 if (response.data?.status === "OK" && response.data?.results?.length > 0) {
                     const results = response.data.results;
 
-                    // Collect all candidate areas and address choices across results
-                    const candidateAreas: string[] = [];
+                    // 1. Evaluate all candidates with multi-factor scoring
+                    const evaluatedCandidates = results.map((r: any, idx: number) =>
+                        ServiceabilityService.evaluateGeocodeCandidate(r, latitude, longitude, idx)
+                    );
+
+                    // Sort descending by score, tie-breaking by closer distance
+                    evaluatedCandidates.sort((a: EvaluatedGeocodeCandidate, b: EvaluatedGeocodeCandidate) => b.score - a.score || a.distanceMeters - b.distanceMeters);
+
+                    const winner = evaluatedCandidates[0];
+                    const bestResult = results[winner.index];
+
+                    // 2. Rank candidate areas/neighbourhoods by candidate scores
+                    const areaScoreMap = new Map<string, number>();
                     const addressCandidates: string[] = [];
-                    for (const r of results) {
-                        if (r.formatted_address && !addressCandidates.includes(r.formatted_address)) {
-                            addressCandidates.push(r.formatted_address);
+
+                    for (const cand of evaluatedCandidates) {
+                        const candResult = results[cand.index];
+                        if (candResult.formatted_address && !addressCandidates.includes(candResult.formatted_address)) {
+                            addressCandidates.push(candResult.formatted_address);
                         }
-                        for (const comp of r.address_components || []) {
-                            const types = comp.types || [];
-                            if (types.includes("sublocality_level_1") || types.includes("sublocality") || types.includes("neighborhood") || types.includes("sublocality_level_2")) {
-                                if (comp.long_name && !candidateAreas.includes(comp.long_name)) {
-                                    candidateAreas.push(comp.long_name);
+
+                        for (const comp of candResult.address_components || []) {
+                            const types: string[] = comp.types || [];
+                            if (
+                                types.includes("neighborhood") ||
+                                types.includes("sublocality_level_2") ||
+                                types.includes("sublocality_level_1") ||
+                                types.includes("sublocality")
+                            ) {
+                                const name = comp.long_name?.trim();
+                                if (name) {
+                                    const bonus = types.includes("neighborhood") ? 15 : types.includes("sublocality_level_2") ? 10 : 0;
+                                    const existing = areaScoreMap.get(name) || -Infinity;
+                                    if (cand.score + bonus > existing) {
+                                        areaScoreMap.set(name, cand.score + bonus);
+                                    }
                                 }
                             }
                         }
                     }
 
-                    // Select the most specific result that has street_number, premise, or route
-                    const bestResult = results.find((r: any) => 
-                        r.types?.includes("street_address") || 
-                        r.types?.includes("premise") || 
-                        r.types?.includes("subpremise") || 
-                        r.address_components?.some((c: any) => c.types.includes("route"))
-                    ) || results[0];
+                    const candidateAreas = Array.from(areaScoreMap.entries())
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([areaName]) => areaName);
 
-                    const result = bestResult;
+                    // 3. Strict Component Mapping per Google Types
                     let streetNumber = "";
                     let route = "";
                     let premise = "";
@@ -776,21 +1056,21 @@ export class ServiceabilityService {
                     let serviceArea = "";
                     let pointOfInterest = "";
 
-                    for (const comp of result.address_components) {
-                        const types = comp.types;
+                    for (const comp of bestResult.address_components || []) {
+                        const types: string[] = comp.types || [];
                         if (types.includes("street_number")) {
                             streetNumber = comp.long_name;
                         } else if (types.includes("route")) {
                             route = comp.long_name;
-                        } else if (types.includes("premise")) {
-                            premise = comp.long_name;
                         } else if (types.includes("subpremise")) {
                             subpremise = comp.long_name;
+                        } else if (types.includes("premise")) {
+                            premise = comp.long_name;
+                        } else if (types.includes("neighborhood") || types.includes("sublocality_level_2")) {
+                            neighborhood = comp.long_name;
                         } else if (types.includes("sublocality_level_1") || types.includes("sublocality")) {
                             sublocality = comp.long_name;
                             serviceArea = comp.long_name;
-                        } else if (types.includes("neighborhood") || types.includes("sublocality_level_2")) {
-                            neighborhood = comp.long_name;
                         } else if (types.includes("locality")) {
                             locality = comp.long_name;
                         } else if (types.includes("administrative_area_level_2")) {
@@ -801,34 +1081,59 @@ export class ServiceabilityService {
                             country = comp.long_name;
                         } else if (types.includes("postal_code")) {
                             postalCode = comp.long_name;
-                        } else if (types.includes("point_of_interest") || types.includes("landmark")) {
+                        } else if (types.includes("point_of_interest") || types.includes("establishment") || types.includes("landmark")) {
                             pointOfInterest = comp.long_name;
+                        }
+                    }
+
+                    // Strict road mapping: if winning candidate lacks route, inspect close candidates (<150m)
+                    if (!route) {
+                        const nearbyRouteCand = evaluatedCandidates.find(
+                            (c: EvaluatedGeocodeCandidate) => c.hasRoute && c.distanceMeters <= 150 && c.extractedRoute
+                        );
+                        if (nearbyRouteCand?.extractedRoute) {
+                            route = nearbyRouteCand.extractedRoute;
+                        }
+                    }
+
+                    // Auxiliary road snap if still empty and Roads API is accessible
+                    if (!route) {
+                        const auxRoad = await ServiceabilityService.snapToRoadAuxiliary(latitude, longitude, apiKey);
+                        if (auxRoad) {
+                            route = auxRoad;
                         }
                     }
 
                     const doorNo = subpremise || streetNumber || "";
                     const buildingName = premise || "";
+                    // STRICT: Street is route ONLY. Never copy locality or area into street.
                     const street = route || "";
-                    const cross = neighborhood && neighborhood !== sublocality && (neighborhood.toLowerCase().includes("cross") || neighborhood.toLowerCase().includes("main")) ? neighborhood : "";
-                    const area = sublocality || neighborhood || (candidateAreas.length > 0 ? candidateAreas[0] : "");
+                    const cross =
+                        neighborhood &&
+                        neighborhood !== sublocality &&
+                        (neighborhood.toLowerCase().includes("cross") || neighborhood.toLowerCase().includes("main"))
+                            ? neighborhood
+                            : "";
+
+                    // Area: specific layout (neighborhood or sublocality_level_2) takes priority over broad suburb/sublocality
+                    const area =
+                        (neighborhood && neighborhood !== locality && neighborhood !== district ? neighborhood : "") ||
+                        (sublocality && sublocality !== locality && sublocality !== district ? sublocality : "") ||
+                        (candidateAreas.length > 0 ? candidateAreas[0] : "");
+
                     const landmark = pointOfInterest || "";
 
-                    // Build addressLine1: doorNo, building, street strictly - never fallback to area or locality
+                    // Build address lines
                     const line1Components: string[] = [];
                     if (doorNo) line1Components.push(doorNo);
                     if (buildingName && !doorNo.includes(buildingName)) line1Components.push(buildingName);
                     if (street && !line1Components.includes(street)) line1Components.push(street);
                     const addressLine1 = line1Components.length > 0 ? line1Components.join(", ") : undefined;
 
-                    // Build addressLine2: cross, area, landmark
                     const line2Components: string[] = [];
                     if (cross) line2Components.push(cross);
-                    if (area && !line2Components.includes(area)) {
-                        line2Components.push(area);
-                    }
-                    if (landmark && !line2Components.includes(landmark)) {
-                        line2Components.push(`Near ${landmark}`);
-                    }
+                    if (area && !line2Components.includes(area)) line2Components.push(area);
+                    if (landmark && !line2Components.includes(landmark)) line2Components.push(`Near ${landmark}`);
                     const addressLine2 = line2Components.length > 0 ? line2Components.join(", ") : undefined;
 
                     // Clean and validate Indian 6-digit PIN code
@@ -837,7 +1142,18 @@ export class ServiceabilityService {
 
                     // Canonical alias normalization
                     const canonicalDistrict = normalizeDistrictName(district || locality);
-                    const locationType = result.geometry?.location_type || "APPROXIMATE";
+                    const locationType = bestResult.geometry?.location_type || "APPROXIMATE";
+
+                    // Structured logging for verification & evidence
+                    logger.info(`[ServiceabilityService] Coordinates evaluated: (${latitude}, ${longitude})`);
+                    logger.info(
+                        `[ServiceabilityService] Evaluated ${results.length} candidates. Top winner: Index #${winner.index} with Score ${winner.score}. Reasons: [${winner.reasons.join("; ")}]`
+                    );
+                    logger.info(`[ServiceabilityService] Winning Candidate Address: "${winner.address}"`);
+                    logger.info(
+                        `[ServiceabilityService] Mapped Fields -> Door: "${doorNo}", Building: "${buildingName}", Street: "${street}", Area: "${area}", Locality: "${locality}", District: "${canonicalDistrict}", State: "${state}", PIN: "${validPostal}"`
+                    );
+                    logger.info(`[ServiceabilityService] Candidate Areas: [${candidateAreas.join(", ")}]`);
 
                     return {
                         doorNo: doorNo || undefined,
@@ -857,11 +1173,24 @@ export class ServiceabilityService {
                         postalCode: validPostal || undefined,
                         latitude,
                         longitude,
-                        formattedAddress: result.formatted_address,
+                        formattedAddress: bestResult.formatted_address,
                         precision: locationType,
                         hasMissingDoorNo: Boolean(!doorNo && !buildingName),
                         candidateAreas,
                         addressCandidates,
+                        selectedReason: `Selected Candidate #${winner.index} (Score: ${winner.score}, LocationType: ${winner.locationType}, Proximity: ${winner.distanceMeters}m). Reasons: ${winner.reasons.join(", ")}`,
+                        evaluatedCandidatesCount: results.length,
+                        candidateScores: evaluatedCandidates.map((c: EvaluatedGeocodeCandidate) => ({
+                            index: c.index,
+                            address: c.address,
+                            locationType: c.locationType,
+                            types: c.types,
+                            distanceMeters: c.distanceMeters,
+                            score: c.score,
+                            reasons: c.reasons,
+                            extractedNeighborhood: c.extractedNeighborhood,
+                            extractedRoute: c.extractedRoute,
+                        })),
                     };
                 }
             } catch (err: any) {
@@ -874,19 +1203,30 @@ export class ServiceabilityService {
             const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`;
             const response = await axios.get(url, {
                 timeout: 4000,
-                headers: { "User-Agent": "AtlasBasket/1.0" }
+                headers: { "User-Agent": "AtlasBasket/1.0" },
             });
 
             if (response.data && response.data.address) {
                 const addr = response.data.address;
                 const doorNo = addr.house_number || "";
                 const buildingName = addr.house_name || addr.building || "";
+                // Strict road mapping: NEVER copy area or city into street
                 const street = addr.road || addr.pedestrian || addr.footway || addr.path || addr.street || "";
-                const cross = addr.neighbourhood && (addr.neighbourhood.toLowerCase().includes("cross") || addr.neighbourhood.toLowerCase().includes("main")) ? addr.neighbourhood : "";
-                
-                // Prioritize residential/neighbourhood layouts (e.g. "Vivekananda Nagar") over the broader suburb ("Sriramapura")
-                const area = addr.residential || addr.neighbourhood || addr.suburb || addr.subdivision || "";
+                const cross =
+                    addr.neighbourhood &&
+                    (addr.neighbourhood.toLowerCase().includes("cross") || addr.neighbourhood.toLowerCase().includes("main"))
+                        ? addr.neighbourhood
+                        : "";
+
+                // Prioritize specific residential/neighbourhood layouts (e.g. "Vivekananda Nagar") over broader suburb ("Sriramapura")
+                const specificLayout =
+                    addr.residential || addr.neighbourhood || addr.quarter || addr.subdivision || addr.city_district || "";
+                const broaderSuburb = addr.suburb || "";
+                const area = specificLayout || broaderSuburb || "";
+
                 const candidateAreas: string[] = [];
+                if (specificLayout && !candidateAreas.includes(specificLayout)) candidateAreas.push(specificLayout);
+                if (broaderSuburb && !candidateAreas.includes(broaderSuburb)) candidateAreas.push(broaderSuburb);
                 if (addr.residential && !candidateAreas.includes(addr.residential)) candidateAreas.push(addr.residential);
                 if (addr.neighbourhood && !candidateAreas.includes(addr.neighbourhood)) candidateAreas.push(addr.neighbourhood);
                 if (addr.suburb && !candidateAreas.includes(addr.suburb)) candidateAreas.push(addr.suburb);
@@ -919,6 +1259,12 @@ export class ServiceabilityService {
 
                 const canonicalDistrict = normalizeDistrictName(rawDistrict || city);
 
+                logger.info(`[ServiceabilityService] Nominatim Fallback Coordinates: (${latitude}, ${longitude})`);
+                logger.info(
+                    `[ServiceabilityService] Nominatim Mapped -> Door: "${doorNo}", Street: "${street}", Area: "${area}", Locality: "${city}", District: "${canonicalDistrict}", PIN: "${validPostal}"`
+                );
+                logger.info(`[ServiceabilityService] Nominatim Candidate Areas: [${candidateAreas.join(", ")}]`);
+
                 return {
                     doorNo: doorNo || undefined,
                     buildingName: buildingName || undefined,
@@ -942,6 +1288,21 @@ export class ServiceabilityService {
                     hasMissingDoorNo: Boolean(!doorNo && !buildingName),
                     candidateAreas,
                     addressCandidates: [response.data.display_name],
+                    selectedReason: "OpenStreetMap Nominatim Fallback with specific layout priority",
+                    evaluatedCandidatesCount: 1,
+                    candidateScores: [
+                        {
+                            index: 0,
+                            address: response.data.display_name,
+                            locationType: doorNo ? "ROOFTOP" : street ? "RANGE_INTERPOLATED" : "APPROXIMATE",
+                            types: ["osm_reverse"],
+                            distanceMeters: 0,
+                            score: 80,
+                            reasons: ["Nominatim reverse-geocode with specific residential layout extraction"],
+                            extractedNeighborhood: area,
+                            extractedRoute: street,
+                        },
+                    ],
                 };
             }
         } catch (err: any) {
@@ -967,7 +1328,10 @@ export class ServiceabilityService {
             longitude,
             formattedAddress: undefined,
             precision: "UNKNOWN",
-            hasMissingDoorNo: true
+            hasMissingDoorNo: true,
+            selectedReason: "Reverse geocoding failed or returned no results",
+            evaluatedCandidatesCount: 0,
+            candidateScores: [],
         };
     }
 
