@@ -1,0 +1,9 @@
+enum FulfilmentType {
+  READY_TO_SHIP
+  MADE_TO_ORDER
+}
+
+enum PrepTimeType {
+  CALENDAR_DAYS
+  BUSINESS_DAYS
+}

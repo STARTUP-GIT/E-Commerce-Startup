@@ -86,8 +86,17 @@ export function WishlistPage() {
                   >
                     <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                   </button>
-                  {isOutOfStock && (
-                    <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-1.5 sm:px-2 py-0.5 rounded-full bg-red-500/90 text-[8px] sm:text-[10px] font-bold text-white uppercase">
+                  {prod.fulfilmentType === 'MADE_TO_ORDER' ? (
+                    <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-1.5 sm:px-2 py-0.5 rounded-full bg-purple-600/90 backdrop-blur-md text-[8px] sm:text-[10px] font-bold text-white uppercase">
+                      Made to Order ({prod.minPrepDays || 1}-{prod.maxPrepDays || 1}d)
+                    </span>
+                  ) : (
+                    <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-600/90 backdrop-blur-md text-[8px] sm:text-[10px] font-bold text-white uppercase">
+                      Ready to Ship
+                    </span>
+                  )}
+                  {isOutOfStock && prod.fulfilmentType !== 'MADE_TO_ORDER' && (
+                    <span className="absolute bottom-2 left-2 px-1.5 sm:px-2 py-0.5 rounded-full bg-red-500/90 text-[8px] sm:text-[10px] font-bold text-white uppercase">
                       Out of stock
                     </span>
                   )}

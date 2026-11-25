@@ -64,6 +64,34 @@ export const ProductDetailScreen: React.FC = () => {
   const finalPrice =
     Number(product?.price || 0) + (selectedVariant ? Number(selectedVariant.priceDifference) : 0);
 
+  const isMadeToOrder = product?.fulfilmentType === 'MADE_TO_ORDER';
+  const isCapacityFull = isMadeToOrder && !!product?.maxConcurrentOrders && (product?.activeProductionOrders || 0) >= product.maxConcurrentOrders;
+  const isOrderable = isMadeToOrder ? !isCapacityFull : (product?.stockQuantity || 0) > 0;
+
+  const getReadyDateString = () => {
+    if (!product) return '';
+    const minDays = product.minPrepDays || 1;
+    const maxDays = product.maxPrepDays || minDays;
+    const isBiz = product.prepTimeType === 'BUSINESS_DAYS';
+    const addDays = (days: number) => {
+      const d = new Date();
+      if (!isBiz) {
+        d.setDate(d.getDate() + days);
+        return d;
+      }
+      let added = 0;
+      while (added < days) {
+        d.setDate(d.getDate() + 1);
+        if (d.getDay() !== 0 && d.getDay() !== 6) added++;
+      }
+      return d;
+    };
+    const minD = addDays(minDays);
+    const maxD = addDays(maxDays);
+    const fmt = (d: Date) => d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+    return minDays === maxDays ? fmt(minD) : `${fmt(minD)} – ${fmt(maxD)}`;
+  };
+
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
       navigation.navigate('Login');
@@ -171,11 +199,76 @@ export const ProductDetailScreen: React.FC = () => {
 
         <View style={styles.priceRow}>
           <Text style={styles.priceText}>{productService.formatPrice(finalPrice)}</Text>
-          <View style={styles.stockBadge}>
-            <Text style={styles.stockText}>
-              {product.stockQuantity > 0 ? 'In Stock' : 'Out of Stock'}
+          <View
+            style={[
+              styles.stockBadge,
+              {
+                backgroundColor: isMadeToOrder
+                  ? isCapacityFull
+                    ? 'rgba(245, 158, 11, 0.15)'
+                    : 'rgba(168, 85, 247, 0.15)'
+                  : product.stockQuantity > 0
+                  ? 'rgba(16, 185, 129, 0.15)'
+                  : 'rgba(239, 68, 68, 0.15)',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.stockText,
+                {
+                  color: isMadeToOrder
+                    ? isCapacityFull
+                      ? '#f59e0b'
+                      : '#c084fc'
+                    : product.stockQuantity > 0
+                    ? '#10b981'
+                    : '#ef4444',
+                },
+              ]}
+            >
+              {isMadeToOrder
+                ? isCapacityFull
+                  ? 'Capacity Full'
+                  : 'Made to Order'
+                : product.stockQuantity > 0
+                ? 'In Stock'
+                : 'Out of Stock'}
             </Text>
           </View>
+        </View>
+
+        {/* Fulfilment & Production Section */}
+        <View style={styles.fulfilmentCard}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Package size={16} color={colors.primary} />
+            <Text style={styles.fulfilmentTitle}>
+              {isMadeToOrder ? 'Made to Order Fulfilment' : 'Ready to Ship Fulfilment'}
+            </Text>
+          </View>
+          {isMadeToOrder ? (
+            <View style={{ gap: 5, marginTop: 8 }}>
+              <Text style={styles.fulfilmentDetailText}>
+                • Lead Preparation: {product.minPrepDays}–{product.maxPrepDays}{' '}
+                {product.prepTimeType === 'BUSINESS_DAYS' ? 'business days' : 'calendar days'}
+              </Text>
+              <Text style={[styles.fulfilmentDetailText, { color: '#c084fc' }]}>
+                • Expected Ready for Pickup: {getReadyDateString()}
+              </Text>
+              {product.productionNotes ? (
+                <Text style={styles.fulfilmentDetailText}>
+                  • Craft Notes: {product.productionNotes}
+                </Text>
+              ) : null}
+              <Text style={styles.fulfilmentNotice}>
+                Notice: Preparation time is the seller's production duration before dispatch. Courier delivery transit is calculated separately.
+              </Text>
+            </View>
+          ) : (
+            <Text style={[styles.fulfilmentDetailText, { marginTop: 6, color: '#10b981' }]}>
+              Product is ready in stock and dispatches within 24 hours of order confirmation.
+            </Text>
+          )}
         </View>
 
         {/* Variants Selector */}
@@ -240,22 +333,26 @@ export const ProductDetailScreen: React.FC = () => {
       <View style={styles.bottomBar}>
         <TouchableOpacity
           onPress={handleAddToCart}
-          disabled={isAdding || product.stockQuantity <= 0}
-          style={styles.cartBtn}
+          disabled={isAdding || !isOrderable}
+          style={[styles.cartBtn, !isOrderable && { opacity: 0.5 }]}
           activeOpacity={0.8}
         >
           <ShoppingCart size={16} color={colors.foreground} />
-          <Text style={styles.cartBtnText}>Add to Cart</Text>
+          <Text style={styles.cartBtnText}>
+            {isCapacityFull ? 'Capacity Full' : 'Add to Cart'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={handleBuyNow}
-          disabled={product.stockQuantity <= 0}
-          style={styles.buyBtn}
+          disabled={!isOrderable}
+          style={[styles.buyBtn, !isOrderable && { opacity: 0.5 }]}
           activeOpacity={0.8}
         >
           <Zap size={16} color={colors.primaryForeground} />
-          <Text style={styles.buyBtnText}>Buy Now</Text>
+          <Text style={styles.buyBtnText}>
+            {isCapacityFull ? 'Capacity Full' : 'Buy Now'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -356,6 +453,33 @@ const styles = StyleSheet.create({
     color: '#10b981',
     fontSize: 11,
     fontWeight: '700',
+  },
+  fulfilmentCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 12,
+    marginBottom: 16,
+  },
+  fulfilmentTitle: {
+    color: colors.foreground,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  fulfilmentDetailText: {
+    color: colors.foregroundMuted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  fulfilmentNotice: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 10,
+    lineHeight: 15,
+    marginTop: 4,
+    backgroundColor: 'rgba(168, 85, 247, 0.08)',
+    padding: 8,
+    borderRadius: 8,
   },
   section: {
     marginTop: 20,

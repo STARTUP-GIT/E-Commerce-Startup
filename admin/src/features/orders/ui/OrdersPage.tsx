@@ -117,7 +117,16 @@ export function OrdersPage() {
               <TableBody>
                 {orders.map((order: any) => (
                   <TableRow key={order.id}>
-                    <TableCell className="font-bold text-white/90 text-xs">{order.orderNumber ?? order.id?.slice(0, 8)}</TableCell>
+                    <TableCell className="font-bold text-white/90 text-xs">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span>{order.orderNumber ?? order.id?.slice(0, 8)}</span>
+                        {order.sellerOrders?.some((so: any) => so.items?.some((it: any) => it.fulfilmentType === 'MADE_TO_ORDER')) && (
+                          <Badge variant="outline" className="text-[8px] border-purple-500 text-purple-400">
+                            MTO
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-xs text-white/60">{order.customer?.firstName ?? order.customerId}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-[9px] font-bold">

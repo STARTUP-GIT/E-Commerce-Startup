@@ -215,7 +215,28 @@ export function OrderDetailPage() {
               <TableBody>
                 {order.items && order.items.map((item: any) => (
                   <TableRow key={item.id}>
-                    <TableCell className="text-xs font-bold text-white/90">{item.productName}</TableCell>
+                    <TableCell className="text-xs font-bold text-white/90">
+                      <div>{item.productName}</div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {item.fulfilmentType === 'MADE_TO_ORDER' ? (
+                          <Badge variant="outline" className="text-[8px] border-purple-500 text-purple-400">
+                            Made to Order ({item.minPrepDays || 1}–{item.maxPrepDays || 1} {item.prepTimeType === 'BUSINESS_DAYS' ? 'biz days' : 'days'})
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[8px] text-emerald-400">
+                            Ready to Ship
+                          </Badge>
+                        )}
+                        {item.estimatedReadyDate && (
+                          <span className="text-[10px] text-purple-300">
+                            Est. Ready: {new Date(item.estimatedReadyDate).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                      {item.productionNotes && (
+                        <div className="text-[10px] text-white/40 italic mt-0.5">Note: {item.productionNotes}</div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs text-white/60">{item.quantity}</TableCell>
                     <TableCell className="text-xs text-white/60">{formatPrice(item.unitPrice)}</TableCell>
                     <TableCell className="text-xs font-semibold text-white/90 text-right">{formatPrice(item.totalPrice)}</TableCell>

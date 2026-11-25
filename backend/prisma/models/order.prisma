@@ -81,6 +81,8 @@ model SellerOrder {
   platformCommission     Decimal              @default(0) @db.Decimal(12, 2)
   sellerEarnings         Decimal              @default(0) @db.Decimal(12, 2)
   readyByAt              DateTime?
+  preparationStartedAt   DateTime?
+  targetReadyDate        DateTime?
   acceptedAt             DateTime?
   rejectedAt             DateTime?
   rejectionReason        String?

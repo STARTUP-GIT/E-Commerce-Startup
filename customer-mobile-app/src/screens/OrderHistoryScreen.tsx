@@ -83,6 +83,11 @@ export const OrderHistoryScreen: React.FC = () => {
                       {order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'Online / Razorpay'}
                     </Text>
                   </View>
+                  {order.sellerOrders?.some((so) => so.items?.some((it) => it.fulfilmentType === 'MADE_TO_ORDER')) && (
+                    <View style={[styles.tagBadge, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
+                      <Text style={[styles.tagText, { color: '#c084fc' }]}>Made to Order</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Details Row */}

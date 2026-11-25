@@ -166,9 +166,23 @@ export function ShopDetailsPage({ shopId }: { shopId: string }) {
                           <Package className="h-10 w-10 text-muted-foreground" />
                         </div>
                       )}
-                      {prod.stockQuantity <= 0 && (
+                      {prod.fulfilmentType === 'MADE_TO_ORDER' ? (
+                        <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-purple-600/90 text-[10px] font-bold text-white uppercase shadow-sm">
+                          Made to Order
+                        </span>
+                      ) : (
+                        <span className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-emerald-600/90 text-[10px] font-bold text-white uppercase shadow-sm">
+                          Ready to Ship
+                        </span>
+                      )}
+                      {prod.stockQuantity <= 0 && prod.fulfilmentType !== 'MADE_TO_ORDER' && (
                         <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-red-500/90 text-[10px] font-bold text-white uppercase">
                           Out of stock
+                        </span>
+                      )}
+                      {prod.fulfilmentType === 'MADE_TO_ORDER' && prod.maxConcurrentOrders && (prod.activeProductionOrders || 0) >= prod.maxConcurrentOrders && (
+                        <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-amber-500/90 text-[10px] font-bold text-white uppercase">
+                          Capacity Full
                         </span>
                       )}
                     </div>

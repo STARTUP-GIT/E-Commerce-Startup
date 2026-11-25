@@ -207,6 +207,15 @@ export const ProductsScreen: React.FC = () => {
                   ) : (
                     <Package size={28} color={colors.foregroundDim} />
                   )}
+                  {item.fulfilmentType === 'MADE_TO_ORDER' ? (
+                    <View style={[styles.fulfilmentBadge, { backgroundColor: 'rgba(168, 85, 247, 0.9)' }]}>
+                      <Text style={styles.fulfilmentBadgeText}>Made to Order</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.fulfilmentBadge, { backgroundColor: 'rgba(16, 185, 129, 0.9)' }]}>
+                      <Text style={styles.fulfilmentBadgeText}>Ready to Ship</Text>
+                    </View>
+                  )}
                   {item.shop && (
                     <View style={styles.shopBadge}>
                       <Text style={styles.shopBadgeText} numberOfLines={1}>
@@ -417,6 +426,20 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 6,
     maxWidth: '85%',
+  },
+  fulfilmentBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  fulfilmentBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   shopBadgeText: {
     color: 'rgba(255, 255, 255, 0.9)',

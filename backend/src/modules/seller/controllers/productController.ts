@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 
 import { prisma } from "../../../config/prisma.js";
 import { invalidatePublicCache } from "../../../middleware/cache.js";
+import { FulfilmentService } from "../../../services/fulfilment/fulfilment.service.js";
 
 
 interface Products {
@@ -10,6 +11,12 @@ interface Products {
     productprice: number
     imageUrl: string;
     categoryId?: string;
+    fulfilmentType?: string;
+    minPrepDays?: number | null;
+    maxPrepDays?: number | null;
+    prepTimeType?: string | null;
+    productionNotes?: string | null;
+    maxConcurrentOrders?: number | null;
 }
 
 export const addProducts = async (req: Request, res: Response) => {
@@ -21,6 +28,12 @@ export const addProducts = async (req: Request, res: Response) => {
             productprice,
             imageUrl,
             categoryId,
+            fulfilmentType,
+            minPrepDays,
+            maxPrepDays,
+            prepTimeType,
+            productionNotes,
+            maxConcurrentOrders,
         }: Products = req.body;
 
         const sellerId = req.sellerId;
@@ -34,25 +47,32 @@ export const addProducts = async (req: Request, res: Response) => {
         if (
             !productname?.trim() ||
             !imageUrl?.trim() ||
-            productquantity === undefined ||
             productprice === undefined
         ) {
             return res.status(400).json({
-                message: "Enter all fields"
-            });
-        }
-
-        if (productquantity <= 0) {
-            return res.status(400).json({
-                message:
-                    "Product quantity cannot be less than one"
+                message: "Enter all required fields (name, image, price)"
             });
         }
 
         if (productprice <= 0) {
             return res.status(400).json({
-                message:
-                    "Product price must be greater than 0"
+                message: "Product price must be greater than 0"
+            });
+        }
+
+        const fulfilmentValidation = FulfilmentService.validate({
+            fulfilmentType,
+            stockQuantity: productquantity,
+            minPrepDays,
+            maxPrepDays,
+            prepTimeType,
+            productionNotes,
+            maxConcurrentOrders,
+        }, true);
+
+        if (!fulfilmentValidation.valid || !fulfilmentValidation.data) {
+            return res.status(400).json({
+                message: fulfilmentValidation.error || "Invalid fulfilment settings"
             });
         }
 
@@ -122,11 +142,17 @@ export const addProducts = async (req: Request, res: Response) => {
             await prisma.product.create({
                 data: {
                     name: productname.trim(),
-                    stockQuantity: productquantity,
+                    stockQuantity: fulfilmentValidation.data.stockQuantity,
                     price: productprice,
                     imageUrl: imageUrl.trim(),
                     categoryId: categoryId || null,
-                    sellerId: sellerId
+                    sellerId: sellerId,
+                    fulfilmentType: fulfilmentValidation.data.fulfilmentType,
+                    minPrepDays: fulfilmentValidation.data.minPrepDays,
+                    maxPrepDays: fulfilmentValidation.data.maxPrepDays,
+                    prepTimeType: fulfilmentValidation.data.prepTimeType,
+                    productionNotes: fulfilmentValidation.data.productionNotes,
+                    maxConcurrentOrders: fulfilmentValidation.data.maxConcurrentOrders,
                 }
             });
 
@@ -215,27 +241,29 @@ export const EditProduct = async (req: Request, res: Response) => {
             productprice,
             imageUrl,
             categoryId,
+            fulfilmentType,
+            minPrepDays,
+            maxPrepDays,
+            prepTimeType,
+            productionNotes,
+            maxConcurrentOrders,
         } = req.body;
 
         if (
             productquantity === undefined &&
             productprice === undefined &&
             imageUrl === undefined &&
-            categoryId === undefined
+            categoryId === undefined &&
+            fulfilmentType === undefined &&
+            minPrepDays === undefined &&
+            maxPrepDays === undefined &&
+            prepTimeType === undefined &&
+            productionNotes === undefined &&
+            maxConcurrentOrders === undefined
         ) {
             return res.status(400).json({
                 message:
-                    "Provide quantity, price, image or category to update"
-            });
-        }
-
-        if (
-            productquantity !== undefined &&
-            productquantity <= 0
-        ) {
-            return res.status(400).json({
-                message:
-                    "Product quantity cannot be less than one"
+                    "Provide at least one field to update"
             });
         }
 
@@ -275,15 +303,44 @@ export const EditProduct = async (req: Request, res: Response) => {
             });
         }
 
+        // Validate fulfilment settings
+        const effectiveFulfilmentType = fulfilmentType || product.fulfilmentType;
+        const effectiveStock = productquantity !== undefined ? productquantity : product.stockQuantity;
+        const effectiveMinDays = minPrepDays !== undefined ? minPrepDays : product.minPrepDays;
+        const effectiveMaxDays = maxPrepDays !== undefined ? maxPrepDays : product.maxPrepDays;
+        const effectivePrepType = prepTimeType !== undefined ? prepTimeType : product.prepTimeType;
+        const effectiveNotes = productionNotes !== undefined ? productionNotes : product.productionNotes;
+        const effectiveMaxConcurrent = maxConcurrentOrders !== undefined ? maxConcurrentOrders : product.maxConcurrentOrders;
+
+        const fulfilmentValidation = FulfilmentService.validate({
+            fulfilmentType: effectiveFulfilmentType,
+            stockQuantity: effectiveStock,
+            minPrepDays: effectiveMinDays,
+            maxPrepDays: effectiveMaxDays,
+            prepTimeType: effectivePrepType,
+            productionNotes: effectiveNotes,
+            maxConcurrentOrders: effectiveMaxConcurrent,
+        }, false);
+
+        if (!fulfilmentValidation.valid || !fulfilmentValidation.data) {
+            return res.status(400).json({
+                message: fulfilmentValidation.error || "Invalid fulfilment settings"
+            });
+        }
+
         const updatedProduct =
             await prisma.product.update({
                 where: {
                     id: productId as string
                 },
                 data: {
-                    ...(productquantity !== undefined && {
-                        stockQuantity: productquantity
-                    }),
+                    stockQuantity: fulfilmentValidation.data.stockQuantity,
+                    fulfilmentType: fulfilmentValidation.data.fulfilmentType,
+                    minPrepDays: fulfilmentValidation.data.minPrepDays,
+                    maxPrepDays: fulfilmentValidation.data.maxPrepDays,
+                    prepTimeType: fulfilmentValidation.data.prepTimeType,
+                    productionNotes: fulfilmentValidation.data.productionNotes,
+                    maxConcurrentOrders: fulfilmentValidation.data.maxConcurrentOrders,
 
                     ...(productprice !== undefined && {
                         price: productprice

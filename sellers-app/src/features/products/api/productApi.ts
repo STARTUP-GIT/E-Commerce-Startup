@@ -8,6 +8,13 @@ export interface Product {
   imageUrl: string;
   isDeleted: boolean;
   categoryId?: string;
+  fulfilmentType?: 'READY_TO_SHIP' | 'MADE_TO_ORDER';
+  minPrepDays?: number | null;
+  maxPrepDays?: number | null;
+  prepTimeType?: 'CALENDAR_DAYS' | 'BUSINESS_DAYS' | null;
+  productionNotes?: string | null;
+  maxConcurrentOrders?: number | null;
+  activeProductionOrders?: number;
   createdAt: string;
 }
 
@@ -35,6 +42,12 @@ export const productApi = {
     productprice: number;
     imageUrl: string;
     categoryId?: string;
+    fulfilmentType?: 'READY_TO_SHIP' | 'MADE_TO_ORDER';
+    minPrepDays?: number | null;
+    maxPrepDays?: number | null;
+    prepTimeType?: 'CALENDAR_DAYS' | 'BUSINESS_DAYS' | null;
+    productionNotes?: string | null;
+    maxConcurrentOrders?: number | null;
   }): Promise<{ message: string; product: Product }> => {
     const response = await axiosInstance.post('/seller/api/products', payload);
     return response.data;
@@ -47,6 +60,12 @@ export const productApi = {
       productprice?: number;
       imageUrl?: string;
       categoryId?: string;
+      fulfilmentType?: 'READY_TO_SHIP' | 'MADE_TO_ORDER';
+      minPrepDays?: number | null;
+      maxPrepDays?: number | null;
+      prepTimeType?: 'CALENDAR_DAYS' | 'BUSINESS_DAYS' | null;
+      productionNotes?: string | null;
+      maxConcurrentOrders?: number | null;
     }
   ): Promise<{ message: string; product: Product }> => {
     const response = await axiosInstance.put(`/seller/api/products/${productId}`, payload);

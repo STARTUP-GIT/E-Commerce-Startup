@@ -30,6 +30,13 @@ export interface Product {
   images?: string[];
   isCustomizable?: boolean;
   isActive?: boolean;
+  fulfilmentType?: 'READY_TO_SHIP' | 'MADE_TO_ORDER';
+  minPrepDays?: number;
+  maxPrepDays?: number;
+  prepTimeType?: 'CALENDAR_DAYS' | 'BUSINESS_DAYS';
+  productionNotes?: string;
+  maxConcurrentOrders?: number;
+  activeProductionOrders?: number;
   shop?: {
     id: string;
     name: string;

@@ -4,6 +4,7 @@ import * as phonepeService from "./phonepe.service.js";
 import { sendPaymentNotification } from "../utils/paymentHelper.js";
 import { IndianGstService, roundCurrency } from "../../../services/gst/gst.service.js";
 import { ServiceabilityService } from "../../../services/location/serviceability.service.js";
+import { FulfilmentService } from "../../../services/fulfilment/fulfilment.service.js";
 
 // Helper to calculate payment totals (including packaging fees, shipping, platform fee placeholder, and GST)
 export const calculateTotals = async (params: {
@@ -178,16 +179,24 @@ export const calculateTotals = async (params: {
 
         sellerShopMap.set(seller.id, seller.shop);
 
-        let availableStock = product.stockQuantity;
-        if (item.productVariant) {
-            if (!item.productVariant.isActive) {
-                throw new Error(`Product variant '${item.productVariant.name}' is inactive.`);
+        if (product.fulfilmentType === "MADE_TO_ORDER") {
+            if (product.maxConcurrentOrders && product.maxConcurrentOrders > 0) {
+                if (product.activeProductionOrders + item.quantity > product.maxConcurrentOrders) {
+                    throw new Error(`Production capacity limit reached for Made to Order product '${product.name}' (${product.activeProductionOrders}/${product.maxConcurrentOrders} in production). Please try again later.`);
+                }
             }
-            availableStock = item.productVariant.stockQuantity;
-        }
+        } else {
+            let availableStock = product.stockQuantity;
+            if (item.productVariant) {
+                if (!item.productVariant.isActive) {
+                    throw new Error(`Product variant '${item.productVariant.name}' is inactive.`);
+                }
+                availableStock = item.productVariant.stockQuantity;
+            }
 
-        if (availableStock < item.quantity) {
-            throw new Error(`Insufficient stock for product '${product.name}'.`);
+            if (availableStock < item.quantity) {
+                throw new Error(`Insufficient stock for product '${product.name}'. Available: ${availableStock}, requested: ${item.quantity}.`);
+            }
         }
 
         const price = item.productVariant ? Number(item.productVariant.price) : Number(product.price);
@@ -632,6 +641,10 @@ export const verifyPayment = async (paymentData: {
             const sellerEarnings = sCalc ? (sCalc.sellerEarnings + sellerPackingFee) : (sellerSubtotal - platformCommission + sellerPackingFee);
             const sellerInvoiceNumber = IndianGstService.generateInvoiceNumber("INV-SEL-", Date.now() % 1000000);
 
+            // Calculate overall seller order target readiness date based on items
+            const sellerItems = cart.items.filter((item: any) => item.product.sellerId === sellerId);
+            const sellerReadiness = FulfilmentService.calculateOrderReadiness(new Date(), sellerItems.map((i: any) => i.product));
+
             const sellerOrder = await tx.sellerOrder.create({
                 data: {
                     orderId: order.id,
@@ -657,17 +670,19 @@ export const verifyPayment = async (paymentData: {
                     tcsIgstAmount: sCalc?.tcsIgstAmount || 0,
                     totalTcsAmount: sCalc?.totalTcsAmount || 0,
                     commissionGstAmount: sCalc?.commissionGstAmount || 0,
-                    invoiceNumber: sellerInvoiceNumber
+                    invoiceNumber: sellerInvoiceNumber,
+                    readyByAt: sellerReadiness.targetReadyDate,
+                    targetReadyDate: sellerReadiness.targetReadyDate,
                 }
             });
             createdSellerOrdersMap.set(sellerId, sellerOrder.id);
 
-            // Create items under this SellerOrder and reduce stock
-            const sellerItems = cart.items.filter((item: any) => item.product.sellerId === sellerId);
+            // Create items under this SellerOrder and reduce stock or reserve capacity
             for (const item of sellerItems) {
                 const price = item.productVariant ? Number(item.productVariant.price) : Number(item.product.price);
                 const total = price * item.quantity;
                 const itemCalc = sCalc?.items.find((i: any) => i.productId === item.productId && (!item.productVariantId || i.productVariantId === item.productVariantId));
+                const itemReadiness = FulfilmentService.calculateItemReadiness(new Date(), item.product);
 
                 await tx.orderItem.create({
                     data: {
@@ -689,26 +704,49 @@ export const verifyPayment = async (paymentData: {
                         sgstAmount: itemCalc?.taxLine.sgstAmount ?? 0,
                         igstRate: itemCalc?.taxLine.igstRate ?? 0,
                         igstAmount: itemCalc?.taxLine.igstAmount ?? 0,
-                        isTaxInclusive: itemCalc?.isTaxInclusive ?? false
+                        isTaxInclusive: itemCalc?.isTaxInclusive ?? false,
+                        fulfilmentType: item.product.fulfilmentType || "READY_TO_SHIP",
+                        minPrepDays: item.product.minPrepDays ?? null,
+                        maxPrepDays: item.product.maxPrepDays ?? null,
+                        prepTimeType: item.product.prepTimeType ?? "BUSINESS_DAYS",
+                        productionNotes: item.product.productionNotes ?? null,
+                        estimatedReadyDate: itemReadiness.maxReadyDate,
                     }
                 });
 
-                // Reduce stock safely using conditional updates to prevent negative stock
-                if (item.productVariantId) {
-                    const updated = await tx.productVariant.updateMany({
-                        where: { id: item.productVariantId, stockQuantity: { gte: item.quantity } },
-                        data: { stockQuantity: { decrement: item.quantity } }
-                    });
-                    if (updated.count === 0) {
-                        throw new Error(`Insufficient stock for product variant '${item.productVariant?.name || 'GENERIC'}'`);
+                // Reduce stock or track capacity safely
+                if (item.product.fulfilmentType === "MADE_TO_ORDER") {
+                    if (item.product.maxConcurrentOrders && item.product.maxConcurrentOrders > 0) {
+                        const updated = await tx.product.updateMany({
+                            where: {
+                                id: item.productId,
+                                activeProductionOrders: { lte: item.product.maxConcurrentOrders - item.quantity }
+                            },
+                            data: {
+                                activeProductionOrders: { increment: item.quantity }
+                            }
+                        });
+                        if (updated.count === 0) {
+                            throw new Error(`Production capacity limit reached for Made to Order product '${item.product.name}'`);
+                        }
                     }
                 } else {
-                    const updated = await tx.product.updateMany({
-                        where: { id: item.productId, stockQuantity: { gte: item.quantity } },
-                        data: { stockQuantity: { decrement: item.quantity } }
-                    });
-                    if (updated.count === 0) {
-                        throw new Error(`Insufficient stock for product '${item.product.name}'`);
+                    if (item.productVariantId) {
+                        const updated = await tx.productVariant.updateMany({
+                            where: { id: item.productVariantId, stockQuantity: { gte: item.quantity } },
+                            data: { stockQuantity: { decrement: item.quantity } }
+                        });
+                        if (updated.count === 0) {
+                            throw new Error(`Insufficient stock for product variant '${item.productVariant?.name || 'GENERIC'}'`);
+                        }
+                    } else {
+                        const updated = await tx.product.updateMany({
+                            where: { id: item.productId, stockQuantity: { gte: item.quantity } },
+                            data: { stockQuantity: { decrement: item.quantity } }
+                        });
+                        if (updated.count === 0) {
+                            throw new Error(`Insufficient stock for product '${item.product.name}'`);
+                        }
                     }
                 }
             }
@@ -1043,6 +1081,10 @@ export const processCodPayment = async (paymentData: {
             const sellerEarnings = sCalc ? (sCalc.sellerEarnings + sellerPackingFee) : (sellerSubtotal - platformCommission + sellerPackingFee);
             const sellerInvoiceNumber = IndianGstService.generateInvoiceNumber("INV-SEL-", Date.now() % 1000000);
 
+            // Calculate overall seller order target readiness date based on items
+            const sellerItems = cart.items.filter((item: any) => item.product.sellerId === sellerId);
+            const sellerReadiness = FulfilmentService.calculateOrderReadiness(new Date(), sellerItems.map((i: any) => i.product));
+
             const sellerOrder = await tx.sellerOrder.create({
                 data: {
                     orderId: order.id,
@@ -1068,16 +1110,18 @@ export const processCodPayment = async (paymentData: {
                     tcsIgstAmount: sCalc?.tcsIgstAmount || 0,
                     totalTcsAmount: sCalc?.totalTcsAmount || 0,
                     commissionGstAmount: sCalc?.commissionGstAmount || 0,
-                    invoiceNumber: sellerInvoiceNumber
+                    invoiceNumber: sellerInvoiceNumber,
+                    readyByAt: sellerReadiness.targetReadyDate,
+                    targetReadyDate: sellerReadiness.targetReadyDate,
                 }
             });
             createdSellerOrdersMap.set(sellerId, sellerOrder.id);
 
-            const sellerItems = cart.items.filter((item: any) => item.product.sellerId === sellerId);
             for (const item of sellerItems) {
                 const price = item.productVariant ? Number(item.productVariant.price) : Number(item.product.price);
                 const total = price * item.quantity;
                 const itemCalc = sCalc?.items.find((i: any) => i.productId === item.productId && (!item.productVariantId || i.productVariantId === item.productVariantId));
+                const itemReadiness = FulfilmentService.calculateItemReadiness(new Date(), item.product);
 
                 await tx.orderItem.create({
                     data: {
@@ -1099,25 +1143,49 @@ export const processCodPayment = async (paymentData: {
                         sgstAmount: itemCalc?.taxLine.sgstAmount ?? 0,
                         igstRate: itemCalc?.taxLine.igstRate ?? 0,
                         igstAmount: itemCalc?.taxLine.igstAmount ?? 0,
-                        isTaxInclusive: itemCalc?.isTaxInclusive ?? false
+                        isTaxInclusive: itemCalc?.isTaxInclusive ?? false,
+                        fulfilmentType: item.product.fulfilmentType || "READY_TO_SHIP",
+                        minPrepDays: item.product.minPrepDays ?? null,
+                        maxPrepDays: item.product.maxPrepDays ?? null,
+                        prepTimeType: item.product.prepTimeType ?? "BUSINESS_DAYS",
+                        productionNotes: item.product.productionNotes ?? null,
+                        estimatedReadyDate: itemReadiness.maxReadyDate,
                     }
                 });
 
-                if (item.productVariantId) {
-                    const updated = await tx.productVariant.updateMany({
-                        where: { id: item.productVariantId, stockQuantity: { gte: item.quantity } },
-                        data: { stockQuantity: { decrement: item.quantity } }
-                    });
-                    if (updated.count === 0) {
-                        throw new Error(`Insufficient stock for product variant '${item.productVariant?.name || 'GENERIC'}'`);
+                // Reduce stock or track capacity safely
+                if (item.product.fulfilmentType === "MADE_TO_ORDER") {
+                    if (item.product.maxConcurrentOrders && item.product.maxConcurrentOrders > 0) {
+                        const updated = await tx.product.updateMany({
+                            where: {
+                                id: item.productId,
+                                activeProductionOrders: { lte: item.product.maxConcurrentOrders - item.quantity }
+                            },
+                            data: {
+                                activeProductionOrders: { increment: item.quantity }
+                            }
+                        });
+                        if (updated.count === 0) {
+                            throw new Error(`Production capacity limit reached for Made to Order product '${item.product.name}'`);
+                        }
                     }
                 } else {
-                    const updated = await tx.product.updateMany({
-                        where: { id: item.productId, stockQuantity: { gte: item.quantity } },
-                        data: { stockQuantity: { decrement: item.quantity } }
-                    });
-                    if (updated.count === 0) {
-                        throw new Error(`Insufficient stock for product '${item.product.name}'`);
+                    if (item.productVariantId) {
+                        const updated = await tx.productVariant.updateMany({
+                            where: { id: item.productVariantId, stockQuantity: { gte: item.quantity } },
+                            data: { stockQuantity: { decrement: item.quantity } }
+                        });
+                        if (updated.count === 0) {
+                            throw new Error(`Insufficient stock for product variant '${item.productVariant?.name || 'GENERIC'}'`);
+                        }
+                    } else {
+                        const updated = await tx.product.updateMany({
+                            where: { id: item.productId, stockQuantity: { gte: item.quantity } },
+                            data: { stockQuantity: { decrement: item.quantity } }
+                        });
+                        if (updated.count === 0) {
+                            throw new Error(`Insufficient stock for product '${item.product.name}'`);
+                        }
                     }
                 }
             }

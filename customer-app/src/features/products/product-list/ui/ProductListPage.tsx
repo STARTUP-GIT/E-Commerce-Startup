@@ -255,9 +255,23 @@ export function ProductListPage() {
                             <Package className="h-6 w-6 sm:h-10 sm:w-10 text-muted-foreground" />
                           </div>
                         )}
-                        {prod.stockQuantity <= 0 && (
+                        {prod.fulfilmentType === 'MADE_TO_ORDER' ? (
+                          <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-1.5 sm:px-2 py-0.5 rounded-full bg-purple-600/90 backdrop-blur-sm text-[8px] sm:text-[10px] font-bold text-white uppercase shadow-sm">
+                            Made to Order
+                          </span>
+                        ) : (
+                          <span className="absolute top-2 left-2 sm:top-3 sm:left-3 px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-600/90 backdrop-blur-sm text-[8px] sm:text-[10px] font-bold text-white uppercase shadow-sm">
+                            Ready to Ship
+                          </span>
+                        )}
+                        {prod.stockQuantity <= 0 && prod.fulfilmentType !== 'MADE_TO_ORDER' && (
                           <span className="absolute top-2 right-2 sm:top-3 sm:right-3 px-1.5 sm:px-2 py-0.5 rounded-full bg-red-500/90 text-[8px] sm:text-[10px] font-bold text-white uppercase">
                             Out of stock
+                          </span>
+                        )}
+                        {prod.fulfilmentType === 'MADE_TO_ORDER' && prod.maxConcurrentOrders && (prod.activeProductionOrders || 0) >= prod.maxConcurrentOrders && (
+                          <span className="absolute top-2 right-2 sm:top-3 sm:right-3 px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-500/90 text-[8px] sm:text-[10px] font-bold text-white uppercase">
+                            Capacity Full
                           </span>
                         )}
                       </div>

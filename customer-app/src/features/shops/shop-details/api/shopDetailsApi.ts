@@ -17,6 +17,13 @@ export interface Product {
   stockQuantity: number;
   sellerId: string;
   categoryId: string;
+  fulfilmentType?: 'READY_TO_SHIP' | 'MADE_TO_ORDER';
+  minPrepDays?: number | null;
+  maxPrepDays?: number | null;
+  prepTimeType?: 'CALENDAR_DAYS' | 'BUSINESS_DAYS' | null;
+  productionNotes?: string | null;
+  maxConcurrentOrders?: number | null;
+  activeProductionOrders?: number;
   createdAt: string;
 }
 

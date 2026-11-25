@@ -62,10 +62,26 @@ export const getOrders = async ( req: Request,res: Response) => {
             take: 1000
         });
 
-        const mappedOrders = orders.map(o => ({
-            ...o,
-            totalPrice: Number(o.subtotal) + Number(o.shippingAmount) + Number(o.taxAmount) + Number(o.packingFee)
-        }));
+        const mappedOrders = orders.map(o => {
+            const deadline = o.targetReadyDate || o.readyByAt;
+            const isPendingOrProcessing = ["PENDING", "ACCEPTED", "PROCESSING"].includes(o.status);
+            const isOverdue = Boolean(deadline && isPendingOrProcessing && new Date() > new Date(deadline));
+            const isApproachingDeadline = Boolean(
+                deadline &&
+                isPendingOrProcessing &&
+                !isOverdue &&
+                (new Date(deadline).getTime() - Date.now() <= 24 * 60 * 60 * 1000)
+            );
+            const hasMadeToOrder = o.items?.some((i: any) => i.fulfilmentType === "MADE_TO_ORDER" || i.product?.fulfilmentType === "MADE_TO_ORDER");
+
+            return {
+                ...o,
+                totalPrice: Number(o.subtotal) + Number(o.shippingAmount) + Number(o.taxAmount) + Number(o.packingFee),
+                isOverdue,
+                isApproachingDeadline,
+                hasMadeToOrder,
+            };
+        });
 
         return res.status(200).json({
             count: mappedOrders.length,
@@ -149,9 +165,23 @@ export const seeOrders = async (
             });
         }
 
+        const deadline = order.targetReadyDate || order.readyByAt;
+        const isPendingOrProcessing = ["PENDING", "ACCEPTED", "PROCESSING"].includes(order.status);
+        const isOverdue = Boolean(deadline && isPendingOrProcessing && new Date() > new Date(deadline));
+        const isApproachingDeadline = Boolean(
+            deadline &&
+            isPendingOrProcessing &&
+            !isOverdue &&
+            (new Date(deadline).getTime() - Date.now() <= 24 * 60 * 60 * 1000)
+        );
+        const hasMadeToOrder = order.items?.some((i: any) => i.fulfilmentType === "MADE_TO_ORDER" || i.product?.fulfilmentType === "MADE_TO_ORDER");
+
         const mappedOrder = {
             ...order,
-            totalPrice: Number(order.subtotal) + Number(order.shippingAmount) + Number(order.taxAmount) + Number(order.packingFee)
+            totalPrice: Number(order.subtotal) + Number(order.shippingAmount) + Number(order.taxAmount) + Number(order.packingFee),
+            isOverdue,
+            isApproachingDeadline,
+            hasMadeToOrder,
         };
 
         return res.status(200).json({
@@ -197,7 +227,7 @@ export const acceptOrders = async (
                 id: orderId as string,
                 sellerId
             },
-            include: { order: true }
+            include: { order: true, items: { include: { product: true } } }
         });
 
         if (!order) {
@@ -212,13 +242,29 @@ export const acceptOrders = async (
             });
         }
 
+        const hasMadeToOrder = order.items?.some((i: any) => i.fulfilmentType === "MADE_TO_ORDER" || i.product?.fulfilmentType === "MADE_TO_ORDER");
+
         const updatedOrder = await prisma.sellerOrder.update({
             where: {
                 id: orderId as string
             },
             data: {
-                status: "PROCESSING" ,
-                acceptedAt: new Date()
+                status: "PROCESSING",
+                acceptedAt: new Date(),
+                preparationStartedAt: new Date(),
+            }
+        });
+
+        await prisma.orderTimelineEvent.create({
+            data: {
+                entityType: "SELLER_ORDER",
+                sellerOrderId: orderId as string,
+                orderId: order.orderId,
+                status: "PROCESSING",
+                title: hasMadeToOrder ? "Preparation Started" : "Order Accepted",
+                description: hasMadeToOrder
+                    ? "Seller has accepted the order and started preparation of made-to-order items."
+                    : "Seller has accepted the order and started processing for dispatch."
             }
         });
 
@@ -226,9 +272,11 @@ export const acceptOrders = async (
             notificationService.createNotification({
                 recipientType: "CUSTOMER",
                 recipientId: order.order.customerId,
-                type: "ORDER_CONFIRMED",
-                title: "Order Processing",
-                body: `Your order #${order.order.orderNumber} is now being processed by the seller.`,
+                type: hasMadeToOrder ? ("ORDER_PREPARATION_STARTED" as any) : "ORDER_CONFIRMED",
+                title: hasMadeToOrder ? "Preparation Started" : "Order Processing",
+                body: hasMadeToOrder
+                    ? `Preparation for your made-to-order item(s) in order #${order.order.orderNumber} has begun! Expected completion: ${order.targetReadyDate ? new Date(order.targetReadyDate).toLocaleDateString() : 'Soon'}.`
+                    : `Your order #${order.order.orderNumber} is now being processed by the seller.`,
                 data: { route: "/orders", entityType: "ORDER", entityId: order.orderId }
             }).catch(err => console.error("Accept order notify error:", err));
         }
@@ -284,7 +332,7 @@ export const rejectOrders = async (
                 id: orderId as string,
                 sellerId
             },
-            include: { order: true }
+            include: { order: true, items: true }
         });
 
         if (!order) {
@@ -299,15 +347,52 @@ export const rejectOrders = async (
             });
         }
 
-        const updatedOrder = await prisma.sellerOrder.update({
-            where: {
-                id: orderId as string
-            },
-            data: {
-                status: "CANCELLED",
-                rejectedAt: new Date(),
-                rejectionReason: reason.trim()
+        const updatedOrder = await prisma.$transaction(async (tx) => {
+            const updated = await tx.sellerOrder.update({
+                where: {
+                    id: orderId as string
+                },
+                data: {
+                    status: "CANCELLED",
+                    rejectedAt: new Date(),
+                    rejectionReason: reason.trim()
+                }
+            });
+
+            // Restore capacity or stock
+            for (const item of order.items || []) {
+                if (item.fulfilmentType === "MADE_TO_ORDER") {
+                    await tx.product.updateMany({
+                        where: { id: item.productId, activeProductionOrders: { gt: 0 } },
+                        data: { activeProductionOrders: { decrement: item.quantity } }
+                    });
+                } else {
+                    if (item.productVariantId) {
+                        await tx.productVariant.updateMany({
+                            where: { id: item.productVariantId },
+                            data: { stockQuantity: { increment: item.quantity } }
+                        });
+                    } else {
+                        await tx.product.updateMany({
+                            where: { id: item.productId },
+                            data: { stockQuantity: { increment: item.quantity } }
+                        });
+                    }
+                }
             }
+
+            await tx.orderTimelineEvent.create({
+                data: {
+                    entityType: "SELLER_ORDER",
+                    sellerOrderId: orderId as string,
+                    orderId: order.orderId,
+                    status: "CANCELLED",
+                    title: "Order Rejected",
+                    description: `Seller rejected the order: ${reason.trim()}`
+                }
+            });
+
+            return updated;
         });
 
         if (order.order?.customerId) {
@@ -375,7 +460,8 @@ export const setReadyTime = async (req: Request, res: Response) => {
             where: {
                 id: orderId as string,
                 sellerId
-            }
+            },
+            include: { order: true }
         });
 
         if (!order) {
@@ -389,12 +475,113 @@ export const setReadyTime = async (req: Request, res: Response) => {
                 id: orderId as string
             },
             data: {
-                readyByAt: readyDate
+                readyByAt: readyDate,
+                targetReadyDate: readyDate
             }
         });
 
+        await prisma.orderTimelineEvent.create({
+            data: {
+                entityType: "SELLER_ORDER",
+                sellerOrderId: orderId as string,
+                orderId: order.orderId,
+                status: order.status,
+                title: "Preparation Schedule Updated",
+                description: `Seller updated expected completion date to ${readyDate.toLocaleDateString()}.`
+            }
+        });
+
+        if (order.order?.customerId) {
+            notificationService.createNotification({
+                recipientType: "CUSTOMER",
+                recipientId: order.order.customerId,
+                type: "ORDER_PREPARATION_DELAY" as any,
+                title: "Preparation Schedule Update",
+                body: `The estimated ready date for order #${order.order.orderNumber} has been updated to ${readyDate.toLocaleDateString()}.`,
+                data: { route: "/orders", entityType: "ORDER", entityId: order.orderId }
+            }).catch(err => console.error("Preparation delay notify error:", err));
+        }
+
         return res.status(200).json({
             message: "Ready by time updated successfully",
+            order: updatedOrder
+        });
+
+    } catch (error) {
+        console.error("SET READY TIME ERROR:", error);
+        return res.status(500).json({
+            message: "Internal Server Error"
+        });
+    }
+};
+
+export const markReadyForPickup = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId;
+        const orderId = req.params.orderId;
+
+        if (!sellerId) return res.status(401).json({ message: "Unauthorized" });
+        if (!orderId) return res.status(400).json({ message: "Order ID is required" });
+
+        const order = await prisma.sellerOrder.findFirst({
+            where: { id: orderId as string, sellerId },
+            include: { order: true, items: { include: { product: true } } }
+        });
+
+        if (!order) return res.status(404).json({ message: "Order not found" });
+
+        const validStatuses = ["PENDING", "ACCEPTED", "PROCESSING"];
+        if (!validStatuses.includes(order.status)) {
+            return res.status(400).json({ message: `Order cannot be marked ready for pickup from status ${order.status}` });
+        }
+
+        const now = new Date();
+        const updatedOrder = await prisma.$transaction(async (tx) => {
+            const updated = await tx.sellerOrder.update({
+                where: { id: orderId as string },
+                data: {
+                    status: "READY_FOR_PICKUP",
+                    readyByAt: now
+                }
+            });
+
+            // Decrement activeProductionOrders for made-to-order items to release capacity
+            for (const item of order.items) {
+                if (item.fulfilmentType === "MADE_TO_ORDER" && item.product.maxConcurrentOrders) {
+                    await tx.product.updateMany({
+                        where: { id: item.productId, activeProductionOrders: { gt: 0 } },
+                        data: { activeProductionOrders: { decrement: item.quantity } }
+                    });
+                }
+            }
+
+            await tx.orderTimelineEvent.create({
+                data: {
+                    entityType: "SELLER_ORDER",
+                    sellerOrderId: orderId as string,
+                    orderId: order.orderId,
+                    status: "READY_FOR_PICKUP",
+                    title: "Product Ready for Pickup",
+                    description: "Product preparation has completed and is ready for pickup/delivery."
+                }
+            });
+
+            return updated;
+        });
+
+        if (order.order?.customerId) {
+            notificationService.createNotification({
+                recipientType: "CUSTOMER",
+                recipientId: order.order.customerId,
+                type: "ORDER_READY_FOR_PICKUP" as any,
+                title: "Product Ready for Pickup",
+                body: `Good news! Your order #${order.order.orderNumber} items are prepared and ready for pickup/delivery.`,
+                data: { route: "/orders", entityType: "ORDER", entityId: order.orderId }
+            }).catch(err => console.error("Mark ready notify error:", err));
+        }
+
+        return res.status(200).json({
+            message: "Order marked ready for pickup successfully",
             order: updatedOrder
         });
 

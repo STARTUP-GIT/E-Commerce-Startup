@@ -65,6 +65,8 @@ export function OrderDetailPage() {
     isDownloadingShippingLabel,
     downloadInvoice,
     isDownloadingInvoice,
+    markReadyForPickup,
+    isMarkingReadyForPickup,
   } = useOrders(orderId);
 
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState('');
@@ -113,6 +115,17 @@ export function OrderDetailPage() {
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to download invoice.');
+    }
+  };
+
+  const handleMarkReadyForPickup = async () => {
+    if (!order) return;
+    setErrorMsg(null);
+    try {
+      await markReadyForPickup(order.id);
+      showToast('Order marked ready for pickup', 'success');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to mark ready for pickup.');
     }
   };
 
@@ -325,9 +338,18 @@ export function OrderDetailPage() {
 
             {(order.status === 'PROCESSING' || order.status === 'ACCEPTED') && (
               <>
+                <Button
+                  onClick={handleMarkReadyForPickup}
+                  isLoading={isMarkingReadyForPickup}
+                  size="sm"
+                  className="bg-purple-600 hover:bg-purple-500 font-bold"
+                >
+                  <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
+                  <span>Mark Ready for Pickup</span>
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setReadyOpen(true)}>
                   <Clock className="mr-1.5 h-3.5 w-3.5" />
-                  <span>Set Preparation Time</span>
+                  <span>Update Ready Deadline</span>
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setProofOpen(true)}>
                   <Upload className="mr-1.5 h-3.5 w-3.5" />
@@ -439,7 +461,35 @@ export function OrderDetailPage() {
                           </div>
                         </TableCell>
                         <TableCell className="font-semibold text-white/90 text-xs">
-                          {item?.product?.name}
+                          <div>
+                            <span>{item?.product?.name}</span>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                              {item.fulfilmentType === 'MADE_TO_ORDER' ? (
+                                <>
+                                  <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[8px] font-extrabold">
+                                    Made to Order
+                                  </Badge>
+                                  <span className="text-[10px] text-purple-300/80">
+                                    Prep: {productService.formatPrepTime(item.minPrepDays, item.maxPrepDays, item.prepTimeType)}
+                                  </span>
+                                  {item.estimatedReadyDate && (
+                                    <span className="text-[9px] text-white/40">
+                                      (Target: {ordersService.formatDate(item.estimatedReadyDate)})
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[8px] font-extrabold">
+                                  Ready to Ship
+                                </Badge>
+                              )}
+                            </div>
+                            {item.productionNotes && (
+                              <p className="text-[10px] text-white/50 italic mt-1 bg-white/[0.02] p-1.5 rounded-lg border border-white/5">
+                                Note: {item.productionNotes}
+                              </p>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-xs">
                           {productService.formatPrice(Number(item.unitPrice))}

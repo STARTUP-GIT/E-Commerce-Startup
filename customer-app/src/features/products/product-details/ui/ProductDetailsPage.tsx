@@ -88,6 +88,41 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
   const stockAvailable = selectedVariant ? selectedVariant.stockQuantity : product.stockQuantity;
   const isWishlisted = wishlist?.items?.some((item) => item.productId === product.id) || false;
 
+  const isMadeToOrder = product.fulfilmentType === 'MADE_TO_ORDER';
+  const isCapacityFull = isMadeToOrder && !!product.maxConcurrentOrders && (product.activeProductionOrders || 0) >= product.maxConcurrentOrders;
+  const isOrderable = isMadeToOrder ? !isCapacityFull : stockAvailable > 0;
+
+  const calculateReadyDates = () => {
+    const minDays = product.minPrepDays || 1;
+    const maxDays = product.maxPrepDays || minDays;
+    const isBiz = product.prepTimeType === 'BUSINESS_DAYS';
+
+    const addDays = (start: Date, days: number, bizOnly: boolean) => {
+      const d = new Date(start);
+      if (!bizOnly) {
+        d.setDate(d.getDate() + days);
+        return d;
+      }
+      let added = 0;
+      while (added < days) {
+        d.setDate(d.getDate() + 1);
+        const day = d.getDay();
+        if (day !== 0 && day !== 6) added++;
+      }
+      return d;
+    };
+
+    const now = new Date();
+    const minDate = addDays(now, minDays, isBiz);
+    const maxDate = addDays(now, maxDays, isBiz);
+    const format = (d: Date) => d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+
+    if (minDays === maxDays) {
+      return format(minDate);
+    }
+    return `${format(minDate)} – ${format(maxDate)}`;
+  };
+
   const handleAddToCart = () => {
     handleAuthenticatedAction(() => {
       addToCart(
@@ -227,12 +262,81 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
             <div className="text-right shrink-0">
               <span
                 className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider ${
-                  stockAvailable > 0 ? 'text-emerald-500' : 'text-red-500'
+                  isMadeToOrder
+                    ? isCapacityFull
+                      ? 'text-amber-500'
+                      : 'text-purple-400'
+                    : stockAvailable > 0
+                    ? 'text-emerald-500'
+                    : 'text-red-500'
                 }`}
               >
-                {stockAvailable > 0 ? `In Stock (${stockAvailable})` : 'Out of stock'}
+                {isMadeToOrder
+                  ? isCapacityFull
+                    ? 'Capacity Full'
+                    : 'Crafted to Order'
+                  : stockAvailable > 0
+                  ? `In Stock (${stockAvailable})`
+                  : 'Out of stock'}
               </span>
             </div>
+          </div>
+
+          {/* Fulfilment & Dispatch Details */}
+          <div className="p-4 rounded-xl border border-border bg-zinc-950/40 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-primary" />
+                <span className="text-xs sm:text-sm font-bold text-foreground">Fulfilment &amp; Preparation</span>
+              </div>
+              <Badge variant={isMadeToOrder ? 'outline' : 'secondary'} className={isMadeToOrder ? 'border-purple-500 text-purple-400' : 'text-emerald-400'}>
+                {isMadeToOrder ? 'Made to Order' : 'Ready to Ship'}
+              </Badge>
+            </div>
+
+            {isMadeToOrder ? (
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Preparation estimate:</span>
+                  <span className="font-semibold text-foreground">
+                    {product.minPrepDays}–{product.maxPrepDays} {product.prepTimeType === 'BUSINESS_DAYS' ? 'business days' : 'calendar days'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Expected ready for pickup:</span>
+                  <span className="font-semibold text-purple-400">
+                    {calculateReadyDates()}
+                  </span>
+                </div>
+                {product.maxConcurrentOrders ? (
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Active production capacity:</span>
+                    <span className="font-semibold text-foreground">
+                      {product.activeProductionOrders || 0} / {product.maxConcurrentOrders} in progress
+                    </span>
+                  </div>
+                ) : null}
+                {product.productionNotes && (
+                  <div className="p-2.5 rounded-lg bg-zinc-900 border border-border text-[11px] text-muted-foreground">
+                    <span className="font-semibold text-foreground block mb-0.5">Crafting Notes:</span>
+                    {product.productionNotes}
+                  </div>
+                )}
+                <div className="text-[11px] text-zinc-400 bg-purple-500/10 p-2.5 rounded-lg border border-purple-500/20 leading-relaxed">
+                  Notice: Preparation time is the period required by the maker to handcraft or prepare your item. Delivery transit time is added once the order is ready for pickup.
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5 text-xs text-muted-foreground">
+                <div className="flex items-center justify-between">
+                  <span>Dispatch speed:</span>
+                  <span className="font-semibold text-emerald-400">Ready to dispatch immediately</span>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  In stock at seller warehouse. Dispatched within 24 hours of order confirmation.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Description */}
@@ -292,15 +396,15 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
               <button
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                 className="px-2.5 sm:px-3 h-full hover:bg-accent text-sm font-bold cursor-pointer"
-                disabled={stockAvailable <= 0}
+                disabled={!isOrderable}
               >
                 -
               </button>
               <span className="px-3 sm:px-4 text-sm font-bold text-foreground min-w-[2ch] text-center">{quantity}</span>
               <button
-                onClick={() => setQuantity((q) => Math.min(stockAvailable, q + 1))}
+                onClick={() => setQuantity((q) => Math.min(isMadeToOrder ? 99 : stockAvailable, q + 1))}
                 className="px-2.5 sm:px-3 h-full hover:bg-accent text-sm font-bold cursor-pointer"
-                disabled={stockAvailable <= 0}
+                disabled={!isOrderable}
               >
                 +
               </button>
@@ -309,20 +413,20 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
             <Button
               onClick={handleAddToCart}
               isLoading={isAdding}
-              disabled={stockAvailable <= 0}
+              disabled={!isOrderable}
               className="flex-1 min-w-[100px] flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-5 text-xs sm:text-sm cursor-pointer"
             >
               <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="xs:inline">Cart</span>
+              <span className="xs:inline">{isCapacityFull ? 'Capacity Full' : 'Cart'}</span>
             </Button>
 
             <Button
               onClick={handleBuyNow}
-              disabled={stockAvailable <= 0}
+              disabled={!isOrderable}
               className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-5 text-xs sm:text-sm cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold"
             >
               <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              Buy
+              {isCapacityFull ? 'Capacity Full' : 'Buy'}
             </Button>
 
             <Button

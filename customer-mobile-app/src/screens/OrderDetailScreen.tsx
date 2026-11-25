@@ -98,6 +98,11 @@ export const OrderDetailScreen: React.FC = () => {
                       : 'Seller Delivery'}
                   </Text>
                 ) : null}
+                {so.targetReadyDate ? (
+                  <Text style={{ fontSize: 10, color: '#c084fc', marginLeft: 8, fontWeight: '600' }}>
+                    Ready by: {new Date(so.targetReadyDate).toLocaleDateString()}
+                  </Text>
+                ) : null}
               </View>
 
               {so.items.map((item) => (
@@ -106,6 +111,23 @@ export const OrderDetailScreen: React.FC = () => {
                     <Text style={styles.itemName}>{item.productName}</Text>
                     {item.variantName ? (
                       <Text style={styles.variantName}>Option: {item.variantName}</Text>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 2 }}>
+                      <Text style={{ fontSize: 10, color: item.fulfilmentType === 'MADE_TO_ORDER' ? '#c084fc' : '#10b981', fontWeight: '700' }}>
+                        {item.fulfilmentType === 'MADE_TO_ORDER'
+                          ? `Made to Order (${item.minPrepDays || 1}–${item.maxPrepDays || 1} ${item.prepTimeType === 'BUSINESS_DAYS' ? 'biz days' : 'days'})`
+                          : 'Ready to Ship'}
+                      </Text>
+                      {item.estimatedReadyDate ? (
+                        <Text style={{ fontSize: 10, color: '#c084fc' }}>
+                          Est: {new Date(item.estimatedReadyDate).toLocaleDateString()}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {item.productionNotes ? (
+                      <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
+                        Note: {item.productionNotes}
+                      </Text>
                     ) : null}
                     <Text style={styles.itemQty}>Qty: {item.quantity}</Text>
                   </View>

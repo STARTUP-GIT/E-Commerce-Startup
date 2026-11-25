@@ -14,6 +14,13 @@ model Product {
   taxReviewStatus String             @default("APPROVED") @db.VarChar(30)
   status          ProductStatus      @default(ACTIVE)
   stockQuantity   Int                @default(0)
+  fulfilmentType  FulfilmentType     @default(READY_TO_SHIP)
+  minPrepDays     Int?
+  maxPrepDays     Int?
+  prepTimeType    PrepTimeType?      @default(BUSINESS_DAYS)
+  productionNotes String?
+  maxConcurrentOrders Int?
+  activeProductionOrders Int           @default(0)
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   deletedAt       DateTime?

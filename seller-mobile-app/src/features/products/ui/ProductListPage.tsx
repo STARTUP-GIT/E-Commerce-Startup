@@ -56,6 +56,12 @@ export function ProductListPage({ navigation }: ProductListPageProps) {
   const [price, setPrice] = useState('0');
   const [imageUrl, setImageUrl] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [fulfilmentType, setFulfilmentType] = useState<'READY_TO_SHIP' | 'MADE_TO_ORDER'>('READY_TO_SHIP');
+  const [minPrepDays, setMinPrepDays] = useState('2');
+  const [maxPrepDays, setMaxPrepDays] = useState('5');
+  const [prepTimeType, setPrepTimeType] = useState<'CALENDAR_DAYS' | 'BUSINESS_DAYS'>('CALENDAR_DAYS');
+  const [productionNotes, setProductionNotes] = useState('');
+  const [maxConcurrentOrders, setMaxConcurrentOrders] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const { pickAndUpload, isUploading } = useFileUpload({ folder: 'products' });
@@ -80,6 +86,12 @@ export function ProductListPage({ navigation }: ProductListPageProps) {
     setPrice('0');
     setImageUrl('');
     setCategoryId(categories[0]?.id || '');
+    setFulfilmentType('READY_TO_SHIP');
+    setMinPrepDays('2');
+    setMaxPrepDays('5');
+    setPrepTimeType('CALENDAR_DAYS');
+    setProductionNotes('');
+    setMaxConcurrentOrders('');
     setIsCreateOpen(true);
   };
 
@@ -89,19 +101,34 @@ export function ProductListPage({ navigation }: ProductListPageProps) {
     setPrice(prod.price.toString());
     setImageUrl(prod.imageUrl);
     setCategoryId(prod.categoryId || '');
+    setFulfilmentType(prod.fulfilmentType || 'READY_TO_SHIP');
+    setMinPrepDays(prod.minPrepDays ? prod.minPrepDays.toString() : '2');
+    setMaxPrepDays(prod.maxPrepDays ? prod.maxPrepDays.toString() : '5');
+    setPrepTimeType(prod.prepTimeType || 'CALENDAR_DAYS');
+    setProductionNotes(prod.productionNotes || '');
+    setMaxConcurrentOrders(prod.maxConcurrentOrders ? prod.maxConcurrentOrders.toString() : '');
     setIsEditOpen(true);
   };
 
   const handleCreateSubmit = async () => {
-    const pQuantity = parseInt(quantity, 10);
+    const pQuantity = parseInt(quantity, 10) || 0;
     const pPrice = parseFloat(price);
+    const pMinPrep = fulfilmentType === 'MADE_TO_ORDER' ? parseInt(minPrepDays, 10) : undefined;
+    const pMaxPrep = fulfilmentType === 'MADE_TO_ORDER' ? parseInt(maxPrepDays, 10) : undefined;
+    const pMaxCap = maxConcurrentOrders ? parseInt(maxConcurrentOrders, 10) : undefined;
 
     const validation = productService.validateCreate({
       productname: name,
-      productquantity: pQuantity,
+      productquantity: fulfilmentType === 'READY_TO_SHIP' ? pQuantity : 0,
       productprice: pPrice,
       imageKey: imageUrl,
       categoryId,
+      fulfilmentType,
+      minPrepDays: pMinPrep,
+      maxPrepDays: pMaxPrep,
+      prepTimeType: fulfilmentType === 'MADE_TO_ORDER' ? prepTimeType : undefined,
+      productionNotes: fulfilmentType === 'MADE_TO_ORDER' ? productionNotes : undefined,
+      maxConcurrentOrders: fulfilmentType === 'MADE_TO_ORDER' ? pMaxCap : undefined,
     });
 
     if (!validation.valid) {
@@ -113,10 +140,16 @@ export function ProductListPage({ navigation }: ProductListPageProps) {
     try {
       await createProduct({
         productname: name.trim(),
-        productquantity: pQuantity,
+        productquantity: fulfilmentType === 'READY_TO_SHIP' ? pQuantity : 0,
         productprice: pPrice,
         imageUrl,
         categoryId: categoryId || undefined,
+        fulfilmentType,
+        minPrepDays: pMinPrep,
+        maxPrepDays: pMaxPrep,
+        prepTimeType: fulfilmentType === 'MADE_TO_ORDER' ? prepTimeType : undefined,
+        productionNotes: fulfilmentType === 'MADE_TO_ORDER' ? productionNotes.trim() : undefined,
+        maxConcurrentOrders: fulfilmentType === 'MADE_TO_ORDER' ? pMaxCap : undefined,
       });
       showToast('Product created successfully', 'success');
       setIsCreateOpen(false);
@@ -129,14 +162,23 @@ export function ProductListPage({ navigation }: ProductListPageProps) {
 
   const handleEditSubmit = async () => {
     if (!selectedProduct) return;
-    const pQuantity = parseInt(quantity, 10);
+    const pQuantity = parseInt(quantity, 10) || 0;
     const pPrice = parseFloat(price);
+    const pMinPrep = fulfilmentType === 'MADE_TO_ORDER' ? parseInt(minPrepDays, 10) : undefined;
+    const pMaxPrep = fulfilmentType === 'MADE_TO_ORDER' ? parseInt(maxPrepDays, 10) : undefined;
+    const pMaxCap = maxConcurrentOrders ? parseInt(maxConcurrentOrders, 10) : undefined;
 
     const validation = productService.validateEdit({
-      productquantity: pQuantity,
+      productquantity: fulfilmentType === 'READY_TO_SHIP' ? pQuantity : 0,
       productprice: pPrice,
       imageKey: imageUrl,
       categoryId,
+      fulfilmentType,
+      minPrepDays: pMinPrep,
+      maxPrepDays: pMaxPrep,
+      prepTimeType: fulfilmentType === 'MADE_TO_ORDER' ? prepTimeType : undefined,
+      productionNotes: fulfilmentType === 'MADE_TO_ORDER' ? productionNotes : undefined,
+      maxConcurrentOrders: fulfilmentType === 'MADE_TO_ORDER' ? pMaxCap : undefined,
     });
 
     if (!validation.valid) {
@@ -149,10 +191,16 @@ export function ProductListPage({ navigation }: ProductListPageProps) {
       await updateProduct({
         id: selectedProduct.id,
         payload: {
-          productquantity: pQuantity,
+          productquantity: fulfilmentType === 'READY_TO_SHIP' ? pQuantity : 0,
           productprice: pPrice,
           imageUrl,
           categoryId: categoryId || undefined,
+          fulfilmentType,
+          minPrepDays: pMinPrep,
+          maxPrepDays: pMaxPrep,
+          prepTimeType: fulfilmentType === 'MADE_TO_ORDER' ? prepTimeType : undefined,
+          productionNotes: fulfilmentType === 'MADE_TO_ORDER' ? productionNotes.trim() : undefined,
+          maxConcurrentOrders: fulfilmentType === 'MADE_TO_ORDER' ? pMaxCap : undefined,
         },
       });
       showToast('Product updated successfully', 'success');
@@ -265,21 +313,39 @@ export function ProductListPage({ navigation }: ProductListPageProps) {
                     <Text style={styles.productPrice}>
                       {productService.formatPrice(prod.price)}
                     </Text>
-                    <View style={styles.stockRow}>
-                      <Badge
-                        variant={
-                          prod.stockQuantity === 0
-                            ? 'destructive'
-                            : prod.stockQuantity <= 10
-                            ? 'warning'
-                            : 'secondary'
-                        }
-                        style={{ paddingVertical: 1 }}
-                      >
-                        {prod.stockQuantity === 0
-                          ? 'Out of Stock'
-                          : `${prod.stockQuantity} in stock`}
-                      </Badge>
+                    <View style={[styles.stockRow, { flexWrap: 'wrap', gap: 4 }]}>
+                      {prod.fulfilmentType === 'MADE_TO_ORDER' ? (
+                        <>
+                          <Badge variant="outline" style={{ paddingVertical: 1, borderColor: '#a855f7' }}>
+                            <Text style={{ color: '#d8b4fe', fontSize: 10, fontWeight: '700' }}>
+                              Made to Order
+                            </Text>
+                          </Badge>
+                          <Badge variant="secondary" style={{ paddingVertical: 1 }}>
+                            {productService.formatPrepTime(prod.minPrepDays, prod.maxPrepDays, prod.prepTimeType)}
+                          </Badge>
+                          {prod.maxConcurrentOrders ? (
+                            <Badge variant="secondary" style={{ paddingVertical: 1 }}>
+                              {`${prod.activeProductionOrders || 0}/${prod.maxConcurrentOrders} in prod`}
+                            </Badge>
+                          ) : null}
+                        </>
+                      ) : (
+                        <Badge
+                          variant={
+                            prod.stockQuantity === 0
+                              ? 'destructive'
+                              : prod.stockQuantity <= 10
+                              ? 'warning'
+                              : 'secondary'
+                          }
+                          style={{ paddingVertical: 1 }}
+                        >
+                          {prod.stockQuantity === 0
+                            ? 'Out of Stock'
+                            : `Ready to Ship • ${prod.stockQuantity} in stock`}
+                        </Badge>
+                      )}
                     </View>
                   </View>
 
@@ -323,17 +389,68 @@ export function ProductListPage({ navigation }: ProductListPageProps) {
               onChangeText={setName}
             />
 
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Input
-                  label="Stock Units"
-                  placeholder="10"
-                  keyboardType="number-pad"
-                  value={quantity}
-                  onChangeText={setQuantity}
-                />
+            {/* Fulfilment Type Section */}
+            <View style={{ marginTop: 4 }}>
+              <Text style={styles.label}>Fulfilment Type</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                <TouchableOpacity
+                  onPress={() => setFulfilmentType('READY_TO_SHIP')}
+                  style={[
+                    styles.fulfilmentToggleBtn,
+                    fulfilmentType === 'READY_TO_SHIP' && styles.fulfilmentToggleBtnActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.fulfilmentToggleText,
+                      fulfilmentType === 'READY_TO_SHIP' && styles.fulfilmentToggleTextActive,
+                    ]}
+                  >
+                    Ready to Ship
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setFulfilmentType('MADE_TO_ORDER')}
+                  style={[
+                    styles.fulfilmentToggleBtn,
+                    fulfilmentType === 'MADE_TO_ORDER' && styles.fulfilmentToggleBtnActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.fulfilmentToggleText,
+                      fulfilmentType === 'MADE_TO_ORDER' && styles.fulfilmentToggleTextActive,
+                    ]}
+                  >
+                    Made to Order
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <View style={{ flex: 1 }}>
+            </View>
+
+            {fulfilmentType === 'READY_TO_SHIP' ? (
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Input
+                    label="Stock Units"
+                    placeholder="10"
+                    keyboardType="number-pad"
+                    value={quantity}
+                    onChangeText={setQuantity}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Input
+                    label="Price (₹)"
+                    placeholder="499.00"
+                    keyboardType="decimal-pad"
+                    value={price}
+                    onChangeText={setPrice}
+                  />
+                </View>
+              </View>
+            ) : (
+              <>
                 <Input
                   label="Price (₹)"
                   placeholder="499.00"
@@ -341,8 +458,83 @@ export function ProductListPage({ navigation }: ProductListPageProps) {
                   value={price}
                   onChangeText={setPrice}
                 />
-              </View>
-            </View>
+
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <Input
+                      label="Min Prep (Days)"
+                      placeholder="2"
+                      keyboardType="number-pad"
+                      value={minPrepDays}
+                      onChangeText={setMinPrepDays}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Input
+                      label="Max Prep (Days)"
+                      placeholder="5"
+                      keyboardType="number-pad"
+                      value={maxPrepDays}
+                      onChangeText={setMaxPrepDays}
+                    />
+                  </View>
+                </View>
+
+                {/* Calendar vs Business Days */}
+                <View>
+                  <Text style={styles.label}>Lead Time Type</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                    <TouchableOpacity
+                      onPress={() => setPrepTimeType('CALENDAR_DAYS')}
+                      style={[
+                        styles.prepTypeBtn,
+                        prepTimeType === 'CALENDAR_DAYS' && styles.prepTypeBtnActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.prepTypeText,
+                          prepTimeType === 'CALENDAR_DAYS' && styles.prepTypeTextActive,
+                        ]}
+                      >
+                        Calendar Days
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setPrepTimeType('BUSINESS_DAYS')}
+                      style={[
+                        styles.prepTypeBtn,
+                        prepTimeType === 'BUSINESS_DAYS' && styles.prepTypeBtnActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.prepTypeText,
+                          prepTimeType === 'BUSINESS_DAYS' && styles.prepTypeTextActive,
+                        ]}
+                      >
+                        Business Days
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Input
+                  label="Max Concurrent Orders (Capacity limit)"
+                  placeholder="Optional, e.g. 5"
+                  keyboardType="number-pad"
+                  value={maxConcurrentOrders}
+                  onChangeText={setMaxConcurrentOrders}
+                />
+
+                <Input
+                  label="Production Notes (Visible to buyer)"
+                  placeholder="e.g. Handmade once order is confirmed"
+                  value={productionNotes}
+                  onChangeText={setProductionNotes}
+                />
+              </>
+            )}
 
             {/* Image Preview & Upload */}
             <Text style={styles.label}>Product Image</Text>
@@ -383,20 +575,71 @@ export function ProductListPage({ navigation }: ProductListPageProps) {
           open={isEditOpen}
           onClose={() => setIsEditOpen(false)}
           title="Edit Catalog Item"
-          description={`Update price and stock for "${selectedProduct?.name}"`}
+          description={`Update details for "${selectedProduct?.name}"`}
         >
           <View style={{ gap: 10 }}>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Input
-                  label="Stock Units"
-                  placeholder="10"
-                  keyboardType="number-pad"
-                  value={quantity}
-                  onChangeText={setQuantity}
-                />
+            {/* Fulfilment Type Section */}
+            <View style={{ marginTop: 4 }}>
+              <Text style={styles.label}>Fulfilment Type</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                <TouchableOpacity
+                  onPress={() => setFulfilmentType('READY_TO_SHIP')}
+                  style={[
+                    styles.fulfilmentToggleBtn,
+                    fulfilmentType === 'READY_TO_SHIP' && styles.fulfilmentToggleBtnActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.fulfilmentToggleText,
+                      fulfilmentType === 'READY_TO_SHIP' && styles.fulfilmentToggleTextActive,
+                    ]}
+                  >
+                    Ready to Ship
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setFulfilmentType('MADE_TO_ORDER')}
+                  style={[
+                    styles.fulfilmentToggleBtn,
+                    fulfilmentType === 'MADE_TO_ORDER' && styles.fulfilmentToggleBtnActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.fulfilmentToggleText,
+                      fulfilmentType === 'MADE_TO_ORDER' && styles.fulfilmentToggleTextActive,
+                    ]}
+                  >
+                    Made to Order
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <View style={{ flex: 1 }}>
+            </View>
+
+            {fulfilmentType === 'READY_TO_SHIP' ? (
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Input
+                    label="Stock Units"
+                    placeholder="10"
+                    keyboardType="number-pad"
+                    value={quantity}
+                    onChangeText={setQuantity}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Input
+                    label="Price (₹)"
+                    placeholder="499.00"
+                    keyboardType="decimal-pad"
+                    value={price}
+                    onChangeText={setPrice}
+                  />
+                </View>
+              </View>
+            ) : (
+              <>
                 <Input
                   label="Price (₹)"
                   placeholder="499.00"
@@ -404,8 +647,83 @@ export function ProductListPage({ navigation }: ProductListPageProps) {
                   value={price}
                   onChangeText={setPrice}
                 />
-              </View>
-            </View>
+
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <Input
+                      label="Min Prep (Days)"
+                      placeholder="2"
+                      keyboardType="number-pad"
+                      value={minPrepDays}
+                      onChangeText={setMinPrepDays}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Input
+                      label="Max Prep (Days)"
+                      placeholder="5"
+                      keyboardType="number-pad"
+                      value={maxPrepDays}
+                      onChangeText={setMaxPrepDays}
+                    />
+                  </View>
+                </View>
+
+                {/* Calendar vs Business Days */}
+                <View>
+                  <Text style={styles.label}>Lead Time Type</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                    <TouchableOpacity
+                      onPress={() => setPrepTimeType('CALENDAR_DAYS')}
+                      style={[
+                        styles.prepTypeBtn,
+                        prepTimeType === 'CALENDAR_DAYS' && styles.prepTypeBtnActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.prepTypeText,
+                          prepTimeType === 'CALENDAR_DAYS' && styles.prepTypeTextActive,
+                        ]}
+                      >
+                        Calendar Days
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setPrepTimeType('BUSINESS_DAYS')}
+                      style={[
+                        styles.prepTypeBtn,
+                        prepTimeType === 'BUSINESS_DAYS' && styles.prepTypeBtnActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.prepTypeText,
+                          prepTimeType === 'BUSINESS_DAYS' && styles.prepTypeTextActive,
+                        ]}
+                      >
+                        Business Days
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Input
+                  label="Max Concurrent Orders (Capacity limit)"
+                  placeholder="Optional, e.g. 5"
+                  keyboardType="number-pad"
+                  value={maxConcurrentOrders}
+                  onChangeText={setMaxConcurrentOrders}
+                />
+
+                <Input
+                  label="Production Notes (Visible to buyer)"
+                  placeholder="e.g. Handmade once order is confirmed"
+                  value={productionNotes}
+                  onChangeText={setProductionNotes}
+                />
+              </>
+            )}
 
             <Text style={styles.label}>Product Image</Text>
             <View style={styles.uploadBox}>
@@ -566,5 +884,49 @@ const styles = StyleSheet.create({
     height: 100,
     width: 100,
     borderRadius: 12,
+  },
+  fulfilmentToggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fulfilmentToggleBtnActive: {
+    backgroundColor: Colors.purpleBg,
+    borderColor: Colors.purpleBorder,
+  },
+  fulfilmentToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  fulfilmentToggleTextActive: {
+    color: Colors.purpleLight,
+  },
+  prepTypeBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prepTypeBtnActive: {
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+    borderColor: 'rgba(168, 85, 247, 0.4)',
+  },
+  prepTypeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  prepTypeTextActive: {
+    color: '#d8b4fe',
   },
 });

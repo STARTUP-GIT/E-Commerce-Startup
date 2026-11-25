@@ -69,6 +69,14 @@ export function useOrders(orderId?: string) {
     },
   });
 
+  const markReadyForPickupMutation = useMutation({
+    mutationFn: ordersApi.markReadyForPickup,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      if (orderId) queryClient.invalidateQueries({ queryKey: ['seller-order', orderId] });
+    },
+  });
+
   const assignDeliveryMethodMutation = useMutation({
     mutationFn: ({ id, deliveryMethod }: { id: string; deliveryMethod: string }) =>
       ordersApi.assignDeliveryMethod(id, deliveryMethod),
@@ -151,6 +159,9 @@ export function useOrders(orderId?: string) {
 
     setReadyTime: readyTimeMutation.mutateAsync,
     isSettingReadyTime: readyTimeMutation.isPending,
+
+    markReadyForPickup: markReadyForPickupMutation.mutateAsync,
+    isMarkingReadyForPickup: markReadyForPickupMutation.isPending,
 
     assignDeliveryMethod: assignDeliveryMethodMutation.mutateAsync,
     isAssigningDeliveryMethod: assignDeliveryMethodMutation.isPending,

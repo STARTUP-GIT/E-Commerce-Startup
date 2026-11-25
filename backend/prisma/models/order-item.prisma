@@ -22,6 +22,12 @@ model OrderItem {
   igstRate         Decimal         @default(0) @db.Decimal(5, 2)
   igstAmount       Decimal         @default(0) @db.Decimal(12, 2)
   isTaxInclusive   Boolean         @default(false)
+  fulfilmentType   FulfilmentType? @default(READY_TO_SHIP)
+  minPrepDays      Int?
+  maxPrepDays      Int?
+  prepTimeType     PrepTimeType?   @default(BUSINESS_DAYS)
+  productionNotes  String?
+  estimatedReadyDate DateTime?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   product          Product         @relation(fields: [productId], references: [id])

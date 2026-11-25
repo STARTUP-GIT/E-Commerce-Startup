@@ -10,9 +10,16 @@ export interface OrderItem {
   hsnCode?: string;
   taxAmount?: number;
   taxRate?: number;
+  fulfilmentType?: 'READY_TO_SHIP' | 'MADE_TO_ORDER';
+  minPrepDays?: number | null;
+  maxPrepDays?: number | null;
+  prepTimeType?: 'CALENDAR_DAYS' | 'BUSINESS_DAYS' | null;
+  productionNotes?: string | null;
+  estimatedReadyDate?: string | null;
   product: {
     name: string;
     imageUrl?: string;
+    fulfilmentType?: 'READY_TO_SHIP' | 'MADE_TO_ORDER';
   };
 }
 
@@ -20,7 +27,7 @@ export interface SellerOrder {
   id: string;
   orderId: string;
   sellerId: string;
-  status: 'PENDING' | 'ACCEPTED' | 'PROCESSING' | 'PACKED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+  status: 'PENDING' | 'ACCEPTED' | 'PROCESSING' | 'READY_FOR_PICKUP' | 'PACKED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'READY_TO_SHIP';
   paymentMethod?: string;
   selectedDeliveryMethod?: string;
   deliveryAssignedAt?: string;
@@ -49,6 +56,11 @@ export interface SellerOrder {
   shippedAt?: string;
   deliveredAt?: string;
   readyByAt?: string;
+  preparationStartedAt?: string | null;
+  targetReadyDate?: string | null;
+  isOverdue?: boolean;
+  isApproachingDeadline?: boolean;
+  hasMadeToOrder?: boolean;
   rejectionReason?: string;
   seller?: {
     firstName: string;
@@ -115,6 +127,11 @@ export const ordersApi = {
 
   setReadyTime: async (orderId: string, readyByAt: string): Promise<{ message: string; order: SellerOrder }> => {
     const response = await axiosInstance.patch(`/seller/api/orders/${orderId}/ready-time`, { readyByAt });
+    return response.data;
+  },
+
+  markReadyForPickup: async (orderId: string): Promise<{ message: string; order: SellerOrder }> => {
+    const response = await axiosInstance.patch(`/seller/api/orders/${orderId}/ready-for-pickup`);
     return response.data;
   },
 

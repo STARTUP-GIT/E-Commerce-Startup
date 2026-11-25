@@ -80,6 +80,7 @@ export function ProductsPage() {
                   <TableHead>Shop</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Stock</TableHead>
+                  <TableHead>Fulfilment</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -98,6 +99,24 @@ export function ProductsPage() {
                     <TableCell className="text-xs text-white/60">{product.shop?.name ?? '—'}</TableCell>
                     <TableCell className="text-xs font-semibold text-white/80">{formatPrice(product.price)}</TableCell>
                     <TableCell className="text-xs text-white/60">{product.stock ?? 0}</TableCell>
+                    <TableCell>
+                      {product.fulfilmentType === 'MADE_TO_ORDER' ? (
+                        <div className="space-y-0.5">
+                          <Badge variant="outline" className="text-[8px] border-purple-500 text-purple-400">
+                            Made to Order ({product.minPrepDays || 1}–{product.maxPrepDays || 1}d)
+                          </Badge>
+                          {product.maxConcurrentOrders ? (
+                            <span className="text-[10px] text-white/40 block">
+                              Cap: {product.activeProductionOrders || 0}/{product.maxConcurrentOrders}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <Badge variant="secondary" className="text-[8px] text-emerald-400">
+                          Ready to Ship
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={product.isHidden ? 'secondary' : product.isDeleted ? 'destructive' : 'success'} className="text-[8px]">
                         {product.isDeleted ? 'Deleted' : product.isHidden ? 'Hidden' : 'Visible'}

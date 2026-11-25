@@ -7,6 +7,12 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  fulfilmentType?: 'READY_TO_SHIP' | 'MADE_TO_ORDER';
+  minPrepDays?: number | null;
+  maxPrepDays?: number | null;
+  prepTimeType?: 'CALENDAR_DAYS' | 'BUSINESS_DAYS' | null;
+  productionNotes?: string | null;
+  estimatedReadyDate?: string | null;
   product: {
     name: string;
     imageUrl?: string;
@@ -17,7 +23,7 @@ export interface SellerOrder {
   id: string;
   orderId: string;
   sellerId: string;
-  status: 'PENDING' | 'ACCEPTED' | 'PROCESSING' | 'PACKED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+  status: 'PENDING' | 'ACCEPTED' | 'PROCESSING' | 'READY_FOR_PICKUP' | 'PACKED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   paymentMethod?: string;
   selectedDeliveryMethod?: string;
   deliveryAssignedAt?: string;
@@ -32,10 +38,15 @@ export interface SellerOrder {
   sellerEarnings: number;
   createdAt: string;
   acceptedAt?: string;
+  preparationStartedAt?: string;
+  targetReadyDate?: string;
   packedAt?: string;
   shippedAt?: string;
   deliveredAt?: string;
   readyByAt?: string;
+  isOverdue?: boolean;
+  isApproachingDeadline?: boolean;
+  hasMadeToOrder?: boolean;
   rejectionReason?: string;
   seller?: {
     firstName: string;
@@ -97,6 +108,11 @@ export const ordersApi = {
 
   rejectOrder: async (orderId: string, reason: string): Promise<{ message: string; order: SellerOrder }> => {
     const response = await axiosInstance.patch(`/seller/api/orders/${orderId}/reject`, { reason });
+    return response.data;
+  },
+
+  markReadyForPickup: async (orderId: string): Promise<{ message: string; order: SellerOrder }> => {
+    const response = await axiosInstance.patch(`/seller/api/orders/${orderId}/ready-for-pickup`);
     return response.data;
   },
 

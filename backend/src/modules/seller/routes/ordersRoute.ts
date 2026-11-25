@@ -5,6 +5,7 @@ import {
     acceptOrders,
     rejectOrders,
     setReadyTime,
+    markReadyForPickup,
     uploadPackingProof,
     markPacked,
     markShipped,
@@ -27,6 +28,7 @@ router.get("/api/orders/:orderId", sellerAuth, writeLimiter, seeOrders);
 router.patch("/api/orders/:orderId/accept", sellerAuth, writeLimiter, acceptOrders);
 router.patch("/api/orders/:orderId/reject", sellerAuth, writeLimiter, rejectOrders);
 router.patch("/api/orders/:orderId/ready-time", sellerAuth, writeLimiter, setReadyTime);
+router.patch("/api/orders/:orderId/ready-for-pickup", sellerAuth, writeLimiter, markReadyForPickup);
 router.patch("/api/orders/:orderId/delivery-method", sellerAuth, writeLimiter, assignDeliveryMethod);
 router.post("/api/orders/:orderId/packing-proof", sellerAuth, uploadLimiter, uploadPackingProof);
 router.patch("/api/orders/:orderId/packed", sellerAuth, writeLimiter, markPacked);

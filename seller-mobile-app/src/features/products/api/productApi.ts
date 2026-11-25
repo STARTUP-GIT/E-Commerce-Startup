@@ -1,5 +1,8 @@
 import axiosInstance from '@/lib/axios/axiosInstance';
 
+export type FulfilmentType = 'READY_TO_SHIP' | 'MADE_TO_ORDER';
+export type PrepTimeType = 'CALENDAR_DAYS' | 'BUSINESS_DAYS';
+
 export interface Product {
   id: string;
   name: string;
@@ -8,6 +11,13 @@ export interface Product {
   imageUrl: string;
   isDeleted: boolean;
   categoryId?: string;
+  fulfilmentType?: FulfilmentType;
+  minPrepDays?: number | null;
+  maxPrepDays?: number | null;
+  prepTimeType?: PrepTimeType | null;
+  productionNotes?: string | null;
+  maxConcurrentOrders?: number | null;
+  activeProductionOrders?: number;
   createdAt: string;
 }
 
@@ -35,6 +45,12 @@ export const productApi = {
     productprice: number;
     imageUrl: string;
     categoryId?: string;
+    fulfilmentType?: FulfilmentType;
+    minPrepDays?: number;
+    maxPrepDays?: number;
+    prepTimeType?: PrepTimeType;
+    productionNotes?: string;
+    maxConcurrentOrders?: number;
   }): Promise<{ message: string; product: Product }> => {
     const response = await axiosInstance.post('/seller/api/products', payload);
     return response.data;
@@ -47,6 +63,12 @@ export const productApi = {
       productprice?: number;
       imageUrl?: string;
       categoryId?: string;
+      fulfilmentType?: FulfilmentType;
+      minPrepDays?: number;
+      maxPrepDays?: number;
+      prepTimeType?: PrepTimeType;
+      productionNotes?: string;
+      maxConcurrentOrders?: number;
     }
   ): Promise<{ message: string; product: Product }> => {
     const response = await axiosInstance.put(`/seller/api/products/${productId}`, payload);

@@ -610,12 +610,26 @@ export function CheckoutPage() {
               <div className="max-h-48 overflow-y-auto space-y-3 pr-2">
                 {items.map((item, idx) => (
                   <div key={idx} className="flex justify-between items-start text-xs gap-3">
-                    <div className="flex-1">
+                    <div className="flex-1 space-y-0.5">
                       <span className="font-semibold text-foreground block line-clamp-1">{item.name}</span>
                       {item.variantName && (
                         <span className="text-[10px] text-muted-foreground">Option: {item.variantName}</span>
                       )}
-                      <span className="text-[10px] text-muted-foreground block">Qty: {item.quantity}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                        {item.fulfilmentType === 'MADE_TO_ORDER' ? (
+                          <span className="text-[9px] font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.2 rounded">
+                            Made to Order ({item.minPrepDays || 1}–{item.maxPrepDays || 1}d)
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded">
+                            Ready to Ship
+                          </span>
+                        )}
+                        <span className="text-[10px] text-muted-foreground">Qty: {item.quantity}</span>
+                      </div>
+                      {item.productionNotes && (
+                        <span className="text-[10px] text-zinc-400 italic block">Note: {item.productionNotes}</span>
+                      )}
                     </div>
                     <span className="font-bold text-foreground">
                       {productListService.formatPrice(item.totalPrice)}
@@ -623,6 +637,18 @@ export function CheckoutPage() {
                   </div>
                 ))}
               </div>
+
+              {items.some((i) => i.fulfilmentType === 'MADE_TO_ORDER') && (
+                <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 text-purple-400 font-bold">
+                    <Package className="h-3.5 w-3.5 shrink-0" />
+                    <span>Made-to-Order Fulfilment</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300 leading-relaxed">
+                    This order contains custom manufactured items. Dispatch begins after all items are ready. Preparation time is separate from delivery transit time.
+                  </p>
+                </div>
+              )}
 
               <div className="border-t border-border pt-4 space-y-2 text-xs">
                 <div className="flex justify-between">

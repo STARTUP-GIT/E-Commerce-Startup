@@ -141,9 +141,26 @@ export function OrdersPage() {
                         <span className="font-extrabold text-white/95 text-xs tracking-wide">
                           {ord.order.orderNumber}
                         </span>
-                        <Badge variant={ordersService.getStatusColor(ord.status)} className="text-[9px] py-0.5 px-2 font-bold uppercase">
-                          {ord.status}
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          {ord.isOverdue && (
+                            <Badge variant="destructive" className="text-[8px] font-extrabold">
+                              Overdue
+                            </Badge>
+                          )}
+                          {ord.isApproachingDeadline && (
+                            <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[8px] font-extrabold">
+                              Approaching Deadline
+                            </Badge>
+                          )}
+                          {ord.hasMadeToOrder && (
+                            <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[8px] font-extrabold">
+                              Made to Order
+                            </Badge>
+                          )}
+                          <Badge variant={ordersService.getStatusColor(ord.status)} className="text-[9px] py-0.5 px-2 font-bold uppercase">
+                            {ord.status}
+                          </Badge>
+                        </div>
                       </div>
 
                       {/* Details Grid */}
@@ -304,9 +321,26 @@ export function OrdersPage() {
                             {productService.formatPrice(ord.totalPrice)}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={ordersService.getStatusColor(ord.status)} className="text-[8px] py-0 px-2 font-bold">
-                              {ord.status}
-                            </Badge>
+                            <div className="space-y-1">
+                              <Badge variant={ordersService.getStatusColor(ord.status)} className="text-[8px] py-0 px-2 font-bold block w-fit">
+                                {ord.status}
+                              </Badge>
+                              {ord.isOverdue && (
+                                <Badge variant="destructive" className="text-[7.5px] py-0 px-1.5 font-extrabold block w-fit">
+                                  Overdue
+                                </Badge>
+                              )}
+                              {ord.isApproachingDeadline && (
+                                <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[7.5px] py-0 px-1.5 font-extrabold block w-fit">
+                                  Approaching Deadline
+                                </Badge>
+                              )}
+                              {ord.hasMadeToOrder && (
+                                <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[7.5px] py-0 px-1.5 font-extrabold block w-fit">
+                                  Made to Order
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1.5">

@@ -97,6 +97,21 @@ export const WishlistScreen: React.FC = () => {
                     ) : (
                       <Package size={28} color={colors.foregroundDim} />
                     )}
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: 6,
+                        left: 6,
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        borderRadius: 6,
+                        backgroundColor: prod?.fulfilmentType === 'MADE_TO_ORDER' ? 'rgba(168, 85, 247, 0.9)' : 'rgba(16, 185, 129, 0.9)',
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>
+                        {prod?.fulfilmentType === 'MADE_TO_ORDER' ? 'Made to Order' : 'Ready to Ship'}
+                      </Text>
+                    </View>
                     <TouchableOpacity
                       onPress={() => handleRemove(it.id)}
                       style={styles.trashBtn}

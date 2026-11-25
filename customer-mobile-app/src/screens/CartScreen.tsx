@@ -65,6 +65,13 @@ export const CartScreen: React.FC = () => {
                   {item.variant && (
                     <Text style={styles.itemVariant}>Option: {item.variant.name}</Text>
                   )}
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 10, color: item.product?.fulfilmentType === 'MADE_TO_ORDER' ? '#c084fc' : '#10b981', fontWeight: '700' }}>
+                      {item.product?.fulfilmentType === 'MADE_TO_ORDER'
+                        ? `Made to Order (${item.product.minPrepDays || 1}–${item.product.maxPrepDays || 1}d)`
+                        : 'Ready to Ship'}
+                    </Text>
+                  </View>
                   <Text style={styles.itemPrice}>
                     {productService.formatPrice(itemPrice)}
                   </Text>

@@ -693,6 +693,46 @@ export const CheckoutScreen: React.FC = () => {
           )}
         </View>
 
+        {/* Order Items & Fulfilment Review */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Package size={16} color={colors.primary} />
+            <Text style={styles.cardTitle}>Items &amp; Fulfilment</Text>
+          </View>
+          {checkoutSummary?.items && checkoutSummary.items.length > 0 ? (
+            <View style={{ gap: 8, marginTop: 4 }}>
+              {checkoutSummary.items.map((it: any, idx: number) => (
+                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', paddingBottom: 6 }}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.foreground }}>{it.name}</Text>
+                    {it.variantName ? (
+                      <Text style={{ fontSize: 11, color: colors.foregroundMuted }}>Option: {it.variantName}</Text>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 2 }}>
+                      <Text style={{ fontSize: 10, color: it.fulfilmentType === 'MADE_TO_ORDER' ? '#c084fc' : '#10b981', fontWeight: '700' }}>
+                        {it.fulfilmentType === 'MADE_TO_ORDER'
+                          ? `Made to Order (${it.minPrepDays || 1}–${it.maxPrepDays || 1}d prep)`
+                          : 'Ready to Ship'}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: colors.foregroundMuted }}>Qty: {it.quantity}</Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.foreground }}>
+                    {productService.formatPrice(it.totalPrice)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+          {checkoutSummary?.items?.some((it: any) => it.fulfilmentType === 'MADE_TO_ORDER') && (
+            <View style={{ marginTop: 8, padding: 8, borderRadius: 8, backgroundColor: 'rgba(168, 85, 247, 0.08)' }}>
+              <Text style={{ fontSize: 10, color: '#d8b4fe', lineHeight: 14 }}>
+                Notice: Order contains Made-to-Order items. Courier dispatch begins after custom item preparation is finished.
+              </Text>
+            </View>
+          )}
+        </View>
+
         {/* Order Price Breakdown (Exact Backend Authoritative Calculation) */}
         <View style={styles.card}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>

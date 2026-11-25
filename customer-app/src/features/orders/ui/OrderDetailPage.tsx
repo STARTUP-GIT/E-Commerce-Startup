@@ -149,6 +149,11 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
                         <span>{sellerOrder.deliveryMode === 'SELF' ? 'Delivered by Seller' : 'AtlasBasket Delivery'}</span>
                       </span>
                     )}
+                    {sellerOrder.targetReadyDate && (
+                      <span className="text-[10px] sm:text-xs text-purple-400 font-semibold block w-full mt-1">
+                        Expected Ready for Pickup: {new Date(sellerOrder.targetReadyDate).toLocaleDateString()}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                     <Badge variant={orderService.getStatusBadgeVariant(sellerOrder.status)} className="text-[8px] sm:text-[10px]">
@@ -184,7 +189,26 @@ export function OrderDetailPage({ orderId }: { orderId: string }) {
                             Option: {item.variantName}
                           </span>
                         )}
-                        <span className="text-[10px] sm:text-xs text-muted-foreground">Qty: {item.quantity}</span>
+                        <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                          {item.fulfilmentType === 'MADE_TO_ORDER' ? (
+                            <span className="text-[9px] font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.2 rounded">
+                              Made to Order ({item.minPrepDays || 1}–{item.maxPrepDays || 1} {item.prepTimeType === 'BUSINESS_DAYS' ? 'biz days' : 'days'})
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded">
+                              Ready to Ship
+                            </span>
+                          )}
+                          <span className="text-[10px] sm:text-xs text-muted-foreground">Qty: {item.quantity}</span>
+                          {item.estimatedReadyDate && (
+                            <span className="text-[10px] text-purple-300">
+                              Est. Ready: {new Date(item.estimatedReadyDate).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                        {item.productionNotes && (
+                          <span className="text-[10px] text-zinc-400 italic block mt-0.5">Note: {item.productionNotes}</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                         <span className="font-bold text-xs sm:text-sm text-foreground whitespace-nowrap">

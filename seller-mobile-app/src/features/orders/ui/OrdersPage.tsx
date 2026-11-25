@@ -101,11 +101,28 @@ export function OrdersPage({ navigation }: OrdersPageProps) {
               >
                 <Card style={styles.orderCard}>
                   <View style={styles.cardHeaderRow}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
                       <Text style={styles.orderNumber}>{ord.order.orderNumber}</Text>
                       <Badge variant={ordersService.getStatusColor(ord.status)} style={{ paddingVertical: 1 }}>
                         {ord.status}
                       </Badge>
+                      {ord.hasMadeToOrder && (
+                        <Badge variant="outline" style={{ paddingVertical: 1, borderColor: '#a855f7' }}>
+                          <Text style={{ color: '#d8b4fe', fontSize: 10, fontWeight: '700' }}>
+                            Made to Order
+                          </Text>
+                        </Badge>
+                      )}
+                      {ord.isOverdue && (
+                        <Badge variant="destructive" style={{ paddingVertical: 1 }}>
+                          Overdue
+                        </Badge>
+                      )}
+                      {ord.isApproachingDeadline && (
+                        <Badge variant="warning" style={{ paddingVertical: 1 }}>
+                          Approaching Deadline
+                        </Badge>
+                      )}
                     </View>
                     <Text style={styles.orderPrice}>
                       {productService.formatPrice(ord.totalPrice)}
@@ -118,6 +135,7 @@ export function OrdersPage({ navigation }: OrdersPageProps) {
                     </Text>
                     <Text style={styles.orderDate}>
                       {ordersService.formatDate(ord.createdAt)} • {ord.items.length} item(s)
+                      {ord.targetReadyDate ? ` • Target: ${ordersService.formatDate(ord.targetReadyDate)}` : ''}
                     </Text>
                   </View>
 

@@ -130,7 +130,11 @@ export const cancelOrder = async (req: Request, res: Response) => {
                 id: orderId as string
             },
             include: {
-                sellerOrders: true
+                sellerOrders: {
+                    include: {
+                        items: true
+                    }
+                }
             }
         });
 
@@ -165,6 +169,30 @@ export const cancelOrder = async (req: Request, res: Response) => {
                     rejectionReason: `Cancelled by customer: ${reason?.trim() || "No reason provided"}`
                 }
             });
+
+            // Restore stock or capacity for all items in seller orders
+            for (const sellerOrder of order.sellerOrders) {
+                for (const item of sellerOrder.items) {
+                    if (item.fulfilmentType === "MADE_TO_ORDER") {
+                        await tx.product.updateMany({
+                            where: { id: item.productId, activeProductionOrders: { gt: 0 } },
+                            data: { activeProductionOrders: { decrement: item.quantity } }
+                        });
+                    } else {
+                        if (item.productVariantId) {
+                            await tx.productVariant.updateMany({
+                                where: { id: item.productVariantId },
+                                data: { stockQuantity: { increment: item.quantity } }
+                            });
+                        } else {
+                            await tx.product.updateMany({
+                                where: { id: item.productId },
+                                data: { stockQuantity: { increment: item.quantity } }
+                            });
+                        }
+                    }
+                }
+            }
 
             // Create order timeline event
             await tx.orderTimelineEvent.create({

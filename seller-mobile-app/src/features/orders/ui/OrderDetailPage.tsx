@@ -58,6 +58,8 @@ export function OrderDetailPage({ route, navigation }: OrderDetailPageProps) {
     isAssigningDeliveryMethod,
     uploadPackingProof,
     isUploadingProof,
+    markReadyForPickup,
+    isMarkingReadyForPickup,
     markPacked,
     isMarkingPacked,
     markShipped,
@@ -96,6 +98,15 @@ export function OrderDetailPage({ route, navigation }: OrderDetailPageProps) {
       showToast('Order accepted successfully', 'success');
     } catch (err: any) {
       showToast(err.message || 'Failed to accept order', 'error');
+    }
+  };
+
+  const handleMarkReadyForPickup = async () => {
+    try {
+      await markReadyForPickup(order.id);
+      showToast('Order marked ready for pickup', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to mark ready for pickup', 'error');
     }
   };
 
@@ -190,13 +201,33 @@ export function OrderDetailPage({ route, navigation }: OrderDetailPageProps) {
         {/* Order Status Banner */}
         <Card style={styles.statusBanner}>
           <View style={styles.bannerHeader}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.orderNum}>Order #{order.order.orderNumber}</Text>
               <Text style={styles.placedDate}>Placed {ordersService.formatDate(order.createdAt)}</Text>
+              {order.targetReadyDate && (
+                <Text style={{ fontSize: 11, color: '#d8b4fe', fontWeight: '600', marginTop: 2 }}>
+                  Target Readiness: {ordersService.formatDate(order.targetReadyDate)}
+                </Text>
+              )}
             </View>
-            <Badge variant={ordersService.getStatusColor(order.status)}>
-              {order.status}
-            </Badge>
+            <View style={{ alignItems: 'flex-end', gap: 4 }}>
+              <Badge variant={ordersService.getStatusColor(order.status)}>
+                {order.status}
+              </Badge>
+              {order.hasMadeToOrder && (
+                <Badge variant="outline" style={{ borderColor: '#a855f7' }}>
+                  <Text style={{ color: '#d8b4fe', fontSize: 10, fontWeight: '700' }}>
+                    Made to Order
+                  </Text>
+                </Badge>
+              )}
+              {order.isOverdue && (
+                <Badge variant="destructive">Overdue</Badge>
+              )}
+              {order.isApproachingDeadline && (
+                <Badge variant="warning">Approaching Deadline</Badge>
+              )}
+            </View>
           </View>
 
           {/* Action Row */}
@@ -250,6 +281,16 @@ export function OrderDetailPage({ route, navigation }: OrderDetailPageProps) {
 
             {(order.status === 'ACCEPTED' || order.status === 'PROCESSING') && (
               <View style={{ gap: 8, width: '100%', marginTop: 8 }}>
+                {order.hasMadeToOrder && (
+                  <Button
+                    variant="default"
+                    loading={isMarkingReadyForPickup}
+                    onPress={handleMarkReadyForPickup}
+                    icon={<CheckCircle size={16} color="#000000" />}
+                  >
+                    Mark Ready for Pickup
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   loading={isUploadingPhoto || isUploadingProof}
@@ -259,7 +300,7 @@ export function OrderDetailPage({ route, navigation }: OrderDetailPageProps) {
                   Upload Packing Proof
                 </Button>
                 <Button
-                  variant="default"
+                  variant={order.hasMadeToOrder ? 'outline' : 'default'}
                   loading={isMarkingPacked}
                   onPress={() => markPacked(order.id)}
                 >
@@ -382,6 +423,29 @@ export function OrderDetailPage({ route, navigation }: OrderDetailPageProps) {
                   <Text style={styles.itemSub}>
                     Qty: {item.quantity} × {productService.formatPrice(item.unitPrice)}
                   </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                    {item.fulfilmentType === 'MADE_TO_ORDER' ? (
+                      <Badge variant="outline" style={{ borderColor: '#a855f7', paddingVertical: 1 }}>
+                        <Text style={{ color: '#d8b4fe', fontSize: 9, fontWeight: '700' }}>
+                          Made to Order ({item.minPrepDays || 1}-{item.maxPrepDays || 1} {item.prepTimeType === 'BUSINESS_DAYS' ? 'biz days' : 'days'})
+                        </Text>
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" style={{ paddingVertical: 1 }}>
+                        <Text style={{ fontSize: 9 }}>Ready to Ship</Text>
+                      </Badge>
+                    )}
+                  </View>
+                  {item.estimatedReadyDate ? (
+                    <Text style={{ fontSize: 10, color: '#d8b4fe', marginTop: 2 }}>
+                      Est. Ready: {ordersService.formatDate(item.estimatedReadyDate)}
+                    </Text>
+                  ) : null}
+                  {item.productionNotes ? (
+                    <Text style={{ fontSize: 10, color: 'rgba(255, 255, 255, 0.5)', marginTop: 2 }}>
+                      Note: {item.productionNotes}
+                    </Text>
+                  ) : null}
                 </View>
                 <Text style={styles.itemTotal}>
                   {productService.formatPrice(item.totalPrice)}

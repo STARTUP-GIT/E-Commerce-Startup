@@ -10,6 +10,12 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  fulfilmentType?: 'READY_TO_SHIP' | 'MADE_TO_ORDER';
+  minPrepDays?: number | null;
+  maxPrepDays?: number | null;
+  prepTimeType?: 'CALENDAR_DAYS' | 'BUSINESS_DAYS' | null;
+  productionNotes?: string | null;
+  estimatedReadyDate?: string | null;
 }
 
 export interface SellerOrder {
@@ -23,6 +29,8 @@ export interface SellerOrder {
   deliveryMode?: 'PLATFORM' | 'SELF';
   selectedDeliveryMethod?: string;
   deliveryAssignedAt?: string;
+  preparationStartedAt?: string;
+  targetReadyDate?: string;
   items: OrderItem[];
   seller?: {
     id: string;

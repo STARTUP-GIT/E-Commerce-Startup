@@ -10,6 +10,12 @@ export interface OrderItem {
   unitPrice: number | string;
   totalPrice: number | string;
   productImage?: string;
+  fulfilmentType?: 'READY_TO_SHIP' | 'MADE_TO_ORDER';
+  minPrepDays?: number;
+  maxPrepDays?: number;
+  prepTimeType?: 'CALENDAR_DAYS' | 'BUSINESS_DAYS';
+  productionNotes?: string;
+  estimatedReadyDate?: string;
 }
 
 export interface SellerOrder {
@@ -21,6 +27,7 @@ export interface SellerOrder {
   shippingFee: number | string;
   packingFee?: number | string;
   selectedDeliveryMethod?: string;
+  targetReadyDate?: string;
   items: OrderItem[];
 }
 

@@ -113,7 +113,7 @@ function killStaleTunnel(port = CONFIG.localPort) {
  */
 function ensureRemoteHop() {
   try {
-    const remoteCheckCmd = `pgrep -f "${CONFIG.intermediatePort}:${CONFIG.vmContainerIp}:${CONFIG.vmPostgresPort}" >/dev/null || nohup ssh -i ${CONFIG.vmKey} -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -N -L ${CONFIG.intermediatePort}:${CONFIG.vmContainerIp}:${CONFIG.vmPostgresPort} ${CONFIG.vmHost} >/dev/null 2>&1 &`;
+    const remoteCheckCmd = `ss -tlpn | grep -q :${CONFIG.intermediatePort} || nohup ssh -i ${CONFIG.vmKey} -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -N -L ${CONFIG.intermediatePort}:${CONFIG.vmContainerIp}:${CONFIG.vmPostgresPort} ${CONFIG.vmHost} </dev/null >/dev/null 2>&1 &`;
     execFileSync('ssh', ['-n', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', CONFIG.physicalHost, remoteCheckCmd], {
       stdio: 'ignore',
       timeout: 10000,

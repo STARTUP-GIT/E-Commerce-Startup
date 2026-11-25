@@ -71,6 +71,11 @@ export function OrderHistoryPage() {
                       >
                         Payment: {(order as any).payments?.[0]?.status || ((order as any).paymentMethod === 'COD' ? 'PENDING_COD' : 'PENDING')}
                       </Badge>
+                      {order.sellerOrders?.some((so) => so.items.some((it) => it.fulfilmentType === 'MADE_TO_ORDER')) && (
+                        <Badge variant="outline" className="text-[9px] sm:text-xs font-bold border-purple-500 text-purple-400">
+                          Made to Order
+                        </Badge>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-1 text-[10px] sm:text-xs text-muted-foreground">

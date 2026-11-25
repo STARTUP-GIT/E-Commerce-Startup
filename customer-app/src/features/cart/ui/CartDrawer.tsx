@@ -140,6 +140,19 @@ export function CartDrawer() {
                             Option: {item.variant.name}
                           </span>
                         )}
+                        {item.product.fulfilmentType === 'MADE_TO_ORDER' ? (
+                          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                            <span className="text-[10px] font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded">
+                              Made to Order ({item.product.minPrepDays || 1}–{item.product.maxPrepDays || 1}d prep)
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                              Ready to Ship
+                            </span>
+                          </div>
+                        )}
                         <span className="text-sm font-semibold block text-foreground">
                           {productListService.formatPrice(itemPrice)}
                         </span>
@@ -207,6 +220,11 @@ export function CartDrawer() {
             {/* Footer Summary */}
             {items.length > 0 && (
               <div className="border-t border-border bg-zinc-950/40 p-6 space-y-4">
+                {items.some((i) => i.product.fulfilmentType === 'MADE_TO_ORDER') && (
+                  <div className="text-[11px] text-zinc-300 bg-purple-500/10 p-2.5 rounded-lg border border-purple-500/20 leading-relaxed">
+                    Notice: Cart contains Made-to-Order items. Order will be ready for courier dispatch once custom item preparation is finished.
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-sm font-semibold">
                   <span className="text-muted-foreground">Subtotal</span>
                   <span className="text-lg font-bold text-foreground">

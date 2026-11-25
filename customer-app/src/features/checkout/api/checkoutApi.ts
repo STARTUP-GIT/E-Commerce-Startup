@@ -15,6 +15,12 @@ export interface CheckoutSummary {
     quantity: number;
     unitPrice: number;
     totalPrice: number;
+    fulfilmentType?: 'READY_TO_SHIP' | 'MADE_TO_ORDER';
+    minPrepDays?: number | null;
+    maxPrepDays?: number | null;
+    prepTimeType?: 'CALENDAR_DAYS' | 'BUSINESS_DAYS' | null;
+    productionNotes?: string | null;
+    estimatedReadyDate?: string | null;
   }[];
   subtotal: number;
   shippingTotal: number;

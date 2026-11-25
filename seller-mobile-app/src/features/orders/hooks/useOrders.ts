@@ -87,6 +87,13 @@ export function useOrders(orderId?: string) {
     },
   });
 
+  const markReadyForPickupMutation = useMutation({
+    mutationFn: ordersApi.markReadyForPickup,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+
   const markShippedMutation = useMutation({
     mutationFn: ordersApi.markShipped,
     onSuccess: () => {
@@ -135,6 +142,9 @@ export function useOrders(orderId?: string) {
 
     uploadPackingProof: uploadPackingProofMutation.mutateAsync,
     isUploadingProof: uploadPackingProofMutation.isPending,
+
+    markReadyForPickup: markReadyForPickupMutation.mutateAsync,
+    isMarkingReadyForPickup: markReadyForPickupMutation.isPending,
 
     markPacked: markPackedMutation.mutateAsync,
     isMarkingPacked: markPackedMutation.isPending,

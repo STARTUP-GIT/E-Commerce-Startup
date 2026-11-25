@@ -31,7 +31,7 @@ playwright-report
 tests
 
 # ==============================================================================
-# Scratch Files (Project documentation under Documentation/ is tracked)
+# Scratch Files
 # ==============================================================================
 todos.txt
 SECURITY-AUDIT-REPORT.md
@@ -49,3 +49,9 @@ Thumbs.db
 
 *.tsbuildinfo
 
+Documentation/
+
+IMPORTANT_FILES/
+
+.agents
+skill-lock.json
