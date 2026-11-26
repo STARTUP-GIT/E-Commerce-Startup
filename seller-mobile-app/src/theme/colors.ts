@@ -43,4 +43,11 @@ export const Colors = {
 
   glassBg: 'rgba(255, 255, 255, 0.035)',
   glassBorder: 'rgba(255, 255, 255, 0.08)',
+
+  white: '#ffffff',
+  white40: 'rgba(255, 255, 255, 0.40)',
+  white60: 'rgba(255, 255, 255, 0.60)',
+  red: '#ef4444',
+  cardBg: '#111116',
+  cardBgSubtle: 'rgba(255, 255, 255, 0.035)',
 };

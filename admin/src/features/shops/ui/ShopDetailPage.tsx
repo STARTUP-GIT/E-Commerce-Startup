@@ -12,10 +12,12 @@ import { useUIStore } from '@/lib/store/uiStore';
 import { 
   Store, User, MapPin, ShieldAlert, CheckCircle2, XCircle, ShieldOff, 
   Trash2, ArrowLeft, RotateCcw, AlertTriangle, Box, FileCheck, Clock,
-  FileText, Shield, ExternalLink, Calendar, Check, Send, AlertCircle, Eye
+  FileText, Shield, ExternalLink, Calendar, Check, Send, AlertCircle, Eye,
+  Power, History, Radio
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { ReasonModal } from '@/shared/components/ReasonModal';
+import { usePermissions } from '@/lib/hooks/usePermissions';
 
 export function ShopDetailPage() {
   const { id } = useParams();
@@ -41,6 +43,14 @@ export function ShopDetailPage() {
     target: '',
     onConfirm: () => {},
   });
+
+  const { can } = usePermissions();
+  const canManageAvailability = can('sellers.manage');
+
+  // Availability Override Dialog State
+  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
+  const [overrideIsOnline, setOverrideIsOnline] = useState<boolean>(true);
+  const [overrideReason, setOverrideReason] = useState('');
 
   // Issue Agreement Dialog State
   const [isAgreementModalOpen, setIsAgreementModalOpen] = useState(false);
@@ -146,6 +156,19 @@ This agreement becomes legally binding upon digital acceptance by the authorized
       showToast('Shop agreement issued successfully and sent to seller.', 'success');
     },
     onError: (e: any) => showToast(e.message || 'Failed to issue agreement', 'error'),
+  });
+
+  const overrideAvailabilityMutation = useMutation({
+    mutationFn: ({ isOnline, reason }: { isOnline: boolean; reason: string }) =>
+      shopApi.overrideShopAvailability(shopId, { isOnline, reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shop-detail', shopId] });
+      queryClient.invalidateQueries({ queryKey: ['shops'] });
+      setIsOverrideModalOpen(false);
+      setOverrideReason('');
+      showToast('Shop availability override applied successfully.', 'success');
+    },
+    onError: (e: any) => showToast(e.message || 'Failed to override availability', 'error'),
   });
 
   const approveMutation = useMutation({
@@ -517,6 +540,151 @@ This agreement becomes legally binding upon digital acceptance by the authorized
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
+            {/* Shop Availability & Operating Status */}
+            <Card className="border border-white/5 bg-white/[0.01]">
+              <CardHeader className="border-b border-white/5 flex flex-row items-center justify-between pb-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xs font-bold text-white/95">Shop Availability & Operating Status</CardTitle>
+                    <Badge
+                      variant={shop.isOnline !== false ? 'success' : 'destructive'}
+                      className="text-[9px] px-2 py-0.5 font-bold"
+                    >
+                      {shop.isOnline !== false ? '● ONLINE' : '● OFFLINE'}
+                    </Badge>
+                  </div>
+                  <CardDescription>Live storefront ordering availability, automatic closing schedule and admin override</CardDescription>
+                </div>
+                {canManageAvailability && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs border-white/10 hover:bg-white/5 font-semibold"
+                    onClick={() => {
+                      setOverrideIsOnline(!shop.isOnline);
+                      setOverrideReason('');
+                      setIsOverrideModalOpen(true);
+                    }}
+                  >
+                    <Shield className="h-3.5 w-3.5 mr-1.5 text-indigo-400" />
+                    Admin Override
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent className="p-4 space-y-4 text-xs">
+                {/* 4 Metric grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                    <span className="text-[10px] text-white/40 block font-semibold uppercase tracking-wider">Status Mode</span>
+                    <span className="text-white/90 font-bold mt-1 block">
+                      {shop.isOnline !== false ? 'Accepting Orders' : 'Storefront Orders Disabled'}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                    <span className="text-[10px] text-white/40 block font-semibold uppercase tracking-wider">Status Source</span>
+                    <span className="text-white/90 font-bold mt-1 block">
+                      {shop.lastStatusChangeSource === 'MANUAL_SELLER'
+                        ? 'Manual (Seller)'
+                        : shop.lastStatusChangeSource === 'SCHEDULED_AUTO'
+                        ? 'Scheduled Closing (System)'
+                        : shop.lastStatusChangeSource === 'ADMIN_OVERRIDE'
+                        ? 'Admin Override'
+                        : 'Operational Default'}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                    <span className="text-[10px] text-white/40 block font-semibold uppercase tracking-wider">Last Status Change</span>
+                    <span className="text-white/90 font-bold mt-1 block truncate">
+                      {shop.lastStatusChangedAt
+                        ? new Date(shop.lastStatusChangedAt).toLocaleString('en-IN', { timeZone: shop.timeZone || 'Asia/Kolkata', dateStyle: 'short', timeStyle: 'short' })
+                        : '—'}
+                    </span>
+                    <span className="text-[10px] text-white/40 block mt-0.5">
+                      By: {shop.lastStatusChangedBy || 'Seller'}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                    <span className="text-[10px] text-white/40 block font-semibold uppercase tracking-wider">Offline Reason</span>
+                    <span className="text-white/90 font-medium mt-1 block truncate" title={shop.closingReason || 'None'}>
+                      {shop.closingReason || '—'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Scheduled Closing Notice Box (if any) */}
+                {shop.scheduledCloseAt && (
+                  <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 flex items-start gap-3">
+                    <Clock className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1 text-xs flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-amber-300">
+                          Scheduled Closing: {new Date(shop.scheduledCloseAt).toLocaleString('en-IN', { timeZone: shop.timeZone || 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} ({shop.timeZone || 'Asia/Kolkata'})
+                        </span>
+                        <Badge variant="outline" className="text-[8px] border-amber-500/30 text-amber-400">
+                          {shop.scheduledCloseNoticeSent ? '30-min Notice Sent' : 'Pending'}
+                        </Badge>
+                      </div>
+                      {shop.scheduledCloseReason && (
+                        <p className="text-white/70 text-[11px]">Reason: {shop.scheduledCloseReason}</p>
+                      )}
+                      <p className="text-[10px] text-white/45">
+                        Shop will automatically switch offline at this time until the seller reopens.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Status Change Logs */}
+                {shop.availabilityLogs && shop.availabilityLogs.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-white/5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/40 block">
+                      Recent Availability Change Logs
+                    </span>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {shop.availabilityLogs.map((log: any) => (
+                        <div
+                          key={log.id}
+                          className="p-2.5 rounded-lg border border-white/5 bg-white/[0.015] flex items-center justify-between text-[11px]"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                log.isOnline ? 'bg-emerald-500' : 'bg-red-500'
+                              }`}
+                            />
+                            <span className="font-bold text-white">
+                              {log.isOnline ? 'ONLINE' : 'OFFLINE'}
+                            </span>
+                            <span className="text-white/40">•</span>
+                            <span className="text-white/60">
+                              {log.source === 'MANUAL_SELLER'
+                                ? 'Seller Manual'
+                                : log.source === 'SCHEDULED_AUTO'
+                                ? 'Auto Schedule'
+                                : 'Admin Override'}
+                            </span>
+                            {log.actorName && (
+                              <span className="text-white/40">({log.actorName})</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {log.reason && (
+                              <span className="text-white/50 max-w-[160px] truncate" title={log.reason}>
+                                "{log.reason}"
+                              </span>
+                            )}
+                            <span className="text-white/35 font-mono text-[10px]">
+                              {new Date(log.createdAt).toLocaleString('en-IN', { timeZone: shop.timeZone || 'Asia/Kolkata', dateStyle: 'short', timeStyle: 'short' })}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card className="border border-white/5 bg-white/[0.01]">
               <CardHeader className="border-b border-white/5">
                 <CardTitle className="text-xs font-bold text-white/95">Shop Description & Mission</CardTitle>
@@ -1089,6 +1257,96 @@ This agreement becomes legally binding upon digital acceptance by the authorized
               onClick={() => issueAgreementMutation.mutate()}
             >
               <Send className="h-3.5 w-3.5 mr-1.5" /> Publish & Send to Seller
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Admin Override Availability Dialog */}
+      <Dialog
+        isOpen={isOverrideModalOpen}
+        onClose={() => setIsOverrideModalOpen(false)}
+        title="Admin Availability Override"
+      >
+        <div className="space-y-4 text-xs">
+          <p className="text-white/70 leading-relaxed">
+            Directly override the live storefront ordering status for <strong className="text-white">{shop.name}</strong>.
+            This action takes effect immediately across all customer and seller applications and will be recorded with your admin account in the audit log.
+          </p>
+
+          <div className="space-y-2">
+            <label className="text-white/60 font-bold block">Target Shop Status</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setOverrideIsOnline(true)}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  overrideIsOnline
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300 font-bold'
+                    : 'border-white/10 bg-white/[0.02] text-white/60 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <span>Force ONLINE</span>
+                </div>
+                <p className="text-[10px] text-white/45 mt-1 font-normal">Enable customer checkout and accepting orders</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOverrideIsOnline(false)}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  !overrideIsOnline
+                    ? 'border-red-500 bg-red-500/10 text-red-300 font-bold'
+                    : 'border-white/10 bg-white/[0.02] text-white/60 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  <span>Force OFFLINE</span>
+                </div>
+                <p className="text-[10px] text-white/45 mt-1 font-normal">Disable new orders, keep existing orders intact</p>
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-white/60 font-bold block">
+              Reason for Admin Override <span className="text-red-400">*</span>
+            </label>
+            <textarea
+              rows={3}
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+              placeholder="Provide a mandatory reason for this override (e.g. seller emergency request, policy check, maintenance)..."
+              className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-white focus:outline-none focus:border-indigo-500 font-medium resize-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsOverrideModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className={overrideIsOnline ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold' : 'bg-red-600 hover:bg-red-700 text-white font-bold'}
+              disabled={!overrideReason.trim() || overrideAvailabilityMutation.isPending}
+              isLoading={overrideAvailabilityMutation.isPending}
+              onClick={() => {
+                overrideAvailabilityMutation.mutate({
+                  isOnline: overrideIsOnline,
+                  reason: overrideReason.trim(),
+                });
+              }}
+            >
+              <Shield className="h-3.5 w-3.5 mr-1.5" />
+              Confirm Override
             </Button>
           </div>
         </div>

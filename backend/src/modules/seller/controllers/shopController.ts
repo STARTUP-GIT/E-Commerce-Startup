@@ -1810,4 +1810,128 @@ export const declineShopAgreement = async (req: Request, res: Response) => {
     }
 };
 
+export const getShopAvailabilityController = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+        const shop = await prisma.shop.findUnique({
+            where: { sellerId },
+            select: { id: true, name: true }
+        });
+
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+
+        const { ShopAvailabilityService } = await import("../../../services/shop/shopAvailability.service.js");
+        const availability = await ShopAvailabilityService.getShopAvailability(shop.id);
+
+        return res.status(200).json({ availability });
+    } catch (error: any) {
+        console.error("GET SHOP AVAILABILITY ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const updateShopAvailabilityController = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+        const { isOnline, reason, force } = req.body;
+
+        const shop = await prisma.shop.findUnique({
+            where: { sellerId }
+        });
+
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+
+        if (typeof isOnline !== "boolean") {
+            return res.status(400).json({ message: "isOnline boolean field is required" });
+        }
+
+        const { ShopAvailabilityService } = await import("../../../services/shop/shopAvailability.service.js");
+        const result = await ShopAvailabilityService.setManualAvailability({
+            shopId: shop.id,
+            isOnline,
+            reason,
+            actorType: "SELLER",
+            actorId: sellerId,
+            actorName: shop.name,
+            force: Boolean(force)
+        });
+
+        if ((result as any).requiresConfirmation) {
+            return res.status(200).json({
+                requiresConfirmation: true,
+                activeOrdersCount: (result as any).activeOrdersCount,
+                message: (result as any).message
+            });
+        }
+
+        invalidatePublicCache();
+        return res.status(200).json(result);
+    } catch (error: any) {
+        console.error("UPDATE SHOP AVAILABILITY ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const scheduleShopClosingController = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+        const { scheduledCloseAt, closingReason, timeZone } = req.body;
+
+        if (!scheduledCloseAt) {
+            return res.status(400).json({ message: "scheduledCloseAt timestamp is required" });
+        }
+
+        const shop = await prisma.shop.findUnique({
+            where: { sellerId }
+        });
+
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+
+        const { ShopAvailabilityService } = await import("../../../services/shop/shopAvailability.service.js");
+        const result = await ShopAvailabilityService.scheduleClosing({
+            shopId: shop.id,
+            scheduledCloseAt,
+            closingReason,
+            timeZone,
+            actorId: sellerId,
+            actorName: shop.name
+        });
+
+        invalidatePublicCache();
+        return res.status(200).json(result);
+    } catch (error: any) {
+        console.error("SCHEDULE SHOP CLOSING ERROR:", error);
+        return res.status(400).json({ message: error.message || "Invalid schedule data" });
+    }
+};
+
+export const cancelScheduledClosingController = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+        const shop = await prisma.shop.findUnique({
+            where: { sellerId }
+        });
+
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" });
+        }
+
+        const { ShopAvailabilityService } = await import("../../../services/shop/shopAvailability.service.js");
+        const result = await ShopAvailabilityService.cancelScheduledClosing(shop.id, sellerId, shop.name);
+
+        invalidatePublicCache();
+        return res.status(200).json(result);
+    } catch (error: any) {
+        console.error("CANCEL SCHEDULED CLOSING ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+
 

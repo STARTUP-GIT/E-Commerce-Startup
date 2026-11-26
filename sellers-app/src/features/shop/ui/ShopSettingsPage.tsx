@@ -34,6 +34,7 @@ import { useUIStore } from '@/lib/store/uiStore';
 import { SellerAgreementBanner } from './SellerAgreementBanner';
 import { ShopPickupAddressForm, type StructuredShopAddress } from '@/features/location/ui/ShopPickupAddressForm';
 import { PackagingCatalogueSection } from './PackagingCatalogueSection';
+import { ShopAvailabilityControl } from './ShopAvailabilityControl';
 export function ShopSettingsPage() {
   const {
     shop,
@@ -370,6 +371,11 @@ export function ShopSettingsPage() {
 
         {/* Shop Agreement & Approval Banner */}
         <SellerAgreementBanner shopStatus={shop?.status} />
+
+        {/* Shop Availability & Scheduled Closing */}
+        {shop && shop.status === 'APPROVED' && (
+          <ShopAvailabilityControl />
+        )}
 
         <Card className="border border-white/10 bg-gradient-to-br from-purple-500/10 via-transparent to-emerald-500/10">
           <CardHeader className="pb-3">

@@ -26,6 +26,7 @@ import { Input } from '@/shared/components/Input';
 import { Dialog } from '@/shared/components/Dialog';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { SellerAgreementBanner } from './SellerAgreementBanner';
+import { ShopAvailabilityControl } from './ShopAvailabilityControl';
 import { PackagingCatalogueSection } from './PackagingCatalogueSection';
 import {
   Store,
@@ -534,6 +535,11 @@ export function ShopSettingsPage({ navigation }: ShopSettingsPageProps) {
         </View>
 
         {shop && <SellerAgreementBanner shopStatus={shop.status} />}
+
+        {/* Shop Online / Offline Availability Control */}
+        {shop && shop.status === 'APPROVED' && (
+          <ShopAvailabilityControl />
+        )}
 
         {/* Store Branding Card */}
         <Card>

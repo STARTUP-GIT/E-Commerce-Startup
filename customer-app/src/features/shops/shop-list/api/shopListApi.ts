@@ -12,6 +12,9 @@ export interface Shop {
   businessName?: string;
   supportEmail?: string;
   supportPhone?: string;
+  isOnline?: boolean;
+  closingReason?: string | null;
+  scheduledCloseAt?: string | null;
   createdAt: string;
   distance?: number;
   defaultPickupAddress?: {

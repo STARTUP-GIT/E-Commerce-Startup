@@ -42,6 +42,8 @@ export interface Product {
     name: string;
     slug?: string;
     logoUrl?: string;
+    isOnline?: boolean;
+    closingReason?: string | null;
   };
   category?: Category;
   variants?: ProductVariant[];

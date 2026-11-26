@@ -34,6 +34,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useSellerLayout } from '@/lib/hooks/useSellerLayout';
 import { SellerAgreementBanner } from '@/features/shop/ui/SellerAgreementBanner';
+import { ShopAvailabilityControl } from '@/features/shop/ui/ShopAvailabilityControl';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -151,6 +152,11 @@ export function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* Shop Online / Offline Availability & Scheduled Closing Control */}
+        {hasShop && shop && shop.status === 'APPROVED' && (
+          <ShopAvailabilityControl />
+        )}
 
         {!hasShop ? (
           <Card className="border border-purple-500/20 bg-purple-500/5 p-8 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden backdrop-blur-md">

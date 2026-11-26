@@ -309,6 +309,12 @@ export const CheckoutScreen: React.FC = () => {
 
   // 7. Order Placement (COD & Online Razorpay)
   const handlePlaceOrder = async () => {
+    if (summaryError) {
+      const isOffline = summaryError.toLowerCase().includes('offline');
+      Alert.alert(isOffline ? 'Shop Unavailable' : 'Checkout Issue', summaryError);
+      return;
+    }
+
     if (!activeAddress) {
       Alert.alert('Missing Address', 'Please select or add a delivery address.');
       return;
@@ -403,7 +409,9 @@ export const CheckoutScreen: React.FC = () => {
         );
       }
     } catch (err: any) {
-      Alert.alert('Checkout Failed', err?.response?.data?.message || err.message || 'Could not place order');
+      const errMsg = err?.response?.data?.message || err.message || 'Could not place order';
+      const isShopOfflineError = errMsg.toLowerCase().includes('offline') || errMsg.toLowerCase().includes('not accepting orders');
+      Alert.alert(isShopOfflineError ? 'Shop Unavailable' : 'Checkout Failed', errMsg);
     } finally {
       setIsPlacingOrder(false);
     }
@@ -421,6 +429,7 @@ export const CheckoutScreen: React.FC = () => {
   const isDeliveryDisabled =
     availableDeliveryMethods.length === 0 ||
     !selectedDeliveryMethod ||
+    Boolean(summaryError) ||
     ((selectedDeliveryMethod === 'ATLASBASKET_DELIVERY' || selectedDeliveryMethod === 'PORTAL_DELIVERY') &&
       !isPortalCovered);
 
@@ -741,7 +750,29 @@ export const CheckoutScreen: React.FC = () => {
           </View>
 
           {summaryError && (
-            <Text style={{ color: '#f87171', fontSize: 11, marginBottom: 8 }}>{summaryError}</Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: 8,
+                padding: 12,
+                borderRadius: 12,
+                backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                borderWidth: 1,
+                borderColor: 'rgba(239, 68, 68, 0.3)',
+                marginBottom: 12,
+              }}
+            >
+              <AlertTriangle size={16} color="#ef4444" style={{ marginTop: 2 }} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: '800' }}>
+                  {summaryError.toLowerCase().includes('offline') ? 'Shop Unavailable' : 'Order Calculation Notice'}
+                </Text>
+                <Text style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: 11, lineHeight: 16 }}>
+                  {summaryError}
+                </Text>
+              </View>
+            </View>
           )}
 
           <View style={styles.summaryRow}>

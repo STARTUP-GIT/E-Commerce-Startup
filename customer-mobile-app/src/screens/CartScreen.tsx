@@ -18,6 +18,7 @@ import {
   Package,
   ArrowRight,
   ArrowLeft,
+  AlertTriangle,
 } from 'lucide-react-native';
 import { useCart } from '../context/CartContext';
 import { productService } from '../services/product.service';
@@ -27,6 +28,13 @@ import { colors } from '../theme/colors';
 export const CartScreen: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { cart, cartCount, subtotal, updateQuantity, removeItem, isLoading } = useCart();
+
+  const hasOfflineItems = cart.items.some((item) => item.product?.shop?.isOnline === false);
+
+  const handleCheckout = () => {
+    if (hasOfflineItems) return;
+    navigation.navigate('Checkout');
+  };
 
   return (
     <View style={styles.container}>
@@ -64,6 +72,12 @@ export const CartScreen: React.FC = () => {
                   </Text>
                   {item.variant && (
                     <Text style={styles.itemVariant}>Option: {item.variant.name}</Text>
+                  )}
+                  {item.product?.shop?.isOnline === false && (
+                    <View style={styles.itemOfflineBadge}>
+                      <AlertTriangle size={11} color="#ef4444" />
+                      <Text style={styles.itemOfflineText}>Shop is currently offline</Text>
+                    </View>
                   )}
                   <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
                     <Text style={{ fontSize: 10, color: item.product?.fulfilmentType === 'MADE_TO_ORDER' ? '#c084fc' : '#10b981', fontWeight: '700' }}>
@@ -116,18 +130,30 @@ export const CartScreen: React.FC = () => {
       {/* Footer */}
       {cart.items.length > 0 && (
         <View style={styles.footer}>
+          {hasOfflineItems && (
+            <View style={styles.offlineWarningBanner}>
+              <AlertTriangle size={14} color="#f59e0b" />
+              <Text style={styles.offlineWarningText}>
+                Some shops in your cart are currently offline. Remove their items to proceed.
+              </Text>
+            </View>
+          )}
+
           <View style={styles.subtotalRow}>
             <Text style={styles.subtotalLabel}>Subtotal</Text>
             <Text style={styles.subtotalValue}>{productService.formatPrice(subtotal)}</Text>
           </View>
 
           <TouchableOpacity
-            onPress={() => navigation.navigate('Checkout')}
-            style={styles.checkoutBtn}
+            onPress={handleCheckout}
+            disabled={hasOfflineItems}
+            style={[styles.checkoutBtn, hasOfflineItems && styles.checkoutBtnDisabled]}
             activeOpacity={0.8}
           >
-            <Text style={styles.checkoutText}>Proceed to Checkout</Text>
-            <ArrowRight size={16} color={colors.primaryForeground} />
+            <Text style={styles.checkoutText}>
+              {hasOfflineItems ? 'Remove Offline Items to Checkout' : 'Proceed to Checkout'}
+            </Text>
+            {!hasOfflineItems && <ArrowRight size={16} color={colors.primaryForeground} />}
           </TouchableOpacity>
         </View>
       )}
@@ -282,9 +308,45 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
   },
+  checkoutBtnDisabled: {
+    opacity: 0.5,
+    backgroundColor: '#3f3f46',
+  },
   checkoutText: {
     color: colors.primaryForeground,
     fontSize: 14,
     fontWeight: '800',
+  },
+  itemOfflineBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    alignSelf: 'flex-start',
+  },
+  itemOfflineText: {
+    color: '#ef4444',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  offlineWarningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+    marginBottom: 12,
+  },
+  offlineWarningText: {
+    color: '#f59e0b',
+    fontSize: 11,
+    fontWeight: '600',
+    flex: 1,
   },
 });

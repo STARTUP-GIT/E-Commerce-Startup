@@ -407,6 +407,12 @@ export function handleIncomingRedisEvent(rawMessage: string): void {
                 broadcastLocalBrandingUpdated(event.app);
                 break;
             }
+            case "SHOP_AVAILABILITY_UPDATED": {
+                if (event.payload) {
+                    broadcastLocalShopAvailabilityUpdated(event.payload);
+                }
+                break;
+            }
             default:
                 logger.warn("[WS:Redis] Unhandled Redis event type received", { eventType: event.eventType });
                 break;
@@ -1015,6 +1021,45 @@ export function broadcastLocalBrandingUpdated(app: string = "CUSTOMER"): void {
             }
         }
     }
+}
+
+export interface ShopAvailabilityUpdatePayload {
+    shopId: string;
+    isOnline: boolean;
+    scheduledCloseAt?: string | null;
+    closingReason?: string | null;
+    closedAt?: string | null;
+    lastStatusChangeSource?: string | null;
+    lastStatusChangedBy?: string | null;
+    lastStatusChangedAt?: string | null;
+    timeZone?: string;
+    activeOrdersCount?: number;
+}
+
+export function broadcastLocalShopAvailabilityUpdated(payload: ShopAvailabilityUpdatePayload): void {
+    const raw = JSON.stringify({
+        type: "shop_availability_updated",
+        ...payload,
+        timestamp: new Date().toISOString()
+    });
+    for (const [ws] of clients.entries()) {
+        if (ws.readyState === WebSocket.OPEN) {
+            try {
+                ws.send(raw);
+            } catch {
+                // Ignore socket send error
+            }
+        }
+    }
+}
+
+export async function broadcastShopAvailabilityUpdated(payload: ShopAvailabilityUpdatePayload): Promise<boolean> {
+    broadcastLocalShopAvailabilityUpdated(payload);
+    return publishWSEvent({
+        eventType: "SHOP_AVAILABILITY_UPDATED",
+        originProcessId: PROCESS_ID,
+        payload
+    });
 }
 
 // ─── Public Cross-Process Broadcasters ───────────────────────────────────────

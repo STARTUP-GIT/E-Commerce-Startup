@@ -31,6 +31,7 @@ import { Badge } from '@/shared/components/Badge';
 import { useConfirmStore } from '@/lib/store/confirmStore';
 import { useSellerLayout } from '@/lib/hooks/useSellerLayout';
 import { SellerNotificationDropdown } from '@/features/notifications/ui/SellerNotificationDropdown';
+import { HeaderAvailabilityBadge } from '@/features/shop/ui/HeaderAvailabilityBadge';
 import { useSidebarBadges } from '@/features/notifications/hooks/useNotifications';
 import type { SidebarBadges } from '@/features/notifications/api/notificationApi';
 
@@ -324,6 +325,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Shop Availability Badge */}
+            {shop && shop.status === 'APPROVED' && (
+              <HeaderAvailabilityBadge />
+            )}
+
             {/* Quick stats indicator */}
             {shop && shop.status !== 'APPROVED' && (
               <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full border border-yellow-500/20 bg-yellow-500/10 text-[10px] font-bold text-yellow-400">

@@ -545,10 +545,14 @@ export function CheckoutPage() {
             <div className="p-4 text-xs font-semibold text-destructive bg-destructive/10 rounded-xl border border-destructive/20 flex items-start gap-2">
               <ShieldAlert className="h-5 w-5 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-sm">Delivery Conflict</p>
+                <p className="font-bold text-sm">
+                  {validation.message?.toLowerCase().includes('offline') ? 'Shop Unavailable' : 'Delivery Conflict'}
+                </p>
                 <p className="mt-1 text-muted-foreground leading-relaxed">{validation.message}</p>
                 <p className="mt-2 text-[10px] uppercase tracking-wider text-destructive font-bold">
-                  Tip: All items in your cart must belong to vendors located in your shipping city.
+                  {validation.message?.toLowerCase().includes('offline')
+                    ? 'Notice: Products from offline shops cannot be checked out. Existing cart items are preserved.'
+                    : 'Tip: All items in your cart must belong to vendors located in your shipping city.'}
                 </p>
               </div>
             </div>

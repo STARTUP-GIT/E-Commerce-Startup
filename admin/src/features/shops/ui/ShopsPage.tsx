@@ -125,6 +125,7 @@ export function ShopsPage() {
                   <TableHead>Shop</TableHead>
                   <TableHead>City</TableHead>
                   <TableHead>Packing Status</TableHead>
+                  <TableHead>Availability</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -159,6 +160,29 @@ export function ShopsPage() {
                       <Badge variant={shop.packingPermission === 'APPROVED' ? 'success' : shop.packingPermission === 'PENDING' ? 'warning' : 'outline'} className="text-[8px]">
                         {shop.packingPermission ?? 'None'}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1 items-start">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              shop.isOnline !== false ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500'
+                            }`}
+                          />
+                          <span
+                            className={`text-[11px] font-semibold ${
+                              shop.isOnline !== false ? 'text-emerald-400' : 'text-red-400'
+                            }`}
+                          >
+                            {shop.isOnline !== false ? 'Online' : 'Offline'}
+                          </span>
+                        </div>
+                        {shop.scheduledCloseAt && (
+                          <span className="text-[9px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+                            Sched. Close
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_BADGE[shop.status] ?? 'outline'} className="text-[8px]">{shop.status}</Badge>

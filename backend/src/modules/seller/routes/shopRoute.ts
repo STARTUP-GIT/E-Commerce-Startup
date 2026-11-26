@@ -19,7 +19,11 @@ import {
     submitShopApprovalRequest,
     getShopAgreement,
     acceptShopAgreement,
-    declineShopAgreement
+    declineShopAgreement,
+    getShopAvailabilityController,
+    updateShopAvailabilityController,
+    scheduleShopClosingController,
+    cancelScheduledClosingController
 } from "../controllers/shopController.js";
 import { sellerAuth } from "../../../middleware/sellerAuth.js";
 import { writeLimiter, uploadLimiter } from "../../../middleware/rateLimiter.js";
@@ -47,5 +51,12 @@ router.get("/api/locations/states", sellerAuth, writeLimiter, getActiveStates);
 router.get("/api/locations/districts", sellerAuth, writeLimiter, getActiveDistricts);
 router.post("/api/shop/packing-fee/request", sellerAuth, writeLimiter, requestPackingFeeApproval);
 router.patch("/api/shop/packing-fee/toggle", sellerAuth, writeLimiter, togglePackingFee);
+
+// Shop Availability Management
+router.get("/api/shop/availability", sellerAuth, writeLimiter, getShopAvailabilityController);
+router.patch("/api/shop/availability", sellerAuth, writeLimiter, updateShopAvailabilityController);
+router.post("/api/shop/availability", sellerAuth, writeLimiter, updateShopAvailabilityController);
+router.post("/api/shop/schedule-closing", sellerAuth, writeLimiter, scheduleShopClosingController);
+router.post("/api/shop/cancel-scheduled-closing", sellerAuth, writeLimiter, cancelScheduledClosingController);
 
 export default router;

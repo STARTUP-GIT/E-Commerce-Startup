@@ -90,7 +90,8 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
 
   const isMadeToOrder = product.fulfilmentType === 'MADE_TO_ORDER';
   const isCapacityFull = isMadeToOrder && !!product.maxConcurrentOrders && (product.activeProductionOrders || 0) >= product.maxConcurrentOrders;
-  const isOrderable = isMadeToOrder ? !isCapacityFull : stockAvailable > 0;
+  const isShopOnline = product.seller?.shop ? (product.seller.shop as any).isOnline !== false : true;
+  const isOrderable = isShopOnline && (isMadeToOrder ? !isCapacityFull : stockAvailable > 0);
 
   const calculateReadyDates = () => {
     const minDays = product.minPrepDays || 1;
@@ -124,6 +125,14 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
   };
 
   const handleAddToCart = () => {
+    if (!isShopOnline) {
+      showAlert({
+        title: 'Shop Offline',
+        message: `${product.seller?.shop?.name || 'This shop'} is currently offline and not accepting orders. Please check back later.`,
+        confirmText: 'Got it',
+      });
+      return;
+    }
     handleAuthenticatedAction(() => {
       addToCart(
         {
@@ -141,6 +150,14 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
   };
 
   const handleBuyNow = () => {
+    if (!isShopOnline) {
+      showAlert({
+        title: 'Shop Offline',
+        message: `${product.seller?.shop?.name || 'This shop'} is currently offline and not accepting orders. Please check back later.`,
+        confirmText: 'Got it',
+      });
+      return;
+    }
     handleAuthenticatedAction(() => {
       router.push(
         `/checkout?buyNow=true&productId=${product.id}&quantity=${quantity}${
@@ -250,6 +267,11 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
                     <Store className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     <span className="truncate max-w-[180px] sm:max-w-none">Visit Shop: {product.seller.shop.name}</span>
                   </Link>
+                  {!isShopOnline && (
+                    <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] font-bold px-1.5 py-0">
+                      Shop Offline
+                    </Badge>
+                  )}
                 </div>
               )}
             </div>
@@ -390,6 +412,23 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
             </div>
           )}
 
+          {/* Shop Offline Warning Alert */}
+          {!isShopOnline && (
+            <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 flex items-start gap-3">
+              <Store className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-xs space-y-0.5">
+                <p className="font-bold text-amber-300">Shop Currently Offline</p>
+                <p className="text-amber-200/90">
+                  {product.seller?.shop?.name || 'This shop'} is currently offline and not taking orders.
+                  {(product.seller?.shop as any)?.closingReason ? ` Notice: "${(product.seller?.shop as any).closingReason}"` : ''}
+                </p>
+                <p className="text-amber-200/70 text-[11px] pt-1">
+                  You can add this product to your wishlist to buy when the shop is back online.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Buy actions */}
           <div className="flex flex-wrap items-stretch sm:items-center gap-2 sm:gap-3 pt-3 sm:pt-4">
             <div className="flex items-center border border-border rounded-lg bg-zinc-950/20 overflow-hidden h-10 sm:h-11">
@@ -417,7 +456,7 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
               className="flex-1 min-w-[100px] flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-5 text-xs sm:text-sm cursor-pointer"
             >
               <ShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              <span className="xs:inline">{isCapacityFull ? 'Capacity Full' : 'Cart'}</span>
+              <span className="xs:inline">{!isShopOnline ? 'Shop Offline' : isCapacityFull ? 'Capacity Full' : 'Cart'}</span>
             </Button>
 
             <Button
@@ -426,7 +465,7 @@ export function ProductDetailsPage({ productId }: { productId: string }) {
               className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-5 text-xs sm:text-sm cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold"
             >
               <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              {isCapacityFull ? 'Capacity Full' : 'Buy'}
+              {!isShopOnline ? 'Offline' : isCapacityFull ? 'Capacity Full' : 'Buy'}
             </Button>
 
             <Button

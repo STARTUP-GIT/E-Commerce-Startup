@@ -102,6 +102,17 @@ model Shop {
   packingFeeRejectedReason    String?
   packingFeeRequestedAt       DateTime?
   packingFeeApprovedMaxAmount Decimal?                 @db.Decimal(10, 2)
+  isOnline                    Boolean                  @default(true)
+  closingReason               String?
+  closedAt                    DateTime?
+  lastStatusChangedAt         DateTime?                @default(now())
+  lastStatusChangeSource      String?                  @default("SELLER_MANUAL")
+  lastStatusChangedBy         String?
+  scheduledCloseAt            DateTime?
+  scheduledCloseReason        String?
+  scheduledCloseNoticeSent    Boolean                  @default(false)
+  timeZone                    String                   @default("Asia/Kolkata")
+  availabilityLogs            ShopAvailabilityLog[]
   packingFeeRequests          PackingFeeRequest[]
   packagingOptions            PackagingOption[]
   agreements                  ShopAgreement[]

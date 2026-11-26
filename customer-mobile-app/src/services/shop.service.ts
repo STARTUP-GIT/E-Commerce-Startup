@@ -12,6 +12,9 @@ export interface Shop {
   supportPhone?: string;
   rating?: number;
   productCount?: number;
+  isOnline?: boolean;
+  closingReason?: string | null;
+  scheduledCloseAt?: string | null;
   defaultPickupAddress?: {
     city: string;
     state: string;

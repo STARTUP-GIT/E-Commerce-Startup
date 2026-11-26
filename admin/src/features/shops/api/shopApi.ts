@@ -87,4 +87,12 @@ export const shopApi = {
     const response = await axiosInstance.get('/api/admin/shops/agreements', { params });
     return response.data;
   },
+  getShopAvailability: async (id: string) => {
+    const response = await axiosInstance.get(`/api/admin/shops/shops/${id}/availability`);
+    return response.data;
+  },
+  overrideShopAvailability: async (id: string, payload: { isOnline: boolean; reason: string }) => {
+    const response = await axiosInstance.patch(`/api/admin/shops/shops/${id}/availability-override`, payload);
+    return response.data;
+  },
 };

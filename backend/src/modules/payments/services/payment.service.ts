@@ -145,6 +145,10 @@ export const calculateTotals = async (params: {
             throw new Error(`Shop of product '${product.name}' is inactive.`);
         }
 
+        if (seller.shop.isOnline === false) {
+            throw new Error(`Shop '${seller.shop.name}' is currently offline and not accepting orders. Please remove items from this shop to proceed.`);
+        }
+
         // Verify seller shop city matches shipping city
         const shopAddress = seller.addresses?.[0];
         if (!shopAddress) {

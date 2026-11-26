@@ -26,6 +26,32 @@ export interface ShopAddress {
   accuracyMeters?: number | null;
 }
 
+export interface ShopAvailability {
+  shopId: string;
+  isOnline: boolean;
+  closingReason?: string | null;
+  closedAt?: string | null;
+  lastStatusChangedAt?: string | null;
+  lastStatusChangeSource?: string | null;
+  lastStatusChangedBy?: string | null;
+  scheduledCloseAt?: string | null;
+  scheduledCloseReason?: string | null;
+  scheduledCloseNoticeSent?: boolean;
+  timeZone?: string;
+  activeOrdersCount: number;
+  isCountdownActive: boolean;
+  countdownSecondsRemaining: number | null;
+  recentLogs?: Array<{
+    id: string;
+    status: boolean;
+    source: string;
+    actorType: string;
+    actorName?: string;
+    reason?: string;
+    createdAt: string;
+  }>;
+}
+
 export interface ShopInfo {
   id: string;
   name: string;
@@ -269,6 +295,26 @@ export const shopApi = {
 
   declineAgreement: async (agreementId: string, payload: { reason: string }): Promise<{ message: string; agreement: any }> => {
     const response = await axiosInstance.post(`/seller/api/shop/agreement/${agreementId}/decline`, payload);
+    return response.data;
+  },
+
+  getAvailability: async (): Promise<{ availability: ShopAvailability }> => {
+    const response = await axiosInstance.get('/seller/api/shop/availability');
+    return response.data;
+  },
+
+  updateAvailability: async (payload: { isOnline: boolean; reason?: string; force?: boolean }): Promise<{ success?: boolean; requiresConfirmation?: boolean; activeOrdersCount?: number; message?: string; shop?: any }> => {
+    const response = await axiosInstance.patch('/seller/api/shop/availability', payload);
+    return response.data;
+  },
+
+  scheduleClosing: async (payload: { scheduledCloseAt: string; closingReason?: string; timeZone?: string }): Promise<{ success: boolean; shop: any; activeOrdersCount?: number }> => {
+    const response = await axiosInstance.post('/seller/api/shop/schedule-closing', payload);
+    return response.data;
+  },
+
+  cancelScheduledClosing: async (): Promise<{ success: boolean; shop: any; activeOrdersCount?: number }> => {
+    const response = await axiosInstance.post('/seller/api/shop/cancel-scheduled-closing');
     return response.data;
   },
 };

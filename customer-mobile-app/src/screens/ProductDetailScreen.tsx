@@ -20,6 +20,7 @@ import {
   Check,
   Package,
   Zap,
+  AlertTriangle,
 } from 'lucide-react-native';
 import { productService, Product, Review } from '../services/product.service';
 import { useCart } from '../context/CartContext';
@@ -66,7 +67,8 @@ export const ProductDetailScreen: React.FC = () => {
 
   const isMadeToOrder = product?.fulfilmentType === 'MADE_TO_ORDER';
   const isCapacityFull = isMadeToOrder && !!product?.maxConcurrentOrders && (product?.activeProductionOrders || 0) >= product.maxConcurrentOrders;
-  const isOrderable = isMadeToOrder ? !isCapacityFull : (product?.stockQuantity || 0) > 0;
+  const isShopOffline = product?.shop?.isOnline === false;
+  const isOrderable = !isShopOffline && (isMadeToOrder ? !isCapacityFull : (product?.stockQuantity || 0) > 0);
 
   const getReadyDateString = () => {
     if (!product) return '';
@@ -98,6 +100,10 @@ export const ProductDetailScreen: React.FC = () => {
       return;
     }
     if (!product) return;
+    if (product.shop?.isOnline === false) {
+      Alert.alert('Shop Offline', 'This shop is currently offline and not accepting new orders.');
+      return;
+    }
 
     setIsAdding(true);
     try {
@@ -116,6 +122,10 @@ export const ProductDetailScreen: React.FC = () => {
       return;
     }
     if (!product) return;
+    if (product.shop?.isOnline === false) {
+      Alert.alert('Shop Offline', 'This shop is currently offline and not accepting new orders.');
+      return;
+    }
 
     navigation.navigate('Checkout', {
       buyNow: true,
@@ -191,7 +201,52 @@ export const ProductDetailScreen: React.FC = () => {
           >
             <Store size={15} color={colors.foregroundMuted} />
             <Text style={styles.shopName}>{product.shop.name}</Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                paddingHorizontal: 6,
+                paddingVertical: 2,
+                borderRadius: 8,
+                backgroundColor: isShopOffline ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                borderWidth: 1,
+                borderColor: isShopOffline ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)',
+                marginLeft: 4,
+              }}
+            >
+              <View
+                style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: 2.5,
+                  backgroundColor: isShopOffline ? '#ef4444' : '#10b981',
+                }}
+              />
+              <Text
+                style={{
+                  fontSize: 9,
+                  fontWeight: '700',
+                  color: isShopOffline ? '#ef4444' : '#10b981',
+                }}
+              >
+                {isShopOffline ? 'Offline' : 'Online'}
+              </Text>
+            </View>
           </TouchableOpacity>
+        )}
+
+        {isShopOffline && (
+          <View style={styles.offlineBanner}>
+            <AlertTriangle size={18} color="#f59e0b" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.offlineBannerTitle}>Shop is Currently Offline</Text>
+              <Text style={styles.offlineBannerSub}>
+                {product.shop?.closingReason ||
+                  'This seller is temporarily offline and not accepting orders. Ordering will resume when the shop reopens.'}
+              </Text>
+            </View>
+          </View>
         )}
 
         {/* Title & Price */}
@@ -339,7 +394,7 @@ export const ProductDetailScreen: React.FC = () => {
         >
           <ShoppingCart size={16} color={colors.foreground} />
           <Text style={styles.cartBtnText}>
-            {isCapacityFull ? 'Capacity Full' : 'Add to Cart'}
+            {isShopOffline ? 'Shop Offline' : isCapacityFull ? 'Capacity Full' : 'Add to Cart'}
           </Text>
         </TouchableOpacity>
 
@@ -351,7 +406,7 @@ export const ProductDetailScreen: React.FC = () => {
         >
           <Zap size={16} color={colors.primaryForeground} />
           <Text style={styles.buyBtnText}>
-            {isCapacityFull ? 'Capacity Full' : 'Buy Now'}
+            {isShopOffline ? 'Shop Offline' : isCapacityFull ? 'Capacity Full' : 'Buy Now'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -419,6 +474,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginBottom: 8,
+  },
+  offlineBanner: {
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+  },
+  offlineBannerTitle: {
+    color: '#f59e0b',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  offlineBannerSub: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 11,
+    lineHeight: 16,
   },
   shopName: {
     color: colors.foregroundMuted,

@@ -8,7 +8,26 @@ const getOrCreateCart = async (customerId: string) => {
         include: {
             items: {
                 include: {
-                    product: true,
+                    product: {
+                        include: {
+                            seller: {
+                                select: {
+                                    id: true,
+                                    shop: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                            slug: true,
+                                            isOnline: true,
+                                            scheduledCloseAt: true,
+                                            closingReason: true,
+                                            timeZone: true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
                     productVariant: true
                 }
             }
@@ -21,7 +40,26 @@ const getOrCreateCart = async (customerId: string) => {
             include: {
                 items: {
                     include: {
-                        product: true,
+                        product: {
+                            include: {
+                                seller: {
+                                    select: {
+                                        id: true,
+                                        shop: {
+                                            select: {
+                                                id: true,
+                                                name: true,
+                                                slug: true,
+                                                isOnline: true,
+                                                scheduledCloseAt: true,
+                                                closingReason: true,
+                                                timeZone: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
                         productVariant: true
                     }
                 }
@@ -106,6 +144,12 @@ export const addToCart = async (req: Request, res: Response) => {
         if (!product.seller.shop || product.seller.shop.status !== "APPROVED") {
             return res.status(403).json({
                 message: "Products from unapproved shops cannot be purchased or added to cart"
+            });
+        }
+
+        if (product.seller.shop.isOnline === false) {
+            return res.status(400).json({
+                message: `Shop '${product.seller.shop.name}' is currently offline and not accepting orders.`
             });
         }
 

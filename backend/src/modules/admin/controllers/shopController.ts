@@ -101,6 +101,10 @@ export const getShop = async (req: Request, res: Response) => {
                 },
                 packingFeeRequests: {
                     orderBy: { createdAt: "desc" }
+                },
+                availabilityLogs: {
+                    orderBy: { createdAt: "desc" },
+                    take: 20
                 }
             }
         });
@@ -1008,3 +1012,50 @@ export const getAllAgreements = async (req: Request, res: Response) => {
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };
+
+export const getAdminShopAvailability = async (req: Request, res: Response) => {
+    try {
+        const shopId = String(req.params.id);
+        const { ShopAvailabilityService } = await import("../../../services/shop/shopAvailability.service.js");
+        const availability = await ShopAvailabilityService.getShopAvailability(shopId);
+        return res.status(200).json({ availability });
+    } catch (error: any) {
+        console.error("GET ADMIN SHOP AVAILABILITY ERROR:", error);
+        return res.status(error.message === "Shop not found" ? 404 : 500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const overrideShopAvailability = async (req: Request, res: Response) => {
+    try {
+        const shopId = String(req.params.id);
+        const adminId = req.adminId!;
+        const { isOnline, reason } = req.body;
+
+        if (typeof isOnline !== "boolean") {
+            return res.status(400).json({ message: "isOnline boolean is required" });
+        }
+
+        const admin = await prisma.admin.findUnique({
+            where: { id: adminId },
+            select: { firstName: true, lastName: true, email: true }
+        });
+        const adminName = admin ? `${admin.firstName || "Admin"} ${admin.lastName || ""}`.trim() : "Admin";
+
+        const { ShopAvailabilityService } = await import("../../../services/shop/shopAvailability.service.js");
+        const result = await ShopAvailabilityService.setManualAvailability({
+            shopId,
+            isOnline,
+            reason: reason || "Admin override",
+            actorType: "ADMIN",
+            actorId: adminId,
+            actorName: adminName,
+            force: true
+        });
+
+        return res.status(200).json(result);
+    } catch (error: any) {
+        console.error("OVERRIDE SHOP AVAILABILITY ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+

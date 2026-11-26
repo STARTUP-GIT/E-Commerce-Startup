@@ -1,0 +1,18 @@
+model ShopAvailabilityLog {
+  id           String    @id @default(cuid())
+  shopId       String
+  status       Boolean   // true = ONLINE, false = OFFLINE
+  source       String    // "SELLER_MANUAL", "SCHEDULED_AUTOMATIC", "ADMIN_OVERRIDE"
+  actorType    String    // "SELLER", "ADMIN", "SYSTEM"
+  actorId      String?   // sellerId or adminId or null
+  actorName    String?
+  reason       String?
+  scheduledFor DateTime?
+  createdAt    DateTime  @default(now())
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([createdAt])
+  @@map("shop_availability_logs")
+}

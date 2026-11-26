@@ -19,6 +19,7 @@ import { Button } from '@/shared/components/Button';
 import { Badge } from '@/shared/components/Badge';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { SellerAgreementBanner } from '@/features/shop/ui/SellerAgreementBanner';
+import { ShopAvailabilityControl } from '@/features/shop/ui/ShopAvailabilityControl';
 import {
   IndianRupee,
   ShoppingBag,
@@ -127,6 +128,11 @@ export function DashboardPage({ navigation }: DashboardPageProps) {
             </Text>
           </View>
         </View>
+
+        {/* Shop Online/Offline Availability Control */}
+        {hasShop && shop && shop.status === 'APPROVED' && (
+          <ShopAvailabilityControl />
+        )}
 
         {!hasShop ? (
           <Card style={styles.setupCard}>

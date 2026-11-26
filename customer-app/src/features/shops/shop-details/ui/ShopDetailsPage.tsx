@@ -84,7 +84,18 @@ export function ShopDetailsPage({ shopId }: { shopId: string }) {
 
           {/* Shop Details */}
           <div className="w-full md:pl-28 space-y-2 text-center md:text-left">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">{shop.name}</h1>
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5">
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">{shop.name}</h1>
+              {shop.isOnline === false ? (
+                <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-400 text-xs font-bold px-2.5 py-0.5">
+                  ○ Currently Offline
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-400 text-xs font-bold px-2.5 py-0.5">
+                  ● Open & Accepting Orders
+                </Badge>
+              )}
+            </div>
             <p className="text-muted-foreground text-xs sm:text-sm max-w-2xl mx-auto md:mx-0 leading-relaxed">{shop.description}</p>
             <div className="flex flex-col sm:flex-row sm:flex-wrap items-center justify-center md:justify-start gap-2.5 sm:gap-4 text-xs text-muted-foreground pt-1">
               {shop.defaultPickupAddress && (
@@ -111,6 +122,22 @@ export function ShopDetailsPage({ shopId }: { shopId: string }) {
           </div>
         </div>
       </div>
+
+      {/* Offline Shop Notice Banner */}
+      {shop.isOnline === false && (
+        <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 flex items-start gap-3">
+          <Store className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1">
+            <span className="font-bold text-amber-300 text-sm block">This Shop is Currently Offline</span>
+            <p className="text-amber-200/90 leading-relaxed">
+              {shop.closingReason
+                ? `Seller notice: "${shop.closingReason}".`
+                : 'This shop is not currently accepting new orders.'}
+              {' '}You can still browse product listings. Ordering will resume as soon as the shop is back online.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Main Grid: Categories Sidebar & Products */}
       <div className="grid md:grid-cols-[220px_1fr] lg:grid-cols-[240px_1fr] gap-6 md:gap-8">

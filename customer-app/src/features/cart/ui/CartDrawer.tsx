@@ -6,7 +6,7 @@ import { useUIStore } from '@/lib/store/uiStore';
 import { productListService } from '../../products/product-list/services/productListService';
 import { Button } from '@/shared/components/Button';
 import { Skeleton } from '@/shared/components/Skeleton';
-import { ShoppingCart, X, Trash2, Heart, Plus, Minus, ArrowRight, Package } from 'lucide-react';
+import { ShoppingCart, X, Trash2, Heart, Plus, Minus, ArrowRight, Package, Store, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useProfile } from '@/features/auth/profile/hooks/useProfile';
 import { useQuery } from '@tanstack/react-query';
@@ -153,6 +153,13 @@ export function CartDrawer() {
                             </span>
                           </div>
                         )}
+
+                        {(item.product as any).seller?.shop?.isOnline === false && (
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded mt-1">
+                            <AlertTriangle className="h-3 w-3 shrink-0" />
+                            <span>{(item.product as any).seller?.shop?.name || 'Shop'} is currently offline</span>
+                          </div>
+                        )}
                         <span className="text-sm font-semibold block text-foreground">
                           {productListService.formatPrice(itemPrice)}
                         </span>
@@ -234,6 +241,19 @@ export function CartDrawer() {
                 <p className="text-xs text-muted-foreground">
                   Shipping and taxes calculated at checkout.
                 </p>
+                {/* Offline Shop Notice */}
+                {items.some((item: any) => item.product?.seller?.shop?.isOnline === false) && (
+                  <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-200 text-xs flex items-start gap-2.5">
+                    <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-amber-300">Offline Shop Items in Cart</p>
+                      <p className="text-[11px] text-amber-200/90 mt-0.5">
+                        Items from closed shops cannot be checked out. Please remove offline items to place orders with open vendors.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <Button
                     variant="outline"
@@ -254,6 +274,16 @@ export function CartDrawer() {
                   <Link
                     href="/checkout"
                     onClick={(e) => {
+                      if (items.some((item: any) => item.product?.seller?.shop?.isOnline === false)) {
+                        e.preventDefault();
+                        showConfirm({
+                          title: 'Offline Shop Detected',
+                          message: 'One or more items in your cart belong to a shop that is currently offline. Please remove those items to checkout with available shops.',
+                          confirmText: 'OK',
+                          onConfirm: () => {},
+                        });
+                        return;
+                      }
                       handleCheckoutClick(e);
                       if (!e.defaultPrevented) {
                         setCartOpen(false);
@@ -261,7 +291,10 @@ export function CartDrawer() {
                     }}
                     className="w-full"
                   >
-                    <Button className="w-full flex items-center justify-center gap-2 cursor-pointer">
+                    <Button
+                      disabled={items.some((item: any) => item.product?.seller?.shop?.isOnline === false)}
+                      className="w-full flex items-center justify-center gap-2 cursor-pointer"
+                    >
                       Checkout
                       <ArrowRight className="h-4 w-4" />
                     </Button>

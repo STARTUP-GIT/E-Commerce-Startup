@@ -19,6 +19,7 @@ import {
   Store,
   Package,
   Star,
+  AlertTriangle,
 } from 'lucide-react-native';
 import { shopService, Shop } from '../services/shop.service';
 import { productService, Product } from '../services/product.service';
@@ -93,7 +94,40 @@ export const ShopDetailScreen: React.FC = () => {
             )}
           </View>
 
-          <Text style={styles.shopName}>{shop.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+            <Text style={styles.shopName}>{shop.name}</Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 12,
+                backgroundColor: shop.isOnline !== false ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                borderWidth: 1,
+                borderColor: shop.isOnline !== false ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+              }}
+            >
+              <View
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: shop.isOnline !== false ? '#10b981' : '#ef4444',
+                }}
+              />
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontWeight: '700',
+                  color: shop.isOnline !== false ? '#10b981' : '#ef4444',
+                }}
+              >
+                {shop.isOnline !== false ? 'Online' : 'Offline'}
+              </Text>
+            </View>
+          </View>
           <Text style={styles.shopDesc}>{shop.description || 'Verified local creator.'}</Text>
 
           {/* Contact & Location Chips */}
@@ -120,6 +154,20 @@ export const ShopDetailScreen: React.FC = () => {
             ) : null}
           </View>
         </View>
+
+        {shop.isOnline === false && (
+          <View style={styles.offlineBanner}>
+            <AlertTriangle size={18} color="#f59e0b" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.offlineBannerTitle}>Shop is Currently Offline</Text>
+              <Text style={styles.offlineBannerSub}>
+                {shop.closingReason
+                  ? shop.closingReason
+                  : 'This seller is taking a break and not currently accepting orders. You can browse products, and ordering will resume once the shop reopens.'}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Products Section */}
         <View style={styles.productsSection}>
@@ -244,6 +292,28 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginTop: 12,
+  },
+  offlineBanner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+  },
+  offlineBannerTitle: {
+    color: '#f59e0b',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  offlineBannerSub: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 11,
+    lineHeight: 16,
   },
   infoChip: {
     flexDirection: 'row',

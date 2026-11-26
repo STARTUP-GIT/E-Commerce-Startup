@@ -38,6 +38,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { Colors } from '@/theme/colors';
+import { HeaderAvailabilityBadge } from '@/features/shop/ui/HeaderAvailabilityBadge';
 
 const getIconForItem = (path?: string) => {
   switch (path) {
@@ -204,6 +205,10 @@ export function DashboardLayout({
         </View>
 
         <View style={styles.headerRight}>
+          {shop && shop.status === 'APPROVED' ? (
+            <HeaderAvailabilityBadge navigation={navigation} />
+          ) : null}
+
           {shop && shop.status !== 'APPROVED' ? (
             <View style={styles.warningPill}>
               <AlertTriangle size={12} color={Colors.yellow} />

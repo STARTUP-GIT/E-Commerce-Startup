@@ -13,7 +13,9 @@ import {
     updateShopConfig,
     getPackingFeeRequests,
     issueShopAgreement,
-    getAllAgreements
+    getAllAgreements,
+    getAdminShopAvailability,
+    overrideShopAvailability
 } from "../controllers/shopController.js";
 import { adminAuth } from "../../../middleware/adminAuth.js";
 import { requirePermission } from "../../../middleware/requirePermission.js";
@@ -52,6 +54,12 @@ router.patch("/shops/:id/disable", requirePermission("sellers.manage"), disableS
 router.patch("/:id/disable", requirePermission("sellers.manage"), disableShop);
 router.put("/shops/:id/config", requirePermission("sellers.manage"), updateShopConfig);
 router.put("/:id/config", requirePermission("sellers.manage"), updateShopConfig);
+
+// Shop Availability Controls
+router.get("/shops/:id/availability", requirePermission("sellers.view"), getAdminShopAvailability);
+router.get("/:id/availability", requirePermission("sellers.view"), getAdminShopAvailability);
+router.patch("/shops/:id/availability-override", requirePermission("sellers.manage"), overrideShopAvailability);
+router.patch("/:id/availability-override", requirePermission("sellers.manage"), overrideShopAvailability);
 
 export default router;
 
