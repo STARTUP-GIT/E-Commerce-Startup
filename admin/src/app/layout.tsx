@@ -26,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} dark`} suppressHydrationWarning data-scroll-behavior="smooth">
-      <body className="min-h-full antialiased font-sans bg-background text-foreground">
+      <body className="h-full min-h-full antialiased font-sans bg-background text-foreground">
         <Providers>
           {children}
           <PremiumDialogContainer />

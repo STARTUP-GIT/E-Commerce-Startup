@@ -274,7 +274,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="relative min-h-screen bg-background text-foreground flex noise-bg overflow-hidden">
+    <div className="relative h-screen h-[100dvh] w-full bg-background text-foreground flex noise-bg overflow-hidden">
       {/* Background Monochrome Orbs */}
       <div className="absolute top-[-10%] left-[20%] w-[600px] h-[600px] rounded-full bg-white/[0.01] blur-[130px] pointer-events-none" />
 
@@ -288,13 +288,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 border-r border-white/5 bg-[#07070a]/90 backdrop-blur-md transition-transform duration-300 md:translate-x-0 md:static ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 h-screen h-[100dvh] border-r border-white/5 bg-[#07070a]/90 backdrop-blur-md transition-transform duration-300 md:translate-x-0 md:static shrink-0 flex flex-col overflow-hidden ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } shrink-0`}
+        }`}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full min-h-0 overflow-hidden">
           {/* Brand Logo */}
-          <div className="h-16 flex items-center px-6 border-b border-white/5 gap-2.5">
+          <div className="h-16 flex items-center px-6 border-b border-white/5 gap-2.5 shrink-0">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white overflow-hidden shrink-0">
               {branding?.logo && branding.logo !== '/images/logo.png' ? (
                 <img src={branding.logo} alt={branding.name} className="h-full w-full object-cover" />
@@ -309,7 +309,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Search Box */}
-          <div className="px-4 pt-3 pb-1">
+          <div className="px-4 pt-3 pb-1 shrink-0">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-white/30" />
               <input
@@ -331,7 +331,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Nav links */}
-          <nav className="flex-1 px-4 py-2 overflow-y-auto space-y-3 scrollbar-none">
+          <nav
+            tabIndex={0}
+            aria-label="Admin Navigation"
+            className="flex-1 min-h-0 px-4 py-2 overflow-y-auto overflow-x-hidden space-y-3 custom-scrollbar overscroll-y-contain focus:outline-none"
+          >
             {navGroups.map((group) => {
               const groupItems = filteredNavItems.filter((item) => item.group === group);
               if (groupItems.length === 0) return null;
@@ -405,7 +409,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </nav>
 
           {/* User info & Logout */}
-          <div className="p-4 border-t border-white/5 bg-white/[0.01]">
+          <div className="p-4 border-t border-white/5 bg-white/[0.01] shrink-0 mt-auto">
             <div className="flex items-center gap-3 mb-3">
               <div className="h-9 w-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-bold text-white ring-1 ring-white/10">
                 {admin?.firstName?.[0] || 'A'}
@@ -431,9 +435,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content Pane */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 border-b border-white/5 bg-[#07070a]/60 backdrop-blur-md flex items-center justify-between px-6 z-30 sticky top-0">
+        <header className="h-16 border-b border-white/5 bg-[#07070a]/60 backdrop-blur-md flex items-center justify-between px-6 z-30 shrink-0 sticky top-0">
           <div className="flex items-center gap-3">
             <button
               onClick={toggleSidebar}
@@ -464,7 +468,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Content Body */}
-        <main className="flex-1 p-6 overflow-y-auto bg-transparent relative z-10">{children}</main>
+        <main
+          tabIndex={0}
+          className="flex-1 min-h-0 p-6 overflow-y-auto overflow-x-hidden bg-transparent relative z-10 custom-scrollbar overscroll-y-contain focus:outline-none"
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

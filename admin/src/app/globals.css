@@ -126,12 +126,14 @@
   html {
     font-family: 'Inter', sans-serif;
     scroll-behavior: smooth;
+    height: 100%;
     @apply font-sans;
   }
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family: 'Inter', sans-serif;
+    height: 100%;
     min-height: 100vh;
     min-height: 100dvh;
     @apply bg-background text-foreground;
@@ -345,10 +347,35 @@
    SCROLLBAR
    ===================================================== */
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
 ::-webkit-scrollbar       { width:5px; height:5px; }
-::-webkit-scrollbar-track { background:rgba(255,255,255,0.02); }
-::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.10); border-radius:3px; }
-::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.25); }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:9999px; }
+::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.28); }
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+  overscroll-behavior: contain;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
 
 /* =====================================================
    DIVIDER
