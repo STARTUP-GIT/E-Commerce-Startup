@@ -214,7 +214,10 @@ This agreement becomes legally binding upon digital acceptance by the authorized
   const deleteMutation = useMutation({
     mutationFn: (reason: string) => shopApi.deleteShop(shopId, reason),
     onSuccess: () => {
-      showToast('Shop permanently deleted.', 'info');
+      queryClient.invalidateQueries({ queryKey: ['shops'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-shops'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
+      showToast('Shop deleted successfully.', 'info');
       router.push('/shops');
     },
     onError: (e: any) => showToast(e.message, 'error'),

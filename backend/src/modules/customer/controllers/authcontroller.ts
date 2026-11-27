@@ -187,9 +187,9 @@ export const login = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        if (customer.isBanned) {
+        if (customer.isBanned || customer.isDeactivated) {
             return res.status(403).json({
-                message: "Account is banned"
+                message: "Account has been deactivated or banned"
             });
         }
 
@@ -496,9 +496,9 @@ export const googleOAuth = async (req: Request, res: Response) => {
                 }
             });
 
-            if (customer.isBanned) {
+            if (customer.isBanned || customer.isDeactivated) {
                 return res.status(403).json({
-                    message: "Account is banned"
+                    message: "Account has been deactivated or banned"
                 });
             }
 
@@ -565,9 +565,9 @@ export const googleOAuth = async (req: Request, res: Response) => {
             }
         });
 
-        if (customer.isBanned) {
+        if (customer.isBanned || customer.isDeactivated) {
             return res.status(403).json({
-                message: "Account is banned"
+                message: "Account has been deactivated or banned"
             });
         }
 

@@ -8,10 +8,13 @@ export const getCustomers = async (req: Request, res: Response) => {
     try {
         const { search, status, state, district, unassigned, page = 1, limit = 10 } = req.query;
 
-        const andConditions: any[] = [{ isDeactivated: false }];
+        const andConditions: any[] = [];
+        const cleanStatus = status && typeof status === "string" ? status.trim().toUpperCase() : "";
 
-        if (status && typeof status === "string") {
-            const cleanStatus = status.trim().toUpperCase();
+        if (cleanStatus === "DELETED") {
+            andConditions.push({ isDeactivated: true });
+        } else {
+            andConditions.push({ isDeactivated: false });
             if (cleanStatus === "BANNED") {
                 andConditions.push({ isBanned: true });
             } else if (cleanStatus === "ACTIVE") {
@@ -222,9 +225,23 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Customer not found" });
         }
 
+        // Soft delete customer
         await prisma.customer.update({
             where: { id: customerId },
             data: { isDeactivated: true, deactivatedAt: new Date() }
+        });
+
+        // Revoke all customer refresh tokens
+        await prisma.customerRefreshToken.deleteMany({
+            where: { customerId }
+        });
+
+        // Clear active cart and wishlist
+        await prisma.cart.deleteMany({
+            where: { customerId }
+        });
+        await prisma.wishlist.deleteMany({
+            where: { customerId }
         });
 
         await logAdminAction({
@@ -232,12 +249,12 @@ export const deleteCustomer = async (req: Request, res: Response) => {
             actionType: AdminActionType.CUSTOMER_BANNED,
             targetType: "Customer",
             targetId: customerId,
-            description: `Customer ${customer.username} soft-deleted by admin. Reason: ${reason}`,
+            description: `Customer ${customer.username} soft-deleted by admin. Reason: ${reason.trim()}`,
             previousValue: { isDeactivated: customer.isDeactivated },
             newValue: { isDeactivated: true }
         });
 
-        return res.status(200).json({ message: "Customer deleted successfully" });
+        return res.status(200).json({ success: true, message: "Customer deleted successfully" });
     } catch (error: any) {
         console.error("DELETE CUSTOMER ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });

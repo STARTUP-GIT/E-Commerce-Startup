@@ -10,9 +10,14 @@ export const getShops = async (req: Request, res: Response) => {
         const { search, status, state, district, unassigned, page = 1, limit = 10 } = req.query;
 
         const andConditions: any[] = [];
+        const cleanStatus = status ? String(status).trim().toUpperCase() : "";
 
-        if (status && String(status).toUpperCase() !== "ALL") {
+        if (cleanStatus === "DELETED" || cleanStatus === "DISABLED") {
+            andConditions.push({ status: "DISABLED" });
+        } else if (cleanStatus && cleanStatus !== "ALL") {
             andConditions.push({ status: String(status) });
+        } else if (!cleanStatus) {
+            andConditions.push({ status: { not: "DISABLED" } });
         }
 
         if (search) {
@@ -204,8 +209,36 @@ export const deleteShop = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Shop not found" });
         }
 
-        await prisma.shop.delete({
-            where: { id: shopId }
+        // Soft-delete / disable the shop without breaking foreign keys or deleting historical records
+        await prisma.shop.update({
+            where: { id: shopId },
+            data: {
+                status: "DISABLED",
+                isOnline: false,
+                closedAt: new Date(),
+                closingReason: reason.trim(),
+                lastStatusChangedAt: new Date(),
+                lastStatusChangeSource: "ADMIN_DELETE",
+                lastStatusChangedBy: adminId
+            }
+        });
+
+        // Archive / soft-delete all active products under this shop
+        await prisma.product.updateMany({
+            where: { sellerId: shop.sellerId },
+            data: {
+                isDeleted: true,
+                deletedAt: new Date(),
+                status: "REMOVED_BY_ADMIN"
+            }
+        });
+
+        // Remove products from customer carts and wishlists
+        await prisma.cartItem.deleteMany({
+            where: { product: { sellerId: shop.sellerId } }
+        });
+        await prisma.wishlistItem.deleteMany({
+            where: { product: { sellerId: shop.sellerId } }
         });
 
         await logAdminAction({
@@ -213,14 +246,14 @@ export const deleteShop = async (req: Request, res: Response) => {
             actionType: AdminActionType.SELLER_BANNED,
             targetType: "Shop",
             targetId: shopId,
-            description: `Shop '${shop.name}' permanently deleted by admin. Reason: ${reason}`,
-            previousValue: { name: shop.name },
-            newValue: null
+            description: `Shop '${shop.name}' soft-deleted/disabled by admin. Reason: ${reason.trim()}`,
+            previousValue: { status: shop.status, isOnline: shop.isOnline },
+            newValue: { status: "DISABLED", isOnline: false }
         });
 
         invalidatePublicCache();
 
-        return res.status(200).json({ message: "Shop deleted successfully" });
+        return res.status(200).json({ success: true, message: "Shop deleted successfully" });
     } catch (error: any) {
         console.error("DELETE SHOP ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });

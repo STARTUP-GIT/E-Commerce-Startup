@@ -27,10 +27,10 @@ export const getDashboard = async (req: Request, res: Response) => {
         sellersCount.banned = bannedSellersCount;
 
         // 2. Customers
-        const totalCustomers = await prisma.customer.count();
+        const totalCustomers = await prisma.customer.count({ where: { isDeactivated: false } });
 
         // 3. Shops
-        const totalShops = await prisma.shop.count();
+        const totalShops = await prisma.shop.count({ where: { status: { not: "DISABLED" } } });
         const pendingShopApprovals = await prisma.shop.count({ where: { status: "PENDING" } });
         const activeShops = await prisma.shop.count({ where: { status: "APPROVED" } });
         const inactiveShops = await prisma.shop.count({ where: { status: { notIn: ["PENDING", "APPROVED"] } } });
@@ -412,9 +412,9 @@ export const getMonthlyRevenue = async (req: Request, res: Response) => {
 export const getStatistics = async (req: Request, res: Response) => {
     try {
         const counts = {
-            sellers: await prisma.seller.count(),
-            customers: await prisma.customer.count(),
-            shops: await prisma.shop.count(),
+            sellers: await prisma.seller.count({ where: { isDeactivated: false } }),
+            customers: await prisma.customer.count({ where: { isDeactivated: false } }),
+            shops: await prisma.shop.count({ where: { status: { not: "DISABLED" } } }),
             products: await prisma.product.count({ where: { isDeleted: false } }),
             orders: await prisma.order.count(),
             payments: await prisma.payment.count(),

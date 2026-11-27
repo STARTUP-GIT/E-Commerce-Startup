@@ -87,6 +87,9 @@ export function CustomerDetailPage() {
   const deleteMutation = useMutation({
     mutationFn: (reason: string) => customerApi.deleteCustomer(customerId, reason),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-customers'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
       showToast('Customer account soft-deleted successfully.', 'info');
       router.push('/customers');
     },

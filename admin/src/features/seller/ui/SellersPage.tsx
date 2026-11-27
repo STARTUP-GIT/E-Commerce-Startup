@@ -23,7 +23,8 @@ import {
   Mail, 
   CheckCircle2, 
   Clock,
-  MapPin
+  MapPin,
+  Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 import { ReasonModal } from '@/shared/components/ReasonModal';
@@ -100,11 +101,23 @@ export function SellersPage() {
     onError: (e: any) => showToast(e.message || 'Failed to unban seller', 'error'),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => sellerApi.deleteSeller(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
+      showToast('Seller deleted successfully.', 'info');
+    },
+    onError: (e: any) => showToast(e?.response?.data?.message || e.message || 'Failed to delete seller', 'error'),
+  });
+
   const statusOptions = [
-    { label: 'All Statuses', value: 'ALL' },
+    { label: 'All Active Statuses', value: 'ALL' },
     { label: 'Active', value: 'ACTIVE' },
     { label: 'Disabled', value: 'DISABLED' },
     { label: 'Banned', value: 'BANNED' },
+    { label: 'Deleted / Archived', value: 'DELETED' },
   ];
 
   const handleClearAll = () => {
@@ -321,6 +334,26 @@ export function SellersPage() {
                             <ShieldCheck className="h-3.5 w-3.5" />
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          isLoading={deleteMutation.isPending}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModalConfig({
+                              isOpen: true,
+                              title: 'Delete Seller Account',
+                              description: `Are you sure you want to delete the seller account for "${seller.firstName} ${seller.lastName}"? Associated shops will be disabled and products archived. Historical orders and financial records will be preserved.`,
+                              action: 'Delete',
+                              target: `${seller.firstName} ${seller.lastName}`,
+                              onConfirm: (reason) => deleteMutation.mutate({ id: seller.id, reason }),
+                            });
+                          }}
+                          title="Delete Seller"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                         <Link
                           href={`/sellers/${seller.id}`}
                           onClick={(e) => e.stopPropagation()}

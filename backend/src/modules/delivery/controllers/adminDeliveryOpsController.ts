@@ -148,10 +148,17 @@ export const listRiders = async (req: Request, res: Response) => {
     const { status, verificationStatus, isAvailable, search, state, district, unassigned } = req.query;
 
     const andConditions: any[] = [];
+    const cleanStatus = status && String(status).toUpperCase() !== "ALL" ? String(status).toUpperCase() : "";
 
-    if (status && String(status).toUpperCase() !== "ALL") {
-      andConditions.push({ status: String(status) as any });
+    if (cleanStatus === "DELETED" || cleanStatus === "INACTIVE") {
+      andConditions.push({ status: "INACTIVE" });
+    } else if (cleanStatus) {
+      andConditions.push({ status: cleanStatus as any });
+    } else {
+      // By default, exclude inactive / deleted riders from normal active directory view
+      andConditions.push({ status: { not: "INACTIVE" } });
     }
+
     if (verificationStatus && String(verificationStatus).toUpperCase() !== "ALL") {
       andConditions.push({ verificationStatus: String(verificationStatus) as any });
     }
@@ -374,6 +381,81 @@ export const updateRiderStatus = async (req: Request, res: Response) => {
     return res.status(200).json({ success: true, rider: RiderAuthService.sanitizeRiderProfile(updated) });
   } catch (err: any) {
     return res.status(400).json({ success: false, message: err?.message || "Failed to update status" });
+  }
+};
+
+export const deleteRider = async (req: Request, res: Response) => {
+  try {
+    const adminId = (req as any).adminId || "admin";
+    const id = String(req.params.id);
+    const { reason } = req.body ?? {};
+
+    if (!reason || typeof reason !== "string" || !reason.trim()) {
+      return res.status(400).json({ success: false, message: "Reason is required." });
+    }
+    if (reason.trim().length < 5 || reason.trim().length > 500) {
+      return res.status(400).json({ success: false, message: "Reason must be between 5 and 500 characters." });
+    }
+
+    const rider = await prisma.deliveryPartner.findUnique({
+      where: { id }
+    });
+
+    if (!rider) {
+      return res.status(404).json({ success: false, message: "Rider not found" });
+    }
+
+    // Check if rider has active deliveries in progress
+    const activeDelivery = await prisma.delivery.findFirst({
+      where: {
+        deliveryPartnerId: id,
+        status: { in: ["ASSIGNED", "ACCEPTED", "PICKED_UP", "IN_TRANSIT"] as any }
+      }
+    });
+
+    if (activeDelivery) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot delete rider with active deliveries in progress. Please reassign or complete pending deliveries first."
+      });
+    }
+
+    // Soft-delete / deactivate rider and stop availability & tracking
+    await prisma.deliveryPartner.update({
+      where: { id },
+      data: {
+        status: "INACTIVE",
+        verificationStatus: "BANNED",
+        isAvailable: false,
+        currentLat: null,
+        currentLng: null,
+        lastLocationUpdatedAt: new Date(),
+      }
+    });
+
+    // Invalidate refresh tokens
+    await prisma.deliveryPartnerRefreshToken.deleteMany({
+      where: { deliveryPartnerId: id }
+    });
+
+    // Audit log
+    await prisma.deliverySettingsAuditLog.create({
+      data: {
+        adminId,
+        settingKey: `RIDER_DELETED_${id}`,
+        previousValue: rider.status,
+        newValue: "INACTIVE",
+        reason: reason.trim(),
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Delivery rider deleted successfully"
+    });
+  } catch (err: any) {
+    console.error("DELETE RIDER ERROR:", err);
+    return res.status(500).json({ success: false, message: err?.message || "Internal Server Error" });
   }
 };
 

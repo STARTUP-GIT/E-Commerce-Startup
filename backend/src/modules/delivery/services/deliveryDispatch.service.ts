@@ -791,8 +791,8 @@ export class DeliveryDispatchService {
       where: { id: riderId },
     });
     if (!rider) throw new Error("Rider not found.");
-    if (rider.verificationStatus !== "APPROVED") {
-      throw new Error("Cannot assign to unapproved rider.");
+    if (rider.status === "INACTIVE" || rider.verificationStatus !== "APPROVED") {
+      throw new Error("Cannot assign to inactive or unapproved rider.");
     }
 
     const delivery = await prisma.delivery.findUnique({

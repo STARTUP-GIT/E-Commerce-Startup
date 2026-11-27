@@ -112,6 +112,9 @@ export function SellerDetailPage() {
   const deleteMutation = useMutation({
     mutationFn: (reason: string) => sellerApi.deleteSeller(sellerId, reason),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
       showToast('Seller soft-deleted successfully.', 'info');
       router.push('/sellers');
     },

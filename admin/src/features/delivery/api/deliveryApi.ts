@@ -91,6 +91,10 @@ export const deliveryApi = {
     const response = await axiosInstance.post(`/api/admin/delivery/riders/${id}/status`, payload);
     return response.data;
   },
+  deleteRider: async (id: string, reason?: string) => {
+    const response = await axiosInstance.delete(`/api/admin/delivery/riders/${id}`, { data: { reason } });
+    return response.data;
+  },
   issueStrike: async (
     riderId: string,
     payload: { reason: string; severity?: string; incidentId?: string }

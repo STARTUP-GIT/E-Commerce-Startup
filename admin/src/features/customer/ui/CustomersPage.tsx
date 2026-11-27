@@ -9,7 +9,7 @@ import { Button } from '@/shared/components/Button';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
-import { Search, ShieldOff, ShieldCheck, ExternalLink, MapPin } from 'lucide-react';
+import { Search, ShieldOff, ShieldCheck, ExternalLink, MapPin, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { ReasonModal } from '@/shared/components/ReasonModal';
 import { useRouter } from 'next/navigation';
@@ -72,10 +72,22 @@ export function CustomersPage() {
     onError: (e: any) => showToast(e.message, 'error'),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => customerApi.deleteCustomer(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-customers'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
+      showToast('Customer deleted successfully.', 'info');
+    },
+    onError: (e: any) => showToast(e?.response?.data?.message || e.message || 'Failed to delete customer', 'error'),
+  });
+
   const statusOptions = [
-    { label: 'All Statuses', value: 'ALL' },
+    { label: 'All Active Statuses', value: 'ALL' },
     { label: 'Active', value: 'ACTIVE' },
     { label: 'Banned', value: 'BANNED' },
+    { label: 'Deleted / Archived', value: 'DELETED' },
   ];
 
   const handleClearAll = () => {
@@ -189,11 +201,21 @@ export function CustomersPage() {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
-                        {!customer.isBanned ? (
+                        {customer.isBanned ? (
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs"
+                            className="h-7 px-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 text-xs"
+                            isLoading={unbanMutation.isPending}
+                            onClick={() => unbanMutation.mutate(customer.id)}
+                          >
+                            <ShieldCheck className="h-3 w-3 mr-1" /> Unban
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 text-xs"
                             isLoading={banMutation.isPending}
                             onClick={() =>
                               setModalConfig({
@@ -208,17 +230,33 @@ export function CustomersPage() {
                           >
                             <ShieldOff className="h-3 w-3 mr-1" /> Ban
                           </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 text-xs"
-                            isLoading={unbanMutation.isPending}
-                            onClick={() => unbanMutation.mutate(customer.id)}
-                          >
-                            <ShieldCheck className="h-3 w-3 mr-1" /> Unban
-                          </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs"
+                          isLoading={deleteMutation.isPending}
+                          onClick={() =>
+                            setModalConfig({
+                              isOpen: true,
+                              title: 'Delete Customer Account',
+                              description: `Are you sure you want to delete the customer account for "${customer.username}"? Their account will be deactivated and active sessions revoked. Historical orders will be preserved.`,
+                              action: 'Delete Customer',
+                              target: customer.username,
+                              onConfirm: (reason) => deleteMutation.mutate({ id: customer.id, reason }),
+                            })
+                          }
+                          title="Delete Customer"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" /> Delete
+                        </Button>
+                        <Link
+                          href={`/customers/${customer.id}`}
+                          className="h-7 px-2 text-white/40 hover:text-white/80 transition-colors flex items-center"
+                          title="View details"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Link>
                       </div>
                     </TableCell>
                   </TableRow>

@@ -108,7 +108,7 @@ export function DeliveryPage() {
     isOpen: boolean;
     title: string;
     description: string;
-    actionType: "REJECT" | "REQUEST_DOCS" | "SUSPEND" | "BAN" | "REACTIVATE";
+    actionType: "REJECT" | "REQUEST_DOCS" | "SUSPEND" | "BAN" | "REACTIVATE" | "DELETE";
     riderId: string;
     riderName: string;
     requireReason?: boolean;
@@ -300,6 +300,23 @@ export function DeliveryPage() {
     onError: (e: any) => showToast(e.message, "error"),
   });
 
+  const deleteRiderMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      deliveryApi.deleteRider(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["delivery-riders"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-delivery-riders"] });
+      queryClient.invalidateQueries({ queryKey: ["delivery-rider-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["delivery-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      setActionPromptModal((prev) => ({ ...prev, isOpen: false }));
+      setShowRiderModal(false);
+      showToast("Delivery rider deleted successfully.", "info");
+    },
+    onError: (e: any) =>
+      showToast(e?.response?.data?.message || e.message || "Failed to delete rider", "error"),
+  });
+
   const issueStrikeMutation = useMutation({
     mutationFn: ({
       riderId,
@@ -439,6 +456,21 @@ export function DeliveryPage() {
     setActionModalReason("");
   };
 
+  const openDeleteRider = (rider: any) => {
+    setActionPromptModal({
+      isOpen: true,
+      title: `Delete Delivery Agent: ${rider.firstName} ${rider.lastName}`,
+      description:
+        "WARNING: This will deactivate this delivery agent profile, revoke sessions, and remove real-time tracking. Active deliveries must be completed or reassigned prior to deletion. Please provide a reason.",
+      actionType: "DELETE",
+      riderId: rider.id,
+      riderName: `${rider.firstName} ${rider.lastName}`,
+      requireReason: true,
+      confirmText: "Delete Agent Profile",
+    });
+    setActionModalReason("");
+  };
+
   const openIssueStrike = (rider: any) => {
     setStrikeRiderId(rider.id);
     setStrikeRiderName(`${rider.firstName} ${rider.lastName}`);
@@ -479,6 +511,11 @@ export function DeliveryPage() {
         id: riderId,
         status: "ACTIVE",
         reason: actionModalReason || "Reactivated by administrator",
+      });
+    } else if (actionType === "DELETE") {
+      deleteRiderMutation.mutate({
+        id: riderId,
+        reason: actionModalReason || "Deleted by administrator",
       });
     }
   };
@@ -1094,6 +1131,17 @@ export function DeliveryPage() {
                               title="Message Rider in Support Inbox"
                             >
                               <MessageSquare className="w-3.5 h-3.5" />
+                            </Button>
+
+                            {/* Delete Rider Button */}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-rose-500 hover:text-rose-400 hover:bg-rose-500/10"
+                              onClick={() => openDeleteRider(r)}
+                              title="Delete Rider Profile"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
                             </Button>
                           </div>
                         </TableCell>
@@ -2142,6 +2190,17 @@ export function DeliveryPage() {
                   <MessageSquare className="w-4 h-4" />
                   Chat in Support Inbox
                 </Button>
+
+                {/* 4. Delete Agent */}
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="h-8 text-xs gap-1.5"
+                  onClick={() => openDeleteRider(activeRider)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Agent
+                </Button>
               </div>
             </div>
 
@@ -2787,11 +2846,11 @@ export function DeliveryPage() {
               size="sm"
               disabled={actionPromptModal.requireReason && !actionModalReason.trim()}
               isLoading={
-                verifyRiderMutation.isPending || updateRiderStatusMutation.isPending
+                verifyRiderMutation.isPending || updateRiderStatusMutation.isPending || deleteRiderMutation.isPending
               }
               onClick={handleConfirmActionModal}
               className={
-                actionPromptModal.actionType === "BAN"
+                actionPromptModal.actionType === "BAN" || actionPromptModal.actionType === "DELETE"
                   ? "bg-rose-600 hover:bg-rose-500 text-white font-bold"
                   : actionPromptModal.actionType === "SUSPEND"
                   ? "bg-amber-600 hover:bg-amber-500 text-white font-bold"
@@ -2941,7 +3000,7 @@ export function DeliveryPage() {
             >
               <option value="" className="bg-slate-900">Select an approved rider...</option>
               {riders
-                .filter((r: any) => r.verificationStatus === "APPROVED")
+                .filter((r: any) => r.verificationStatus === "APPROVED" && r.status !== "INACTIVE")
                 .map((r: any) => (
                   <option key={r.id} value={r.id} className="bg-slate-900">
                     {r.firstName} {r.lastName} ({r.vehicleType} • {r.isAvailable ? "Online" : "Offline"})

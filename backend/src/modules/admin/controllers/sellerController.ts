@@ -18,6 +18,17 @@ export const searchSellers = async (req: Request, res: Response) => {
         const skip = (page - 1) * limit;
 
         const andConditions: any[] = [];
+        const includeDeactivated = req.query.includeDeactivated === "true";
+        const cleanStatus = status && typeof status === "string" ? status.trim().toUpperCase() : "";
+
+        if (cleanStatus === "DELETED") {
+            andConditions.push({ isDeactivated: true });
+        } else if (!includeDeactivated) {
+            andConditions.push({ isDeactivated: false });
+            if (cleanStatus && cleanStatus !== "ALL") {
+                andConditions.push({ status: cleanStatus });
+            }
+        }
 
         if (q) {
             andConditions.push({
@@ -30,10 +41,6 @@ export const searchSellers = async (req: Request, res: Response) => {
                     { shop: { name: { contains: q, mode: "insensitive" } } },
                 ],
             });
-        }
-
-        if (status && status !== "ALL") {
-            andConditions.push({ status });
         }
 
         if (unassigned) {
@@ -144,9 +151,12 @@ export const getSellers = async (req: Request, res: Response) => {
         const { search, status, state, district, unassigned, page = 1, limit = 20 } = req.query;
 
         const andConditions: any[] = [];
+        const cleanStatus = status && typeof status === "string" ? status.trim().toUpperCase() : "";
 
-        if (status && typeof status === "string") {
-            const cleanStatus = status.trim().toUpperCase();
+        if (cleanStatus === "DELETED") {
+            andConditions.push({ isDeactivated: true });
+        } else {
+            andConditions.push({ isDeactivated: false });
             if (cleanStatus && cleanStatus !== "ALL") {
                 andConditions.push({ status: cleanStatus });
             }
@@ -415,18 +425,48 @@ export const deleteSeller = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Seller not found" });
         }
 
+        // Soft delete seller
         await prisma.seller.update({
             where: { id: sellerId },
             data: {
                 isDeactivated: true,
-                deactivatedAt: new Date()
+                deactivatedAt: new Date(),
+                status: "DISABLED",
             }
         });
 
-        // Disable shop
+        // Revoke active refresh tokens
+        await prisma.sellerRefreshToken.deleteMany({
+            where: { sellerId }
+        });
+
+        // Soft-delete / disable associated shops
         await prisma.shop.updateMany({
             where: { sellerId },
-            data: { status: "DISABLED" }
+            data: {
+                status: "DISABLED",
+                isOnline: false,
+                closedAt: new Date(),
+                closingReason: `Seller account deleted: ${reason.trim()}`
+            }
+        });
+
+        // Soft-delete / archive seller's products
+        await prisma.product.updateMany({
+            where: { sellerId },
+            data: {
+                isDeleted: true,
+                deletedAt: new Date(),
+                status: "REMOVED_BY_ADMIN"
+            }
+        });
+
+        // Clear products from active customer carts and wishlists
+        await prisma.cartItem.deleteMany({
+            where: { product: { sellerId } }
+        });
+        await prisma.wishlistItem.deleteMany({
+            where: { product: { sellerId } }
         });
 
         await logAdminAction({
@@ -434,12 +474,12 @@ export const deleteSeller = async (req: Request, res: Response) => {
             actionType: AdminActionType.SELLER_BANNED,
             targetType: "Seller",
             targetId: sellerId,
-            description: `Seller ${seller.username} soft-deleted/deactivated by admin. Reason: ${reason}`,
-            previousValue: { isDeactivated: seller.isDeactivated },
-            newValue: { isDeactivated: true }
+            description: `Seller ${seller.username} soft-deleted/deactivated by admin. Reason: ${reason.trim()}`,
+            previousValue: { isDeactivated: seller.isDeactivated, status: seller.status },
+            newValue: { isDeactivated: true, status: "DISABLED" }
         });
 
-        return res.status(200).json({ message: "Seller deleted successfully" });
+        return res.status(200).json({ success: true, message: "Seller deleted successfully" });
     } catch (error: any) {
         console.error("DELETE SELLER ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });

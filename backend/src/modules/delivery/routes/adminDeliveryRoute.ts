@@ -18,6 +18,7 @@ import {
   getRiderDetail,
   verifyRider,
   updateRiderStatus,
+  deleteRider,
   deleteRiderAadhaar,
   issueRiderStrike,
   revokeRiderStrike,
@@ -73,6 +74,8 @@ router.post("/delivery/riders/:id/strikes", adminAuth, issueRiderStrike);
 router.post("/delivery/strikes/:id/revoke", adminAuth, revokeRiderStrike);
 router.post("/delivery/documents/:id/verify", adminAuth, verifyRiderDocument);
 router.delete("/delivery/riders/:id/aadhaar", adminAuth, deleteRiderAadhaar);
+router.delete("/delivery/riders/:id", adminAuth, deleteRider);
+router.delete("/riders/:id", adminAuth, deleteRider);
 
 // 4. Delivery Job Lifecycle Management
 router.get("/delivery/jobs", adminAuth, listJobs);

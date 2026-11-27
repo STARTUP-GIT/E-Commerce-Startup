@@ -56,7 +56,8 @@ export const getNearbyShops = async (req: Request, res: Response) => {
         const whereClause: any = {
             status: "APPROVED",
             seller: {
-                isBanned: false
+                isBanned: false,
+                isDeactivated: false
             }
         };
 
@@ -136,7 +137,8 @@ export const searchShops = async (req: Request, res: Response) => {
         const whereClause: any = {
             status: "APPROVED",
             seller: {
-                isBanned: false
+                isBanned: false,
+                isDeactivated: false
             },
             OR: [
                 { name: { contains: escapeLike(q.trim()), mode: "insensitive" } },
@@ -191,7 +193,8 @@ export const getShopDetails = async (req: Request, res: Response) => {
             where: {
                 status: "APPROVED",
                 seller: {
-                    isBanned: false
+                    isBanned: false,
+                    isDeactivated: false
                 },
                 OR: [
                     { id: shopId },
@@ -260,7 +263,8 @@ export const getShopCategories = async (req: Request, res: Response) => {
             where: {
                 status: "APPROVED",
                 seller: {
-                    isBanned: false
+                    isBanned: false,
+                    isDeactivated: false
                 },
                 OR: [
                     { id: shopId },
@@ -320,7 +324,8 @@ export const getShopProducts = async (req: Request, res: Response) => {
             where: {
                 status: "APPROVED",
                 seller: {
-                    isBanned: false
+                    isBanned: false,
+                    isDeactivated: false
                 },
                 OR: [
                     { id: shopId },
@@ -389,7 +394,8 @@ export const getFeaturedShops = async (req: Request, res: Response) => {
         const whereClause: any = {
             status: "APPROVED",
             seller: {
-                isBanned: false
+                isBanned: false,
+                isDeactivated: false
             }
         };
 

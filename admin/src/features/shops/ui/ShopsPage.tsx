@@ -10,7 +10,7 @@ import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
-import { Search, CheckCircle, XCircle, ExternalLink, Package, ShieldOff, Pause, Play, ShieldCheck, MapPin } from 'lucide-react';
+import { Search, CheckCircle, XCircle, ExternalLink, Package, ShieldOff, Pause, Play, ShieldCheck, MapPin, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { ReasonModal } from '@/shared/components/ReasonModal';
 import { useRouter } from 'next/navigation';
@@ -97,6 +97,17 @@ export function ShopsPage() {
     onError: (e: any) => showToast(e.message, 'error'),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => shopApi.deleteShop(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shops'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-shops'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
+      showToast('Shop deleted successfully.', 'info');
+    },
+    onError: (e: any) => showToast(e?.response?.data?.message || e.message || 'Failed to delete shop', 'error'),
+  });
+
   const STATUS_BADGE: Record<string, 'success' | 'warning' | 'destructive' | 'outline' | 'secondary'> = {
     APPROVED: 'success',
     PENDING: 'warning',
@@ -106,11 +117,11 @@ export function ShopsPage() {
   };
 
   const statusOptions = [
-    { label: 'All Statuses', value: 'ALL' },
+    { label: 'All Active Statuses', value: 'ALL' },
     { label: 'Approved', value: 'APPROVED' },
     { label: 'Pending', value: 'PENDING' },
     { label: 'Suspended', value: 'SUSPENDED' },
-    { label: 'Disabled', value: 'DISABLED' },
+    { label: 'Disabled / Deleted', value: 'DISABLED' },
     { label: 'Rejected', value: 'REJECTED' },
   ];
 
@@ -356,6 +367,26 @@ export function ShopsPage() {
                             </Button>
                           </>
                         )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          isLoading={deleteMutation.isPending}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModalConfig({
+                              isOpen: true,
+                              title: 'Delete Shop',
+                              description: `Are you sure you want to delete "${shop.name}"? This will disable the shop and archive its active products. Historical orders will be preserved.`,
+                              action: 'Delete',
+                              target: shop.name,
+                              onConfirm: (reason) => deleteMutation.mutate({ id: shop.id, reason }),
+                            });
+                          }}
+                          title="Delete Shop"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                         <Link href={`/shops/${shop.id}`} onClick={(e) => e.stopPropagation()} className="h-7 px-2 text-white/40 hover:text-white/80 transition-colors flex items-center">
                           <ExternalLink className="h-3.5 w-3.5" />
                         </Link>

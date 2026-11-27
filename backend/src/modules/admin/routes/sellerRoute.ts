@@ -40,6 +40,7 @@ router.patch("/:id/restore", requirePermission("sellers.manage"), restoreSeller)
 router.patch("/:id/activate", requirePermission("sellers.manage"), activateSeller);
 router.patch("/:id/deactivate", requirePermission("sellers.manage"), deactivateSeller);
 router.delete("/:id", requirePermission("sellers.manage"), deleteSeller);
+router.delete("/sellers/:id", requirePermission("sellers.manage"), deleteSeller);
 router.get("/:id/shop", requirePermission("sellers.view"), getSellerShop);
 router.get("/:id/orders", requirePermission("sellers.view"), getSellerOrders);
 router.get("/:id/products", requirePermission("sellers.view"), getSellerProducts);
