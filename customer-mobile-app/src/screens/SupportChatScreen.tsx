@@ -23,6 +23,9 @@ import {
 import { chatService, Conversation, ChatMessage } from '../services/chat.service';
 import { RootStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS } from '../services/api.service';
+import { BACKEND_BASE_URL } from '../config/api';
 
 export const SupportChatScreen: React.FC = () => {
   const route = useRoute<any>();
@@ -36,6 +39,8 @@ export const SupportChatScreen: React.FC = () => {
   const [messageText, setMessageText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const socketRef = useRef<WebSocket | null>(null);
 
   // New Ticket Modal State
   const [showModal, setShowModal] = useState(!!initialOrderId);
@@ -65,6 +70,78 @@ export const SupportChatScreen: React.FC = () => {
   useEffect(() => {
     loadConversations();
   }, []);
+
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    let isMounted = true;
+    let pingInterval: any = null;
+
+    const initWs = async () => {
+      const token = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
+      if (!isMounted) return;
+
+      const wsProto = BACKEND_BASE_URL.startsWith('https') ? 'wss:' : 'ws:';
+      const host = BACKEND_BASE_URL.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+      const wsUrl = `${wsProto}//${host}/ws/chat?role=customer${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+
+      try {
+        ws = new WebSocket(wsUrl);
+        socketRef.current = ws;
+
+        ws.onopen = () => {
+          if (!isMounted) return;
+          setIsConnected(true);
+          if (token) {
+            ws?.send(JSON.stringify({ type: 'auth', token, role: 'customer' }));
+          }
+          if (activeConvId) {
+            ws?.send(JSON.stringify({ type: 'join', conversationId: activeConvId }));
+          }
+          pingInterval = setInterval(() => {
+            if (ws?.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+            }
+          }, 30000);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if ((data.type === 'new_message' || data.type === 'NEW_MESSAGE') && data.message) {
+              setMessages((prev) => {
+                const exists = prev.some((m) => m.id === data.message.id);
+                if (exists) return prev;
+                return [...prev, data.message];
+              });
+            }
+          } catch {}
+        };
+
+        ws.onclose = () => {
+          if (isMounted) setIsConnected(false);
+          if (pingInterval) clearInterval(pingInterval);
+        };
+      } catch {
+        if (isMounted) setIsConnected(false);
+      }
+    };
+
+    initWs();
+
+    return () => {
+      isMounted = false;
+      if (pingInterval) clearInterval(pingInterval);
+      if (ws) {
+        ws.close(1000, 'Screen unmounted');
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeConvId && socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: 'join', conversationId: activeConvId }));
+    }
+  }, [activeConvId]);
 
   useEffect(() => {
     if (activeConvId) {
@@ -122,7 +199,10 @@ export const SupportChatScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <ArrowLeft size={20} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={styles.topNavTitle}>Customer Support Desk</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={styles.topNavTitle}>Customer Support Desk</Text>
+          {isConnected && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />}
+        </View>
         <TouchableOpacity onPress={() => setShowModal(true)} style={styles.addBtn}>
           <Plus size={20} color={colors.foreground} />
         </TouchableOpacity>

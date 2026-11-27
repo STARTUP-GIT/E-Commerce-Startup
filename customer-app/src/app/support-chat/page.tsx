@@ -347,10 +347,6 @@ function SupportChatContent() {
                 className={`text-[10px] h-6 px-2 whitespace-nowrap shrink-0 ${
                   wsConnected
                     ? 'border-emerald-500/30 text-emerald-400'
-                    : connectionState === 'reconnecting'
-                    ? 'border-amber-500/30 text-amber-400'
-                    : connectionState === 'connecting'
-                    ? 'border-blue-500/30 text-blue-400'
                     : 'border-white/10 text-white/40'
                 }`}
               >
@@ -358,26 +354,18 @@ function SupportChatContent() {
                   className={`h-2 w-2 mr-1.5 fill-current shrink-0 ${
                     wsConnected
                       ? 'text-emerald-400'
-                      : connectionState === 'reconnecting'
-                      ? 'text-amber-400 animate-pulse'
-                      : connectionState === 'connecting'
-                      ? 'text-blue-400 animate-pulse'
                       : 'text-white/40'
                   }`}
                 />
                 {wsConnected ? (
                   <>
                     <span className="sm:hidden">Live</span>
-                    <span className="hidden sm:inline">Live WebSocket Connected</span>
+                    <span className="hidden sm:inline">Live Support Connected</span>
                   </>
-                ) : connectionState === 'reconnecting' ? (
-                  'Reconnecting...'
-                ) : connectionState === 'connecting' ? (
-                  'Connecting...'
                 ) : (
                   <>
-                    <span className="sm:hidden">Offline</span>
-                    <span className="hidden sm:inline">Offline (Persistent Storage)</span>
+                    <span className="sm:hidden">Support</span>
+                    <span className="hidden sm:inline">Customer Support Desk</span>
                   </>
                 )}
               </Badge>

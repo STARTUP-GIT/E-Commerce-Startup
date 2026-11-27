@@ -48,6 +48,7 @@ model ConversationMessage {
 
   @@index([conversationId])
   @@index([createdAt])
+  @@index([conversationId, createdAt])
   @@index([senderType, senderId])
   @@index([clientMessageId])
   @@map("conversation_messages")

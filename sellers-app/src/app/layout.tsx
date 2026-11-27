@@ -8,6 +8,7 @@ import { ComingSoonDialog } from '@/components/ui/ComingSoonDialog';
 import { PremiumDialogContainer } from '@/components/ui/PremiumDialogContainer';
 import { GuidelineAcceptanceModal } from '@/components/ui/GuidelineAcceptanceModal';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
+import { SellerChatSocketProvider } from '@/features/support-chat/context/SellerChatSocketContext';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -44,7 +45,9 @@ export default function RootLayout({
         <SessionProvider>
           <OfflineBanner />
           <ReactQueryProvider>
-            {children}
+            <SellerChatSocketProvider>
+              {children}
+            </SellerChatSocketProvider>
             <ToastContainer />
             <ComingSoonDialog />
             <PremiumDialogContainer />

@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
 
@@ -65,4 +65,26 @@ export const headObjectExists = async (keyOrUrl: string) => {
   }
 };
 
-export default { createUploadKey, getPresignedPutUrl };
+export const deleteObject = async (keyOrUrl: string) => {
+  if (!keyOrUrl) return false;
+  try {
+    // If S3 configured and matches S3 key/url
+    if (process.env.S3_BUCKET) {
+      let key = keyOrUrl;
+      if (keyOrUrl.startsWith('http')) {
+        const extracted = extractKeyFromUrl(keyOrUrl);
+        if (extracted) key = extracted;
+      }
+      if (key.startsWith('uploads/')) {
+        const cmd = new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key });
+        await s3.send(cmd);
+        return true;
+      }
+    }
+  } catch {
+    // Suppress deletion errors for missing keys
+  }
+  return false;
+};
+
+export default { createUploadKey, getPresignedPutUrl, deleteObject };

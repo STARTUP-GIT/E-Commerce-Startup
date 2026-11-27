@@ -203,26 +203,14 @@ export function SupportChatPage() {
             <Badge className={
               wsConnected
                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                : connectionState === 'reconnecting'
-                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                : 'bg-slate-800 text-slate-400'
+                : 'bg-slate-800 text-slate-400 border border-white/10'
             }>
               <Circle className={`h-2 w-2 mr-1.5 fill-current ${
                 wsConnected
                   ? 'text-emerald-400'
-                  : connectionState === 'reconnecting'
-                  ? 'text-amber-400 animate-pulse'
                   : 'text-slate-500'
               }`} />
-              {selectedConversationId
-                ? wsConnected
-                  ? 'Live WebSocket Connected'
-                  : connectionState === 'reconnecting'
-                  ? 'Reconnecting...'
-                  : connectionState === 'connecting'
-                  ? 'Connecting...'
-                  : 'Persistent Storage'
-                : 'Standby (Chat Closed)'}
+              {wsConnected ? 'Live Support Connected' : 'Seller Support Desk'}
             </Badge>
             {selectedConversationId && connectionState === 'offline' && (
               <Button

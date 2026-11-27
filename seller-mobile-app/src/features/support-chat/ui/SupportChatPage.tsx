@@ -309,15 +309,11 @@ export function SupportChatPage({ navigation }: SupportChatPageProps) {
                 <View style={styles.activeWsRow}>
                   <Circle
                     size={7}
-                    color={wsConnected ? Colors.emerald : connectionState === 'reconnecting' ? Colors.yellow : 'rgba(255, 255, 255, 0.4)'}
+                    color={wsConnected ? Colors.emerald : 'rgba(255, 255, 255, 0.4)'}
                     style={{ marginRight: 4 }}
                   />
                   <Text style={styles.activeChatSub}>
-                    {wsConnected
-                      ? 'Live WebSocket Connected'
-                      : connectionState === 'reconnecting'
-                      ? 'Reconnecting...'
-                      : 'Marketplace Desk'}
+                    {wsConnected ? 'Live Support' : 'Merchant Support'}
                   </Text>
                 </View>
               </View>

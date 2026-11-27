@@ -90,6 +90,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           ? { count, colorClass: 'bg-purple-500 ring-purple-400/30 text-white font-black', id: 'seller-unread-badge' }
           : null;
       }
+      case '/delivery-conversations': {
+        const count = Math.max(unreadCounts.deliveryUnread || 0, (badges as any).deliveryConversations || 0);
+        return count > 0
+          ? { count, colorClass: 'bg-emerald-500 ring-emerald-400/30 text-white font-black', id: 'delivery-unread-badge' }
+          : null;
+      }
       case '/shops':
         return badges.shops > 0
           ? { count: badges.shops, colorClass: 'bg-amber-500 ring-amber-400/30 text-black font-black', id: 'shops-badge' }
@@ -186,6 +192,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     { name: 'Support Tickets', path: '/support-tickets', icon: LifeBuoy, group: 'Communication', permission: 'support.view' },
     { name: 'Customer Conversations', path: '/customer-conversations', icon: MessageSquare, group: 'Communication', permission: 'support.view' },
     { name: 'Seller Conversations', path: '/seller-conversations', icon: MessageSquare, group: 'Communication', permission: 'support.view' },
+    { name: 'Delivery Conversations', path: '/delivery-conversations', icon: Truck, group: 'Communication', permission: 'support.view' },
 
     // 6. Configuration
     { name: 'Community Guidelines', path: '/community-guidelines', icon: ShieldAlert, group: 'Configuration', permission: 'guidelines.view' },

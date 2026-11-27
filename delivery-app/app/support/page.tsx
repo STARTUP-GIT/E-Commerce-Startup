@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
+import { useDeliveryChatSocket } from "@/components/providers/DeliveryChatSocketContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import {
@@ -27,12 +28,13 @@ interface ChatMessage {
 
 export default function SupportPage() {
   const router = useRouter();
+  const { isConnected, joinConversation, subscribeEventListener } = useDeliveryChatSocket();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [wsConnected, setWsConnected] = useState(false);
+  const [failedMessage, setFailedMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -50,6 +52,19 @@ export default function SupportPage() {
   }, []);
 
   useEffect(() => {
+    const unsubscribe = subscribeEventListener((data: any) => {
+      if ((data.type === "new_message" || data.type === "NEW_MESSAGE") && data.message) {
+        setMessages((prev) => {
+          const exists = prev.some((m) => m.id === data.message.id || (m as any).clientMessageId === data.message.clientMessageId);
+          if (exists) return prev;
+          return [...prev, data.message];
+        });
+      }
+    });
+    return unsubscribe;
+  }, [subscribeEventListener]);
+
+  useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
@@ -59,7 +74,7 @@ export default function SupportPage() {
       if (res.data?.conversation) {
         setConversationId(res.data.conversation.id);
         setMessages(res.data.conversation.messages || []);
-        connectWebSocket(res.data.conversation.id);
+        joinConversation(res.data.conversation.id);
       }
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -70,52 +85,33 @@ export default function SupportPage() {
     }
   };
 
-  const connectWebSocket = (convId: string) => {
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:5000";
-    try {
-      const socket = new WebSocket(`${wsUrl}?conversationId=${convId}&role=DELIVERY_PARTNER`);
+  const handleSendMessage = async (e?: React.FormEvent, retryText?: string) => {
+    if (e) e.preventDefault();
+    const messageText = (retryText || inputText).trim();
+    if (!messageText || sending) return;
 
-      socket.onopen = () => {
-        setWsConnected(true);
-      };
-
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === "NEW_MESSAGE" && data.message) {
-            setMessages((prev) => [...prev, data.message]);
-          }
-        } catch {}
-      };
-
-      socket.onclose = () => {
-        setWsConnected(false);
-      };
-    } catch {
-      setWsConnected(false);
-    }
-  };
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim() || sending) return;
-
-    const messageText = inputText.trim();
-    setInputText("");
+    if (!retryText) setInputText("");
     setSending(true);
+    setFailedMessage(null);
+
+    const clientMessageId = `msg_del_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
     try {
       const res = await apiClient.post("/api/delivery/support/messages", {
         conversationId,
         message: messageText,
+        clientMessageId,
       });
 
       if (res.data?.message) {
-        setMessages((prev) => [...prev, res.data.message]);
+        setMessages((prev) => {
+          const exists = prev.some((m) => m.id === res.data.message.id);
+          if (exists) return prev;
+          return [...prev, res.data.message];
+        });
       }
     } catch {
-      // Revert in case of failure
-      setInputText(messageText);
+      setFailedMessage(messageText);
     } finally {
       setSending(false);
     }
@@ -149,11 +145,11 @@ export default function SupportPage() {
           <div className="flex items-center gap-2">
             <span
               className={`w-2 h-2 rounded-full ${
-                wsConnected ? "bg-white animate-pulse" : "bg-zinc-600"
+                isConnected ? "bg-emerald-400" : "bg-zinc-600"
               }`}
             />
             <span className="text-xs text-zinc-400">
-              {wsConnected ? "Live Dispatch Connected" : "Connecting..."}
+              {isConnected ? "Live Dispatch Connected" : "Support Desk"}
             </span>
           </div>
         </div>
@@ -252,6 +248,18 @@ export default function SupportPage() {
           )}
 
           {/* Message Input form */}
+          {failedMessage && (
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+              <span>Message delivery failed.</span>
+              <button
+                type="button"
+                onClick={() => handleSendMessage(undefined, failedMessage)}
+                className="text-xs font-semibold underline hover:text-white cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          )}
           <form onSubmit={handleSendMessage} className="pt-3 border-t border-white/[0.06] flex gap-2">
             <input
               type="text"

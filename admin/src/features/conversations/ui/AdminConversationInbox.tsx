@@ -18,6 +18,7 @@ import {
   Paperclip,
   User,
   Store,
+  Truck,
   Circle,
   FileText,
   Package,
@@ -31,7 +32,7 @@ import {
 } from "lucide-react";
 
 export interface AdminConversationInboxProps {
-  conversationType: "CUSTOMER_ADMIN" | "SELLER_ADMIN";
+  conversationType: "CUSTOMER_ADMIN" | "SELLER_ADMIN" | "DELIVERY_ADMIN";
   title: string;
   subtitle: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -66,11 +67,30 @@ export function AdminConversationInbox({
   const { showToast } = useUIStore();
 
   const isCustomer = conversationType === "CUSTOMER_ADMIN";
-  const primaryBg = isCustomer ? "bg-indigo-600 hover:bg-indigo-500" : "bg-purple-600 hover:bg-purple-500";
-  const primaryText = isCustomer ? "text-indigo-400" : "text-purple-400";
-  const primaryBorder = isCustomer ? "border-indigo-500/30" : "border-purple-500/30";
-  const primaryLightBg = isCustomer ? "bg-indigo-950/30" : "bg-purple-950/30";
-  const primaryAccent = isCustomer ? "border-indigo-400" : "border-purple-400";
+  const isSeller = conversationType === "SELLER_ADMIN";
+  const isDelivery = conversationType === "DELIVERY_ADMIN";
+
+  const primaryBg = isCustomer
+    ? "bg-indigo-600 hover:bg-indigo-500"
+    : isSeller
+    ? "bg-purple-600 hover:bg-purple-500"
+    : "bg-emerald-600 hover:bg-emerald-500";
+  const primaryText = isCustomer ? "text-indigo-400" : isSeller ? "text-purple-400" : "text-emerald-400";
+  const primaryBorder = isCustomer
+    ? "border-indigo-500/30"
+    : isSeller
+    ? "border-purple-500/30"
+    : "border-emerald-500/30";
+  const primaryLightBg = isCustomer
+    ? "bg-indigo-950/30"
+    : isSeller
+    ? "bg-purple-950/30"
+    : "bg-emerald-950/30";
+  const primaryAccent = isCustomer
+    ? "border-indigo-400"
+    : isSeller
+    ? "border-purple-400"
+    : "border-emerald-400";
 
   // On-demand WebSocket connection: exists ONLY while a conversation is open
   const { connectionState, reconnect: reconnectSocket } = useOnDemandChatSocket({
@@ -276,40 +296,16 @@ export function AdminConversationInbox({
             className={
               wsConnected
                 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs"
-                : connectionState === "reconnecting"
-                ? "bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs"
                 : "bg-slate-800 text-slate-400 border border-slate-700 text-xs"
             }
           >
             <Circle
               className={`h-2 w-2 mr-1.5 fill-current ${
-                wsConnected
-                  ? "text-emerald-400"
-                  : connectionState === "reconnecting"
-                  ? "text-amber-400 animate-pulse"
-                  : "text-slate-500"
+                wsConnected ? "text-emerald-400" : "text-slate-500"
               }`}
             />
-            {selectedConversationId
-              ? wsConnected
-                ? "Real-Time WebSocket Connected"
-                : connectionState === "reconnecting"
-                ? "Reconnecting..."
-                : connectionState === "connecting"
-                ? "Connecting..."
-                : "Persistent REST Polling"
-              : "On-Demand Standby (No WS)"}
+            {wsConnected ? "Real-Time WebSocket Connected" : "Support Desk"}
           </Badge>
-          {selectedConversationId && connectionState === "offline" && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => reconnectSocket()}
-              className="text-[10px] h-6 px-2 border-slate-700 text-slate-400 hover:text-white"
-            >
-              Reconnect
-            </Button>
-          )}
         </div>
       </div>
 
@@ -323,7 +319,7 @@ export function AdminConversationInbox({
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-500" />
               <input
                 type="text"
-                placeholder={isCustomer ? "Search customers or subjects..." : "Search sellers or shops..."}
+                placeholder={isCustomer ? "Search customers or subjects..." : isSeller ? "Search sellers or shops..." : "Search delivery partners or subjects..."}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-8 pr-3 py-1.5 bg-slate-950/80 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -374,13 +370,19 @@ export function AdminConversationInbox({
                   ? c.customer
                     ? `${c.customer.firstName || "Customer"} ${c.customer.lastName || ""}`.trim()
                     : "Customer"
-                  : c.seller
-                  ? `${c.seller.firstName || "Seller"} ${c.seller.lastName || ""}`.trim()
-                  : "Seller";
+                  : isSeller
+                  ? c.seller
+                    ? `${c.seller.firstName || "Seller"} ${c.seller.lastName || ""}`.trim()
+                    : "Seller"
+                  : c.deliveryPartner
+                  ? `${c.deliveryPartner.firstName || "Rider"} ${c.deliveryPartner.lastName || ""}`.trim()
+                  : "Rider Partner";
 
                 const secondaryName = isCustomer
                   ? c.customer?.email
-                  : c.seller?.shops?.[0]?.name || c.seller?.shop?.name || "Shop";
+                  : isSeller
+                  ? c.seller?.shops?.[0]?.name || c.seller?.shop?.name || "Shop"
+                  : c.deliveryPartner?.phone || c.deliveryPartner?.email || "Rider";
 
                 const unreadCount = Number(c.unreadCount || 0);
 
@@ -448,7 +450,7 @@ export function AdminConversationInbox({
                   <div
                     className={`h-9 w-9 rounded-full ${primaryLightBg} ${primaryText} flex items-center justify-center font-bold text-xs border ${primaryBorder} shrink-0`}
                   >
-                    {isCustomer ? <User className="h-4 w-4" /> : <Store className="h-4 w-4" />}
+                    {isCustomer ? <User className="h-4 w-4" /> : isSeller ? <Store className="h-4 w-4" /> : <Truck className="h-4 w-4" />}
                   </div>
                   <div className="min-w-0">
                     <div className="font-bold text-xs text-white flex items-center gap-2 truncate">
@@ -457,25 +459,34 @@ export function AdminConversationInbox({
                           ? currentConv.customer
                             ? `${currentConv.customer.firstName} ${currentConv.customer.lastName}`
                             : "Customer"
-                          : currentConv.seller
-                          ? `${currentConv.seller.firstName} ${currentConv.seller.lastName}`
-                          : "Seller"}
+                          : isSeller
+                          ? currentConv.seller
+                            ? `${currentConv.seller.firstName} ${currentConv.seller.lastName}`
+                            : "Seller"
+                          : currentConv.deliveryPartner
+                          ? `${currentConv.deliveryPartner.firstName} ${currentConv.deliveryPartner.lastName}`
+                          : "Delivery Partner"}
                       </span>
-                      {!isCustomer && (
+                      {isSeller && (
                         <span className="text-purple-400 font-normal text-[11px] truncate">
                           ({currentConv.seller?.shops?.[0]?.name || currentConv.seller?.shop?.name || "Merchant Shop"})
                         </span>
                       )}
+                      {isDelivery && currentConv.deliveryPartner?.phone && (
+                        <span className="text-emerald-400 font-normal text-[11px] truncate">
+                          ({currentConv.deliveryPartner.phone})
+                        </span>
+                      )}
                     </div>
                     <div className="text-[10px] text-slate-400 flex items-center gap-2 truncate">
-                      <span>{isCustomer ? currentConv.customer?.email : currentConv.seller?.email}</span>
+                      <span>{isCustomer ? currentConv.customer?.email : isSeller ? currentConv.seller?.email : currentConv.deliveryPartner?.phone || currentConv.deliveryPartner?.email}</span>
                       <span>•</span>
                       <span className="truncate text-slate-300 font-medium">{currentConv.subject}</span>
-                      {currentConv.relatedEntityType === "ORDER" && currentConv.relatedEntityId && (
+                      {currentConv.relatedEntityType && currentConv.relatedEntityId && (
                         <>
                           <span>•</span>
                           <span className="text-amber-400 flex items-center gap-1 font-mono text-[9px]">
-                            <Package className="h-2.5 w-2.5" /> Order #{currentConv.relatedEntityId}
+                            <Package className="h-2.5 w-2.5" /> {currentConv.relatedEntityType} #{currentConv.relatedEntityId}
                           </span>
                         </>
                       )}
@@ -520,7 +531,7 @@ export function AdminConversationInbox({
                             isInternalMsg
                               ? "bg-amber-950/60 border border-amber-800/70 text-amber-100 ring-1 ring-amber-500/20"
                               : isAdmin
-                              ? `${isCustomer ? "bg-indigo-600" : "bg-purple-600"} text-white shadow-md`
+                              ? `${isCustomer ? "bg-indigo-600" : isSeller ? "bg-purple-600" : "bg-emerald-600"} text-white shadow-md`
                               : "bg-slate-800 border border-slate-700/60 text-slate-100"
                           }`}
                         >

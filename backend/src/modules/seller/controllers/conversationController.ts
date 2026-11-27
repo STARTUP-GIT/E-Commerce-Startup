@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { ConversationType, ConversationStatus, MessageSenderType } from "@prisma/client";
 import { prisma } from "../../../config/prisma.js";
 import { broadcastToConversation, broadcastToAdmins, broadcastReadReceipt } from "../../../services/chat/chat.service.js";
+import { getMessageRetentionFilter, getRetentionCutoffDate } from "../../../services/chat/chatRetention.service.js";
 
 // ─── GET /seller/api/conversations ───────────────────────────────────────────
 
@@ -18,7 +19,7 @@ export const getSellerConversations = async (req: Request, res: Response) => {
             include: {
                 assignedAdmin: { select: { firstName: true, lastName: true } },
                 messages: {
-                    where: { isInternal: false },
+                    where: { isInternal: false, ...getMessageRetentionFilter() },
                     orderBy: { createdAt: "desc" },
                     take: 1,
                     select: { id: true, message: true, senderType: true, senderName: true, createdAt: true }
@@ -33,12 +34,13 @@ export const getSellerConversations = async (req: Request, res: Response) => {
         const formatted = await Promise.all(
             conversations.map(async (c) => {
                 const lastReadAt = c.readReceipts[0]?.lastReadAt || new Date(0);
+                const cutoff = getRetentionCutoffDate();
                 const unreadCount = await prisma.conversationMessage.count({
                     where: {
                         conversationId: c.id,
                         isInternal: false,
                         senderType: { not: MessageSenderType.SELLER },
-                        createdAt: { gt: lastReadAt }
+                        createdAt: { gt: lastReadAt > cutoff ? lastReadAt : cutoff }
                     }
                 });
 
@@ -148,7 +150,8 @@ export const getSellerConversationMessages = async (req: Request, res: Response)
         const messages = await prisma.conversationMessage.findMany({
             where: {
                 conversationId: id,
-                isInternal: false
+                isInternal: false,
+                ...getMessageRetentionFilter()
             },
             orderBy: { createdAt: "asc" },
             select: {

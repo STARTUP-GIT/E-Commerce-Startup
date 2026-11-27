@@ -88,6 +88,9 @@ export function SupportScreen() {
           };
           if (data.type === "auth_success") {
             setConnected(true);
+            if (conversationId) {
+              socket?.send(JSON.stringify({ type: "join_conversation", conversationId }));
+            }
           } else if (data.type === "auth_required") {
             setError(typeof data.message === "string" ? data.message : "Live support authentication is required.");
           } else if (data.type === "error") {
@@ -175,7 +178,7 @@ export function SupportScreen() {
             </View>
           ) : (
             <FlatList
-              data={messages}
+              data={[...messages].reverse()}
               keyExtractor={(item) => item.id}
               inverted
               contentContainerStyle={styles.messageList}

@@ -16,9 +16,10 @@ export function useOnDemandChatSocket({
   onMessage,
   onReconnect,
 }: OnDemandSocketOptions) {
-  const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const isManuallyClosedRef = useRef(false);
 
@@ -26,6 +27,8 @@ export function useOnDemandChatSocket({
   onMessageRef.current = onMessage;
   const onReconnectRef = useRef(onReconnect);
   onReconnectRef.current = onReconnect;
+  const activeConversationIdRef = useRef<string | null>(conversationId);
+  activeConversationIdRef.current = conversationId;
 
   const getWsUrl = useCallback(() => {
     let base = ENV.BACKEND_API_URL || 'https://seller-api.atlasbasket.com';
@@ -34,160 +37,134 @@ export function useOnDemandChatSocket({
     return `${wsProto}//${host}/ws/chat?role=${role}`;
   }, [role]);
 
-  const cleanup = useCallback(() => {
-    isManuallyClosedRef.current = true;
+  const clearTimers = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-    if (socketRef.current) {
-      try {
-        if (
-          socketRef.current.readyState === WebSocket.OPEN ||
-          socketRef.current.readyState === WebSocket.CONNECTING
-        ) {
-          socketRef.current.close(1000, 'Chat closed');
-        }
-      } catch {
-        // Ignore close errors
-      }
-      socketRef.current = null;
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
     }
   }, []);
 
-  useEffect(() => {
-    if (!conversationId) {
-      cleanup();
-      setConnectionState('idle');
+  const connect = useCallback(() => {
+    if (
+      socketRef.current &&
+      (socketRef.current.readyState === WebSocket.OPEN ||
+        socketRef.current.readyState === WebSocket.CONNECTING)
+    ) {
       return;
     }
 
-    let isMounted = true;
+    clearTimers();
     isManuallyClosedRef.current = false;
-
-    function connect() {
-      if (!isMounted || !conversationId) return;
-
-      if (socketRef.current) {
-        try {
-          socketRef.current.close(1000, 'Switching conversation');
-        } catch {}
-        socketRef.current = null;
-      }
-
-      setConnectionState(reconnectAttemptsRef.current > 0 ? 'reconnecting' : 'connecting');
-
-      try {
-        const wsUrl = getWsUrl();
-        const ws = new WebSocket(wsUrl);
-        socketRef.current = ws;
-
-        ws.onopen = () => {
-          if (!isMounted || !conversationId) {
-            ws.close(1000, 'Unmounted');
-            return;
-          }
-          setConnectionState('connected');
-          const wasReconnection = reconnectAttemptsRef.current > 0;
-          reconnectAttemptsRef.current = 0;
-
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'join', conversationId }));
-          }
-
-          if (wasReconnection && onReconnectRef.current) {
-            onReconnectRef.current();
-          }
-        };
-
-        ws.onmessage = (event) => {
-          if (!isMounted) return;
-          try {
-            const data = JSON.parse(event.data);
-            if (onMessageRef.current) {
-              onMessageRef.current(data);
-            }
-          } catch (e) {
-            console.error('[WS] Parse error:', e);
-          }
-        };
-
-        ws.onclose = (event) => {
-          if (!isMounted || isManuallyClosedRef.current) return;
-
-          socketRef.current = null;
-          if (event.code === 4001 || event.code === 1000) {
-            setConnectionState('offline');
-            return;
-          }
-
-          // Bounded exponential backoff with jitter: max 5 attempts
-          const maxAttempts = 5;
-          if (reconnectAttemptsRef.current < maxAttempts) {
-            reconnectAttemptsRef.current += 1;
-            const baseDelay = Math.min(15000, 1000 * Math.pow(1.5, reconnectAttemptsRef.current));
-            const jitter = Math.random() * 500;
-            const delay = baseDelay + jitter;
-
-            setConnectionState('reconnecting');
-            reconnectTimeoutRef.current = setTimeout(() => {
-              if (isMounted && !isManuallyClosedRef.current && conversationId) {
-                connect();
-              }
-            }, delay);
-          } else {
-            setConnectionState('offline');
-          }
-        };
-
-        ws.onerror = () => {
-          // Handled by onclose
-        };
-      } catch (err) {
-        console.warn('[WS] Init error:', err);
-        setConnectionState('offline');
-      }
-    }
-
-    connect();
-
-    return () => {
-      isMounted = false;
-      cleanup();
-    };
-  }, [conversationId, role, cleanup, getWsUrl]);
-
-  const manualReconnect = useCallback(() => {
-    if (!conversationId) return;
-    reconnectAttemptsRef.current = 0;
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-    isManuallyClosedRef.current = false;
-    setConnectionState('connecting');
 
     try {
       const wsUrl = getWsUrl();
       const ws = new WebSocket(wsUrl);
       socketRef.current = ws;
+
       ws.onopen = () => {
+        if (isManuallyClosedRef.current) {
+          ws.close(1000, 'Unmounted');
+          return;
+        }
+
         setConnectionState('connected');
-        ws.send(JSON.stringify({ type: 'join', conversationId }));
-        if (onReconnectRef.current) onReconnectRef.current();
+        const wasReconnection = reconnectAttemptsRef.current > 0;
+        reconnectAttemptsRef.current = 0;
+
+        // Heartbeat
+        pingIntervalRef.current = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+          }
+        }, 30000);
+
+        if (activeConversationIdRef.current && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'join', conversationId: activeConversationIdRef.current }));
+        }
+
+        if (wasReconnection && onReconnectRef.current) {
+          onReconnectRef.current();
+        }
       };
+
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (onMessageRef.current) onMessageRef.current(data);
-        } catch {}
+          if (onMessageRef.current) {
+            onMessageRef.current(data);
+          }
+        } catch (e) {
+          console.error('[SellerWS] Parse error:', e);
+        }
       };
-      ws.onclose = () => setConnectionState('offline');
-      ws.onerror = () => setConnectionState('offline');
-    } catch {
+
+      ws.onclose = (event) => {
+        if (isManuallyClosedRef.current) return;
+        socketRef.current = null;
+        clearTimers();
+
+        if (event.code === 4001 || event.code === 1000) {
+          setConnectionState('offline');
+          return;
+        }
+
+        setConnectionState('reconnecting');
+        const maxAttempts = 8;
+        if (reconnectAttemptsRef.current < maxAttempts) {
+          reconnectAttemptsRef.current += 1;
+          const baseDelay = Math.min(20000, 1000 * Math.pow(1.5, reconnectAttemptsRef.current));
+          const jitter = Math.random() * 800;
+          const delay = baseDelay + jitter;
+
+          reconnectTimeoutRef.current = setTimeout(() => {
+            if (!isManuallyClosedRef.current) {
+              connect();
+            }
+          }, delay);
+        } else {
+          setConnectionState('offline');
+        }
+      };
+
+      ws.onerror = () => {
+        // Handled by onclose
+      };
+    } catch (err) {
+      console.warn('[SellerWS] Init error:', err);
       setConnectionState('offline');
     }
-  }, [conversationId, getWsUrl]);
+  }, [clearTimers, getWsUrl]);
+
+  // Connect persistently
+  useEffect(() => {
+    connect();
+    return () => {
+      // Keep persistent
+    };
+  }, [connect]);
+
+  // Switch conversation rooms without reconnecting socket
+  useEffect(() => {
+    if (conversationId && socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: 'join', conversationId }));
+    }
+  }, [conversationId]);
+
+  const manualReconnect = useCallback(() => {
+    reconnectAttemptsRef.current = 0;
+    clearTimers();
+    if (socketRef.current) {
+      try {
+        socketRef.current.close(1000, 'Manual reconnect');
+      } catch {}
+      socketRef.current = null;
+    }
+    connect();
+  }, [clearTimers, connect]);
 
   return {
     connectionState,

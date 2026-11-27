@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Skeleton } from '@/shared/components/Skeleton';
+import { AdminChatSocketProvider } from '@/features/conversations/context/AdminChatSocketContext';
 
 export default function ProtectedLayout({
   children,
@@ -41,5 +42,9 @@ export default function ProtectedLayout({
     );
   }
 
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return (
+    <AdminChatSocketProvider>
+      <DashboardLayout>{children}</DashboardLayout>
+    </AdminChatSocketProvider>
+  );
 }

@@ -3,6 +3,7 @@ import { ConversationType, ConversationStatus, MessageSenderType, Prisma } from 
 import { prisma } from "../../../config/prisma.js";
 import { broadcastToConversation, broadcastToAdmins, broadcastReadReceipt } from "../../../services/chat/chat.service.js";
 import { notificationService } from "../../../services/notification/notification.service.js";
+import { getMessageRetentionFilter, getRetentionCutoffDate } from "../../../services/chat/chatRetention.service.js";
 
 // ─── GET /api/admin/conversations/unread-counts ──────────────────────────────
 
@@ -19,7 +20,7 @@ export const getAdminUnreadCounts = async (req: Request, res: Response) => {
                     select: { lastReadAt: true }
                 },
                 messages: {
-                    where: { senderType: { not: MessageSenderType.ADMIN }, isInternal: false },
+                    where: { senderType: { not: MessageSenderType.ADMIN }, isInternal: false, ...getMessageRetentionFilter() },
                     orderBy: { createdAt: "desc" },
                     take: 1,
                     select: { createdAt: true }
@@ -29,6 +30,7 @@ export const getAdminUnreadCounts = async (req: Request, res: Response) => {
 
         let customerUnread = 0;
         let sellerUnread = 0;
+        let deliveryUnread = 0;
 
         for (const c of conversations) {
             const lastIncoming = c.messages[0];
@@ -39,6 +41,8 @@ export const getAdminUnreadCounts = async (req: Request, res: Response) => {
                     customerUnread++;
                 } else if (c.type === ConversationType.SELLER_ADMIN) {
                     sellerUnread++;
+                } else if (c.type === ConversationType.DELIVERY_ADMIN) {
+                    deliveryUnread++;
                 }
             }
         }
@@ -46,7 +50,8 @@ export const getAdminUnreadCounts = async (req: Request, res: Response) => {
         return res.status(200).json({
             customerUnread,
             sellerUnread,
-            totalUnread: customerUnread + sellerUnread
+            deliveryUnread,
+            totalUnread: customerUnread + sellerUnread + deliveryUnread
         });
     } catch (error: any) {
         console.error("GET ADMIN UNREAD COUNTS ERROR:", error);
@@ -86,7 +91,11 @@ export const getConversations = async (req: Request, res: Response) => {
                           { customer: { email: { contains: search, mode: "insensitive" } } },
                           { seller: { firstName: { contains: search, mode: "insensitive" } } },
                           { seller: { lastName: { contains: search, mode: "insensitive" } } },
-                          { seller: { shop: { name: { contains: search, mode: "insensitive" } } } }
+                          { seller: { shop: { name: { contains: search, mode: "insensitive" } } } },
+                          { deliveryPartner: { firstName: { contains: search, mode: "insensitive" } } },
+                          { deliveryPartner: { lastName: { contains: search, mode: "insensitive" } } },
+                          { deliveryPartner: { email: { contains: search, mode: "insensitive" } } },
+                          { deliveryPartner: { phone: { contains: search, mode: "insensitive" } } }
                       ]
                   }
                 : {})
@@ -109,8 +118,18 @@ export const getConversations = async (req: Request, res: Response) => {
                             shop: { select: { id: true, name: true } }
                         }
                     },
+                    deliveryPartner: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            email: true,
+                            phone: true
+                        }
+                    },
                     assignedAdmin: { select: { id: true, firstName: true, lastName: true } },
                     messages: {
+                        where: { ...getMessageRetentionFilter() },
                         orderBy: { createdAt: "desc" },
                         take: 1,
                         select: { id: true, message: true, senderType: true, senderName: true, createdAt: true, isInternal: true }
@@ -132,12 +151,14 @@ export const getConversations = async (req: Request, res: Response) => {
         const conversationsWithUnread = await Promise.all(
             rawConversations.map(async (c) => {
                 const lastReadAt = c.readReceipts[0]?.lastReadAt || new Date(0);
+                const cutoff = getRetentionCutoffDate();
+                const effectiveReadAt = lastReadAt > cutoff ? lastReadAt : cutoff;
                 const unreadCount = await prisma.conversationMessage.count({
                     where: {
                         conversationId: c.id,
                         senderType: { not: MessageSenderType.ADMIN },
                         isInternal: false,
-                        createdAt: { gt: lastReadAt }
+                        createdAt: { gt: effectiveReadAt }
                     }
                 });
 
@@ -146,6 +167,7 @@ export const getConversations = async (req: Request, res: Response) => {
                     type: c.type,
                     customerId: c.customerId,
                     sellerId: c.sellerId,
+                    deliveryPartnerId: c.deliveryPartnerId,
                     subject: c.subject,
                     status: c.status,
                     priority: c.priority,
@@ -158,6 +180,7 @@ export const getConversations = async (req: Request, res: Response) => {
                     updatedAt: c.updatedAt,
                     customer: c.customer,
                     seller: c.seller,
+                    deliveryPartner: c.deliveryPartner,
                     assignedAdmin: c.assignedAdmin,
                     messages: c.messages,
                     _count: c._count,
@@ -209,8 +232,18 @@ export const getConversationDetail = async (req: Request, res: Response) => {
                         shop: { select: { id: true, name: true } }
                     }
                 },
+                deliveryPartner: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        phone: true
+                    }
+                },
                 assignedAdmin: { select: { id: true, firstName: true, lastName: true } },
                 messages: {
+                    where: { ...getMessageRetentionFilter() },
                     orderBy: { createdAt: "asc" }
                 },
                 readReceipts: true
@@ -394,6 +427,16 @@ export const sendAdminMessage = async (req: Request, res: Response) => {
                     body: savedMessage.message ? savedMessage.message.slice(0, 140) : "Support sent an attachment.",
                     data: { route: "/support-chat", conversationId: id }
                 }).catch(err => console.error("Admin msg notify seller error:", err));
+            }
+            if (conv.deliveryPartnerId) {
+                notificationService.createNotification({
+                    recipientType: "DELIVERY_PARTNER",
+                    recipientId: conv.deliveryPartnerId,
+                    type: "NEW_MESSAGE",
+                    title: "New Support Reply",
+                    body: savedMessage.message ? savedMessage.message.slice(0, 140) : "Support sent an attachment.",
+                    data: { route: "/support", conversationId: id }
+                }).catch(err => console.error("Admin msg notify delivery partner error:", err));
             }
         }
 

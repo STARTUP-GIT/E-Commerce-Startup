@@ -237,84 +237,26 @@ router.post("/api/delivery/strikes/:id/appeal", deliveryPartnerAuth, async (req,
   }
 });
 
+import {
+  getDeliveryConversations,
+  startDeliveryConversation,
+  getDeliveryConversationMessages,
+  sendDeliveryMessage,
+  markDeliveryConversationRead,
+  getOrCreateSupportConversation,
+  sendSupportMessage,
+} from "../controllers/deliveryConversationController.js";
+
 // Support Conversations (Rider - Admin Live Support Chat)
-router.get("/api/delivery/conversations", deliveryPartnerAuth, async (req, res) => {
-  try {
-    const riderId = req.deliveryPartnerId!;
-    const conversations = await prisma.conversation.findMany({
-      where: { deliveryPartnerId: riderId },
-      orderBy: { lastMessageAt: "desc" },
-      include: {
-        messages: {
-          take: 1,
-          orderBy: { createdAt: "desc" },
-        },
-      },
-    });
-    return res.status(200).json({ success: true, conversations });
-  } catch (err: any) {
-    return res.status(500).json({ message: "Failed to fetch conversations" });
-  }
-});
+router.get("/api/delivery/conversations", deliveryPartnerAuth, getDeliveryConversations);
+router.post("/api/delivery/conversations", deliveryPartnerAuth, startDeliveryConversation);
+router.get("/api/delivery/conversations/:id", deliveryPartnerAuth, getDeliveryConversationMessages);
+router.get("/api/delivery/conversations/:id/messages", deliveryPartnerAuth, getDeliveryConversationMessages);
+router.post("/api/delivery/conversations/:id/messages", deliveryPartnerAuth, sendDeliveryMessage);
+router.post("/api/delivery/conversations/:id/read", deliveryPartnerAuth, markDeliveryConversationRead);
 
-router.post("/api/delivery/conversations", deliveryPartnerAuth, async (req, res) => {
-  try {
-    const riderId = req.deliveryPartnerId!;
-    const { subject, initialMessage, deliveryId } = req.body;
-
-    const conv = await prisma.$transaction(async (tx) => {
-      const newConv = await tx.conversation.create({
-        data: {
-          type: "DELIVERY_ADMIN" as any,
-          deliveryPartnerId: riderId,
-          subject: subject || "Delivery Support Inquiry",
-          relatedEntityType: deliveryId ? "DELIVERY" : undefined,
-          relatedEntityId: deliveryId || undefined,
-          status: "OPEN",
-        },
-      });
-
-      if (initialMessage) {
-        const rider = await tx.deliveryPartner.findUnique({ where: { id: riderId } });
-        await tx.conversationMessage.create({
-          data: {
-            conversationId: newConv.id,
-            senderType: "DELIVERY_PARTNER" as any,
-            senderId: riderId,
-            senderName: rider ? `${rider.firstName} ${rider.lastName}` : "Rider",
-            message: initialMessage,
-          },
-        });
-      }
-
-      return newConv;
-    });
-
-    return res.status(201).json({ success: true, conversation: conv });
-  } catch (err: any) {
-    return res.status(400).json({ success: false, message: err?.message });
-  }
-});
-
-router.get("/api/delivery/conversations/:id/messages", deliveryPartnerAuth, async (req, res) => {
-  try {
-    const riderId = req.deliveryPartnerId!;
-    const id = String(req.params.id);
-
-    const conv = await prisma.conversation.findUnique({ where: { id } });
-    if (!conv || conv.deliveryPartnerId !== riderId) {
-      return res.status(403).json({ message: "Unauthorized for this conversation" });
-    }
-
-    const messages = await prisma.conversationMessage.findMany({
-      where: { conversationId: id, isInternal: false },
-      orderBy: { createdAt: "asc" },
-    });
-
-    return res.status(200).json({ success: true, messages });
-  } catch (err: any) {
-    return res.status(500).json({ message: "Failed to fetch messages" });
-  }
-});
+// Support Desk direct aliases for delivery web app
+router.get("/api/delivery/support/conversation", deliveryPartnerAuth, getOrCreateSupportConversation);
+router.post("/api/delivery/support/messages", deliveryPartnerAuth, sendSupportMessage);
 
 export default router;

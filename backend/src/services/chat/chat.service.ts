@@ -117,7 +117,8 @@ async function authenticateToken(
         }
 
         // Try Delivery Partner / Rider
-        if (!roleHint || roleHint === "rider" || roleHint === "delivery_partner") {
+        const normHint = roleHint?.toLowerCase();
+        if (!normHint || normHint === "rider" || normHint === "delivery_partner" || normHint === "delivery") {
             try {
                 let decoded: any;
                 try {
@@ -550,17 +551,18 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
         const url = new URL(req.url || "", `http://${req.headers.host || "localhost"}`);
         let token = url.searchParams.get("token");
         const role = url.searchParams.get("role") || undefined;
+        const normRole = role?.toLowerCase();
 
         // Auto-extract token from cookies if not in searchParams
         if (!token && req.headers.cookie) {
-            if (role === "customer") {
+            if (normRole === "customer") {
                 token = extractCookie(req.headers.cookie, "customer_session") || extractCookie(req.headers.cookie, "customer_token");
-            } else if (role === "seller") {
+            } else if (normRole === "seller") {
                 token = extractCookie(req.headers.cookie, "seller_session") || extractCookie(req.headers.cookie, "seller_access_token");
-            } else if (role === "admin") {
+            } else if (normRole === "admin") {
                 token = extractCookie(req.headers.cookie, "admin_session") || extractCookie(req.headers.cookie, "admin_access_token");
-            } else if (role === "rider" || role === "delivery_partner") {
-                token = extractCookie(req.headers.cookie, "delivery_partner_session");
+            } else if (normRole === "rider" || normRole === "delivery_partner" || normRole === "delivery") {
+                token = extractCookie(req.headers.cookie, "delivery_partner_session") || extractCookie(req.headers.cookie, "delivery_token");
             }
 
             if (!token) {
@@ -586,7 +588,7 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
 
         const client: AuthenticatedClient = {
             ws,
-            actorType: authData?.actorType || (role === "admin" ? "ADMIN" : role === "seller" ? "SELLER" : role === "rider" ? "DELIVERY_PARTNER" : "CUSTOMER"),
+            actorType: authData?.actorType || (normRole === "admin" ? "ADMIN" : normRole === "seller" ? "SELLER" : (normRole === "rider" || normRole === "delivery_partner" || normRole === "delivery") ? "DELIVERY_PARTNER" : "CUSTOMER"),
             actorId: authData?.actorId || "",
             actorName: authData?.actorName || "",
             subscribedConversations: new Set(),
@@ -670,6 +672,16 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
                                 type: "joined_conversations",
                                 conversationIds: owned.map((c) => c.id)
                             }));
+                        } else if (client.actorType === "DELIVERY_PARTNER") {
+                            const owned = await prisma.conversation.findMany({
+                                where: { id: { in: validIds }, deliveryPartnerId: client.actorId },
+                                select: { id: true }
+                            });
+                            owned.forEach((c) => client.subscribedConversations.add(c.id));
+                            return ws.send(JSON.stringify({
+                                type: "joined_conversations",
+                                conversationIds: owned.map((c) => c.id)
+                            }));
                         } else if (client.actorType === "ADMIN") {
                             validIds.forEach((id) => client.subscribedConversations.add(id));
                             return ws.send(JSON.stringify({
@@ -687,7 +699,7 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
                         const conversationId = String(payload.conversationId);
                         const conv = await prisma.conversation.findUnique({
                             where: { id: conversationId },
-                            select: { id: true, type: true, customerId: true, sellerId: true }
+                            select: { id: true, type: true, customerId: true, sellerId: true, deliveryPartnerId: true }
                         });
                         if (!conv) {
                             return ws.send(JSON.stringify({ type: "error", message: "Conversation not found" }));
@@ -698,6 +710,9 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
                             return ws.send(JSON.stringify({ type: "error", message: "Unauthorized for this conversation" }));
                         }
                         if (client.actorType === "SELLER" && conv.sellerId !== client.actorId) {
+                            return ws.send(JSON.stringify({ type: "error", message: "Unauthorized for this conversation" }));
+                        }
+                        if (client.actorType === "DELIVERY_PARTNER" && conv.deliveryPartnerId !== client.actorId) {
                             return ws.send(JSON.stringify({ type: "error", message: "Unauthorized for this conversation" }));
                         }
 
@@ -845,6 +860,16 @@ export function setupChatWebSocketServer(httpServer: HttpServer) {
                                         body: savedMessage.message ? savedMessage.message.slice(0, 140) : "Support sent an attachment.",
                                         data: { route: "/support-chat", conversationId }
                                     }).catch(err => console.error("WS notify seller error:", err));
+                                }
+                                if (conv.deliveryPartnerId) {
+                                    notificationService.createNotification({
+                                        recipientType: "DELIVERY_PARTNER",
+                                        recipientId: conv.deliveryPartnerId,
+                                        type: "NEW_MESSAGE",
+                                        title: "New Support Reply",
+                                        body: savedMessage.message ? savedMessage.message.slice(0, 140) : "Support sent an attachment.",
+                                        data: { route: "/support", conversationId }
+                                    }).catch(err => console.error("WS notify delivery partner error:", err));
                                 }
                             }).catch(err => console.error("Dynamic import error:", err));
                         }
