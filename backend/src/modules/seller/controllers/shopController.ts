@@ -336,6 +336,37 @@ export const createShop = async (req: Request,res: Response) => {
                     }
                 });
 
+                // Idempotently create or update verification record for seller
+                const existingVerification = await tx.sellerVerification.findFirst({
+                    where: { sellerId, isCurrent: true },
+                    orderBy: { updatedAt: "desc" }
+                });
+                if (existingVerification) {
+                    if (existingVerification.status === "PENDING" || existingVerification.status === "UNDER_REVIEW") {
+                        await tx.sellerVerification.update({
+                            where: { id: existingVerification.id },
+                            data: {
+                                gstRegistered: isGstRegistered,
+                                gstNumber: cleanGst,
+                                submittedAt: new Date()
+                            }
+                        });
+                    }
+                } else {
+                    await tx.sellerVerification.create({
+                        data: {
+                            sellerId,
+                            status: "PENDING",
+                            gstRegistered: isGstRegistered,
+                            gstNumber: cleanGst,
+                            documentType: "TAX_REGISTRATION",
+                            isCurrent: true,
+                            version: 1,
+                            submittedAt: new Date()
+                        }
+                    });
+                }
+
                 return {
                     shop,
                     address,

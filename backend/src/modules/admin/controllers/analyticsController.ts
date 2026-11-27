@@ -189,7 +189,7 @@ export const getDashboard = async (req: Request, res: Response) => {
         ] = await Promise.all([
             prisma.seller.count({ where: { status: "DISABLED" } }),
             prisma.product.count({ where: { status: "PENDING_APPROVAL" } }),
-            prisma.sellerVerification.count({ where: { status: "PENDING" } }),
+            prisma.sellerVerification.count({ where: { status: "PENDING", isCurrent: true } }),
             prisma.returnRequest.count({ where: { status: { in: ["REQUESTED", "PENDING_REVIEW"] } } }),
             prisma.supportTicket.count({
                 where: { status: { in: ["OPEN", "IN_PROGRESS", "WAITING_ON_CUSTOMER", "WAITING_ON_SELLER"] } }

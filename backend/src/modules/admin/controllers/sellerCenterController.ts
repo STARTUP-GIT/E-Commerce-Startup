@@ -25,7 +25,33 @@ const sellerSelect = {
     lastName: true,
     email: true,
     username: true,
-    shop: { select: { id: true, name: true } }
+    status: true,
+    shop: {
+        select: {
+            id: true,
+            name: true,
+            slug: true,
+            status: true,
+            defaultPickupAddress: {
+                select: {
+                    id: true,
+                    city: true,
+                    state: true,
+                    postalCode: true
+                }
+            }
+        }
+    },
+    addresses: {
+        where: { isActive: true },
+        take: 1,
+        select: {
+            id: true,
+            city: true,
+            state: true,
+            postalCode: true
+        }
+    }
 };
 
 // ─── Seller verifications ─────────────────────────────────────────────────────
@@ -49,21 +75,86 @@ export const getVerifications = async (req: Request, res: Response) => {
                 ? req.query.sellerId
                 : undefined;
 
+        const search = typeof req.query.search === "string" ? req.query.search.trim() : undefined;
+        const state = typeof req.query.state === "string" ? req.query.state.trim() : undefined;
+        const district = typeof req.query.district === "string" ? req.query.district.trim() : undefined;
+        const includeHistory = req.query.includeHistory === "true";
+
         const where: Prisma.SellerVerificationWhereInput = {
+            ...(includeHistory ? {} : { isCurrent: true }),
             ...(status ? { status: status as SellerVerificationStatus } : {}),
-            ...(sellerId ? { sellerId } : {})
+            ...(sellerId ? { sellerId } : {}),
+            ...(search
+                ? {
+                      OR: [
+                          { seller: { firstName: { contains: search, mode: "insensitive" } } },
+                          { seller: { lastName: { contains: search, mode: "insensitive" } } },
+                          { seller: { email: { contains: search, mode: "insensitive" } } },
+                          { seller: { username: { contains: search, mode: "insensitive" } } },
+                          { seller: { shop: { name: { contains: search, mode: "insensitive" } } } },
+                          { gstNumber: { contains: search, mode: "insensitive" } }
+                      ]
+                  }
+                : {}),
+            ...(state
+                ? {
+                      OR: [
+                          { seller: { shop: { defaultPickupAddress: { state: { equals: state, mode: "insensitive" } } } } },
+                          { seller: { addresses: { some: { state: { equals: state, mode: "insensitive" }, isActive: true } } } }
+                      ]
+                  }
+                : {}),
+            ...(district
+                ? {
+                      OR: [
+                          { seller: { shop: { defaultPickupAddress: { city: { equals: district, mode: "insensitive" } } } } },
+                          { seller: { addresses: { some: { city: { equals: district, mode: "insensitive" }, isActive: true } } } }
+                      ]
+                  }
+                : {})
         };
 
-        const [verifications, total] = await prisma.$transaction([
+        const [verificationsRaw, totalCount] = await prisma.$transaction([
             prisma.sellerVerification.findMany({
                 where,
-                orderBy: { updatedAt: "desc" },
+                orderBy: [
+                    { updatedAt: "desc" },
+                    { createdAt: "desc" }
+                ],
                 skip,
                 take: limit,
                 include: { seller: { select: sellerSelect } }
             }),
             prisma.sellerVerification.count({ where })
         ]);
+
+        let verifications = verificationsRaw;
+        let total = totalCount;
+
+        // If includeHistory is not true, ensure strict 1-record-per-seller deduplication defensively
+        if (!includeHistory) {
+            const seenSellers = new Set<string>();
+            const deduplicated: typeof verificationsRaw = [];
+            for (const v of verificationsRaw) {
+                if (!seenSellers.has(v.sellerId)) {
+                    seenSellers.add(v.sellerId);
+                    deduplicated.push(v);
+                }
+            }
+            verifications = deduplicated;
+
+            if (totalCount > 0) {
+                try {
+                    const distinctGroups = await prisma.sellerVerification.groupBy({
+                        by: ['sellerId'],
+                        where
+                    });
+                    total = distinctGroups.length;
+                } catch {
+                    total = totalCount;
+                }
+            }
+        }
 
         return res.status(200).json({
             verifications,
@@ -99,17 +190,43 @@ export const reviewVerification = async (req: Request, res: Response) => {
         });
         if (!existing) return res.status(404).json({ message: "Verification not found." });
 
-        const verification = await prisma.sellerVerification.update({
-            where: { id: verificationId },
-            data: {
-                status: status as SellerVerificationStatus,
-                reviewedByAdminId: adminId,
-                reviewedAt: new Date(),
-                ...(typeof rejectionReason === "string" && rejectionReason.trim()
-                    ? { rejectionReason: rejectionReason.trim() }
-                    : {})
-            },
-            include: { seller: { select: sellerSelect } }
+        const verification = await prisma.$transaction(async (tx) => {
+            const updated = await tx.sellerVerification.update({
+                where: { id: verificationId },
+                data: {
+                    status: status as SellerVerificationStatus,
+                    reviewedByAdminId: adminId,
+                    reviewedAt: new Date(),
+                    isCurrent: true,
+                    ...(typeof rejectionReason === "string" && rejectionReason.trim()
+                        ? { rejectionReason: rejectionReason.trim() }
+                        : { rejectionReason: null })
+                },
+                include: { seller: { select: sellerSelect } }
+            });
+
+            // Demote any other verification records for this seller so this is the authoritative current record
+            await tx.sellerVerification.updateMany({
+                where: {
+                    sellerId: updated.sellerId,
+                    id: { not: updated.id },
+                    isCurrent: true
+                },
+                data: { isCurrent: false }
+            });
+
+            // If approved and GST number is set, sync to shop
+            if (status === "APPROVED" && updated.sellerId) {
+                await tx.shop.updateMany({
+                    where: { sellerId: updated.sellerId },
+                    data: {
+                        gstRegistered: updated.gstRegistered,
+                        ...(updated.gstNumber ? { gstNumber: updated.gstNumber } : {})
+                    }
+                });
+            }
+
+            return updated;
         });
 
         await logAdminAction({
@@ -130,6 +247,25 @@ export const reviewVerification = async (req: Request, res: Response) => {
         return res.status(200).json({ verification });
     } catch (error: any) {
         console.error("REVIEW SELLER VERIFICATION ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
+    }
+};
+
+export const getSellerVerificationHistory = async (req: Request, res: Response) => {
+    try {
+        const sellerId = String(req.params.sellerId);
+        const history = await prisma.sellerVerification.findMany({
+            where: { sellerId },
+            orderBy: { createdAt: "desc" },
+            include: {
+                reviewedByAdmin: {
+                    select: { id: true, firstName: true, lastName: true, email: true }
+                }
+            }
+        });
+        return res.status(200).json({ history });
+    } catch (error: any) {
+        console.error("GET SELLER VERIFICATION HISTORY ERROR:", error);
         return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };

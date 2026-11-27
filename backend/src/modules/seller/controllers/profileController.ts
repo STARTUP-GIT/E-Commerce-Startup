@@ -22,6 +22,7 @@ export const getSellerProfile = async (req: Request, res: Response) => {
                     }
                 },
                 verifications: {
+                    where: { isCurrent: true },
                     orderBy: { createdAt: "desc" },
                     take: 1,
                     select: {
@@ -169,5 +170,147 @@ export const updateSellerProfile = async (req: Request, res: Response) => {
     } catch (error) {
         console.error("UPDATE SELLER PROFILE ERROR:", error);
         return res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+export const submitSellerVerification = async (req: Request, res: Response) => {
+    try {
+        const sellerId = req.sellerId!;
+        const {
+            documentType,
+            documentUrl,
+            fileName,
+            gstNumber,
+            gstRegistered
+        } = req.body;
+
+        const isGstRegistered = gstRegistered === undefined ? (!!gstNumber) : (!!gstRegistered);
+        let cleanGst: string | null = null;
+        if (isGstRegistered && gstNumber) {
+            const validatedGst = String(gstNumber).trim().toUpperCase();
+            const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+            if (!gstRegex.test(validatedGst)) {
+                return res.status(400).json({
+                    message: "Invalid GST Number format. Must be a valid 15-character Indian GSTIN."
+                });
+            }
+            cleanGst = validatedGst;
+        }
+
+        const seller = await prisma.seller.findUnique({
+            where: { id: sellerId },
+            include: { shop: true }
+        });
+        if (!seller) return res.status(404).json({ message: "Seller not found" });
+
+        const verification = await prisma.$transaction(async (tx) => {
+            const existing = await tx.sellerVerification.findFirst({
+                where: { sellerId, isCurrent: true },
+                orderBy: { updatedAt: "desc" }
+            });
+
+            if (existing) {
+                // If existing is PENDING or UNDER_REVIEW: idempotent update
+                if (existing.status === "PENDING" || existing.status === "UNDER_REVIEW") {
+                    const updated = await tx.sellerVerification.update({
+                        where: { id: existing.id },
+                        data: {
+                            documentType: documentType || existing.documentType,
+                            documentUrl: documentUrl !== undefined ? documentUrl : existing.documentUrl,
+                            fileName: fileName !== undefined ? fileName : existing.fileName,
+                            gstNumber: cleanGst !== null ? cleanGst : existing.gstNumber,
+                            gstRegistered: isGstRegistered,
+                            submittedAt: new Date()
+                        }
+                    });
+                    return updated;
+                }
+
+                // If existing is REJECTED or EXPIRED: archive previous, create new version
+                if (existing.status === "REJECTED" || existing.status === "EXPIRED") {
+                    await tx.sellerVerification.update({
+                        where: { id: existing.id },
+                        data: { isCurrent: false }
+                    });
+
+                    const newRecord = await tx.sellerVerification.create({
+                        data: {
+                            sellerId,
+                            documentType: documentType || existing.documentType,
+                            documentUrl: documentUrl || existing.documentUrl,
+                            fileName: fileName || existing.fileName,
+                            gstNumber: cleanGst !== null ? cleanGst : existing.gstNumber,
+                            gstRegistered: isGstRegistered,
+                            status: "PENDING",
+                            isCurrent: true,
+                            version: (existing.version || 1) + 1,
+                            submittedAt: new Date()
+                        }
+                    });
+                    return newRecord;
+                }
+
+                // If APPROVED and updating GST: archive and create new version
+                if (existing.status === "APPROVED") {
+                    if (cleanGst && cleanGst !== existing.gstNumber) {
+                        await tx.sellerVerification.update({
+                            where: { id: existing.id },
+                            data: { isCurrent: false }
+                        });
+                        const newRecord = await tx.sellerVerification.create({
+                            data: {
+                                sellerId,
+                                documentType: documentType || existing.documentType,
+                                documentUrl: documentUrl || existing.documentUrl,
+                                fileName: fileName || existing.fileName,
+                                gstNumber: cleanGst,
+                                gstRegistered: isGstRegistered,
+                                status: "PENDING",
+                                isCurrent: true,
+                                version: (existing.version || 1) + 1,
+                                submittedAt: new Date()
+                            }
+                        });
+                        return newRecord;
+                    }
+                    return existing;
+                }
+            }
+
+            // No existing verification: create first record
+            return await tx.sellerVerification.create({
+                data: {
+                    sellerId,
+                    documentType: documentType || null,
+                    documentUrl: documentUrl || null,
+                    fileName: fileName || null,
+                    gstNumber: cleanGst,
+                    gstRegistered: isGstRegistered,
+                    status: "PENDING",
+                    isCurrent: true,
+                    version: 1,
+                    submittedAt: new Date()
+                }
+            });
+        });
+
+        // Sync to shop if applicable
+        if (seller.shop && cleanGst) {
+            await prisma.shop.update({
+                where: { id: seller.shop.id },
+                data: {
+                    gstRegistered: isGstRegistered,
+                    gstNumber: cleanGst
+                }
+            });
+        }
+
+        return res.status(200).json({
+            message: "Verification submitted successfully",
+            verification
+        });
+    } catch (error: any) {
+        console.error("SUBMIT SELLER VERIFICATION ERROR:", error);
+        return res.status(500).json({ message: error.message || "Internal Server Error" });
     }
 };

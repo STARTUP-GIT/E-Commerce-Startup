@@ -68,9 +68,9 @@ export const getSidebarBadges = async (req: Request, res: Response) => {
                     ]
                 }
             }),
-            // Seller Verifications: pending reviews
+            // Seller Verifications: pending reviews (current only)
             prisma.sellerVerification.count({
-                where: { status: "PENDING" }
+                where: { status: "PENDING", isCurrent: true }
             }),
             // Seller Agreements: agreements awaiting admin action (accepted awaiting final review, or declined)
             prisma.shopAgreement.count({
