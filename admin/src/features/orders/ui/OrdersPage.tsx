@@ -6,35 +6,84 @@ import { orderApi } from '../api/orderApi';
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/Card';
 import { Badge } from '@/shared/components/Badge';
 import { Button } from '@/shared/components/Button';
-import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
-import { Search, ExternalLink } from 'lucide-react';
+import { Search, ExternalLink, MapPin } from 'lucide-react';
 import { formatPrice } from '@/shared/utils/format';
 import Link from 'next/link';
+import { LocationFilterBar } from '@/shared/components/LocationFilterBar';
 
 const ORDER_STATUS_COLORS: Record<string, any> = {
-  PLACED: 'default', CONFIRMED: 'success', SHIPPED: 'default',
-  DELIVERED: 'success', CANCELLED: 'destructive', REFUNDED: 'warning',
+  PLACED: 'default',
+  PENDING_CONFIRMATION: 'warning',
+  CONFIRMED: 'success',
+  SHIPPED: 'default',
+  DELIVERED: 'success',
+  CANCELLED: 'destructive',
+  REFUNDED: 'warning',
 };
 
 export function OrdersPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
   const [deliveryMethodFilter, setDeliveryMethodFilter] = useState('');
   const [page, setPage] = useState(1);
 
+  const isUnassigned = selectedState === 'UNASSIGNED';
+
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', { search, status: statusFilter, paymentMethod: paymentMethodFilter, deliveryMethod: deliveryMethodFilter, page }],
-    queryFn: () => orderApi.getOrders({ search, status: statusFilter || undefined, paymentMethod: paymentMethodFilter || undefined, deliveryMethod: deliveryMethodFilter || undefined, page, limit: 20 }),
+    queryKey: [
+      'orders',
+      {
+        search,
+        status: statusFilter,
+        state: selectedState,
+        district: selectedDistrict,
+        paymentMethod: paymentMethodFilter,
+        deliveryMethod: deliveryMethodFilter,
+        page,
+      },
+    ],
+    queryFn: () =>
+      orderApi.getOrders({
+        search: search || undefined,
+        status: statusFilter && statusFilter !== 'ALL' ? statusFilter : undefined,
+        state: isUnassigned ? 'UNASSIGNED' : selectedState || undefined,
+        district: !isUnassigned && selectedDistrict ? selectedDistrict : undefined,
+        unassigned: isUnassigned ? true : undefined,
+        paymentMethod: paymentMethodFilter || undefined,
+        deliveryMethod: deliveryMethodFilter || undefined,
+        page,
+        limit: 20,
+      }),
     staleTime: 30 * 1000,
   });
 
   const orders = data?.orders ?? data?.data ?? [];
   const total = data?.total ?? 0;
 
-  const statuses = ['', 'PENDING_CONFIRMATION', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'];
+  const statusOptions = [
+    { label: 'All Statuses', value: 'ALL' },
+    { label: 'Pending Confirmation', value: 'PENDING_CONFIRMATION' },
+    { label: 'Confirmed', value: 'CONFIRMED' },
+    { label: 'Shipped', value: 'SHIPPED' },
+    { label: 'Delivered', value: 'DELIVERED' },
+    { label: 'Cancelled', value: 'CANCELLED' },
+    { label: 'Refunded', value: 'REFUNDED' },
+  ];
+
+  const handleClearAll = () => {
+    setSearch('');
+    setStatusFilter('');
+    setSelectedState('');
+    setSelectedDistrict('');
+    setPaymentMethodFilter('');
+    setDeliveryMethodFilter('');
+    setPage(1);
+  };
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -48,47 +97,46 @@ export function OrdersPage() {
         </div>
       </div>
 
-      <Card className="border border-white/5 p-4 space-y-3">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-white/25 pointer-events-none" />
-            <Input placeholder="Search orders..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-10" />
-          </div>
-          
-          {/* Payment Method Filter */}
-          <select
-            value={paymentMethodFilter}
-            onChange={(e) => { setPaymentMethodFilter(e.target.value); setPage(1); }}
-            className="h-10 px-3 rounded-lg border border-white/10 bg-[#0c0c10] text-xs font-semibold text-white/80 focus:outline-none focus:border-white/30"
-          >
-            <option value="">All Payment Methods</option>
-            <option value="COD">Cash on Delivery (COD)</option>
-            <option value="RAZORPAY">Razorpay</option>
-          </select>
+      <Card className="border border-white/5 p-4">
+        <LocationFilterBar
+          search={search}
+          onSearchChange={(val) => { setSearch(val); setPage(1); }}
+          searchPlaceholder="Search order #, customer email, phone..."
+          state={selectedState}
+          onStateChange={(val) => { setSelectedState(val); setPage(1); }}
+          district={selectedDistrict}
+          onDistrictChange={(val) => { setSelectedDistrict(val); setPage(1); }}
+          status={statusFilter}
+          onStatusChange={(val) => { setStatusFilter(val); setPage(1); }}
+          statusOptions={statusOptions}
+          onClearAll={handleClearAll}
+          extraFilters={
+            <>
+              {/* Payment Method Filter */}
+              <select
+                value={paymentMethodFilter}
+                onChange={(e) => { setPaymentMethodFilter(e.target.value); setPage(1); }}
+                className="h-10 px-3 rounded-xl border border-white/10 bg-white/[0.04] text-xs font-semibold text-white/80 focus:outline-none focus:border-white/30 cursor-pointer"
+              >
+                <option value="" className="bg-[#0e0e14] text-white">All Payments</option>
+                <option value="COD" className="bg-[#0e0e14] text-white">Cash on Delivery (COD)</option>
+                <option value="RAZORPAY" className="bg-[#0e0e14] text-white">Razorpay</option>
+              </select>
 
-          {/* Delivery Method Filter */}
-          <select
-            value={deliveryMethodFilter}
-            onChange={(e) => { setDeliveryMethodFilter(e.target.value); setPage(1); }}
-            className="h-10 px-3 rounded-lg border border-white/10 bg-[#0c0c10] text-xs font-semibold text-white/80 focus:outline-none focus:border-white/30"
-          >
-            <option value="">All Delivery Methods</option>
-            <option value="THIRD_PARTY_DELIVERY">Third-Party Online Delivery</option>
-            <option value="ATLASBASKET_DELIVERY">AtlasBasket Delivery</option>
-            <option value="SELLER_DELIVERY">Seller Delivery</option>
-            <option value="PORTAL_DELIVERY">Portal Delivery (Legacy)</option>
-            <option value="SELF_DELIVERY">Seller Delivery (Legacy)</option>
-          </select>
-        </div>
-
-        <div className="flex gap-2 flex-wrap pt-1">
-          {statuses.map((s) => (
-            <button key={s || 'all'} onClick={() => { setStatusFilter(s); setPage(1); }}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide border transition-all cursor-pointer ${statusFilter === s ? 'bg-white/15 border-white/25 text-white' : 'border-white/10 text-white/40 hover:text-white/70 hover:border-white/20'}`}>
-              {s ? s.replace('_', ' ') : 'All Statuses'}
-            </button>
-          ))}
-        </div>
+              {/* Delivery Method Filter */}
+              <select
+                value={deliveryMethodFilter}
+                onChange={(e) => { setDeliveryMethodFilter(e.target.value); setPage(1); }}
+                className="h-10 px-3 rounded-xl border border-white/10 bg-white/[0.04] text-xs font-semibold text-white/80 focus:outline-none focus:border-white/30 cursor-pointer"
+              >
+                <option value="" className="bg-[#0e0e14] text-white">All Deliveries</option>
+                <option value="ATLASBASKET_DELIVERY" className="bg-[#0e0e14] text-white">AtlasBasket Delivery Network</option>
+                <option value="THIRD_PARTY_DELIVERY" className="bg-[#0e0e14] text-white">Third-Party Delivery</option>
+                <option value="SELF_DELIVERY" className="bg-[#0e0e14] text-white">Seller Delivery (Legacy)</option>
+              </select>
+            </>
+          }
+        />
       </Card>
 
       <Card className="border border-white/5">
@@ -106,6 +154,7 @@ export function OrdersPage() {
                 <TableRow>
                   <TableHead>Order #</TableHead>
                   <TableHead>Customer</TableHead>
+                  <TableHead>Location</TableHead>
                   <TableHead>Payment Method</TableHead>
                   <TableHead>Delivery Method</TableHead>
                   <TableHead>Amount</TableHead>
@@ -127,7 +176,23 @@ export function OrdersPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs text-white/60">{order.customer?.firstName ?? order.customerId}</TableCell>
+                    <TableCell className="text-xs text-white/60">
+                      {order.customer?.username || order.customer?.email || order.customerId}
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const addr = order.shippingAddress;
+                        if (!addr?.state) {
+                          return <span className="text-[10px] text-amber-400/80 italic">Location not set</span>;
+                        }
+                        return (
+                          <div className="flex items-center gap-1.5 text-xs text-white/80">
+                            <MapPin className="h-3 w-3 text-white/40 shrink-0" />
+                            <span>{addr.state}{addr.district || addr.city ? ` • ${addr.district || addr.city}` : ''}</span>
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-[9px] font-bold">
                         {order.paymentMethod === 'COD' ? 'Cash on Delivery' : order.paymentMethod || 'Razorpay'}
@@ -138,21 +203,29 @@ export function OrdersPage() {
                         {order.selectedDeliveryMethod === 'THIRD_PARTY_DELIVERY'
                           ? 'Third-Party Delivery'
                           : order.selectedDeliveryMethod === 'ATLASBASKET_DELIVERY' || order.selectedDeliveryMethod === 'PORTAL_DELIVERY'
-                          ? 'AtlasBasket Delivery'
-                          : 'Seller Delivery'}
+                          ? 'AtlasBasket Fleet'
+                          : order.selectedDeliveryMethod || 'Default'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs font-semibold text-white/80">{formatPrice(order.grandTotal ?? order.totalAmount ?? order.amount ?? 0)}</TableCell>
-                    <TableCell>
-                      <Badge variant={ORDER_STATUS_COLORS[order.status] ?? 'outline'} className="text-[8px]">{order.status}</Badge>
+                    <TableCell className="text-xs font-bold text-white/90">
+                      {formatPrice(Number(order.grandTotal) || 0)}
                     </TableCell>
-                    <TableCell className="text-xs text-white/40">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '—'}</TableCell>
                     <TableCell>
-                      <div className="flex justify-end">
-                        <Link href={`/orders/${order.id}`} className="h-7 px-2 text-white/40 hover:text-white/80 transition-colors flex items-center">
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </Link>
-                      </div>
+                      <Badge variant={ORDER_STATUS_COLORS[order.status] ?? 'outline'} className="text-[9px]">
+                        {order.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-white/40">
+                      {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '—'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Link
+                        href={`/orders/${order.id}`}
+                        className="inline-flex items-center justify-center h-7 w-7 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors"
+                        aria-label="View order details"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Link>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -161,14 +234,6 @@ export function OrdersPage() {
           )}
         </CardContent>
       </Card>
-
-      {total > 20 && (
-        <div className="flex items-center justify-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>Previous</Button>
-          <span className="text-xs text-white/40">Page {page}</span>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={orders.length < 20}>Next</Button>
-        </div>
-      )}
     </div>
   );
 }

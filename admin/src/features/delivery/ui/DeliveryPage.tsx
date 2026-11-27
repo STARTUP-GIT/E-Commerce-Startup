@@ -66,6 +66,7 @@ import {
   PlayCircle,
   PauseCircle,
 } from "lucide-react";
+import { useLocationData } from "@/lib/hooks/useLocationData";
 
 type DeliveryTab =
   | "overview"
@@ -93,10 +94,14 @@ export function DeliveryPage() {
   // Filters & State
   const [riderFilter, setRiderFilter] = useState("ALL");
   const [riderSearch, setRiderSearch] = useState("");
+  const [riderState, setRiderState] = useState("");
+  const [riderDistrict, setRiderDistrict] = useState("");
   const [selectedRider, setSelectedRider] = useState<any | null>(null);
   const [showRiderModal, setShowRiderModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [riderModalTab, setRiderModalTab] = useState<"profile" | "documents" | "strikes" | "deliveries" | "payouts">("profile");
+
+  const { states: operationalStates, getDistrictsForState: getRiderDistricts, isLoading: isLocationsLoading } = useLocationData({ operationalOnly: true });
 
   // General action modal (Suspend, Ban, Reactivate, Reject, Request Docs)
   const [actionPromptModal, setActionPromptModal] = useState<{
@@ -172,12 +177,17 @@ export function DeliveryPage() {
     enabled: tab === "overview",
   });
 
+  const isRiderUnassigned = riderState === "UNASSIGNED";
+
   const { data: ridersData, isLoading: ridersLoading } = useQuery({
-    queryKey: ["delivery-riders", riderFilter, riderSearch],
+    queryKey: ["delivery-riders", riderFilter, riderSearch, riderState, riderDistrict],
     queryFn: () =>
       deliveryApi.getRiders({
         status: riderFilter === "ALL" ? undefined : riderFilter,
         search: riderSearch || undefined,
+        state: isRiderUnassigned ? "UNASSIGNED" : riderState || undefined,
+        district: !isRiderUnassigned && riderDistrict ? riderDistrict : undefined,
+        unassigned: isRiderUnassigned ? true : undefined,
       }),
     enabled: tab === "riders" || tab === "jobs",
   });
@@ -741,6 +751,48 @@ export function DeliveryPage() {
                   />
                 </div>
 
+                {/* State Location Filter */}
+                <select
+                  value={riderState}
+                  onChange={(e) => {
+                    setRiderState(e.target.value);
+                    setRiderDistrict("");
+                  }}
+                  disabled={isLocationsLoading}
+                  className="bg-white/5 border border-white/10 rounded-lg text-xs text-white/80 py-1.5 px-2.5 cursor-pointer"
+                >
+                  <option value="" className="bg-slate-900">All Locations (State)</option>
+                  {operationalStates.map((s) => (
+                    <option key={s.id} value={s.name} className="bg-slate-900">
+                      {s.name}
+                    </option>
+                  ))}
+                  <option value="UNASSIGNED" className="bg-slate-900 text-amber-400">
+                    ⚠ Location not set
+                  </option>
+                </select>
+
+                {/* District Location Filter */}
+                <select
+                  value={riderDistrict}
+                  onChange={(e) => setRiderDistrict(e.target.value)}
+                  disabled={isLocationsLoading || !riderState || riderState === "UNASSIGNED"}
+                  className="bg-white/5 border border-white/10 rounded-lg text-xs text-white/80 py-1.5 px-2.5 cursor-pointer disabled:opacity-40"
+                >
+                  <option value="" className="bg-slate-900">
+                    {!riderState
+                      ? "All Districts"
+                      : riderState === "UNASSIGNED"
+                      ? "N/A (No Location)"
+                      : `All in ${riderState}`}
+                  </option>
+                  {getRiderDistricts(riderState, true).map((d) => (
+                    <option key={d.id} value={d.name} className="bg-slate-900">
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+
                 <select
                   value={riderFilter}
                   onChange={(e) => setRiderFilter(e.target.value)}
@@ -753,6 +805,21 @@ export function DeliveryPage() {
                   <option value="SUSPENDED" className="bg-slate-900">Suspended / Strikes</option>
                   <option value="BANNED" className="bg-slate-900">Banned Agents</option>
                 </select>
+
+                {(riderSearch || riderState || riderDistrict || riderFilter !== "ALL") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRiderSearch("");
+                      setRiderState("");
+                      setRiderDistrict("");
+                      setRiderFilter("ALL");
+                    }}
+                    className="px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-white/60 hover:text-white transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -829,6 +896,10 @@ export function DeliveryPage() {
                           <div className="flex items-center gap-1 text-[10px] text-white/40 mt-0.5">
                             <Mail className="w-3 h-3 text-white/30" />
                             <span className="truncate max-w-[140px]">{r.email}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-[10px] text-white/50 mt-1">
+                            <MapPin className="w-2.5 h-2.5 text-white/35" />
+                            <span>{r.district ? `${r.district}, ${r.state || 'Karnataka'}` : r.city || 'Location not set'}</span>
                           </div>
                         </TableCell>
 

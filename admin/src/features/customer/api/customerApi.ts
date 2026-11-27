@@ -1,7 +1,15 @@
 import axiosInstance from '@/lib/axios/axiosInstance';
 
 export const customerApi = {
-  getCustomers: async (params?: { page?: number; limit?: number; search?: string }) => {
+  getCustomers: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    state?: string;
+    district?: string;
+    unassigned?: boolean;
+  }) => {
     const response = await axiosInstance.get('/api/admin/customers/customers', { params });
     return response.data;
   },

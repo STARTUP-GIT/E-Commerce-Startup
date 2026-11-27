@@ -7,21 +7,56 @@ import { invalidatePublicCache } from "../../../middleware/cache.js";
 
 export const getShops = async (req: Request, res: Response) => {
     try {
-        const { search, status, page = 1, limit = 10 } = req.query;
+        const { search, status, state, district, unassigned, page = 1, limit = 10 } = req.query;
 
-        const whereClause: any = {};
+        const andConditions: any[] = [];
 
-        if (status) {
-            whereClause.status = String(status);
+        if (status && String(status).toUpperCase() !== "ALL") {
+            andConditions.push({ status: String(status) });
         }
 
         if (search) {
-            whereClause.OR = [
-                { name: { contains: String(search), mode: "insensitive" } },
-                { slug: { contains: String(search), mode: "insensitive" } },
-                { businessName: { contains: String(search), mode: "insensitive" } }
-            ];
+            const searchStr = String(search).trim();
+            andConditions.push({
+                OR: [
+                    { name: { contains: searchStr, mode: "insensitive" } },
+                    { slug: { contains: searchStr, mode: "insensitive" } },
+                    { businessName: { contains: searchStr, mode: "insensitive" } },
+                    { seller: { firstName: { contains: searchStr, mode: "insensitive" } } },
+                    { seller: { lastName: { contains: searchStr, mode: "insensitive" } } },
+                    { seller: { email: { contains: searchStr, mode: "insensitive" } } }
+                ]
+            });
         }
+
+        const isUnassigned = unassigned === "true" || state === "UNASSIGNED";
+        const stateStr = typeof state === "string" ? state.trim() : "";
+        const districtStr = typeof district === "string" ? district.trim() : "";
+
+        if (isUnassigned) {
+            andConditions.push({
+                AND: [
+                    { defaultPickupAddress: null },
+                    { seller: { addresses: { none: { state: { not: "" } } } } }
+                ]
+            });
+        } else if (stateStr || districtStr) {
+            const addressCond: any = {};
+            if (stateStr) {
+                addressCond.state = { equals: stateStr, mode: "insensitive" };
+            }
+            if (districtStr) {
+                addressCond.district = { equals: districtStr, mode: "insensitive" };
+            }
+            andConditions.push({
+                OR: [
+                    { defaultPickupAddress: addressCond },
+                    { seller: { addresses: { some: addressCond } } }
+                ]
+            });
+        }
+
+        const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};
 
         const skip = (Number(page) - 1) * Number(limit);
         const take = Number(limit);
@@ -29,7 +64,19 @@ export const getShops = async (req: Request, res: Response) => {
         const [shops, total] = await prisma.$transaction([
             prisma.shop.findMany({
                 where: whereClause,
-                include: { seller: true },
+                include: {
+                    seller: {
+                        include: {
+                            addresses: {
+                                where: { isActive: true },
+                                orderBy: { isDefault: "desc" },
+                                take: 1,
+                                select: { state: true, district: true, city: true }
+                            }
+                        }
+                    },
+                    defaultPickupAddress: true
+                },
                 orderBy: { createdAt: "desc" },
                 skip,
                 take

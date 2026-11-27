@@ -6,22 +6,36 @@ import { productApi } from '../api/productApi';
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/Card';
 import { Badge } from '@/shared/components/Badge';
 import { Button } from '@/shared/components/Button';
-import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
-import { Search, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Search, Eye, EyeOff, Trash2, MapPin } from 'lucide-react';
 import { formatPrice } from '@/shared/utils/format';
+import { LocationFilterBar } from '@/shared/components/LocationFilterBar';
 
 export function ProductsPage() {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
 
+  const isUnassigned = selectedState === 'UNASSIGNED';
+
   const { data, isLoading } = useQuery({
-    queryKey: ['products', { search, page }],
-    queryFn: () => productApi.getProducts({ search, page, limit: 20 }),
+    queryKey: ['products', { search, status: statusFilter, state: selectedState, district: selectedDistrict, page }],
+    queryFn: () =>
+      productApi.getProducts({
+        search: search || undefined,
+        status: statusFilter && statusFilter !== 'ALL' ? statusFilter : undefined,
+        state: isUnassigned ? 'UNASSIGNED' : selectedState || undefined,
+        district: !isUnassigned && selectedDistrict ? selectedDistrict : undefined,
+        unassigned: isUnassigned ? true : undefined,
+        page,
+        limit: 20,
+      }),
     staleTime: 30 * 1000,
   });
 
@@ -46,6 +60,21 @@ export function ProductsPage() {
     onError: (e: any) => showToast(e.message, 'error'),
   });
 
+  const statusOptions = [
+    { label: 'All Statuses', value: 'ALL' },
+    { label: 'Published / Active', value: 'ACTIVE' },
+    { label: 'Hidden / Draft', value: 'DRAFT' },
+    { label: 'Archived', value: 'ARCHIVED' },
+  ];
+
+  const handleClearAll = () => {
+    setSearch('');
+    setStatusFilter('');
+    setSelectedState('');
+    setSelectedDistrict('');
+    setPage(1);
+  };
+
   return (
     <div className="space-y-6 animate-fade-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -57,10 +86,19 @@ export function ProductsPage() {
       </div>
 
       <Card className="border border-white/5 p-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-white/25 pointer-events-none" />
-          <Input placeholder="Search products..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-10" />
-        </div>
+        <LocationFilterBar
+          search={search}
+          onSearchChange={(val) => { setSearch(val); setPage(1); }}
+          searchPlaceholder="Search products by title, description..."
+          state={selectedState}
+          onStateChange={(val) => { setSelectedState(val); setPage(1); }}
+          district={selectedDistrict}
+          onDistrictChange={(val) => { setSelectedDistrict(val); setPage(1); }}
+          status={statusFilter}
+          onStatusChange={(val) => { setStatusFilter(val); setPage(1); }}
+          statusOptions={statusOptions}
+          onClearAll={handleClearAll}
+        />
       </Card>
 
       <Card className="border border-white/5">
@@ -78,6 +116,7 @@ export function ProductsPage() {
                 <TableRow>
                   <TableHead>Product</TableHead>
                   <TableHead>Shop</TableHead>
+                  <TableHead>Location</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Stock</TableHead>
                   <TableHead>Fulfilment</TableHead>
@@ -96,7 +135,21 @@ export function ProductsPage() {
                         <p className="text-xs font-bold text-white/90 line-clamp-1">{product.name}</p>
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs text-white/60">{product.shop?.name ?? '—'}</TableCell>
+                    <TableCell className="text-xs text-white/60">{product.seller?.shop?.name ?? product.shop?.name ?? '—'}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const addr = product.seller?.shop?.defaultPickupAddress || product.seller?.addresses?.[0];
+                        if (!addr?.state) {
+                          return <span className="text-[10px] text-amber-400/80 italic">Location not set</span>;
+                        }
+                        return (
+                          <div className="flex items-center gap-1.5 text-xs text-white/80">
+                            <MapPin className="h-3 w-3 text-white/40 shrink-0" />
+                            <span>{addr.state}{addr.district || addr.city ? ` • ${addr.district || addr.city}` : ''}</span>
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
                     <TableCell className="text-xs font-semibold text-white/80">{formatPrice(product.price)}</TableCell>
                     <TableCell className="text-xs text-white/60">{product.stock ?? 0}</TableCell>
                     <TableCell>
@@ -118,18 +171,24 @@ export function ProductsPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={product.isHidden ? 'secondary' : product.isDeleted ? 'destructive' : 'success'} className="text-[8px]">
-                        {product.isDeleted ? 'Deleted' : product.isHidden ? 'Hidden' : 'Visible'}
+                      <Badge variant={product.status === 'ACTIVE' ? 'success' : 'outline'} className="text-[8px]">
+                        {product.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-1.5">
-                        {product.isHidden ? (
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={unhideMutation.isPending} onClick={() => unhideMutation.mutate(product.id)} title="Show"><Eye className="h-3.5 w-3.5" /></Button>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {product.status === 'ACTIVE' ? (
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-white/40 hover:text-white" onClick={() => hideMutation.mutate(product.id)}>
+                            <EyeOff className="h-3.5 w-3.5" />
+                          </Button>
                         ) : (
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-400 hover:bg-orange-500/10" isLoading={hideMutation.isPending} onClick={() => hideMutation.mutate(product.id)} title="Hide"><EyeOff className="h-3.5 w-3.5" /></Button>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-white/40 hover:text-white" onClick={() => unhideMutation.mutate(product.id)}>
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
                         )}
-                        <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:bg-red-500/10" isLoading={deleteMutation.isPending} onClick={() => deleteMutation.mutate(product.id)} title="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => deleteMutation.mutate(product.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -139,14 +198,6 @@ export function ProductsPage() {
           )}
         </CardContent>
       </Card>
-
-      {total > 20 && (
-        <div className="flex items-center justify-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>Previous</Button>
-          <span className="text-xs text-white/40">Page {page}</span>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={products.length < 20}>Next</Button>
-        </div>
-      )}
     </div>
   );
 }

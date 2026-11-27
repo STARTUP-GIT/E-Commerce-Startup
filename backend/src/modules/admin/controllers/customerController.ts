@@ -6,18 +6,58 @@ import { sanitizeCustomer } from "../../../utils/sanitize.js";
 
 export const getCustomers = async (req: Request, res: Response) => {
     try {
-        const { search, page = 1, limit = 10 } = req.query;
+        const { search, status, state, district, unassigned, page = 1, limit = 10 } = req.query;
 
-        const whereClause: any = { isDeactivated: false };
+        const andConditions: any[] = [{ isDeactivated: false }];
+
+        if (status && typeof status === "string") {
+            const cleanStatus = status.trim().toUpperCase();
+            if (cleanStatus === "BANNED") {
+                andConditions.push({ isBanned: true });
+            } else if (cleanStatus === "ACTIVE") {
+                andConditions.push({ isBanned: false });
+            }
+        }
 
         if (search) {
-            whereClause.OR = [
-                { email: { contains: String(search), mode: "insensitive" } },
-                { firstName: { contains: String(search), mode: "insensitive" } },
-                { lastName: { contains: String(search), mode: "insensitive" } },
-                { username: { contains: String(search), mode: "insensitive" } }
-            ];
+            const searchStr = String(search).trim();
+            andConditions.push({
+                OR: [
+                    { email: { contains: searchStr, mode: "insensitive" } },
+                    { firstName: { contains: searchStr, mode: "insensitive" } },
+                    { lastName: { contains: searchStr, mode: "insensitive" } },
+                    { username: { contains: searchStr, mode: "insensitive" } },
+                    { phone: { contains: searchStr, mode: "insensitive" } }
+                ]
+            });
         }
+
+        const isUnassigned = unassigned === "true" || state === "UNASSIGNED";
+        const stateStr = typeof state === "string" ? state.trim() : "";
+        const districtStr = typeof district === "string" ? district.trim() : "";
+
+        if (isUnassigned) {
+            andConditions.push({
+                addresses: {
+                    none: { state: { not: "" } }
+                }
+            });
+        } else if (stateStr || districtStr) {
+            const addressCond: any = {};
+            if (stateStr) {
+                addressCond.state = { equals: stateStr, mode: "insensitive" };
+            }
+            if (districtStr) {
+                addressCond.district = { equals: districtStr, mode: "insensitive" };
+            }
+            andConditions.push({
+                addresses: {
+                    some: addressCond
+                }
+            });
+        }
+
+        const whereClause = { AND: andConditions };
 
         const skip = (Number(page) - 1) * Number(limit);
         const take = Number(limit);
@@ -25,6 +65,20 @@ export const getCustomers = async (req: Request, res: Response) => {
         const [customers, total] = await prisma.$transaction([
             prisma.customer.findMany({
                 where: whereClause,
+                include: {
+                    addresses: {
+                        orderBy: { isDefault: "desc" },
+                        take: 1,
+                        select: {
+                            state: true,
+                            district: true,
+                            city: true
+                        }
+                    },
+                    _count: {
+                        select: { orders: true }
+                    }
+                },
                 orderBy: { createdAt: "desc" },
                 skip,
                 take

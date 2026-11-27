@@ -6,18 +6,62 @@ import { invalidatePublicCache } from "../../../middleware/cache.js";
 
 export const getProducts = async (req: Request, res: Response) => {
     try {
-        const { search, categoryId, status, page = 1, limit = 10 } = req.query;
+        const { search, categoryId, status, shopId, state, district, unassigned, page = 1, limit = 10 } = req.query;
 
-        const whereClause: any = { isDeleted: false };
+        const andConditions: any[] = [{ isDeleted: false }];
 
-        if (categoryId) whereClause.categoryId = String(categoryId);
-        if (status) whereClause.status = String(status);
-        if (search) {
-            whereClause.OR = [
-                { name: { contains: String(search), mode: "insensitive" } },
-                { description: { contains: String(search), mode: "insensitive" } }
-            ];
+        if (categoryId && String(categoryId).toUpperCase() !== "ALL") {
+            andConditions.push({ categoryId: String(categoryId) });
         }
+        if (status && String(status).toUpperCase() !== "ALL") {
+            andConditions.push({ status: String(status) });
+        }
+        if (shopId) {
+            andConditions.push({ seller: { shop: { id: String(shopId) } } });
+        }
+        if (search) {
+            const searchStr = String(search).trim();
+            andConditions.push({
+                OR: [
+                    { name: { contains: searchStr, mode: "insensitive" } },
+                    { description: { contains: searchStr, mode: "insensitive" } },
+                    { seller: { shop: { name: { contains: searchStr, mode: "insensitive" } } } }
+                ]
+            });
+        }
+
+        const isUnassigned = unassigned === "true" || state === "UNASSIGNED";
+        const stateStr = typeof state === "string" ? state.trim() : "";
+        const districtStr = typeof district === "string" ? district.trim() : "";
+
+        if (isUnassigned) {
+            andConditions.push({
+                seller: {
+                    AND: [
+                        { shop: { defaultPickupAddress: null } },
+                        { addresses: { none: { state: { not: "" } } } }
+                    ]
+                }
+            });
+        } else if (stateStr || districtStr) {
+            const addrCond: any = {};
+            if (stateStr) {
+                addrCond.state = { equals: stateStr, mode: "insensitive" };
+            }
+            if (districtStr) {
+                addrCond.district = { equals: districtStr, mode: "insensitive" };
+            }
+            andConditions.push({
+                seller: {
+                    OR: [
+                        { shop: { defaultPickupAddress: addrCond } },
+                        { addresses: { some: addrCond } }
+                    ]
+                }
+            });
+        }
+
+        const whereClause = { AND: andConditions };
 
         const skip = (Number(page) - 1) * Number(limit);
         const take = Number(limit);
@@ -25,7 +69,24 @@ export const getProducts = async (req: Request, res: Response) => {
         const [products, total] = await prisma.$transaction([
             prisma.product.findMany({
                 where: whereClause,
-                include: { seller: { include: { shop: true } }, variants: true },
+                include: {
+                    seller: {
+                        include: {
+                            shop: {
+                                include: {
+                                    defaultPickupAddress: true
+                                }
+                            },
+                            addresses: {
+                                where: { isActive: true },
+                                orderBy: { isDefault: "desc" },
+                                take: 1,
+                                select: { state: true, district: true, city: true }
+                            }
+                        }
+                    },
+                    variants: true
+                },
                 orderBy: { createdAt: "desc" },
                 skip,
                 take

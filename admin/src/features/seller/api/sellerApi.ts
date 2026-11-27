@@ -1,8 +1,28 @@
 import axiosInstance from '@/lib/axios/axiosInstance';
 
 export const sellerApi = {
-  getSellers: async (params?: { page?: number; limit?: number; status?: string; search?: string }) => {
+  getSellers: async (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    state?: string;
+    district?: string;
+    unassigned?: boolean;
+  }) => {
     const response = await axiosInstance.get('/api/admin/sellers', { params });
+    return response.data;
+  },
+  searchSellers: async (params?: {
+    q?: string;
+    state?: string;
+    district?: string;
+    status?: string;
+    unassigned?: boolean;
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await axiosInstance.get('/api/admin/sellers/search', { params });
     return response.data;
   },
   getSeller: async (id: string) => {

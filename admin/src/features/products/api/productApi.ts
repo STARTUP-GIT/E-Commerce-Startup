@@ -1,7 +1,18 @@
 import axiosInstance from '@/lib/axios/axiosInstance';
 
 export const productApi = {
-  getProducts: async (params?: { page?: number; limit?: number; search?: string; category?: string }) => {
+  getProducts: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    categoryId?: string;
+    status?: string;
+    shopId?: string;
+    state?: string;
+    district?: string;
+    unassigned?: boolean;
+  }) => {
     const response = await axiosInstance.get('/api/admin/products', { params });
     return response.data;
   },

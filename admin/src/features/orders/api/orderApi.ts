@@ -1,7 +1,19 @@
 import axiosInstance from '@/lib/axios/axiosInstance';
 
 export const orderApi = {
-  getOrders: async (params?: { page?: number; limit?: number; search?: string; status?: string; paymentMethod?: string; deliveryMethod?: string }) => {
+  getOrders: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    paymentMethod?: string;
+    deliveryMethod?: string;
+    state?: string;
+    district?: string;
+    unassigned?: boolean;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => {
     const response = await axiosInstance.get('/api/admin/orders', { params });
     return response.data;
   },

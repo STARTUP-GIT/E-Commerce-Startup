@@ -6,17 +6,20 @@ import { customerApi } from '../api/customerApi';
 import { Card, CardHeader, CardTitle, CardContent } from '@/shared/components/Card';
 import { Badge } from '@/shared/components/Badge';
 import { Button } from '@/shared/components/Button';
-import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
-import { Search, ShieldOff, ShieldCheck, ExternalLink } from 'lucide-react';
+import { Search, ShieldOff, ShieldCheck, ExternalLink, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { ReasonModal } from '@/shared/components/ReasonModal';
 import { useRouter } from 'next/navigation';
+import { LocationFilterBar } from '@/shared/components/LocationFilterBar';
 
 export function CustomersPage() {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
@@ -37,9 +40,20 @@ export function CustomersPage() {
     onConfirm: () => {},
   });
 
+  const isUnassigned = selectedState === 'UNASSIGNED';
+
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', { search, page }],
-    queryFn: () => customerApi.getCustomers({ search, page, limit: 20 }),
+    queryKey: ['customers', { search, status: statusFilter, state: selectedState, district: selectedDistrict, page }],
+    queryFn: () =>
+      customerApi.getCustomers({
+        search: search || undefined,
+        status: statusFilter && statusFilter !== 'ALL' ? statusFilter : undefined,
+        state: isUnassigned ? 'UNASSIGNED' : selectedState || undefined,
+        district: !isUnassigned && selectedDistrict ? selectedDistrict : undefined,
+        unassigned: isUnassigned ? true : undefined,
+        page,
+        limit: 20,
+      }),
     staleTime: 30 * 1000,
   });
 
@@ -58,6 +72,20 @@ export function CustomersPage() {
     onError: (e: any) => showToast(e.message, 'error'),
   });
 
+  const statusOptions = [
+    { label: 'All Statuses', value: 'ALL' },
+    { label: 'Active', value: 'ACTIVE' },
+    { label: 'Banned', value: 'BANNED' },
+  ];
+
+  const handleClearAll = () => {
+    setSearch('');
+    setStatusFilter('');
+    setSelectedState('');
+    setSelectedDistrict('');
+    setPage(1);
+  };
+
   return (
     <div className="space-y-6 animate-fade-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -71,15 +99,19 @@ export function CustomersPage() {
       </div>
 
       <Card className="border border-white/5 p-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-white/25 pointer-events-none" />
-          <Input
-            placeholder="Search by name, email..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-10"
-          />
-        </div>
+        <LocationFilterBar
+          search={search}
+          onSearchChange={(val) => { setSearch(val); setPage(1); }}
+          searchPlaceholder="Search by name, email, username..."
+          state={selectedState}
+          onStateChange={(val) => { setSelectedState(val); setPage(1); }}
+          district={selectedDistrict}
+          onDistrictChange={(val) => { setSelectedDistrict(val); setPage(1); }}
+          status={statusFilter}
+          onStatusChange={(val) => { setStatusFilter(val); setPage(1); }}
+          statusOptions={statusOptions}
+          onClearAll={handleClearAll}
+        />
       </Card>
 
       <Card className="border border-white/5">
@@ -97,6 +129,7 @@ export function CustomersPage() {
                 <TableRow>
                   <TableHead>Customer</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Location</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -118,45 +151,74 @@ export function CustomersPage() {
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-bold text-white/60 shrink-0">
-                          {customer.firstName?.[0] ?? customer.email?.[0] ?? 'C'}
+                        <div className="h-8 w-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-bold text-white/70">
+                          {customer.firstName?.[0] ?? customer.username?.[0] ?? 'C'}
                         </div>
-                        <p className="text-xs font-bold text-white/90">{customer.firstName} {customer.lastName}</p>
+                        <div>
+                          <p className="text-xs font-bold text-white/95">
+                            {customer.firstName || customer.lastName
+                              ? `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim()
+                              : customer.username}
+                          </p>
+                          <p className="text-[10px] text-white/40 font-mono">@{customer.username}</p>
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs text-white/60">{customer.email}</TableCell>
+                    <TableCell className="text-xs text-white/70">{customer.email}</TableCell>
                     <TableCell>
-                      <Badge variant={customer.isBanned ? 'destructive' : customer.isDeactivated ? 'warning' : 'success'} className="text-[8px]">
-                        {customer.isBanned ? 'Banned' : customer.isDeactivated ? 'Deactivated' : 'Active'}
+                      {(() => {
+                        const addr = customer.addresses?.[0];
+                        if (!addr?.state) {
+                          return <span className="text-[10px] text-amber-400/80 italic">Location not set</span>;
+                        }
+                        return (
+                          <div className="flex items-center gap-1.5 text-xs text-white/80">
+                            <MapPin className="h-3 w-3 text-white/40 shrink-0" />
+                            <span>{addr.state}{addr.district || addr.city ? ` • ${addr.district || addr.city}` : ''}</span>
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={customer.isBanned ? 'destructive' : 'success'} className="text-[9px]">
+                        {customer.isBanned ? 'BANNED' : 'ACTIVE'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-white/40">
                       {customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : '—'}
                     </TableCell>
-                     <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
-                        {customer.isBanned ? (
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:bg-emerald-500/10" isLoading={unbanMutation.isPending} onClick={(e) => { e.stopPropagation(); unbanMutation.mutate(customer.id); }}>
-                            <ShieldCheck className="h-3.5 w-3.5" />
+                        {!customer.isBanned ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs"
+                            isLoading={banMutation.isPending}
+                            onClick={() =>
+                              setModalConfig({
+                                isOpen: true,
+                                title: 'Ban Customer',
+                                description: `Are you sure you want to ban ${customer.username}? They will lose access to orders and services.`,
+                                action: 'Ban Customer',
+                                target: customer.id,
+                                onConfirm: (reason) => banMutation.mutate({ id: customer.id, reason }),
+                              })
+                            }
+                          >
+                            <ShieldOff className="h-3 w-3 mr-1" /> Ban
                           </Button>
                         ) : (
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-400 hover:bg-orange-500/10" isLoading={banMutation.isPending} onClick={(e) => {
-                            e.stopPropagation();
-                            setModalConfig({
-                              isOpen: true,
-                              title: 'Ban Customer Account',
-                              description: `Are you sure you want to ban the customer account for "${customer.firstName} ${customer.lastName}"? Banning this customer will immediately disable their login access and cancel any of their active non-shipped orders.`,
-                              action: 'Ban',
-                              target: `${customer.firstName} ${customer.lastName}`,
-                              onConfirm: (reason) => banMutation.mutate({ id: customer.id, reason }),
-                            });
-                          }}>
-                            <ShieldOff className="h-3.5 w-3.5" />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 text-xs"
+                            isLoading={unbanMutation.isPending}
+                            onClick={() => unbanMutation.mutate(customer.id)}
+                          >
+                            <ShieldCheck className="h-3 w-3 mr-1" /> Unban
                           </Button>
                         )}
-                        <Link href={`/customers/${customer.id}`} onClick={(e) => e.stopPropagation()} className="h-7 px-2 text-white/40 hover:text-white/80 transition-colors flex items-center">
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </Link>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -167,26 +229,14 @@ export function CustomersPage() {
         </CardContent>
       </Card>
 
-      {total > 20 && (
-        <div className="flex items-center justify-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>Previous</Button>
-          <span className="text-xs text-white/40">Page {page}</span>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={customers.length < 20}>Next</Button>
-        </div>
-      )}
-
       <ReasonModal
         isOpen={modalConfig.isOpen}
         onClose={() => setModalConfig((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={modalConfig.onConfirm}
         title={modalConfig.title}
         description={modalConfig.description}
         action={modalConfig.action}
         target={modalConfig.target}
-        onConfirm={(reason) => {
-          modalConfig.onConfirm(reason);
-          setModalConfig((prev) => ({ ...prev, isOpen: false }));
-        }}
-        isLoading={banMutation.isPending}
       />
     </div>
   );

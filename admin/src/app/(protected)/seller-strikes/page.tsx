@@ -28,12 +28,15 @@ import {
   Clock
 } from 'lucide-react';
 import { SellerSearchSelect, type SellerOption } from '@/shared/components/SellerSearchSelect';
+import { LocationFilterBar } from '@/shared/components/LocationFilterBar';
 
 export default function SellerEnforcementPage() {
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState<'ALL' | 'WARNING' | 'STRIKE' | 'SUSPENDED'>('ALL');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
 
   // Modals & Drawers
   const [showIssueModal, setShowIssueModal] = useState(false);
@@ -64,8 +67,10 @@ export default function SellerEnforcementPage() {
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
 
+  const isUnassigned = selectedState === 'UNASSIGNED';
+
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-enforcements', { page, activeTab, search, statusFilter }],
+    queryKey: ['admin-enforcements', { page, activeTab, search, statusFilter, state: selectedState, district: selectedDistrict }],
     queryFn: async () => {
       const typeParam = activeTab === 'WARNING' ? 'WARNING' : activeTab === 'STRIKE' ? 'STRIKE' : undefined;
       const res = await axiosInstance.get('/api/admin/seller-enforcement', {
@@ -75,6 +80,9 @@ export default function SellerEnforcementPage() {
           type: typeParam,
           search: search || undefined,
           status: statusFilter || undefined,
+          state: isUnassigned ? 'UNASSIGNED' : selectedState || undefined,
+          district: !isUnassigned && selectedDistrict ? selectedDistrict : undefined,
+          unassigned: isUnassigned ? true : undefined,
         },
       });
       return res.data;
@@ -225,56 +233,58 @@ export default function SellerEnforcementPage() {
         </Card>
       </div>
 
-      {/* Navigation Tabs & Filters */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-2">
-          {(['ALL', 'WARNING', 'STRIKE'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => {
-                setActiveTab(tab);
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === tab
-                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-              }`}
-            >
-              {tab === 'ALL' && 'All Enforcement Records'}
-              {tab === 'WARNING' && 'Type A: Policy Warnings'}
-              {tab === 'STRIKE' && 'Type B: Formal Strikes'}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
-            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
-            <input
-              type="text"
-              placeholder="Search seller, shop, clause..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-slate-900/80 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
-            />
-          </div>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-900/80 border border-slate-800 rounded-lg text-xs text-slate-300 px-3 py-1.5 focus:outline-none focus:border-rose-500"
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+        {(['ALL', 'WARNING', 'STRIKE'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => {
+              setActiveTab(tab);
+              setPage(1);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === tab
+                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+            }`}
           >
-            <option value="">All Statuses</option>
-            <option value="ISSUED">Issued</option>
-            <option value="UNDER_APPEAL">Under Appeal</option>
-            <option value="UPHELD">Upheld</option>
-            <option value="OVERTURNED">Overturned</option>
-            <option value="WITHDRAWN">Withdrawn</option>
-            <option value="CLOSED">Closed</option>
-          </select>
-        </div>
+            {tab === 'ALL' && 'All Enforcement Records'}
+            {tab === 'WARNING' && 'Type A: Policy Warnings'}
+            {tab === 'STRIKE' && 'Type B: Formal Strikes'}
+          </button>
+        ))}
       </div>
+
+      {/* Location & Global Filter Bar */}
+      <Card className="border border-slate-800 bg-slate-900/60 p-4">
+        <LocationFilterBar
+          search={search}
+          onSearchChange={(val) => { setSearch(val); setPage(1); }}
+          searchPlaceholder="Search seller, shop, clause, reference..."
+          state={selectedState}
+          onStateChange={(val) => { setSelectedState(val); setPage(1); }}
+          district={selectedDistrict}
+          onDistrictChange={(val) => { setSelectedDistrict(val); setPage(1); }}
+          status={statusFilter}
+          onStatusChange={(val) => { setStatusFilter(val); setPage(1); }}
+          statusOptions={[
+            { label: 'All Statuses', value: '' },
+            { label: 'Issued', value: 'ISSUED' },
+            { label: 'Under Appeal', value: 'UNDER_APPEAL' },
+            { label: 'Upheld', value: 'UPHELD' },
+            { label: 'Overturned', value: 'OVERTURNED' },
+            { label: 'Withdrawn', value: 'WITHDRAWN' },
+            { label: 'Closed', value: 'CLOSED' },
+          ]}
+          onClearAll={() => {
+            setSearch('');
+            setStatusFilter('');
+            setSelectedState('');
+            setSelectedDistrict('');
+            setPage(1);
+          }}
+        />
+      </Card>
 
       {/* Enforcement Records Table */}
       <Card className="border border-slate-800 bg-slate-900/40 backdrop-blur-sm overflow-hidden">

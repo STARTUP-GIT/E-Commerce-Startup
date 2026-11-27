@@ -5,13 +5,89 @@ import { AdminActionType } from "@prisma/client";
 
 export const getOrders = async (req: Request, res: Response) => {
     try {
-        const { status, customerId, paymentMethod, deliveryMethod, page = 1, limit = 10 } = req.query;
+        const {
+            status,
+            customerId,
+            paymentMethod,
+            deliveryMethod,
+            search,
+            state,
+            district,
+            unassigned,
+            dateFrom,
+            dateTo,
+            page = 1,
+            limit = 10
+        } = req.query;
 
-        const whereClause: any = {};
-        if (status) whereClause.status = String(status);
-        if (customerId) whereClause.customerId = String(customerId);
-        if (paymentMethod) whereClause.paymentMethod = String(paymentMethod);
-        if (deliveryMethod) whereClause.selectedDeliveryMethod = String(deliveryMethod);
+        const andConditions: any[] = [];
+
+        if (status && String(status).toUpperCase() !== "ALL") {
+            andConditions.push({ status: String(status) as any });
+        }
+        if (customerId) {
+            andConditions.push({ customerId: String(customerId) });
+        }
+        if (paymentMethod && String(paymentMethod).toUpperCase() !== "ALL") {
+            andConditions.push({ paymentMethod: String(paymentMethod) });
+        }
+        if (deliveryMethod && String(deliveryMethod).toUpperCase() !== "ALL") {
+            andConditions.push({ selectedDeliveryMethod: String(deliveryMethod) });
+        }
+
+        if (search) {
+            const searchStr = String(search).trim();
+            andConditions.push({
+                OR: [
+                    { orderNumber: { contains: searchStr, mode: "insensitive" } },
+                    { customer: { username: { contains: searchStr, mode: "insensitive" } } },
+                    { customer: { email: { contains: searchStr, mode: "insensitive" } } },
+                    { customer: { phone: { contains: searchStr, mode: "insensitive" } } },
+                    { shippingAddress: { fullName: { contains: searchStr, mode: "insensitive" } } }
+                ]
+            });
+        }
+
+        const isUnassigned = unassigned === "true" || state === "UNASSIGNED";
+        const stateStr = typeof state === "string" ? state.trim() : "";
+        const districtStr = typeof district === "string" ? district.trim() : "";
+
+        if (isUnassigned) {
+            andConditions.push({
+                shippingAddress: {
+                    state: { equals: "" }
+                }
+            });
+        } else if (stateStr || districtStr) {
+            const addrCond: any = {};
+            if (stateStr) {
+                addrCond.state = { equals: stateStr, mode: "insensitive" };
+            }
+            if (districtStr) {
+                addrCond.district = { equals: districtStr, mode: "insensitive" };
+            }
+            andConditions.push({
+                OR: [
+                    { shippingAddress: addrCond },
+                    ...(stateStr ? [{ placeOfSupplyState: { equals: stateStr, mode: "insensitive" } }] : [])
+                ]
+            });
+        }
+
+        if (dateFrom) {
+            const parsedFrom = new Date(String(dateFrom));
+            if (!isNaN(parsedFrom.getTime())) {
+                andConditions.push({ createdAt: { gte: parsedFrom } });
+            }
+        }
+        if (dateTo) {
+            const parsedTo = new Date(String(dateTo));
+            if (!isNaN(parsedTo.getTime())) {
+                andConditions.push({ createdAt: { lte: parsedTo } });
+            }
+        }
+
+        const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};
 
         const skip = (Number(page) - 1) * Number(limit);
         const take = Number(limit);
@@ -21,6 +97,7 @@ export const getOrders = async (req: Request, res: Response) => {
                 where: whereClause,
                 include: {
                     customer: { select: { id: true, username: true, email: true } },
+                    shippingAddress: { select: { state: true, district: true, city: true } },
                     sellerOrders: { include: { seller: { include: { shop: true } } } }
                 },
                 orderBy: { createdAt: "desc" },

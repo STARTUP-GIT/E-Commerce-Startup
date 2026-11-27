@@ -145,23 +145,60 @@ export const listRiders = async (req: Request, res: Response) => {
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Number(req.query.limit) || 20);
-    const { status, verificationStatus, isAvailable, search } = req.query;
+    const { status, verificationStatus, isAvailable, search, state, district, unassigned } = req.query;
 
-    const where: any = {};
-    if (status) where.status = String(status) as any;
-    if (verificationStatus) where.verificationStatus = String(verificationStatus) as any;
-    if (typeof isAvailable !== "undefined") {
-      where.isAvailable = isAvailable === "true";
+    const andConditions: any[] = [];
+
+    if (status && String(status).toUpperCase() !== "ALL") {
+      andConditions.push({ status: String(status) as any });
+    }
+    if (verificationStatus && String(verificationStatus).toUpperCase() !== "ALL") {
+      andConditions.push({ verificationStatus: String(verificationStatus) as any });
+    }
+    if (typeof isAvailable !== "undefined" && isAvailable !== "") {
+      andConditions.push({ isAvailable: isAvailable === "true" });
     }
     if (search) {
-      where.OR = [
-        { firstName: { contains: String(search), mode: "insensitive" } },
-        { lastName: { contains: String(search), mode: "insensitive" } },
-        { phone: { contains: String(search) } },
-        { email: { contains: String(search), mode: "insensitive" } },
-        { vehicleNumber: { contains: String(search), mode: "insensitive" } },
-      ];
+      const searchStr = String(search).trim();
+      andConditions.push({
+        OR: [
+          { firstName: { contains: searchStr, mode: "insensitive" } },
+          { lastName: { contains: searchStr, mode: "insensitive" } },
+          { phone: { contains: searchStr } },
+          { email: { contains: searchStr, mode: "insensitive" } },
+          { vehicleNumber: { contains: searchStr, mode: "insensitive" } },
+        ],
+      });
     }
+
+    const isUnassigned = unassigned === "true" || state === "UNASSIGNED";
+    const stateStr = typeof state === "string" ? state.trim() : "";
+    const districtStr = typeof district === "string" ? district.trim() : "";
+
+    if (isUnassigned) {
+      andConditions.push({
+        AND: [
+          { addresses: { none: { state: { not: "" } } } },
+          { city: null }
+        ]
+      });
+    } else if (stateStr || districtStr) {
+      const addrCond: any = {};
+      if (stateStr) {
+        addrCond.state = { equals: stateStr, mode: "insensitive" };
+      }
+      if (districtStr) {
+        addrCond.city = { equals: districtStr, mode: "insensitive" };
+      }
+      andConditions.push({
+        OR: [
+          { addresses: { some: addrCond } },
+          ...(districtStr ? [{ city: { equals: districtStr, mode: "insensitive" } }] : []),
+        ],
+      });
+    }
+
+    const where: any = andConditions.length > 0 ? { AND: andConditions } : {};
 
     const [total, riders] = await Promise.all([
       prisma.deliveryPartner.count({ where }),
@@ -171,6 +208,12 @@ export const listRiders = async (req: Request, res: Response) => {
         take: limit,
         orderBy: { createdAt: "desc" },
         include: {
+          addresses: {
+            where: { isActive: true },
+            orderBy: { isDefault: "desc" },
+            take: 1,
+            select: { state: true, city: true, addressLine1: true }
+          },
           documents: { where: { isDeleted: false } },
           _count: {
             select: { deliveries: true, strikes: true, incidents: true },
@@ -179,7 +222,16 @@ export const listRiders = async (req: Request, res: Response) => {
       }),
     ]);
 
-    const sanitized = riders.map((r) => RiderAuthService.sanitizeRiderProfile(r));
+    const sanitized = riders.map((r) => {
+      const sanitizedProfile = RiderAuthService.sanitizeRiderProfile(r);
+      const primaryAddr = (r as any).addresses?.[0];
+      return {
+        ...sanitizedProfile,
+        state: primaryAddr?.state || null,
+        district: primaryAddr?.city || r.city || null,
+        addresses: (r as any).addresses,
+      };
+    });
 
     return res.status(200).json({
       success: true,

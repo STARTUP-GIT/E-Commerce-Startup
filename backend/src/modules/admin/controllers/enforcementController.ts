@@ -12,7 +12,7 @@ import {
 import { prisma } from "../../../config/prisma.js";
 import { logAdminAction } from "../utils/actionLogger.js";
 
-const sellerSelect = {
+const sellerSelect: Prisma.SellerSelect = {
     id: true,
     firstName: true,
     lastName: true,
@@ -21,7 +21,22 @@ const sellerSelect = {
     strikeCount: true,
     status: true,
     isBanned: true,
-    shop: { select: { id: true, name: true, status: true } }
+    shop: {
+        select: {
+            id: true,
+            name: true,
+            status: true,
+            defaultPickupAddress: {
+                select: { state: true, district: true, city: true }
+            }
+        }
+    },
+    addresses: {
+        where: { isActive: true },
+        orderBy: { isDefault: Prisma.SortOrder.desc },
+        take: 1,
+        select: { state: true, district: true, city: true }
+    }
 };
 
 /**
@@ -65,25 +80,56 @@ export const getEnforcements = async (req: Request, res: Response) => {
         const status = typeof req.query.status === "string" && req.query.status ? (req.query.status as EnforcementStatus) : undefined;
         const sellerId = typeof req.query.sellerId === "string" && req.query.sellerId ? req.query.sellerId : undefined;
         const search = typeof req.query.search === "string" && req.query.search.trim() ? req.query.search.trim() : undefined;
+        const state = typeof req.query.state === "string" ? req.query.state.trim() : undefined;
+        const district = typeof req.query.district === "string" ? req.query.district.trim() : undefined;
+        const unassigned = req.query.unassigned === "true" || state === "UNASSIGNED";
 
-        const where: Prisma.SellerStrikeWhereInput = {
-            ...(type ? { type } : {}),
-            ...(status ? { status } : {}),
-            ...(sellerId ? { sellerId } : {}),
-            ...(search
-                ? {
-                      OR: [
-                          { reason: { contains: search, mode: "insensitive" } },
-                          { reference: { contains: search, mode: "insensitive" } },
-                          { guidelineClause: { contains: search, mode: "insensitive" } },
-                          { seller: { firstName: { contains: search, mode: "insensitive" } } },
-                          { seller: { lastName: { contains: search, mode: "insensitive" } } },
-                          { seller: { email: { contains: search, mode: "insensitive" } } },
-                          { seller: { shop: { name: { contains: search, mode: "insensitive" } } } }
-                      ]
-                  }
-                : {})
-        };
+        const andConditions: any[] = [];
+        if (type) andConditions.push({ type });
+        if (status) andConditions.push({ status });
+        if (sellerId) andConditions.push({ sellerId });
+        if (search) {
+            andConditions.push({
+                OR: [
+                    { reason: { contains: search, mode: "insensitive" } },
+                    { reference: { contains: search, mode: "insensitive" } },
+                    { guidelineClause: { contains: search, mode: "insensitive" } },
+                    { seller: { firstName: { contains: search, mode: "insensitive" } } },
+                    { seller: { lastName: { contains: search, mode: "insensitive" } } },
+                    { seller: { email: { contains: search, mode: "insensitive" } } },
+                    { seller: { shop: { name: { contains: search, mode: "insensitive" } } } }
+                ]
+            });
+        }
+
+        if (unassigned) {
+            andConditions.push({
+                seller: {
+                    AND: [
+                        { shop: { defaultPickupAddress: null } },
+                        { addresses: { none: { state: { not: "" } } } }
+                    ]
+                }
+            });
+        } else if (state || district) {
+            const addrCond: any = {};
+            if (state) {
+                addrCond.state = { equals: state, mode: "insensitive" };
+            }
+            if (district) {
+                addrCond.district = { equals: district, mode: "insensitive" };
+            }
+            andConditions.push({
+                seller: {
+                    OR: [
+                        { shop: { defaultPickupAddress: addrCond } },
+                        { addresses: { some: addrCond } }
+                    ]
+                }
+            });
+        }
+
+        const where: Prisma.SellerStrikeWhereInput = andConditions.length > 0 ? { AND: andConditions } : {};
 
         const [items, total, totalWarnings, totalQualifyingStrikes, totalPendingAppeals, totalSuspendedSellers] =
             await prisma.$transaction([

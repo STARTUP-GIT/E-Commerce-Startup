@@ -24,11 +24,14 @@ import {
   Send,
   FileText
 } from 'lucide-react';
+import { LocationFilterBar } from '@/shared/components/LocationFilterBar';
 
 export default function AppealsPage() {
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'UNDER_REVIEW' | 'MORE_INFO_REQUESTED' | 'DECIDED'>('ALL');
   const [search, setSearch] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedAppealId, setSelectedAppealId] = useState<string | null>(null);
 
   // Review action forms
@@ -40,8 +43,10 @@ export default function AppealsPage() {
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
 
+  const isUnassigned = selectedState === 'UNASSIGNED';
+
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-appeals', { page, activeTab, search }],
+    queryKey: ['admin-appeals', { page, activeTab, search, state: selectedState, district: selectedDistrict }],
     queryFn: async () => {
       let statusParam: string | undefined = undefined;
       if (activeTab === 'PENDING') statusParam = 'PENDING';
@@ -54,6 +59,9 @@ export default function AppealsPage() {
           limit: 20,
           status: statusParam,
           search: search || undefined,
+          state: isUnassigned ? 'UNASSIGNED' : selectedState || undefined,
+          district: !isUnassigned && selectedDistrict ? selectedDistrict : undefined,
+          unassigned: isUnassigned ? true : undefined,
         },
       });
       return res.data;
@@ -203,38 +211,44 @@ export default function AppealsPage() {
         </Card>
       </div>
 
-      {/* Tabs & Search */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-2">
-          {(['ALL', 'PENDING', 'UNDER_REVIEW', 'MORE_INFO_REQUESTED', 'DECIDED'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => {
-                setActiveTab(tab);
-                setPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === tab
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-              }`}
-            >
-              {tab.replace('_', ' ')}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative w-full md:w-64">
-          <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search reference, seller..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 bg-slate-900/80 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-          />
-        </div>
+      {/* Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+        {(['ALL', 'PENDING', 'UNDER_REVIEW', 'MORE_INFO_REQUESTED', 'DECIDED'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => {
+              setActiveTab(tab);
+              setPage(1);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              activeTab === tab
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+            }`}
+          >
+            {tab.replace('_', ' ')}
+          </button>
+        ))}
       </div>
+
+      {/* Location & Global Filter Bar */}
+      <Card className="border border-slate-800 bg-slate-900/60 p-4">
+        <LocationFilterBar
+          search={search}
+          onSearchChange={(val) => { setSearch(val); setPage(1); }}
+          searchPlaceholder="Search reference, seller name, shop..."
+          state={selectedState}
+          onStateChange={(val) => { setSelectedState(val); setPage(1); }}
+          district={selectedDistrict}
+          onDistrictChange={(val) => { setSelectedDistrict(val); setPage(1); }}
+          onClearAll={() => {
+            setSearch('');
+            setSelectedState('');
+            setSelectedDistrict('');
+            setPage(1);
+          }}
+        />
+      </Card>
 
       {/* Table */}
       <Card className="border border-slate-800 bg-slate-900/40 backdrop-blur-sm overflow-hidden">

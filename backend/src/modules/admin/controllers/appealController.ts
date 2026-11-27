@@ -23,23 +23,54 @@ export const getAppeals = async (req: Request, res: Response) => {
         const status = typeof req.query.status === "string" && req.query.status ? (req.query.status as AppealStatus) : undefined;
         const search = typeof req.query.search === "string" && req.query.search.trim() ? req.query.search.trim() : undefined;
         const assignedAdminId = typeof req.query.assignedAdminId === "string" && req.query.assignedAdminId ? req.query.assignedAdminId : undefined;
+        const state = typeof req.query.state === "string" ? req.query.state.trim() : undefined;
+        const district = typeof req.query.district === "string" ? req.query.district.trim() : undefined;
+        const unassigned = req.query.unassigned === "true" || state === "UNASSIGNED";
 
-        const where: Prisma.SellerAppealWhereInput = {
-            ...(status ? { status } : {}),
-            ...(assignedAdminId ? { assignedAdminId } : {}),
-            ...(search
-                ? {
-                      OR: [
-                          { reference: { contains: search, mode: "insensitive" } },
-                          { sellerExplanation: { contains: search, mode: "insensitive" } },
-                          { seller: { firstName: { contains: search, mode: "insensitive" } } },
-                          { seller: { lastName: { contains: search, mode: "insensitive" } } },
-                          { seller: { email: { contains: search, mode: "insensitive" } } },
-                          { seller: { shop: { name: { contains: search, mode: "insensitive" } } } }
-                      ]
-                  }
-                : {})
-        };
+        const andConditions: any[] = [];
+        if (status) andConditions.push({ status });
+        if (assignedAdminId) andConditions.push({ assignedAdminId });
+        if (search) {
+            andConditions.push({
+                OR: [
+                    { reference: { contains: search, mode: "insensitive" } },
+                    { sellerExplanation: { contains: search, mode: "insensitive" } },
+                    { seller: { firstName: { contains: search, mode: "insensitive" } } },
+                    { seller: { lastName: { contains: search, mode: "insensitive" } } },
+                    { seller: { email: { contains: search, mode: "insensitive" } } },
+                    { seller: { shop: { name: { contains: search, mode: "insensitive" } } } }
+                ]
+            });
+        }
+
+        if (unassigned) {
+            andConditions.push({
+                seller: {
+                    AND: [
+                        { shop: { defaultPickupAddress: null } },
+                        { addresses: { none: { state: { not: "" } } } }
+                    ]
+                }
+            });
+        } else if (state || district) {
+            const addrCond: any = {};
+            if (state) {
+                addrCond.state = { equals: state, mode: "insensitive" };
+            }
+            if (district) {
+                addrCond.district = { equals: district, mode: "insensitive" };
+            }
+            andConditions.push({
+                seller: {
+                    OR: [
+                        { shop: { defaultPickupAddress: addrCond } },
+                        { addresses: { some: addrCond } }
+                    ]
+                }
+            });
+        }
+
+        const where: Prisma.SellerAppealWhereInput = andConditions.length > 0 ? { AND: andConditions } : {};
 
         const [appeals, total, pendingCount, underReviewCount, moreInfoCount, decidedCount] =
             await prisma.$transaction([
@@ -59,7 +90,21 @@ export const getAppeals = async (req: Request, res: Response) => {
                                 strikeCount: true,
                                 status: true,
                                 isBanned: true,
-                                shop: { select: { id: true, name: true } }
+                                shop: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        defaultPickupAddress: {
+                                            select: { state: true, district: true, city: true }
+                                        }
+                                    }
+                                },
+                                addresses: {
+                                    where: { isActive: true },
+                                    orderBy: { isDefault: Prisma.SortOrder.desc },
+                                    take: 1,
+                                    select: { state: true, district: true, city: true }
+                                }
                             }
                         },
                         enforcement: {

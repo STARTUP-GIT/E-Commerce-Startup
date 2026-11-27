@@ -52,7 +52,17 @@ export const deliveryApi = {
     const response = await axiosInstance.get('/api/admin/delivery/settings/logs');
     return response.data;
   },
-  getRiders: async (params?: { page?: number; limit?: number; status?: string; search?: string }) => {
+  getRiders: async (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    verificationStatus?: string;
+    isAvailable?: boolean;
+    state?: string;
+    district?: string;
+    unassigned?: boolean;
+  }) => {
     const response = await axiosInstance.get('/api/admin/delivery/riders', { params });
     return response.data;
   },

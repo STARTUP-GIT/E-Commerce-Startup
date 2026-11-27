@@ -9,36 +9,129 @@ import { sanitizeSeller } from "../../../utils/sanitize.js";
 export const searchSellers = async (req: Request, res: Response) => {
     try {
         const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+        const state = typeof req.query.state === "string" ? req.query.state.trim() : "";
+        const district = typeof req.query.district === "string" ? req.query.district.trim() : "";
+        const status = typeof req.query.status === "string" ? req.query.status.trim().toUpperCase() : "";
+        const unassigned = req.query.unassigned === "true" || state === "UNASSIGNED";
+        const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
+        const limit = Math.max(1, Math.min(100, parseInt(String(req.query.limit), 10) || 15));
+        const skip = (page - 1) * limit;
 
-        const sellers = await prisma.seller.findMany({
-            where: q ? {
+        const andConditions: any[] = [];
+
+        if (q) {
+            andConditions.push({
                 OR: [
                     { email: { contains: q, mode: "insensitive" } },
                     { firstName: { contains: q, mode: "insensitive" } },
                     { lastName: { contains: q, mode: "insensitive" } },
                     { username: { contains: q, mode: "insensitive" } },
+                    { phone: { contains: q, mode: "insensitive" } },
                     { shop: { name: { contains: q, mode: "insensitive" } } },
                 ],
-            } : {},
-            select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                shop: { select: { name: true } },
-            },
-            take: 15,
-            orderBy: { firstName: "asc" },
+            });
+        }
+
+        if (status && status !== "ALL") {
+            andConditions.push({ status });
+        }
+
+        if (unassigned) {
+            andConditions.push({
+                AND: [
+                    { addresses: { none: { state: { not: "" } } } },
+                    {
+                        OR: [
+                            { shop: null },
+                            { shop: { defaultPickupAddress: null } },
+                        ],
+                    },
+                ],
+            });
+        } else if (state || district) {
+            const addressCond: any = {};
+            if (state) {
+                addressCond.state = { equals: state, mode: "insensitive" };
+            }
+            if (district) {
+                addressCond.district = { equals: district, mode: "insensitive" };
+            }
+            andConditions.push({
+                OR: [
+                    { addresses: { some: addressCond } },
+                    { shop: { defaultPickupAddress: addressCond } },
+                ],
+            });
+        }
+
+        const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};
+
+        const [sellers, total] = await prisma.$transaction([
+            prisma.seller.findMany({
+                where: whereClause,
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    username: true,
+                    status: true,
+                    isBanned: true,
+                    strikeCount: true,
+                    shop: {
+                        select: {
+                            id: true,
+                            name: true,
+                            defaultPickupAddress: {
+                                select: {
+                                    state: true,
+                                    district: true,
+                                    city: true,
+                                },
+                            },
+                        },
+                    },
+                    addresses: {
+                        where: { isActive: true },
+                        orderBy: { isDefault: "desc" },
+                        take: 1,
+                        select: {
+                            state: true,
+                            district: true,
+                            city: true,
+                        },
+                    },
+                },
+                take: limit,
+                skip,
+                orderBy: { firstName: "asc" },
+            }),
+            prisma.seller.count({ where: whereClause }),
+        ]);
+
+        const result = sellers.map((s) => {
+            const primaryAddress = s.shop?.defaultPickupAddress || s.addresses[0] || null;
+            return {
+                id: s.id,
+                name: `${s.firstName} ${s.lastName}`.trim(),
+                email: s.email,
+                username: s.username,
+                shopName: s.shop?.name ?? null,
+                state: primaryAddress?.state ?? null,
+                district: primaryAddress?.district ?? primaryAddress?.city ?? null,
+                status: s.status,
+                isBanned: s.isBanned,
+                strikeCount: s.strikeCount,
+            };
         });
 
-        const result = sellers.map((s) => ({
-            id: s.id,
-            name: `${s.firstName} ${s.lastName}`.trim(),
-            email: s.email,
-            shopName: s.shop?.name ?? null,
-        }));
-
-        return res.status(200).json({ sellers: result });
+        return res.status(200).json({
+            sellers: result,
+            total,
+            page,
+            limit,
+            pages: Math.ceil(total / limit),
+        });
     } catch (error: any) {
         console.error("SEARCH SELLERS ERROR:", error);
         return res.status(500).json({ message: "Unable to load sellers. Please try again." });
@@ -48,28 +141,64 @@ export const searchSellers = async (req: Request, res: Response) => {
 
 export const getSellers = async (req: Request, res: Response) => {
     try {
-        const { search, status, page = 1, limit = 20 } = req.query;
+        const { search, status, state, district, unassigned, page = 1, limit = 20 } = req.query;
 
-        const whereClause: any = {};
+        const andConditions: any[] = [];
 
         if (status && typeof status === "string") {
             const cleanStatus = status.trim().toUpperCase();
             if (cleanStatus && cleanStatus !== "ALL") {
-                whereClause.status = cleanStatus;
+                andConditions.push({ status: cleanStatus });
             }
         }
 
         const trimmedSearch = typeof search === "string" ? search.trim() : "";
         if (trimmedSearch) {
-            whereClause.OR = [
-                { email: { contains: trimmedSearch, mode: "insensitive" } },
-                { firstName: { contains: trimmedSearch, mode: "insensitive" } },
-                { lastName: { contains: trimmedSearch, mode: "insensitive" } },
-                { username: { contains: trimmedSearch, mode: "insensitive" } },
-                { phone: { contains: trimmedSearch, mode: "insensitive" } },
-                { shop: { name: { contains: trimmedSearch, mode: "insensitive" } } },
-            ];
+            andConditions.push({
+                OR: [
+                    { email: { contains: trimmedSearch, mode: "insensitive" } },
+                    { firstName: { contains: trimmedSearch, mode: "insensitive" } },
+                    { lastName: { contains: trimmedSearch, mode: "insensitive" } },
+                    { username: { contains: trimmedSearch, mode: "insensitive" } },
+                    { phone: { contains: trimmedSearch, mode: "insensitive" } },
+                    { shop: { name: { contains: trimmedSearch, mode: "insensitive" } } },
+                ],
+            });
         }
+
+        const isUnassigned = unassigned === "true" || state === "UNASSIGNED";
+        const stateStr = typeof state === "string" ? state.trim() : "";
+        const districtStr = typeof district === "string" ? district.trim() : "";
+
+        if (isUnassigned) {
+            andConditions.push({
+                AND: [
+                    { addresses: { none: { state: { not: "" } } } },
+                    {
+                        OR: [
+                            { shop: null },
+                            { shop: { defaultPickupAddress: null } },
+                        ],
+                    },
+                ],
+            });
+        } else if (stateStr || districtStr) {
+            const addressCond: any = {};
+            if (stateStr) {
+                addressCond.state = { equals: stateStr, mode: "insensitive" };
+            }
+            if (districtStr) {
+                addressCond.district = { equals: districtStr, mode: "insensitive" };
+            }
+            andConditions.push({
+                OR: [
+                    { addresses: { some: addressCond } },
+                    { shop: { defaultPickupAddress: addressCond } },
+                ],
+            });
+        }
+
+        const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};
 
         const pageNum = Math.max(1, parseInt(String(page), 10) || 1);
         const limitNum = Math.max(1, Math.min(100, parseInt(String(limit), 10) || 20));
@@ -80,7 +209,16 @@ export const getSellers = async (req: Request, res: Response) => {
             prisma.seller.findMany({
                 where: whereClause,
                 include: {
-                    shop: true,
+                    shop: {
+                        include: {
+                            defaultPickupAddress: true,
+                        },
+                    },
+                    addresses: {
+                        where: { isActive: true },
+                        orderBy: { isDefault: "desc" },
+                        take: 1,
+                    },
                     verifications: {
                         take: 1,
                         orderBy: { createdAt: "desc" },

@@ -10,6 +10,7 @@ import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
+import { LocationFilterBar } from '@/shared/components/LocationFilterBar';
 import { 
   Search, 
   ShieldOff, 
@@ -21,7 +22,8 @@ import {
   Phone, 
   Mail, 
   CheckCircle2, 
-  Clock 
+  Clock,
+  MapPin
 } from 'lucide-react';
 import Link from 'next/link';
 import { ReasonModal } from '@/shared/components/ReasonModal';
@@ -36,6 +38,8 @@ const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'out
 export function SellersPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
@@ -56,9 +60,20 @@ export function SellersPage() {
     onConfirm: () => {},
   });
 
+  const isUnassigned = selectedState === 'UNASSIGNED';
+
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['sellers', { search, status: statusFilter, page }],
-    queryFn: () => sellerApi.getSellers({ search, status: statusFilter || undefined, page, limit: 20 }),
+    queryKey: ['sellers', { search, status: statusFilter, state: selectedState, district: selectedDistrict, page }],
+    queryFn: () =>
+      sellerApi.getSellers({
+        search: search || undefined,
+        status: statusFilter && statusFilter !== 'ALL' ? statusFilter : undefined,
+        state: isUnassigned ? 'UNASSIGNED' : selectedState || undefined,
+        district: !isUnassigned && selectedDistrict ? selectedDistrict : undefined,
+        unassigned: isUnassigned ? true : undefined,
+        page,
+        limit: 20,
+      }),
     staleTime: 30 * 1000,
     retry: 2,
   });
@@ -85,7 +100,20 @@ export function SellersPage() {
     onError: (e: any) => showToast(e.message || 'Failed to unban seller', 'error'),
   });
 
-  const statuses = ['', 'ACTIVE', 'DISABLED', 'BANNED'];
+  const statusOptions = [
+    { label: 'All Statuses', value: 'ALL' },
+    { label: 'Active', value: 'ACTIVE' },
+    { label: 'Disabled', value: 'DISABLED' },
+    { label: 'Banned', value: 'BANNED' },
+  ];
+
+  const handleClearAll = () => {
+    setSearch('');
+    setStatusFilter('');
+    setSelectedState('');
+    setSelectedDistrict('');
+    setPage(1);
+  };
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -109,34 +137,21 @@ export function SellersPage() {
         )}
       </div>
 
-      {/* Filters */}
+      {/* Reusable Location & Global Search Filter Bar */}
       <Card className="border border-white/5 p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-white/25 pointer-events-none" />
-            <Input
-              placeholder="Search by name, email, phone, shop..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="pl-10"
-            />
-          </div>
-          <div className="flex gap-2 flex-wrap items-center">
-            {statuses.map((s) => (
-              <button
-                key={s || 'all'}
-                onClick={() => { setStatusFilter(s); setPage(1); }}
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide border transition-all cursor-pointer ${
-                  statusFilter === s
-                    ? 'bg-white/15 border-white/25 text-white'
-                    : 'border-white/10 text-white/40 hover:text-white/70 hover:border-white/20'
-                }`}
-              >
-                {s || 'All Statuses'}
-              </button>
-            ))}
-          </div>
-        </div>
+        <LocationFilterBar
+          search={search}
+          onSearchChange={(val) => { setSearch(val); setPage(1); }}
+          searchPlaceholder="Search by name, email, phone, shop..."
+          state={selectedState}
+          onStateChange={(val) => { setSelectedState(val); setPage(1); }}
+          district={selectedDistrict}
+          onDistrictChange={(val) => { setSelectedDistrict(val); setPage(1); }}
+          status={statusFilter}
+          onStatusChange={(val) => { setStatusFilter(val); setPage(1); }}
+          statusOptions={statusOptions}
+          onClearAll={handleClearAll}
+        />
       </Card>
 
       {/* Table */}
@@ -176,6 +191,7 @@ export function SellersPage() {
                   <TableHead>Seller</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Shop</TableHead>
+                  <TableHead>Location</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -240,6 +256,26 @@ export function SellersPage() {
                           No Shop
                         </span>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const addr = seller.addresses?.[0] || seller.shop?.defaultPickupAddress;
+                        if (!addr?.state) {
+                          return (
+                            <span className="text-[10px] text-amber-400/80 italic">
+                              Location not set
+                            </span>
+                          );
+                        }
+                        return (
+                          <div className="flex items-center gap-1.5 text-xs text-white/80">
+                            <MapPin className="h-3 w-3 text-white/40 shrink-0" />
+                            <span>
+                              {addr.state}{addr.district || addr.city ? ` • ${addr.district || addr.city}` : ''}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_COLORS[seller.status] ?? 'outline'} className="text-[9px]">

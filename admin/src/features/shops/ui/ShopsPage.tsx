@@ -10,13 +10,17 @@ import { Input } from '@/shared/components/Input';
 import { Skeleton } from '@/shared/components/Skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/shared/components/Table';
 import { useUIStore } from '@/lib/store/uiStore';
-import { Search, CheckCircle, XCircle, ExternalLink, Package, ShieldOff, Pause, Play, ShieldCheck } from 'lucide-react';
+import { Search, CheckCircle, XCircle, ExternalLink, Package, ShieldOff, Pause, Play, ShieldCheck, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { ReasonModal } from '@/shared/components/ReasonModal';
 import { useRouter } from 'next/navigation';
+import { LocationFilterBar } from '@/shared/components/LocationFilterBar';
 
 export function ShopsPage() {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const { showToast } = useUIStore();
@@ -37,9 +41,20 @@ export function ShopsPage() {
     onConfirm: () => {},
   });
 
+  const isUnassigned = selectedState === 'UNASSIGNED';
+
   const { data, isLoading } = useQuery({
-    queryKey: ['shops', { search, page }],
-    queryFn: () => shopApi.getShops({ search, page, limit: 20 }),
+    queryKey: ['shops', { search, status: statusFilter, state: selectedState, district: selectedDistrict, page }],
+    queryFn: () =>
+      shopApi.getShops({
+        search: search || undefined,
+        status: statusFilter && statusFilter !== 'ALL' ? statusFilter : undefined,
+        state: isUnassigned ? 'UNASSIGNED' : selectedState || undefined,
+        district: !isUnassigned && selectedDistrict ? selectedDistrict : undefined,
+        unassigned: isUnassigned ? true : undefined,
+        page,
+        limit: 20,
+      }),
     staleTime: 30 * 1000,
   });
 
@@ -90,6 +105,23 @@ export function ShopsPage() {
     DISABLED: 'destructive',
   };
 
+  const statusOptions = [
+    { label: 'All Statuses', value: 'ALL' },
+    { label: 'Approved', value: 'APPROVED' },
+    { label: 'Pending', value: 'PENDING' },
+    { label: 'Suspended', value: 'SUSPENDED' },
+    { label: 'Disabled', value: 'DISABLED' },
+    { label: 'Rejected', value: 'REJECTED' },
+  ];
+
+  const handleClearAll = () => {
+    setSearch('');
+    setStatusFilter('');
+    setSelectedState('');
+    setSelectedDistrict('');
+    setPage(1);
+  };
+
   return (
     <div className="space-y-6 animate-fade-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -103,10 +135,19 @@ export function ShopsPage() {
       </div>
 
       <Card className="border border-white/5 p-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-white/25 pointer-events-none" />
-          <Input placeholder="Search shops..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-10" />
-        </div>
+        <LocationFilterBar
+          search={search}
+          onSearchChange={(val) => { setSearch(val); setPage(1); }}
+          searchPlaceholder="Search shops by name, slug, business..."
+          state={selectedState}
+          onStateChange={(val) => { setSelectedState(val); setPage(1); }}
+          district={selectedDistrict}
+          onDistrictChange={(val) => { setSelectedDistrict(val); setPage(1); }}
+          status={statusFilter}
+          onStatusChange={(val) => { setStatusFilter(val); setPage(1); }}
+          statusOptions={statusOptions}
+          onClearAll={handleClearAll}
+        />
       </Card>
 
       <Card className="border border-white/5">
@@ -123,7 +164,7 @@ export function ShopsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Shop</TableHead>
-                  <TableHead>City</TableHead>
+                  <TableHead>Location</TableHead>
                   <TableHead>Packing Status</TableHead>
                   <TableHead>Availability</TableHead>
                   <TableHead>Status</TableHead>
@@ -155,7 +196,23 @@ export function ShopsPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs text-white/60">{shop.city ?? '—'}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const addr = shop.defaultPickupAddress || shop.seller?.addresses?.[0];
+                        if (!addr?.state && !shop.city) {
+                          return <span className="text-[10px] text-amber-400/80 italic">Location not set</span>;
+                        }
+                        const locText = addr?.state
+                          ? `${addr.state}${addr.district || addr.city ? ` • ${addr.district || addr.city}` : ''}`
+                          : shop.city;
+                        return (
+                          <div className="flex items-center gap-1.5 text-xs text-white/80">
+                            <MapPin className="h-3 w-3 text-white/40 shrink-0" />
+                            <span>{locText}</span>
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={shop.packingPermission === 'APPROVED' ? 'success' : shop.packingPermission === 'PENDING' ? 'warning' : 'outline'} className="text-[8px]">
                         {shop.packingPermission ?? 'None'}
