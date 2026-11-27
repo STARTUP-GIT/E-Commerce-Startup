@@ -58,8 +58,19 @@ export const authOptions: NextAuthOptions = {
         lastName: { label: 'lastName', type: 'text' },
         avatarUrl: { label: 'avatarUrl', type: 'text' },
         googleId: { label: 'googleId', type: 'text' },
+        isPreAuthenticated: { label: 'isPreAuthenticated', type: 'text' },
+        adminId: { label: 'adminId', type: 'text' },
       },
       async authorize(credentials) {
+        if (credentials?.isPreAuthenticated === 'true' && credentials.adminId) {
+          const fullName = `${credentials.firstName || ''} ${credentials.lastName || ''}`.trim();
+          return {
+            id: credentials.adminId,
+            email: credentials.email || '',
+            name: fullName || credentials.email || 'Admin',
+          };
+        }
+
         const backendUrl = (process.env.ADMIN_BACKEND_API_URL || process.env.BACKEND_API_URL || 'http://localhost:3003').replace(/\/$/, '');
 
         if (credentials?.isGoogleMock === 'true') {

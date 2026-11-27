@@ -40,7 +40,6 @@ import {
   Gavel,
   Wallet,
   KeyRound,
-  MonitorSmartphone,
   Download,
   Scale,
   MessageSquare,
@@ -163,7 +162,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
     // 2. Marketplace
     { name: 'Customers', path: '/customers', icon: UserCheck, group: 'Marketplace', permission: 'customers.view' },
-    { name: 'Sessions & Devices', path: '/sessions', icon: MonitorSmartphone, group: 'Marketplace', permission: 'sessions.view' },
     { name: 'Sellers', path: '/sellers', icon: Users, group: 'Marketplace', permission: 'sellers.view' },
     { name: 'Shops', path: '/shops', icon: Store, group: 'Marketplace', permission: 'sellers.view' },
     { name: 'Seller Verifications', path: '/seller-verifications', icon: BadgeCheck, group: 'Marketplace', permission: 'sellers.view' },

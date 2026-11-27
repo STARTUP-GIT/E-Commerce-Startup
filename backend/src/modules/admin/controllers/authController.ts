@@ -97,6 +97,39 @@ export const login = async (req: Request, res: Response) => {
         const refreshHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
 
+        // Clean up expired sessions for this admin
+        await prisma.refreshToken.deleteMany({
+            where: {
+                userId: admin.id,
+                userType: "ADMIN",
+                expiresAt: { lt: new Date() }
+            }
+        }).catch(() => {});
+
+        // If an existing refresh token was provided from this client, revoke it to replace the current device session
+        const existingTokens = extractCandidateTokens(req, "admin_refresh", "x-refresh-token");
+        for (const token of existingTokens) {
+            try {
+                const oldHash = crypto.createHash("sha256").update(token).digest("hex");
+                await prisma.refreshToken.updateMany({
+                    where: { tokenHash: oldHash, userId: admin.id, userType: "ADMIN", revoked: false },
+                    data: { revoked: true }
+                });
+            } catch {}
+        }
+
+        // Deduplicate rapid retries / concurrent logins within 10 seconds for this admin
+        const tenSecondsAgo = new Date(Date.now() - 10 * 1000);
+        await prisma.refreshToken.updateMany({
+            where: {
+                userId: admin.id,
+                userType: "ADMIN",
+                revoked: false,
+                createdAt: { gte: tenSecondsAgo }
+            },
+            data: { revoked: true }
+        }).catch(() => {});
+
         await prisma.$transaction([
             prisma.refreshToken.create({
                 data: { userId: admin.id, userType: "ADMIN", tokenHash: refreshHash, expiresAt }
@@ -930,6 +963,39 @@ export const googleOAuth = async (req: Request, res: Response) => {
         const refreshHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
 
+        // Clean up expired sessions for this admin
+        await prisma.refreshToken.deleteMany({
+            where: {
+                userId: admin.id,
+                userType: "ADMIN",
+                expiresAt: { lt: new Date() }
+            }
+        }).catch(() => {});
+
+        // If an existing refresh token was provided from this client, revoke it
+        const existingInvitationTokens = extractCandidateTokens(req, "admin_refresh", "x-refresh-token");
+        for (const token of existingInvitationTokens) {
+            try {
+                const oldHash = crypto.createHash("sha256").update(token).digest("hex");
+                await prisma.refreshToken.updateMany({
+                    where: { tokenHash: oldHash, userId: admin.id, userType: "ADMIN", revoked: false },
+                    data: { revoked: true }
+                });
+            } catch {}
+        }
+
+        // Deduplicate rapid retries / concurrent logins within 10 seconds
+        const tenSecondsAgoInvitation = new Date(Date.now() - 10 * 1000);
+        await prisma.refreshToken.updateMany({
+            where: {
+                userId: admin.id,
+                userType: "ADMIN",
+                revoked: false,
+                createdAt: { gte: tenSecondsAgoInvitation }
+            },
+            data: { revoked: true }
+        }).catch(() => {});
+
         await prisma.refreshToken.create({
             data: { userId: admin.id, userType: "ADMIN", tokenHash: refreshHash, expiresAt }
         });
@@ -1231,6 +1297,39 @@ export const acceptInvitation = async (req: Request, res: Response) => {
         const refreshToken = signRefreshToken(admin.id);
         const refreshHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
+
+        // Clean up expired sessions for this admin
+        await prisma.refreshToken.deleteMany({
+            where: {
+                userId: admin.id,
+                userType: "ADMIN",
+                expiresAt: { lt: new Date() }
+            }
+        }).catch(() => {});
+
+        // If an existing refresh token was provided from this client, revoke it
+        const existingInvitationTokens = extractCandidateTokens(req, "admin_refresh", "x-refresh-token");
+        for (const token of existingInvitationTokens) {
+            try {
+                const oldHash = crypto.createHash("sha256").update(token).digest("hex");
+                await prisma.refreshToken.updateMany({
+                    where: { tokenHash: oldHash, userId: admin.id, userType: "ADMIN", revoked: false },
+                    data: { revoked: true }
+                });
+            } catch {}
+        }
+
+        // Deduplicate rapid retries / concurrent logins within 10 seconds
+        const tenSecondsAgoInvitation = new Date(Date.now() - 10 * 1000);
+        await prisma.refreshToken.updateMany({
+            where: {
+                userId: admin.id,
+                userType: "ADMIN",
+                revoked: false,
+                createdAt: { gte: tenSecondsAgoInvitation }
+            },
+            data: { revoked: true }
+        }).catch(() => {});
 
         await prisma.refreshToken.create({
             data: { userId: admin.id, userType: "ADMIN", tokenHash: refreshHash, expiresAt }

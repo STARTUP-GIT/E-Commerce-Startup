@@ -39,7 +39,6 @@ import adminDeliveryMethodRoute from './src/modules/admin/routes/deliveryMethodR
 import adminDeliveryRoute from './src/modules/delivery/routes/adminDeliveryRoute.js';
 import { publicBrandingRouter, adminBrandingRouter } from './src/modules/admin/routes/brandingRoute.js';
 import adminRolesRoute from './src/modules/admin/routes/rolesRoute.js';
-import adminSessionRoute from './src/modules/admin/routes/sessionRoute.js';
 import adminSupportTicketRoute from './src/modules/admin/routes/supportTicketRoute.js';
 import { adminContentRouter, publicContentRouter } from './src/modules/admin/routes/contentRoute.js';
 import adminReturnRoute from './src/modules/admin/routes/returnRoute.js';
@@ -89,7 +88,6 @@ app.use('/api/storage', storageRoute);
 
 // Admin: roles, sessions, support tickets, CMS, returns, seller centre, exports
 app.use('/api/admin/roles', adminLimiter, adminRolesRoute);
-app.use('/api/admin/sessions', adminLimiter, adminSessionRoute);
 app.use('/api/admin/support-tickets', adminLimiter, adminSupportTicketRoute);
 app.use('/api/admin/content', adminLimiter, adminContentRouter);
 app.use('/api/admin/returns', adminLimiter, adminReturnRoute);

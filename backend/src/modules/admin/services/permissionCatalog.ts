@@ -95,8 +95,6 @@ export const PERMISSION_CATALOG: PermissionGroup[] = [
             { key: "audit_logs.view", label: "View audit logs" },
             { key: "settings.view", label: "View system settings" },
             { key: "settings.manage", label: "Manage system settings" },
-            { key: "sessions.view", label: "View sessions" },
-            { key: "sessions.manage", label: "Revoke sessions" },
             { key: "branding.view", label: "View branding" },
             { key: "branding.manage", label: "Manage branding & delivery logo" }
         ]

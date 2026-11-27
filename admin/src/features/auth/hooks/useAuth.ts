@@ -41,11 +41,14 @@ export function useAuth() {
       // Step 1: Call the backend via Next.js proxy route handler.
       const loginRes = await authApi.login(credentials);
 
-      // Step 2: Create the NextAuth session (server-side call via authorize).
+      // Step 2: Create the NextAuth session without duplicating backend login.
       const result = await signIn('credentials', {
         redirect: false,
-        email: credentials.email,
-        password: credentials.password,
+        isPreAuthenticated: 'true',
+        adminId: loginRes.admin.id,
+        email: loginRes.admin.email,
+        firstName: loginRes.admin.firstName,
+        lastName: loginRes.admin.lastName,
       });
 
       if (result?.error) {
@@ -100,11 +103,13 @@ export function useAuth() {
     try {
       // Step 1: Establish admin_session cookie directly from the browser.
       const googleRes = await axiosInstance.post('/api/admin/auth/google', googlePayload);
+      const adminData = googleRes.data?.admin;
 
-      // Step 2: Create the NextAuth session.
+      // Step 2: Create the NextAuth session without duplicating backend google login.
       const result = await signIn('credentials', {
         redirect: false,
-        isGoogleMock: 'true',
+        isPreAuthenticated: 'true',
+        adminId: adminData?.id || googlePayload.googleId,
         ...googlePayload,
       });
 
