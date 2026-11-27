@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/providers/Providers";
 import { PremiumDialogContainer } from "@/components/ui/PremiumDialogContainer";
+import { OfflineBanner } from "@/components/ui/OfflineBanner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -28,6 +29,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} dark`} suppressHydrationWarning data-scroll-behavior="smooth">
       <body className="h-full min-h-full antialiased font-sans bg-background text-foreground">
         <Providers>
+          <OfflineBanner />
           {children}
           <PremiumDialogContainer />
         </Providers>

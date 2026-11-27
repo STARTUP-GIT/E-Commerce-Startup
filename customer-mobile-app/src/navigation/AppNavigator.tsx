@@ -18,6 +18,10 @@ import { SupportChatScreen } from '../screens/SupportChatScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { SignupScreen } from '../screens/SignupScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
+import { NotFoundScreen } from '../screens/NotFoundScreen';
+import { AccessDeniedScreen } from '../screens/AccessDeniedScreen';
+import { ServerErrorScreen } from '../screens/ServerErrorScreen';
+import { MaintenanceScreen } from '../screens/MaintenanceScreen';
 import { RootStackParamList } from './types';
 import { colors } from '../theme/colors';
 
@@ -52,6 +56,10 @@ export const AppNavigator: React.FC = () => {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="NotFound" component={NotFoundScreen} />
+      <Stack.Screen name="AccessDenied" component={AccessDeniedScreen} />
+      <Stack.Screen name="ServerError" component={ServerErrorScreen} />
+      <Stack.Screen name="Maintenance" component={MaintenanceScreen} />
     </Stack.Navigator>
   );
 };

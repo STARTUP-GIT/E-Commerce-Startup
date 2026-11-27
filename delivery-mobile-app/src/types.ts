@@ -7,6 +7,10 @@ export type RootStackParamList = {
   Delivery: { deliveryId: string };
   Profile: undefined;
   History: undefined;
+  NotFound: undefined;
+  AccessDenied: undefined;
+  ServerError: { error?: string; onRetry?: () => void } | undefined;
+  Maintenance: { until?: string } | undefined;
 };
 
 export type MainTabParamList = {

@@ -15,6 +15,10 @@ import { HistoryScreen } from "../screens/HistoryScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { SupportScreen } from "../screens/SupportScreen";
 import { DeliveryScreen } from "../screens/DeliveryScreen";
+import { NotFoundScreen } from "../screens/NotFoundScreen";
+import { AccessDeniedScreen } from "../screens/AccessDeniedScreen";
+import { ServerErrorScreen } from "../screens/ServerErrorScreen";
+import { MaintenanceScreen } from "../screens/MaintenanceScreen";
 import { MainTabs } from "./MainTabs";
 import { colors } from "../theme";
 import { DeliverySettingsProvider } from "../settings/DeliverySettingsContext";
@@ -64,6 +68,10 @@ function NavigationContent() {
             <Stack.Screen name="Register" component={RegisterScreen} />
           </>
         )}
+        <Stack.Screen name="NotFound" component={NotFoundScreen} />
+        <Stack.Screen name="AccessDenied" component={AccessDeniedScreen} />
+        <Stack.Screen name="ServerError" component={ServerErrorScreen} />
+        <Stack.Screen name="Maintenance" component={MaintenanceScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

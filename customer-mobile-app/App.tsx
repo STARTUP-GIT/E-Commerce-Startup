@@ -8,6 +8,8 @@ import { AuthProvider } from './src/context/AuthContext';
 import { LocationProvider } from './src/context/LocationContext';
 import { CartProvider } from './src/context/CartContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { OfflineNotice } from './src/components/OfflineNotice';
 import { colors } from './src/theme/colors';
 
 const queryClient = new QueryClient({
@@ -34,20 +36,23 @@ const navigationTheme = {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <BrandingProvider>
-          <AuthProvider>
-            <LocationProvider>
-              <CartProvider>
-                <NavigationContainer theme={navigationTheme}>
-                  <StatusBar style="light" />
-                  <AppNavigator />
-                </NavigationContainer>
-              </CartProvider>
-            </LocationProvider>
-          </AuthProvider>
-        </BrandingProvider>
-      </QueryClientProvider>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <BrandingProvider>
+            <AuthProvider>
+              <LocationProvider>
+                <CartProvider>
+                  <NavigationContainer theme={navigationTheme}>
+                    <StatusBar style="light" />
+                    <OfflineNotice />
+                    <AppNavigator />
+                  </NavigationContainer>
+                </CartProvider>
+              </LocationProvider>
+            </AuthProvider>
+          </BrandingProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

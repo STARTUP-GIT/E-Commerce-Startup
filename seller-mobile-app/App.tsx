@@ -7,6 +7,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { ToastContainer } from './src/shared/components/ToastContainer';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { OfflineNotice } from './src/components/OfflineNotice';
 import { GlobalConfirmDialog } from './src/components/ui/GlobalConfirmDialog';
 import { ComingSoonDialog } from './src/components/ui/ComingSoonDialog';
 import { PremiumDialogContainer } from './src/components/ui/PremiumDialogContainer';
@@ -69,19 +71,22 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <StatusBar style="light" />
-        <NavigationContainer>
-          <RootNavigator />
-        </NavigationContainer>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <StatusBar style="light" />
+          <OfflineNotice />
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
 
-        {/* Global Overlays & Modals */}
-        <ToastContainer />
-        <GlobalConfirmDialog />
-        <ComingSoonDialog />
-        <PremiumDialogContainer />
-        <GuidelineAcceptanceModal />
-      </QueryClientProvider>
+          {/* Global Overlays & Modals */}
+          <ToastContainer />
+          <GlobalConfirmDialog />
+          <ComingSoonDialog />
+          <PremiumDialogContainer />
+          <GuidelineAcceptanceModal />
+        </QueryClientProvider>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

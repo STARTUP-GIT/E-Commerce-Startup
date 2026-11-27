@@ -7,6 +7,7 @@ import { ToastContainer } from '@/shared/components/ToastContainer';
 import { ComingSoonDialog } from '@/components/ui/ComingSoonDialog';
 import { PremiumDialogContainer } from '@/components/ui/PremiumDialogContainer';
 import { GuidelineAcceptanceModal } from '@/components/ui/GuidelineAcceptanceModal';
+import { OfflineBanner } from '@/components/ui/OfflineBanner';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -41,6 +42,7 @@ export default function RootLayout({
     <html lang="en" className={`dark bg-background text-foreground ${inter.variable}`}>
       <body className="min-h-screen bg-background text-foreground antialiased selection:bg-purple-500/20 selection:text-purple-300">
         <SessionProvider>
+          <OfflineBanner />
           <ReactQueryProvider>
             {children}
             <ToastContainer />

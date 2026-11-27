@@ -27,6 +27,10 @@ import { EnforcementPage } from '@/features/enforcement/ui/EnforcementPage';
 import { PoliciesPage } from '@/features/policies/ui/PoliciesPage';
 import { CommissionStatementsPage } from '@/features/commission/ui/CommissionStatementsPage';
 import { SupportChatPage } from '@/features/support-chat/ui/SupportChatPage';
+import { NotFoundPage } from '@/features/error/NotFoundPage';
+import { AccessDeniedPage } from '@/features/error/AccessDeniedPage';
+import { ServerErrorPage } from '@/features/error/ServerErrorPage';
+import { MaintenancePage } from '@/features/error/MaintenancePage';
 
 const Stack = createNativeStackNavigator();
 
@@ -69,6 +73,10 @@ export function RootNavigator() {
           <Stack.Screen name="SupportChat" component={SupportChatPage} />
         </>
       )}
+      <Stack.Screen name="NotFound" component={NotFoundPage} />
+      <Stack.Screen name="AccessDenied" component={AccessDeniedPage} />
+      <Stack.Screen name="ServerError" component={ServerErrorPage} />
+      <Stack.Screen name="Maintenance" component={MaintenancePage} />
     </Stack.Navigator>
   );
 }

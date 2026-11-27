@@ -11,6 +11,7 @@ import { ComingSoonDialog } from "@/components/ui/ComingSoonDialog";
 import { PremiumDialogContainer } from "@/components/ui/PremiumDialogContainer";
 import { AddressSelectorDialog } from "@/components/ui/AddressSelectorDialog";
 import { FloatingSupportWidget } from "@/components/ui/FloatingSupportWidget";
+import { OfflineBanner } from "@/components/ui/OfflineBanner";
 import { Toaster } from "react-hot-toast";
 
 const inter = Inter({
@@ -77,6 +78,7 @@ export default function RootLayout({
         className={`${inter.variable} font-sans antialiased min-h-screen bg-background text-foreground`}
       >
         <SessionProvider>
+          <OfflineBanner />
           <ReactQueryProvider>
             <BrandingProvider>
               <ChatSocketProvider>

@@ -5,6 +5,7 @@ import { LocationProvider } from "@/components/location/LocationContext";
 import { LocationSelectorModal } from "@/components/location/LocationSelectorModal";
 import { LocationRequestModal } from "@/components/location/LocationRequestModal";
 import { DynamicFavicon } from "@/components/layout/DynamicFavicon";
+import { OfflineBanner } from "@/components/layout/OfflineBanner";
 
 export async function generateMetadata(): Promise<Metadata> {
   const backendUrl =
@@ -67,6 +68,7 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className="bg-[#07070a] text-zinc-100 min-h-screen antialiased flex flex-col selection:bg-white/20 selection:text-white">
         <AuthProvider>
+          <OfflineBanner />
           <LocationProvider>
             <DynamicFavicon />
             {children}
