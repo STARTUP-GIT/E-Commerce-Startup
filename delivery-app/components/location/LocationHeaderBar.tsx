@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useLocation } from "./LocationContext";
-import { MapPin, Crosshair, ChevronDown, CheckCircle2, Clock, ShieldAlert } from "lucide-react";
+import { MapPin, Crosshair, ChevronDown } from "lucide-react";
 
 export function LocationHeaderBar() {
   const { userLocation, openSelectorModal, detectGpsLocation, isDetecting } = useLocation();
@@ -16,19 +16,21 @@ export function LocationHeaderBar() {
     "Select Location";
 
   return (
-    <div className="flex items-center gap-1.5 sm:gap-2">
+    <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
       <button
+        type="button"
         onClick={openSelectorModal}
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs text-zinc-300 hover:text-white transition-all group max-w-[200px] sm:max-w-none"
+        aria-label={`Current location: ${locationLabel}. Click to change.`}
+        className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/10 text-xs text-zinc-300 hover:text-white transition-all group shrink-0"
       >
-        <MapPin className="h-3.5 w-3.5 text-zinc-400 group-hover:text-white shrink-0" />
-        <span className="truncate max-w-[110px] sm:max-w-[180px] font-medium text-[11px] sm:text-xs">
+        <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-zinc-400 group-hover:text-white shrink-0" />
+        <span className="truncate max-w-[64px] min-[360px]:max-w-[85px] min-[420px]:max-w-[120px] sm:max-w-[160px] md:max-w-[190px] font-medium text-[11px] sm:text-xs">
           {locationLabel}
         </span>
 
         {userLocation && (
           <span
-            className={`hidden sm:inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium ${
+            className={`hidden xl:inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
               isEligible
                 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                 : isMaintenance
@@ -45,10 +47,12 @@ export function LocationHeaderBar() {
 
       {!userLocation?.district && (
         <button
+          type="button"
           onClick={detectGpsLocation}
           disabled={isDetecting}
           title="Detect current location"
-          className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-zinc-400 hover:text-white transition-colors disabled:opacity-50"
+          aria-label="Detect GPS location"
+          className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/10 text-zinc-400 hover:text-white transition-colors disabled:opacity-50 shrink-0 hidden min-[540px]:flex items-center justify-center"
         >
           <Crosshair className={`h-3.5 w-3.5 ${isDetecting ? "animate-spin" : ""}`} />
         </button>
